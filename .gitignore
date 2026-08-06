@@ -1,0 +1,6 @@
+/vendor/
+/.env
+/storage/database.sqlite
+/storage/logs/*.log
+.DS_Store
+Thumbs.db

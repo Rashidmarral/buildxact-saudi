@@ -1,0 +1,14 @@
+{
+    "name": "buildxact-saudi/platform",
+    "description": "Construction management & job costing SaaS platform for the Saudi market",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    }
+}
