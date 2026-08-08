@@ -12,8 +12,8 @@
 
     <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div class="grid gap-12 lg:grid-cols-2">
-            <div class="reveal-scale flex aspect-square items-center justify-center rounded-3xl bg-gradient-to-br from-leaf-100 to-leaf-50">
-                <x-icon name="pill" class="h-28 w-28 animate-float text-leaf-500" />
+            <div class="reveal-scale flex aspect-square items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-leaf-100 to-leaf-50 p-10">
+                <x-illustration name="medicines" class="w-full max-w-xs animate-float" />
             </div>
 
             <div class="hero-fade-in">

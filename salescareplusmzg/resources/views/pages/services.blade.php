@@ -13,6 +13,23 @@
         </div>
     </section>
 
+    <section class="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
+        <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div class="reveal-scale flex aspect-[16/10] items-center justify-center overflow-hidden rounded-3xl bg-leaf-50 p-8">
+                <x-illustration name="delivery" class="w-full max-w-md" />
+            </div>
+            <div class="reveal">
+                <span class="text-sm font-semibold uppercase tracking-wide text-leaf-600">Reliable, Every Route</span>
+                <h2 class="mt-3 text-3xl font-bold text-leaf-950">Built for the Realities of Local Distribution</h2>
+                <p class="mt-5 leading-relaxed text-stone-600">
+                    Muzaffargarh's pharmacies can't afford stock-outs. That's why our services are
+                    designed around dependable fundamentals — climate-controlled storage, verified
+                    sourcing, and a delivery fleet that runs on schedule, rain or shine.
+                </p>
+            </div>
+        </div>
+    </section>
+
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div class="reveal-stagger grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             @foreach ([

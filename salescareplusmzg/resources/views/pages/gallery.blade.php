@@ -14,27 +14,28 @@
     </section>
 
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div class="reveal-stagger grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div class="reveal-stagger grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             @foreach ([
-                ['icon' => 'warehouse', 'label' => 'Our Warehouse', 'bg' => 'bg-leaf-600'],
-                ['icon' => 'thermometer', 'label' => 'Cold-Chain Storage', 'bg' => 'bg-sand-500'],
-                ['icon' => 'truck', 'label' => 'Delivery Fleet', 'bg' => 'bg-leaf-800'],
-                ['icon' => 'pill', 'label' => 'Product Handling', 'bg' => 'bg-leaf-500'],
-                ['icon' => 'users', 'label' => 'Our Team', 'bg' => 'bg-sand-600'],
-                ['icon' => 'file-check', 'label' => 'Quality Checks', 'bg' => 'bg-leaf-700'],
-                ['icon' => 'leaf', 'label' => 'Community Outreach', 'bg' => 'bg-leaf-900'],
-                ['icon' => 'shield', 'label' => 'Compliance Audits', 'bg' => 'bg-sand-700'],
+                ['illustration' => 'warehouse', 'label' => 'Our Warehouse', 'text' => 'GDP-compliant storage in Muzaffargarh, organised by category and batch.'],
+                ['illustration' => 'cold-chain', 'label' => 'Cold-Chain Storage', 'text' => 'Monitored temperature-controlled units for sensitive medicines.'],
+                ['illustration' => 'delivery', 'label' => 'Delivery Fleet', 'text' => 'Daily routes covering Muzaffargarh, Alipur, Kot Addu and Jatoi.'],
+                ['illustration' => 'medicines', 'label' => 'Medicine Handling', 'text' => 'Careful picking and packing across our full product catalogue.'],
+                ['illustration' => 'pharmacist', 'label' => 'Quality Checks', 'text' => 'Batch verification and quality assurance before every dispatch.'],
+                ['illustration' => 'team', 'label' => 'Our Team', 'text' => 'The people behind every order, from warehouse to doorstep.'],
             ] as $item)
-                <div class="group relative aspect-square overflow-hidden rounded-2xl {{ $item['bg'] }} text-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-                    <div class="flex h-full w-full flex-col items-center justify-center gap-3 p-4 text-center transition-transform duration-300 group-hover:scale-110">
-                        <x-icon :name="$item['icon']" class="h-10 w-10" />
-                        <span class="text-sm font-semibold">{{ $item['label'] }}</span>
+                <div class="group overflow-hidden rounded-2xl border border-leaf-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <div class="flex aspect-[4/3] items-center justify-center bg-leaf-50 p-6 transition-transform duration-300 group-hover:scale-105">
+                        <x-illustration :name="$item['illustration']" class="h-full w-full" />
+                    </div>
+                    <div class="p-5">
+                        <h3 class="font-semibold text-stone-800">{{ $item['label'] }}</h3>
+                        <p class="mt-1.5 text-sm leading-relaxed text-stone-500">{{ $item['text'] }}</p>
                     </div>
                 </div>
             @endforeach
         </div>
         <p class="reveal mt-10 text-center text-sm text-stone-500">
-            Photos from our facility are being updated regularly — contact us to arrange a warehouse visit.
+            Real photos from our facility are coming soon — contact us to arrange a warehouse visit in the meantime.
         </p>
     </section>
 

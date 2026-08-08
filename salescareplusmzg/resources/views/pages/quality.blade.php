@@ -13,6 +13,24 @@
         </div>
     </section>
 
+    <section class="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
+        <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div class="reveal">
+                <span class="text-sm font-semibold uppercase tracking-wide text-leaf-600">Cold-Chain Discipline</span>
+                <h2 class="mt-3 text-3xl font-bold text-leaf-950">Every Degree Monitored, Every Batch Tracked</h2>
+                <p class="mt-5 leading-relaxed text-stone-600">
+                    Temperature-sensitive medicines lose potency fast when handling slips. Our
+                    storage units are monitored continuously, and every batch is logged from
+                    receipt to dispatch — so what leaves our warehouse is exactly as effective as
+                    when it arrived.
+                </p>
+            </div>
+            <div class="reveal-scale flex aspect-[4/3] items-center justify-center overflow-hidden rounded-3xl bg-leaf-50 p-6">
+                <x-illustration name="cold-chain" class="h-full max-w-sm" />
+            </div>
+        </div>
+    </section>
+
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div class="reveal-stagger grid grid-cols-1 gap-6 sm:grid-cols-2">
             @foreach ($certifications as $certification)

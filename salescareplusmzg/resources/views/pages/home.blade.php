@@ -41,10 +41,12 @@
 
             <div class="reveal-scale relative">
                 <div class="aspect-[4/5] w-full overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-leaf-600 via-leaf-700 to-leaf-900 shadow-2xl">
-                    <div class="flex h-full w-full flex-col items-center justify-center gap-6 p-10 text-center text-leaf-50">
-                        <x-icon name="leaf" class="h-20 w-20 animate-float text-leaf-300" />
+                    <div class="flex h-full w-full flex-col items-center justify-center gap-6 p-8 text-center text-leaf-50">
+                        <div class="animate-float w-full max-w-xs">
+                            <x-illustration name="medicines" class="w-full drop-shadow-xl" />
+                        </div>
                         <p class="text-sm uppercase tracking-[0.3em] text-leaf-300">Nature-Trusted &middot; Quality Assured</p>
-                        <p class="text-2xl font-semibold leading-snug">
+                        <p class="max-w-sm text-lg font-semibold leading-snug">
                             "Health delivered with the same care nature gives — consistent, gentle, dependable."
                         </p>
                     </div>
@@ -87,8 +89,8 @@
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div class="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div class="reveal-scale order-2 grid grid-cols-2 gap-4 lg:order-1">
-                <div class="col-span-2 flex h-48 items-center justify-center rounded-2xl bg-leaf-100 text-leaf-600 transition-transform duration-500 hover:scale-[1.02] sm:h-64">
-                    <x-icon name="warehouse" class="h-16 w-16" />
+                <div class="col-span-2 flex h-48 items-center justify-center overflow-hidden rounded-2xl bg-leaf-50 transition-transform duration-500 hover:scale-[1.02] sm:h-64">
+                    <x-illustration name="warehouse" class="h-full w-full" />
                 </div>
                 <div class="flex h-32 items-center justify-center rounded-2xl bg-sand-100 text-sand-700 transition-transform duration-500 hover:scale-105 sm:h-40">
                     <x-icon name="thermometer" class="h-10 w-10" />

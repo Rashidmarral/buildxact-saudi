@@ -13,6 +13,12 @@
         </div>
     </section>
 
+    <section class="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
+        <div class="reveal-scale flex aspect-[21/9] items-center justify-center overflow-hidden rounded-3xl bg-leaf-50">
+            <x-illustration name="team" class="h-full max-w-xl" />
+        </div>
+    </section>
+
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div class="reveal-stagger grid grid-cols-1 gap-6 md:grid-cols-2">
             @foreach ([
