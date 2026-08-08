@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-leaf-50: #f2faf3;
+    --color-leaf-100: #e0f3e3;
+    --color-leaf-200: #c2e6c8;
+    --color-leaf-300: #94d29e;
+    --color-leaf-400: #5eb56e;
+    --color-leaf-500: #38994c;
+    --color-leaf-600: #277a3a;
+    --color-leaf-700: #1f6130;
+    --color-leaf-800: #1c4d29;
+    --color-leaf-900: #184023;
+    --color-leaf-950: #0a2313;
+
+    --color-sand-50: #fdfaf3;
+    --color-sand-100: #f9f1de;
+    --color-sand-200: #f1e0b7;
+    --color-sand-300: #e6c987;
+    --color-sand-400: #dbae57;
+    --color-sand-500: #cf9736;
+    --color-sand-600: #b57c2a;
+    --color-sand-700: #935f24;
+    --color-sand-800: #784c23;
+    --color-sand-900: #653f20;
+}
+
+@layer utilities {
+    .bg-leaf-pattern {
+        background-image: radial-gradient(circle at 20% 20%, rgba(56, 153, 76, 0.08) 0, transparent 45%),
+            radial-gradient(circle at 80% 0%, rgba(207, 151, 54, 0.08) 0, transparent 40%);
+    }
+
+    .text-balance {
+        text-wrap: balance;
+    }
+}

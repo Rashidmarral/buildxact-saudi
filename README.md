@@ -1,5 +1,9 @@
 # BuildXact Saudi
 
+> **Note:** This repository also hosts an unrelated project in the [`salescareplusmzg/`](./salescareplusmzg)
+> subfolder — a separate Laravel + MySQL portfolio website for Sales Care Plus MZG, a medicine
+> distribution company in Muzaffargarh, Pakistan. See that folder's own README for setup.
+
 A construction management & job costing SaaS platform for Saudi Arabia's contractors,
 builders, and developers — inspired by [BuildXact](https://www.buildxact.com/), rebuilt from
 scratch in plain PHP for the Saudi market (bilingual Arabic/English, SAR pricing, ZATCA-ready
