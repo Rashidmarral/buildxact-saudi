@@ -41,3 +41,115 @@
         text-wrap: balance;
     }
 }
+
+/* ---- Scroll / entrance animations ---- */
+
+@keyframes fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes leaf-sway {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+}
+
+/* Hidden-until-revealed state only applies once js-ready confirms the reveal
+   script is present — otherwise content stays visible (progressive enhancement,
+   no content lost if JS fails to load). */
+.js-ready .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.js-ready .reveal-scale {
+    opacity: 0;
+    transform: scale(0.94);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-scale.is-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.reveal-stagger.is-visible > * {
+    animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reveal-stagger.is-visible > *:nth-child(1) { animation-delay: 0ms; }
+.reveal-stagger.is-visible > *:nth-child(2) { animation-delay: 80ms; }
+.reveal-stagger.is-visible > *:nth-child(3) { animation-delay: 160ms; }
+.reveal-stagger.is-visible > *:nth-child(4) { animation-delay: 240ms; }
+.reveal-stagger.is-visible > *:nth-child(5) { animation-delay: 320ms; }
+.reveal-stagger.is-visible > *:nth-child(6) { animation-delay: 400ms; }
+.reveal-stagger.is-visible > *:nth-child(7) { animation-delay: 480ms; }
+.reveal-stagger.is-visible > *:nth-child(8) { animation-delay: 560ms; }
+
+.animate-float {
+    animation: float-slow 5s ease-in-out infinite;
+}
+
+.animate-leaf-sway {
+    animation: leaf-sway 4s ease-in-out infinite;
+    transform-origin: bottom center;
+}
+
+.hero-fade-in {
+    animation: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-fade-in-delay-1 { animation-delay: 120ms; }
+.hero-fade-in-delay-2 { animation-delay: 240ms; }
+.hero-fade-in-delay-3 { animation-delay: 360ms; }
+
+@media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal-scale,
+    .reveal-stagger > *,
+    .hero-fade-in,
+    .hero-fade-in-delay-1,
+    .hero-fade-in-delay-2,
+    .hero-fade-in-delay-3,
+    .animate-float,
+    .animate-leaf-sway {
+        animation: none !important;
+        transition: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}

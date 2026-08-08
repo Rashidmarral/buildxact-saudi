@@ -6,16 +6,17 @@
     <title>{{ $title ?? config('company.name') }} — {{ config('company.tagline') }}</title>
     <meta name="description" content="{{ $description ?? 'Sales Care Plus MZG is a trusted pharmaceutical distribution company based in Muzaffargarh, Pakistan, supplying quality medicines to pharmacies, hospitals and clinics across the region.' }}">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23277a3a%22><path d=%22M6 20C4 12 8 4 20 4c0 12-8 16-16 16Z%22/></svg>">
+    <script>document.documentElement.classList.add('js-ready');</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-white text-stone-800 antialiased">
 
     <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded focus:bg-leaf-700 focus:px-4 focus:py-2 focus:text-white">Skip to content</a>
 
-    <header class="sticky top-0 z-40 border-b border-leaf-100 bg-white/90 backdrop-blur">
+    <header data-site-header class="sticky top-0 z-40 border-b border-leaf-100 bg-white/90 backdrop-blur transition-shadow duration-300">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-            <a href="{{ route('home') }}" class="flex items-center gap-2.5">
-                <span class="flex h-10 w-10 items-center justify-center rounded-full bg-leaf-600 text-white">
+            <a href="{{ route('home') }}" class="group flex items-center gap-2.5">
+                <span class="flex h-10 w-10 items-center justify-center rounded-full bg-leaf-600 text-white transition-transform duration-300 group-hover:rotate-12">
                     <x-icon name="leaf" class="h-6 w-6" />
                 </span>
                 <span class="leading-tight">
@@ -37,21 +38,24 @@
                     ];
                 @endphp
                 @foreach ($navLinks as $routeName => $label)
+                    @php $isActive = request()->routeIs($routeName) || request()->routeIs($routeName.'.*'); @endphp
                     <a href="{{ route($routeName) }}"
-                       class="transition hover:text-leaf-700 {{ request()->routeIs($routeName) || request()->routeIs($routeName.'.*') ? 'text-leaf-700 font-semibold' : '' }}">
+                       class="group relative py-1 transition hover:text-leaf-700 {{ $isActive ? 'text-leaf-700 font-semibold' : '' }}">
                         {{ $label }}
+                        <span class="absolute -bottom-0.5 left-0 h-0.5 rounded-full bg-leaf-600 transition-all duration-300 {{ $isActive ? 'w-full' : 'w-0 group-hover:w-full' }}"></span>
                     </a>
                 @endforeach
             </nav>
 
             <div class="hidden lg:block">
-                <a href="{{ route('contact') }}" class="inline-flex items-center gap-2 rounded-full bg-leaf-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-leaf-700">
-                    Contact Us <x-icon name="arrow-right" class="h-4 w-4" />
+                <a href="{{ route('contact') }}" class="inline-flex items-center gap-2 rounded-full bg-leaf-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-leaf-700 hover:shadow-lg">
+                    Contact Us
+                    <x-icon name="arrow-right" class="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </a>
             </div>
 
             <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu"
-                class="inline-flex items-center justify-center rounded-md p-2 text-leaf-700 lg:hidden">
+                class="inline-flex items-center justify-center rounded-md p-2 text-leaf-700 transition hover:bg-leaf-50 lg:hidden">
                 <span class="sr-only">Toggle navigation</span>
                 <x-icon id="nav-icon-open" name="menu" class="h-7 w-7" />
                 <x-icon id="nav-icon-close" name="close" class="hidden h-7 w-7" />
@@ -62,11 +66,11 @@
             <div class="flex flex-col gap-1">
                 @foreach ($navLinks as $routeName => $label)
                     <a href="{{ route($routeName) }}"
-                       class="rounded-md px-3 py-2 text-sm font-medium {{ request()->routeIs($routeName) || request()->routeIs($routeName.'.*') ? 'bg-leaf-50 text-leaf-700' : 'text-stone-700 hover:bg-leaf-50' }}">
+                       class="rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ request()->routeIs($routeName) || request()->routeIs($routeName.'.*') ? 'bg-leaf-50 text-leaf-700' : 'text-stone-700 hover:bg-leaf-50' }}">
                         {{ $label }}
                     </a>
                 @endforeach
-                <a href="{{ route('contact') }}" class="mt-2 rounded-md bg-leaf-600 px-3 py-2.5 text-center text-sm font-semibold text-white">
+                <a href="{{ route('contact') }}" class="mt-2 rounded-md bg-leaf-600 px-3 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-leaf-700">
                     Contact Us
                 </a>
             </div>
