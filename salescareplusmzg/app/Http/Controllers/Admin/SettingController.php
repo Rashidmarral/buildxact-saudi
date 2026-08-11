@@ -20,6 +20,11 @@ class SettingController extends Controller
         'maintenance_mode_enabled' => ['Maintenance Mode', 'maintenance', 'checkbox'],
         'maintenance_message' => ['Maintenance Message', 'maintenance', 'textarea'],
 
+        'cookie_banner_enabled' => ['Show Cookie Consent Banner', 'privacy', 'checkbox'],
+        'cookie_banner_text' => ['Cookie Banner Text', 'privacy', 'textarea'],
+        'analytics_ga_id' => ['Google Analytics Measurement ID', 'privacy', 'text'],
+        'analytics_meta_pixel_id' => ['Meta Pixel ID', 'privacy', 'text'],
+
         'company_name' => ['Company Name', 'company', 'text'],
         'company_short_name' => ['Short Name (header logo)', 'company', 'text'],
         'company_legal_name' => ['Legal Name (footer copyright)', 'company', 'text'],

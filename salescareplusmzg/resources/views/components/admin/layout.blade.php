@@ -16,6 +16,7 @@
             'admin.content-items.groups' => ['Page Content', 'file-check'],
             'admin.nav-items.index' => ['Navigation', 'menu'],
             'admin.settings.edit' => ['Site Settings', 'badge-check'],
+            'admin.activity-log.index' => ['Activity Log', 'clock'],
         ];
         $contentNav = [
             'admin.product-categories.index' => ['Product Categories', 'pill'],

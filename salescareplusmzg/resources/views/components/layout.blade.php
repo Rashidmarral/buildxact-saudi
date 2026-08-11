@@ -49,6 +49,18 @@
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23173c36%22><rect x=%223%22 y=%223%22 width=%2218%22 height=%2218%22 rx=%225%22/><path d=%22M8 12h8M12 8v8%22 stroke=%22%23e35f38%22 stroke-width=%222%22/></svg>">
     <script>document.documentElement.classList.add('js-ready');</script>
+    @php
+        $__gaId = \App\Models\Setting::get('analytics_ga_id');
+        $__pixelId = \App\Models\Setting::get('analytics_meta_pixel_id');
+    @endphp
+    @if ($__gaId || $__pixelId)
+        <script>
+            window.__siteAnalytics = {
+                gaId: @json($__gaId),
+                pixelId: @json($__pixelId),
+            };
+        </script>
+    @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @if (config('company.theme.primary') || config('company.theme.accent'))
         <style>
@@ -353,6 +365,32 @@
             <span class="absolute inset-0 rounded-full bg-emerald-500 opacity-75 animate-ping"></span>
             <svg viewBox="0 0 24 24" class="relative h-7 w-7" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.79.47 3.47 1.29 4.93L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.15c-.24.68-1.39 1.32-1.92 1.4-.49.08-1.11.11-1.79-.11-.41-.13-.94-.31-1.62-.6-2.84-1.23-4.69-4.1-4.83-4.29-.14-.19-1.15-1.53-1.15-2.92 0-1.39.73-2.07.99-2.35.26-.28.57-.35.76-.35.19 0 .38 0 .55.01.18.01.41-.07.64.49.24.58.81 1.99.88 2.13.07.14.12.31.02.5-.09.19-.14.31-.28.47-.14.16-.29.36-.42.48-.14.13-.28.28-.12.55.16.28.71 1.17 1.53 1.9 1.05.94 1.94 1.23 2.21 1.37.28.14.44.12.6-.07.16-.19.68-.79.87-1.06.18-.28.37-.23.62-.14.26.09 1.63.77 1.91.91.28.14.47.21.54.33.07.12.07.68-.17 1.36Z"/></svg>
         </a>
+    @endif
+
+    @if (\App\Models\Setting::get('cookie_banner_enabled', '1') === '1')
+        @php
+            $__privacyPage = \App\Models\Page::where('slug', 'privacy-policy')->where('is_published', true)->first();
+        @endphp
+        <div id="cookie-consent-banner" class="fixed inset-x-0 bottom-0 z-50 hidden">
+            <div class="mx-auto max-w-4xl p-4">
+                <div class="flex flex-col items-center gap-4 rounded-2xl bg-teal-950 p-5 shadow-2xl ring-1 ring-white/10 sm:flex-row">
+                    <p class="text-sm leading-relaxed text-teal-200">
+                        {{ \App\Models\Setting::get('cookie_banner_text', "We use cookies to improve your experience on our site and understand how it's used.") }}
+                        @if ($__privacyPage)
+                            <a href="{{ route('page.show', $__privacyPage->slug) }}" class="font-medium text-coral-400 underline hover:text-coral-300">Learn more</a>
+                        @endif
+                    </p>
+                    <div class="flex shrink-0 items-center gap-3">
+                        <button type="button" id="cookie-consent-decline" class="rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-teal-200 transition hover:bg-white/10">
+                            Decline
+                        </button>
+                        <button type="button" id="cookie-consent-accept" class="rounded-full bg-coral-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-coral-400">
+                            Accept
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
 </body>

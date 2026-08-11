@@ -17,7 +17,73 @@ document.addEventListener('DOMContentLoaded', () => {
     initCounters();
     initHeaderShadow();
     initDropdowns();
+    initCookieConsent();
 });
+
+const COOKIE_CONSENT_KEY = 'scp_cookie_consent';
+
+function initCookieConsent() {
+    const banner = document.getElementById('cookie-consent-banner');
+    const stored = window.localStorage.getItem(COOKIE_CONSENT_KEY);
+
+    if (stored === 'accepted') {
+        loadAnalyticsScripts();
+    }
+
+    if (!banner || stored) return;
+
+    banner.classList.remove('hidden');
+
+    const accept = document.getElementById('cookie-consent-accept');
+    const decline = document.getElementById('cookie-consent-decline');
+
+    accept?.addEventListener('click', () => {
+        window.localStorage.setItem(COOKIE_CONSENT_KEY, 'accepted');
+        banner.classList.add('hidden');
+        loadAnalyticsScripts();
+    });
+
+    decline?.addEventListener('click', () => {
+        window.localStorage.setItem(COOKIE_CONSENT_KEY, 'declined');
+        banner.classList.add('hidden');
+    });
+}
+
+let analyticsLoaded = false;
+
+function loadAnalyticsScripts() {
+    if (analyticsLoaded) return;
+    analyticsLoaded = true;
+
+    const config = window.__siteAnalytics || {};
+
+    if (config.gaId) {
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(config.gaId)}`;
+        document.head.appendChild(script);
+
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function gtag() { window.dataLayer.push(arguments); };
+        window.gtag('js', new Date());
+        window.gtag('config', config.gaId);
+    }
+
+    if (config.pixelId) {
+        /* eslint-disable */
+        !function (f, b, e, v, n, t, s) {
+            if (f.fbq) return; n = f.fbq = function () {
+                n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+            };
+            if (!f._fbq) f._fbq = n; n.push = n; n.loaded = true; n.version = '2.0';
+            n.queue = []; t = b.createElement(e); t.async = true; t.src = v;
+            s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+        }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+        /* eslint-enable */
+        window.fbq('init', config.pixelId);
+        window.fbq('track', 'PageView');
+    }
+}
 
 function initDropdowns() {
     const dropdowns = document.querySelectorAll('[data-dropdown]');

@@ -57,6 +57,7 @@ public page.
 - `settings` — key/value store for all admin-editable site-wide text, branding and theme colors
 - `nav_items`, `pages`, `page_sections` — the dynamic navigation and page-builder tables behind the
   admin CMS (see Admin Panel section below)
+- `activity_logs` — an audit trail of every admin create/update/delete, across all content types
 
 All content is seeded via `database/seeders/*` with real, company-specific copy — no Lorem Ipsum.
 Seeded content is a starting point — once the site is running, everything below is editable from
@@ -85,6 +86,8 @@ tinker session needed.
 | Area | What it controls |
 |---|---|
 | **Maintenance Mode** | One checkbox in Site Settings shows a branded "we'll be right back" page to every visitor (503 status, so search engines don't deindex the site), with a custom message you control. You stay logged in as admin and can keep browsing/editing the live site while it's on — only the public sees the maintenance page |
+| **Cookie Consent & Analytics** | Toggle the cookie consent banner on/off and edit its text; paste a Google Analytics Measurement ID and/or Meta Pixel ID — both only start tracking after a visitor clicks Accept, never before |
+| **Activity Log** | A read-only trail of every create/update/delete made from the admin panel — who, what, and when, across every content type |
 | **Branding & Logo** | Upload/replace the site logo (shown in the header, footer and admin sidebar — falls back to a text wordmark if none is set) |
 | **Theme Colors** | Pick a primary and accent brand color (native color pickers) — the entire site's color palette (11 shades of each, buttons, links, backgrounds, everywhere) regenerates instantly, no rebuild needed. This is the fastest way to re-skin the whole site for a different company/brand |
 | **Site Settings** | Company name, short name, legal name, tagline, contact email/phone/WhatsApp, address, business hours, footer "about" blurb, homepage stats, coverage areas, social media links, a homepage hero video banner (upload a file or paste an `.mp4` URL), and an SEO social-share image used for Open Graph/Twitter link previews |
@@ -141,6 +144,14 @@ from — so no CSS rebuild is required when an admin changes the brand color.
   succeed from the bot's perspective so it doesn't know to retry differently.
 - **Custom branded 404 page** instead of Laravel's default error page.
 - **Lazy-loaded images** on galleries, catalogs and card grids for faster page loads.
+- **Cookie consent banner** shown once per visitor (remembered in `localStorage`), linking to the
+  Privacy Policy page. **Google Analytics and Meta Pixel only load after a visitor clicks Accept**
+  — declining, or not answering, keeps both scripts from ever loading. Both are entirely optional:
+  leave the Measurement ID / Pixel ID blank in Settings and nothing analytics-related loads at all.
+- **Admin activity log** (`/admin/activity-log`) — every create/update/delete made from the admin
+  panel is recorded with who did it and what changed, across all content types. Seeded demo data
+  never appears here since seeders don't run as a logged-in admin — the log only ever shows real
+  admin activity.
 
 ### Reusing this codebase for a new client
 

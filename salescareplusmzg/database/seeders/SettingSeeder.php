@@ -16,6 +16,14 @@ class SettingSeeder extends Seeder
                 'maintenance', 'textarea', 'Maintenance Message',
             ],
 
+            'cookie_banner_enabled' => ['1', 'privacy', 'checkbox', 'Show Cookie Consent Banner'],
+            'cookie_banner_text' => [
+                "We use cookies to improve your experience on our site and understand how it's used.",
+                'privacy', 'textarea', 'Cookie Banner Text',
+            ],
+            'analytics_ga_id' => [null, 'privacy', 'text', 'Google Analytics Measurement ID'],
+            'analytics_meta_pixel_id' => [null, 'privacy', 'text', 'Meta Pixel ID'],
+
             'company_name' => ['Sales Care Plus MZG', 'company', 'text', 'Company Name'],
             'company_short_name' => ['SalesCare+ MZG', 'company', 'text', 'Short Name (header logo)'],
             'company_legal_name' => ['Sales Care Plus MZG (Pvt) Ltd.', 'company', 'text', 'Legal Name (footer copyright)'],
