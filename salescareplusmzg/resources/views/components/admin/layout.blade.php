@@ -13,6 +13,7 @@
         $adminNav = [
             'admin.dashboard' => ['Dashboard', 'globe'],
             'admin.pages.index' => ['Pages', 'file-check'],
+            'admin.content-items.groups' => ['Page Content', 'file-check'],
             'admin.nav-items.index' => ['Navigation', 'menu'],
             'admin.settings.edit' => ['Site Settings', 'badge-check'],
         ];
@@ -20,6 +21,7 @@
             'admin.product-categories.index' => ['Product Categories', 'pill'],
             'admin.products.index' => ['Products', 'pill'],
             'admin.principals.index' => ['Principals', 'building'],
+            'admin.client-logos.index' => ['Our Clients', 'building'],
             'admin.testimonials.index' => ['Testimonials', 'quote'],
             'admin.certifications.index' => ['Certifications', 'badge-check'],
             'admin.team-members.index' => ['Team Members', 'users'],
@@ -47,7 +49,7 @@
                     <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">General</p>
                     <div class="mt-1 space-y-0.5">
                         @foreach ($adminNav as $route => [$label, $icon])
-                            <a href="{{ route($route) }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium transition {{ request()->routeIs($route) || request()->routeIs(str($route)->before('.index').'.*') ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-slate-50' }}">
+                            <a href="{{ route($route) }}" class="flex items-center gap-2.5 rounded-lg px-3 py-2 font-medium transition {{ request()->routeIs($route) || request()->routeIs(str($route)->before('.index').'.*') || request()->routeIs('admin.content-items.*') && $route === 'admin.content-items.groups' ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-slate-50' }}">
                                 <x-icon :name="$icon" class="h-4 w-4" /> {{ $label }}
                             </a>
                         @endforeach

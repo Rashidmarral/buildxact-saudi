@@ -94,6 +94,8 @@
         </div>
     </section>
 
+    <x-client-logo-strip />
+
     {{-- Services --}}
     <section class="bg-slate-50 py-20">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -109,7 +111,7 @@
                     ['icon' => 'headset', 'title' => 'Customer Support', 'text' => 'Dedicated customer service team available to handle enquiries, orders and support.'],
                     ['icon' => 'shield', 'title' => 'Quality Assurance', 'text' => 'Rigorous quality control preserving product integrity that meets the highest standards.'],
                 ] as $service)
-                    <div class="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1.5 hover:shadow-lg">
+                    <div class="hover-tilt-card group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition duration-300 hover:shadow-lg">
                         <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-900 text-coral-400 transition-transform duration-300 group-hover:scale-110">
                             <x-icon :name="$service['icon']" class="h-6 w-6" />
                         </span>

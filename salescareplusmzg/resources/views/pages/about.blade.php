@@ -5,9 +5,9 @@
             <span class="hero-fade-in inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-coral-300 ring-1 ring-white/10">
                 <x-icon name="building" class="h-4 w-4" /> About Us
             </span>
-            <h1 class="hero-fade-in hero-fade-in-delay-1 mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl">A Decade of Pharmaceutical Excellence</h1>
+            <h1 class="hero-fade-in hero-fade-in-delay-1 mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl">{{ \App\Models\Setting::get('about_hero_heading', 'A Decade of Pharmaceutical Excellence') }}</h1>
             <p class="hero-fade-in hero-fade-in-delay-2 mt-6 text-lg leading-relaxed text-teal-200">
-                Headquartered in Muzaffargarh, serving healthcare providers across South Punjab.
+                {{ \App\Models\Setting::get('about_hero_subheading') }}
             </p>
         </div>
     </section>
@@ -15,36 +15,26 @@
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div class="grid gap-12 lg:grid-cols-2 lg:items-start">
             <div class="reveal">
-                <span class="text-sm font-semibold uppercase tracking-wide text-coral-600">Our Story</span>
-                <h2 class="mt-3 text-3xl font-bold text-teal-900">Building Trust Through Quality Distribution</h2>
-                <p class="mt-5 leading-relaxed text-slate-600">
-                    Headquartered in Muzaffargarh, Sales Care Plus MZG has built a distinguished
-                    reputation for reliability, professionalism and excellence since {{ config('company.founded_year') }}.
-                    What began as a single-warehouse operation has grown into a full-scale distribution
-                    network covering Muzaffargarh, Alipur, Kot Addu, Jatoi and the surrounding tehsils.
-                </p>
-                <p class="mt-4 leading-relaxed text-slate-600">
-                    With a dedicated team of professionals and a growing network of principal
-                    manufacturers, we ensure the consistent availability of quality healthcare
-                    products across our coverage area — every order, every time.
-                </p>
-                <ul class="mt-8 space-y-4">
-                    @foreach ([
-                        ['title' => 'Quality Assurance', 'text' => 'We maintain strict quality control standards for all distributed products.'],
-                        ['title' => 'Cold Chain Management', 'text' => 'Temperature-controlled storage and transportation for sensitive products.'],
-                        ['title' => 'Traceability', 'text' => 'Complete batch traceability from manufacturer to end customer.'],
-                    ] as $point)
-                        <li class="flex items-start gap-3">
-                            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-coral-100 text-coral-600">
-                                <x-icon name="check-circle" class="h-4 w-4" />
-                            </span>
-                            <div>
-                                <p class="font-semibold text-teal-900">{{ $point['title'] }}</p>
-                                <p class="text-sm text-slate-500">{{ $point['text'] }}</p>
-                            </div>
-                        </li>
-                    @endforeach
-                </ul>
+                <span class="text-sm font-semibold uppercase tracking-wide text-coral-600">{{ \App\Models\Setting::get('about_story_tagline') }}</span>
+                <h2 class="mt-3 text-3xl font-bold text-teal-900">{{ \App\Models\Setting::get('about_story_heading') }}</h2>
+                @foreach (explode("\n\n", (string) \App\Models\Setting::get('about_story_body')) as $paragraph)
+                    <p class="mt-4 leading-relaxed text-slate-600 first:mt-5">{{ $paragraph }}</p>
+                @endforeach
+                @if ($highlights->isNotEmpty())
+                    <ul class="mt-8 space-y-4">
+                        @foreach ($highlights as $point)
+                            <li class="flex items-start gap-3">
+                                <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-coral-100 text-coral-600">
+                                    <x-icon name="check-circle" class="h-4 w-4" />
+                                </span>
+                                <div>
+                                    <p class="font-semibold text-teal-900">{{ $point->title }}</p>
+                                    <p class="text-sm text-slate-500">{{ $point->description }}</p>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
 
             <div class="reveal-stagger grid grid-cols-2 gap-4 rounded-3xl bg-slate-50 p-6">
@@ -88,40 +78,21 @@
         </section>
     @endif
 
-    <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div class="reveal-stagger grid gap-6 md:grid-cols-3">
-            <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-                <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-900 text-coral-400">
-                    <x-icon name="badge-check" class="h-6 w-6" />
-                </span>
-                <h3 class="mt-5 text-xl font-bold text-teal-900">Our Mission</h3>
-                <p class="mt-3 leading-relaxed text-slate-600">
-                    To ensure the consistent availability of quality healthcare products across
-                    South Punjab through ethical and reliable distribution practices.
-                </p>
+    @if ($values->isNotEmpty())
+        <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+            <div class="reveal-stagger grid gap-6 md:grid-cols-3">
+                @foreach ($values as $value)
+                    <div class="hover-tilt-card rounded-2xl border border-slate-100 bg-white p-8 shadow-sm transition duration-300 hover:shadow-lg">
+                        <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-900 text-coral-400">
+                            <x-icon :name="$value->icon ?: 'badge-check'" class="h-6 w-6" />
+                        </span>
+                        <h3 class="mt-5 text-xl font-bold text-teal-900">{{ $value->title }}</h3>
+                        <p class="mt-3 leading-relaxed text-slate-600">{{ $value->description }}</p>
+                    </div>
+                @endforeach
             </div>
-            <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-                <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-900 text-coral-400">
-                    <x-icon name="globe" class="h-6 w-6" />
-                </span>
-                <h3 class="mt-5 text-xl font-bold text-teal-900">Our Vision</h3>
-                <p class="mt-3 leading-relaxed text-slate-600">
-                    To be the most trusted pharmaceutical distribution partner in the region,
-                    setting benchmarks for reliability, professionalism and excellence.
-                </p>
-            </div>
-            <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-                <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-900 text-coral-400">
-                    <x-icon name="heart" class="h-6 w-6" />
-                </span>
-                <h3 class="mt-5 text-xl font-bold text-teal-900">Our Values</h3>
-                <p class="mt-3 leading-relaxed text-slate-600">
-                    Integrity, quality, customer-centricity, and continuous improvement in
-                    everything we do.
-                </p>
-            </div>
-        </div>
-    </section>
+        </section>
+    @endif
 
     @if ($team->isNotEmpty())
         <section class="bg-teal-950 py-20 text-white">

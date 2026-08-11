@@ -40,6 +40,38 @@ class SettingSeeder extends Seeder
             'social_linkedin' => ['https://linkedin.com/company/salescareplusmzg', 'social', 'text', 'LinkedIn URL'],
             'social_twitter' => ['https://twitter.com/salescareplusmzg', 'social', 'text', 'Twitter / X URL'],
             'home_hero_video_url' => [null, 'hero', 'text', 'Home Hero Video URL (mp4 link, optional)'],
+
+            'about_hero_heading' => ['A Decade of Pharmaceutical Excellence', 'about', 'text', 'Hero Heading'],
+            'about_hero_subheading' => ['Headquartered in Muzaffargarh, serving healthcare providers across South Punjab.', 'about', 'textarea', 'Hero Subheading'],
+            'about_story_tagline' => ['Our Story', 'about', 'text', 'Story Section Tagline'],
+            'about_story_heading' => ['Building Trust Through Quality Distribution', 'about', 'text', 'Story Section Heading'],
+            'about_story_body' => [
+                "Headquartered in Muzaffargarh, Sales Care Plus MZG has built a distinguished reputation for reliability, professionalism and excellence since 2014. What began as a single-warehouse operation has grown into a full-scale distribution network covering Muzaffargarh, Alipur, Kot Addu, Jatoi and the surrounding tehsils.\n\nWith a dedicated team of professionals and a growing network of principal manufacturers, we ensure the consistent availability of quality healthcare products across our coverage area — every order, every time.",
+                'about', 'textarea', 'Story Text (blank line between paragraphs)',
+            ],
+
+            'services_hero_heading' => ['End-to-End Distribution Services', 'services', 'text', 'Hero Heading'],
+            'services_hero_subheading' => ["We handle every step between the manufacturer's gate and the pharmacy shelf, so our partners can focus on caring for patients.", 'services', 'textarea', 'Hero Subheading'],
+            'services_intro_tagline' => ['Reliable, Every Route', 'services', 'text', 'Intro Section Tagline'],
+            'services_intro_heading' => ['Built for the Realities of Local Distribution', 'services', 'text', 'Intro Section Heading'],
+            'services_intro_body' => [
+                "Muzaffargarh's pharmacies can't afford stock-outs. That's why our services are designed around dependable fundamentals — climate-controlled storage, verified sourcing, and a delivery fleet that runs on schedule, rain or shine.",
+                'services', 'textarea', 'Intro Text',
+            ],
+
+            'quality_hero_heading' => ['Quality You Can Verify', 'quality', 'text', 'Hero Heading'],
+            'quality_hero_subheading' => ['Every medicine that leaves our warehouse is handled under strict quality and regulatory standards — because the people receiving it deserve nothing less.', 'quality', 'textarea', 'Hero Subheading'],
+            'quality_intro_tagline' => ['Cold-Chain Discipline', 'quality', 'text', 'Intro Section Tagline'],
+            'quality_intro_heading' => ['Every Degree Monitored, Every Batch Tracked', 'quality', 'text', 'Intro Section Heading'],
+            'quality_intro_body' => [
+                'Temperature-sensitive medicines lose potency fast when handling slips. Our storage units are monitored continuously, and every batch is logged from receipt to dispatch — so what leaves our warehouse is exactly as effective as when it arrived.',
+                'quality', 'textarea', 'Intro Text',
+            ],
+
+            'careers_hero_heading' => ['Build Your Career With Us', 'careers', 'text', 'Hero Heading'],
+            'careers_hero_subheading' => ["We're always looking for reliable, caring people to join our warehouse, sales and logistics teams in Muzaffargarh.", 'careers', 'textarea', 'Hero Subheading'],
+            'careers_cta_heading' => ["Don't see a role that fits?", 'careers', 'text', 'Bottom CTA Heading'],
+            'careers_cta_body' => ["Send us your CV through the contact form — we're always happy to hear from motivated people.", 'careers', 'textarea', 'Bottom CTA Text'],
         ];
 
         foreach ($defaults as $key => [$value, $group, $type, $label]) {

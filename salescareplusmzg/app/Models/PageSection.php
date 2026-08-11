@@ -43,6 +43,7 @@ class PageSection extends Model
         'team' => 'Team Members (pulled live from Team Members)',
         'testimonials' => 'Testimonials (pulled live from Testimonials)',
         'faq' => 'FAQ Accordion (pulled live from FAQs)',
+        'client_logos' => 'Client Logo Strip (pulled live from Our Clients)',
     ];
 
     public const ANIMATIONS = [

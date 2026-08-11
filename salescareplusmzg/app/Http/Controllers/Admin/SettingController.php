@@ -41,6 +41,29 @@ class SettingController extends Controller
         'theme_primary_color' => ['Primary Brand Color', 'theme', 'color'],
         'theme_accent_color' => ['Accent Brand Color', 'theme', 'color'],
         'home_hero_video_url' => ['Home Hero Video URL (mp4 link, optional)', 'hero', 'text'],
+
+        'about_hero_heading' => ['Hero Heading', 'about', 'text'],
+        'about_hero_subheading' => ['Hero Subheading', 'about', 'textarea'],
+        'about_story_tagline' => ['Story Section Tagline', 'about', 'text'],
+        'about_story_heading' => ['Story Section Heading', 'about', 'text'],
+        'about_story_body' => ['Story Text (blank line between paragraphs)', 'about', 'textarea'],
+
+        'services_hero_heading' => ['Hero Heading', 'services', 'text'],
+        'services_hero_subheading' => ['Hero Subheading', 'services', 'textarea'],
+        'services_intro_tagline' => ['Intro Section Tagline', 'services', 'text'],
+        'services_intro_heading' => ['Intro Section Heading', 'services', 'text'],
+        'services_intro_body' => ['Intro Text', 'services', 'textarea'],
+
+        'quality_hero_heading' => ['Hero Heading', 'quality', 'text'],
+        'quality_hero_subheading' => ['Hero Subheading', 'quality', 'textarea'],
+        'quality_intro_tagline' => ['Intro Section Tagline', 'quality', 'text'],
+        'quality_intro_heading' => ['Intro Section Heading', 'quality', 'text'],
+        'quality_intro_body' => ['Intro Text', 'quality', 'textarea'],
+
+        'careers_hero_heading' => ['Hero Heading', 'careers', 'text'],
+        'careers_hero_subheading' => ['Hero Subheading', 'careers', 'textarea'],
+        'careers_cta_heading' => ['Bottom CTA Heading', 'careers', 'text'],
+        'careers_cta_body' => ['Bottom CTA Text', 'careers', 'textarea'],
     ];
 
     public function edit()

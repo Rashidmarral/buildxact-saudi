@@ -7,6 +7,10 @@
         'stats' => 'Homepage Stats & Coverage',
         'social' => 'Social Links',
         'hero' => 'Homepage Hero Video Banner',
+        'about' => 'About Page Text',
+        'services' => 'Services Page Text',
+        'quality' => 'Quality Page Text',
+        'careers' => 'Careers Page Text',
     ];
 @endphp
 <x-admin.layout title="Site Settings">

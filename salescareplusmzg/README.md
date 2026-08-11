@@ -41,6 +41,9 @@ the main nav to keep the primary nav short — see `resources/views/components/l
 - `testimonials`, `certifications`, `team_members` — content shown on Home/About/Quality pages
 - `faqs` — grouped by category, shown on `/faq`
 - `gallery_images` — photos shown on `/gallery`, manageable from the admin panel
+- `content_items` — the repeatable cards on Services/Careers/Quality/About (services, "how it
+  works" steps, job openings, quality standards, mission/vision/values), grouped by a `group` column
+- `client_logos` — "Our Clients" trust-bar logos shown on the homepage
 - `contact_messages` — every contact form submission is validated and stored here
 - `newsletter_subscribers` — footer newsletter signup (`POST /newsletter`) stores emails here
 - `settings` — key/value store for all admin-editable site-wide text, branding and theme colors
@@ -79,12 +82,18 @@ tinker session needed.
 | **My Profile** | Update your own admin name, email and password |
 | **Navigation** | Header menu, header "More" dropdown, and both footer link columns — add/remove/reorder links, point them at built-in pages, custom pages, or external URLs, and control which open in a new tab |
 | **Pages** | Create brand-new pages with their own URL (e.g. `/our-story`), built from stackable sections — see full list below — each with its own heading, text, image/video upload, button, background style and **entrance animation** (fade, zoom, 3D tilt, 3D flip, or fade + float) |
+| **Page Content** | The text/headings and repeatable cards on the built-in **Services, Careers, Quality and About** pages — service cards, "how it works" steps, job openings, quality standards, and mission/vision/values — all editable, nothing hardcoded |
 | **Products / Categories** | Full catalog CRUD, including product photos — the public product page shows full specs in a table and the real uploaded photo (falls back to an illustration if none is set) |
 | **Principals** | Manufacturer partners, including logos |
+| **Our Clients** | A "trusted by" client logo strip shown on the homepage (and addable to any custom page) |
 | **Testimonials, Certifications, Team Members, FAQs** | Full CRUD, including team photos |
 | **Gallery** | Upload/replace/reorder photos shown on the public Gallery page |
 | **Contact Messages** | View and manage every contact form submission |
 | **Newsletter Subscribers** | View and remove footer newsletter signups |
+
+**Every public page is now fully admin-editable** — Home, About, Services, Quality, Careers,
+Principals, Catalog, Gallery, FAQ, Contact, plus unlimited custom Pages. None of them require a
+code change to update copy, swap images, or restructure content for a new client.
 
 **Page builder section types:** Hero, Hero with Video Banner, Rich Text, Image + Text, Call to
 Action banner, Card Grid, Image Gallery, Stats Row, Featured Quote, Team Members (pulled live from
@@ -103,19 +112,27 @@ hex values are expanded into full 50–950 shade ramps by `app/Support/ColorPale
 as CSS custom-property overrides in the page `<head>`, which is all Tailwind utility classes read
 from — so no CSS rebuild is required when an admin changes the brand color.
 
-### Rebranding this site for a different company
+### Reusing this codebase for a new client
 
-Because branding, theme colors, contact info, navigation and every content section are database-
-driven, turning this into a different company's site is mostly point-and-click:
+This is the intended workflow if you're standing up a site for a different company on this same
+codebase — deploy once, then do everything else from `/admin`, no code changes:
 
-1. Log in to `/admin`, open **Site Settings**, and update the company name/tagline/contact details,
-   upload the new logo, and pick the two new brand colors.
-2. Update or replace the seeded demo content (Products, Principals, Team, Testimonials, etc.) from
-   their respective admin screens.
-3. Adjust **Navigation** and **Pages** if the new company needs a different set of pages.
+1. **Branding** — Site Settings: company name/short name/legal name/tagline, upload the new logo,
+   pick the two brand colors, set contact details, business hours and the footer "about" blurb.
+2. **Core content** — Products & Categories, Principals, Our Clients, Testimonials, Certifications,
+   Team Members, FAQs, Gallery: clear or edit the seeded demo rows and add the new company's real
+   data from each admin screen.
+3. **Page Content** — update the Services/Careers/Quality/About text and card lists to match the
+   new company's actual services, open roles, quality standards and story.
+4. **Navigation & Pages** — adjust the menu, or add brand-new pages via the page builder, if the
+   new company needs a different site structure.
+5. **Admin access** — change the seeded admin password (or create additional admin users via
+   `php artisan tinker`) before handing the site to the client.
 
-No Blade templates, CSS, or `config/company.php` edits are required for a rebrand — those are only
-the *fallback* defaults used before the admin sets anything.
+Nothing in `resources/views`, `resources/css`, or `config/company.php` needs to be touched for a
+routine rebrand — those only supply first-boot fallback values. A second company's site is a new
+Laravel deployment (new `.env`/database) pointed at the *same* codebase, configured entirely from
+the admin panel above.
 
 ## Local setup
 
@@ -155,9 +172,9 @@ which overrides them at runtime for every visitor without a rebuild.
 
 ## What's intentionally out of scope
 
-- **Real principal/manufacturer names**: `database/seeders/PrincipalSeeder.php` uses fictional
-  pharmaceutical manufacturer names for demo purposes, so the site doesn't imply undisclosed
-  business relationships with real companies. Replace with your actual principal agreements.
+- **Real principal/manufacturer and client names**: `database/seeders/PrincipalSeeder.php` and
+  `ClientLogoSeeder.php` use fictional names for demo purposes, so the site doesn't imply
+  undisclosed business relationships with real companies. Replace with your actual partners/clients.
 - **Real photography**: illustrations (`resources/views/components/illustrations/*`) stand in for
   product/warehouse photography and the Contact page map — swap in real photos/an embedded map
   when available (or upload real photos directly from the admin panel wherever an image field
@@ -181,3 +198,8 @@ Beyond what's built, a few additions worth considering as the company grows:
   role with narrower access would help once more staff need admin access.
 - **Real testimonials with photos**, and a **case studies** page for larger institutional clients
   (hospitals) once you have a few strong examples to showcase.
+- **True multi-tenancy** — today, reusing this for a second company means a separate deployment
+  (own `.env`/database) pointed at the same codebase, which is simple and safe but means N
+  deployments for N clients. If you're running many client sites, a shared install with a
+  `tenants` table and per-request tenant resolution would let one codebase serve all of them from
+  a single deploy — a bigger architectural step up from what's built here.

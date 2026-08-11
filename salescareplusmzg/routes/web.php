@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\CertificationController as AdminCertificationController;
+use App\Http\Controllers\Admin\ClientLogoController as AdminClientLogoController;
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
+use App\Http\Controllers\Admin\ContentItemController as AdminContentItemController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Admin\GalleryImageController as AdminGalleryImageController;
@@ -67,7 +69,16 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('team-members', AdminTeamMemberController::class)->except('show');
         Route::resource('faqs', AdminFaqController::class)->except('show');
         Route::resource('gallery-images', AdminGalleryImageController::class)->except('show');
+        Route::resource('client-logos', AdminClientLogoController::class)->except('show');
         Route::resource('nav-items', AdminNavItemController::class)->except('show');
+
+        Route::get('content', [AdminContentItemController::class, 'groups'])->name('content-items.groups');
+        Route::get('content/{group}', [AdminContentItemController::class, 'index'])->name('content-items.index');
+        Route::get('content/{group}/create', [AdminContentItemController::class, 'create'])->name('content-items.create');
+        Route::post('content/{group}', [AdminContentItemController::class, 'store'])->name('content-items.store');
+        Route::get('content/{group}/{contentItem}/edit', [AdminContentItemController::class, 'edit'])->name('content-items.edit');
+        Route::put('content/{group}/{contentItem}', [AdminContentItemController::class, 'update'])->name('content-items.update');
+        Route::delete('content/{group}/{contentItem}', [AdminContentItemController::class, 'destroy'])->name('content-items.destroy');
 
         Route::resource('pages', AdminPageController::class)->except('show');
         Route::get('pages/{page}/sections/create', [AdminPageSectionController::class, 'create'])->name('pages.sections.create');
