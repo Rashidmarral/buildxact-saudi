@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             GalleryImageSeeder::class,
             ContentItemSeeder::class,
             ClientLogoSeeder::class,
+            LegalPageSeeder::class,
             AdminUserSeeder::class,
             SettingSeeder::class,
             NavItemSeeder::class,

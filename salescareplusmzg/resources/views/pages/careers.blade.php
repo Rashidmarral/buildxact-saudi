@@ -28,7 +28,7 @@
                             <p class="mt-1 text-xs font-medium uppercase tracking-wide text-coral-600">{{ $job->subtitle }}</p>
                         @endif
                         <p class="mt-3 leading-relaxed text-slate-600">{{ $job->description }}</p>
-                        <a href="{{ route('contact') }}" class="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:text-coral-700">
+                        <a href="{{ route('careers.apply', ['job' => $job->id]) }}" class="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:text-coral-700">
                             Apply now <x-icon name="arrow-right" class="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
                         </a>
                     </div>
@@ -43,8 +43,8 @@
         <div class="reveal mt-14 rounded-2xl bg-teal-50/60 p-8 text-center">
             <h2 class="text-xl font-bold text-teal-900">{{ \App\Models\Setting::get('careers_cta_heading', "Don't see a role that fits?") }}</h2>
             <p class="mt-2 text-slate-600">{{ \App\Models\Setting::get('careers_cta_body') }}</p>
-            <a href="{{ route('contact') }}" class="mt-5 inline-flex items-center gap-2 rounded-full bg-teal-900 px-6 py-3 font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-teal-800 hover:shadow-lg">
-                Get in Touch
+            <a href="{{ route('careers.apply') }}" class="mt-5 inline-flex items-center gap-2 rounded-full bg-teal-900 px-6 py-3 font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-teal-800 hover:shadow-lg">
+                Send Your CV
             </a>
         </div>
     </section>

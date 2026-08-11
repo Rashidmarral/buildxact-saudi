@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use App\Models\Faq;
+use App\Models\JobApplication;
 use App\Models\NewsletterSubscriber;
 use App\Models\Page;
 use App\Models\Principal;
@@ -27,6 +28,7 @@ class DashboardController extends Controller
             'pages' => Page::count(),
             'newsletter_subscribers' => NewsletterSubscriber::count(),
             'unread_messages' => ContactMessage::where('is_read', false)->count(),
+            'unread_applications' => JobApplication::where('is_read', false)->count(),
         ];
 
         $recentMessages = ContactMessage::latest()->limit(5)->get();

@@ -125,6 +125,24 @@ class SettingController extends Controller
             );
         }
 
+        $ogImagePath = Setting::query()->where('key', 'seo_og_image_path')->value('value');
+        $newOgImagePath = $this->storeUpload($request, 'seo_og_image_file', 'seo', $ogImagePath);
+
+        if ($newOgImagePath !== $ogImagePath) {
+            Setting::updateOrCreate(
+                ['key' => 'seo_og_image_path'],
+                ['value' => $newOgImagePath, 'group' => 'seo', 'label' => 'Social Share Image', 'type' => 'image']
+            );
+        }
+
+        if ($request->boolean('remove_seo_og_image') && $ogImagePath) {
+            Storage::disk('public')->delete($ogImagePath);
+            Setting::updateOrCreate(
+                ['key' => 'seo_og_image_path'],
+                ['value' => null, 'group' => 'seo', 'label' => 'Social Share Image', 'type' => 'image']
+            );
+        }
+
         return redirect()->route('admin.settings.edit')->with('status', 'Settings updated.');
     }
 }

@@ -25,7 +25,7 @@
                 @foreach ($members as $member)
                     <div class="rounded-2xl border {{ $isDark ? 'border-teal-800 bg-teal-900/60' : 'border-slate-100 bg-white shadow-sm' }} p-6 text-center transition duration-300 hover:-translate-y-1">
                         @if ($member->photo_path)
-                            <img src="{{ asset('storage/'.$member->photo_path) }}" alt="{{ $member->name }}" class="mx-auto h-16 w-16 rounded-full object-cover">
+                            <img src="{{ asset('storage/'.$member->photo_path) }}" alt="{{ $member->name }}" loading="lazy" class="mx-auto h-16 w-16 rounded-full object-cover">
                         @else
                             <span class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-coral-500 text-lg font-bold text-white">
                                 {{ $member->initials }}

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ContentItemController as AdminContentItemControll
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Admin\GalleryImageController as AdminGalleryImageController;
+use App\Http\Controllers\Admin\JobApplicationController as AdminJobApplicationController;
 use App\Http\Controllers\Admin\NavItemController as AdminNavItemController;
 use App\Http\Controllers\Admin\NewsletterSubscriberController as AdminNewsletterSubscriberController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
@@ -26,11 +27,14 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\JobApplicationController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PrincipalController;
 use App\Http\Controllers\QualityController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -42,11 +46,15 @@ Route::get('/services', [ServiceController::class, 'index'])->name('services');
 Route::get('/quality', [QualityController::class, 'index'])->name('quality');
 Route::get('/gallery', [GalleryController::class, 'index'])->name('gallery');
 Route::get('/careers', [CareersController::class, 'index'])->name('careers');
+Route::get('/careers/apply', [JobApplicationController::class, 'create'])->name('careers.apply');
+Route::post('/careers/apply', [JobApplicationController::class, 'store'])->middleware('throttle:5,1')->name('careers.apply.store');
 Route::get('/faq', [FaqController::class, 'index'])->name('faq');
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
+Route::get('/search', [SearchController::class, 'index'])->name('search');
 
 Route::get('/contact', [ContactController::class, 'index'])->name('contact');
-Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
-Route::post('/newsletter', [NewsletterController::class, 'store'])->name('newsletter.store');
+Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact.store');
+Route::post('/newsletter', [NewsletterController::class, 'store'])->middleware('throttle:5,1')->name('newsletter.store');
 
 /*
 |--------------------------------------------------------------------------
@@ -99,6 +107,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('newsletter-subscribers', [AdminNewsletterSubscriberController::class, 'index'])->name('newsletter-subscribers.index');
         Route::delete('newsletter-subscribers/{newsletterSubscriber}', [AdminNewsletterSubscriberController::class, 'destroy'])->name('newsletter-subscribers.destroy');
+
+        Route::get('job-applications', [AdminJobApplicationController::class, 'index'])->name('job-applications.index');
+        Route::get('job-applications/{jobApplication}', [AdminJobApplicationController::class, 'show'])->name('job-applications.show');
+        Route::get('job-applications/{jobApplication}/resume', [AdminJobApplicationController::class, 'resume'])->name('job-applications.resume');
+        Route::delete('job-applications/{jobApplication}', [AdminJobApplicationController::class, 'destroy'])->name('job-applications.destroy');
     });
 });
 

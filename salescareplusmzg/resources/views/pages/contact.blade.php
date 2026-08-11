@@ -23,8 +23,9 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('contact.store') }}" class="space-y-5">
+                    <form method="POST" action="{{ route('contact.store') }}" class="relative space-y-5">
                         @csrf
+                        <x-honeypot-fields />
                         <div>
                             <label for="name" class="flex items-center gap-1.5 text-sm font-medium text-teal-900">
                                 <x-icon name="users" class="h-4 w-4 text-coral-500" /> Full Name

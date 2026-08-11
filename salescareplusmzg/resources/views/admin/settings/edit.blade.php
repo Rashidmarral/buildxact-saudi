@@ -43,6 +43,29 @@
             </div>
         </div>
 
+        <div class="rounded-xl border border-slate-200 bg-white p-6">
+            <h3 class="mb-4 text-lg font-semibold text-slate-900">SEO &amp; Social Sharing</h3>
+            <div class="space-y-5">
+                <div>
+                    <x-admin.field label="Social Share Image" name="seo_og_image_file" type="file" accept="image/*" hint="Shown as the preview image when a page is shared on WhatsApp, Facebook or Twitter/X. Falls back to the logo if not set. Recommended size: 1200×630." />
+                    @if ($values['seo_og_image_path'] ?? null)
+                        <div class="mt-2 flex items-center gap-3 rounded-lg bg-teal-50 px-3 py-2 text-xs text-teal-700">
+                            <img src="{{ asset('storage/'.$values['seo_og_image_path']) }}" alt="" class="h-8 w-auto object-contain">
+                            <span>Current image</span>
+                            <label class="ml-auto flex items-center gap-1.5">
+                                <input type="checkbox" name="remove_seo_og_image" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-coral-500">
+                                Remove
+                            </label>
+                        </div>
+                    @endif
+                </div>
+                <p class="text-xs text-slate-400">
+                    A sitemap is automatically generated at <a href="{{ route('sitemap') }}" class="text-teal-700 underline" target="_blank">/sitemap.xml</a>
+                    from your published pages and products — no setup needed.
+                </p>
+            </div>
+        </div>
+
         @foreach ($groupTitles as $groupKey => $groupTitle)
             @if ($grouped->has($groupKey))
                 <div class="rounded-xl border border-slate-200 bg-white p-6">

@@ -31,6 +31,7 @@ class NavItemController extends Controller
         'header_more' => 'Header — "More" Dropdown',
         'footer_company' => 'Footer — Company Column',
         'footer_resources' => 'Footer — Resources Column',
+        'footer_legal' => 'Footer — Bottom Bar (e.g. Privacy Policy, Terms)',
     ];
 
     public function index()

@@ -31,6 +31,7 @@
         $leadsNav = [
             'admin.contact-messages.index' => ['Contact Messages', 'mail'],
             'admin.newsletter-subscribers.index' => ['Newsletter Subscribers', 'send'],
+            'admin.job-applications.index' => ['Job Applications', 'users'],
         ];
     @endphp
 

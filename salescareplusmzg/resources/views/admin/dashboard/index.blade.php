@@ -16,6 +16,7 @@
             ['label' => 'Custom Pages', 'value' => $stats['pages'], 'icon' => 'file-check', 'route' => 'admin.pages.index'],
             ['label' => 'Newsletter Subscribers', 'value' => $stats['newsletter_subscribers'], 'icon' => 'send', 'route' => 'admin.newsletter-subscribers.index'],
             ['label' => 'Unread Messages', 'value' => $stats['unread_messages'], 'icon' => 'mail', 'route' => 'admin.contact-messages.index'],
+            ['label' => 'New Job Applications', 'value' => $stats['unread_applications'], 'icon' => 'users', 'route' => 'admin.job-applications.index'],
         ] as $card)
             <a href="{{ route($card['route']) }}" class="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-teal-300 hover:shadow-sm">
                 <x-icon :name="$card['icon']" class="h-5 w-5 text-teal-700" />

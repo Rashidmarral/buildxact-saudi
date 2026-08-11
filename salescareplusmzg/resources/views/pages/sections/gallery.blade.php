@@ -19,7 +19,7 @@
         @endif
 
         @if ($section->image_path)
-            <img src="{{ asset('storage/'.$section->image_path) }}" alt="{{ $section->heading }}" class="mx-auto mb-8 w-full max-w-4xl rounded-2xl shadow-md">
+            <img src="{{ asset('storage/'.$section->image_path) }}" alt="{{ $section->heading }}" loading="lazy" class="mx-auto mb-8 w-full max-w-4xl rounded-2xl shadow-md">
         @endif
 
         @if (!empty($section->items))

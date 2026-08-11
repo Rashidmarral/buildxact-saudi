@@ -3,8 +3,50 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? config('company.name') }} — {{ config('company.tagline') }}</title>
-    <meta name="description" content="{{ $description ?? 'Sales Care Plus MZG is a trusted pharmaceutical distribution company based in Muzaffargarh, Pakistan, supplying quality medicines to pharmacies, hospitals and clinics across South Punjab.' }}">
+    @php
+        $__pageTitle = ($title ?? config('company.name')).' — '.config('company.tagline');
+        $__pageDescription = $description ?? 'Sales Care Plus MZG is a trusted pharmaceutical distribution company based in Muzaffargarh, Pakistan, supplying quality medicines to pharmacies, hospitals and clinics across South Punjab.';
+        $__canonicalUrl = url()->current();
+        $__ogImagePath = \App\Models\Setting::get('seo_og_image_path') ?: config('company.logo_path');
+        $__ogImageUrl = $__ogImagePath ? asset('storage/'.$__ogImagePath) : null;
+    @endphp
+    <title>{{ $__pageTitle }}</title>
+    <meta name="description" content="{{ $__pageDescription }}">
+    <link rel="canonical" href="{{ $__canonicalUrl }}">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ config('company.name') }}">
+    <meta property="og:title" content="{{ $__pageTitle }}">
+    <meta property="og:description" content="{{ $__pageDescription }}">
+    <meta property="og:url" content="{{ $__canonicalUrl }}">
+    @if ($__ogImageUrl)
+        <meta property="og:image" content="{{ $__ogImageUrl }}">
+    @endif
+    <meta name="twitter:card" content="{{ $__ogImageUrl ? 'summary_large_image' : 'summary' }}">
+    <meta name="twitter:title" content="{{ $__pageTitle }}">
+    <meta name="twitter:description" content="{{ $__pageDescription }}">
+    @if ($__ogImageUrl)
+        <meta name="twitter:image" content="{{ $__ogImageUrl }}">
+    @endif
+
+    <script type="application/ld+json">
+        {!! json_encode([
+            '@context' => 'https://schema.org',
+            '@type' => 'LocalBusiness',
+            'name' => config('company.name'),
+            'description' => $__pageDescription,
+            'url' => url('/'),
+            'telephone' => config('company.phone'),
+            'email' => config('company.email'),
+            'address' => [
+                '@type' => 'PostalAddress',
+                'streetAddress' => config('company.address'),
+            ],
+            'image' => $__ogImageUrl,
+            'sameAs' => array_values(array_filter(config('company.social', []))),
+        ], JSON_UNESCAPED_SLASHES) !!}
+    </script>
+
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23173c36%22><rect x=%223%22 y=%223%22 width=%2218%22 height=%2218%22 rx=%225%22/><path d=%22M8 12h8M12 8v8%22 stroke=%22%23e35f38%22 stroke-width=%222%22/></svg>">
     <script>document.documentElement.classList.add('js-ready');</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -73,6 +115,7 @@
                 $moreItems = $__navItems->where('location', 'header_more');
                 $footerCompanyItems = $__navItems->where('location', 'footer_company');
                 $footerResourcesItems = $__navItems->where('location', 'footer_resources');
+                $footerLegalItems = $__navItems->where('location', 'footer_legal');
                 $moreIsActive = $moreItems->contains(fn ($item) => $item->isActive());
             @endphp
 
@@ -115,7 +158,10 @@
                 </a>
             </nav>
 
-            <div class="hidden lg:block">
+            <div class="hidden items-center gap-3 lg:flex">
+                <a href="{{ route('search') }}" aria-label="Search" class="rounded-full p-2.5 text-slate-500 transition hover:bg-teal-50 hover:text-teal-800">
+                    <x-icon name="search" class="h-5 w-5" />
+                </a>
                 <a href="{{ route('contact') }}" class="inline-flex items-center gap-2 rounded-full bg-teal-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-teal-800 hover:shadow-lg">
                     Get a Quote
                 </a>
@@ -148,6 +194,10 @@
                         </a>
                     @endforeach
                 @endif
+                <a href="{{ route('search') }}"
+                   class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ request()->routeIs('search') ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-teal-50' }}">
+                    <x-icon name="search" class="h-4 w-4" /> Search
+                </a>
                 <a href="{{ route('contact') }}"
                    class="rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ request()->routeIs('contact') ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-teal-50' }}">
                     Contact
@@ -178,8 +228,9 @@
                                 <x-icon name="check-circle" class="h-4 w-4" /> {{ session('newsletter_status') }}
                             </p>
                         @else
-                            <form method="POST" action="{{ route('newsletter.store') }}" class="flex gap-2">
+                            <form method="POST" action="{{ route('newsletter.store') }}" class="relative flex gap-2">
                                 @csrf
+                                <x-honeypot-fields />
                                 <label for="newsletter-email" class="sr-only">Email address</label>
                                 <input type="email" name="email" id="newsletter-email" required placeholder="Your email address"
                                     class="w-full rounded-full border border-teal-800 bg-teal-900/60 px-4 py-2.5 text-sm text-white placeholder:text-teal-400 transition focus:border-coral-400 focus:outline-none focus:ring-1 focus:ring-coral-400">
@@ -279,10 +330,30 @@
 
             <div class="mt-12 flex flex-col items-center justify-between gap-4 border-t border-teal-800 pt-6 text-xs text-teal-400 sm:flex-row">
                 <p>&copy; {{ date('Y') }} {{ config('company.legal_name') }}. All rights reserved.</p>
-                <p>Designed with <span class="text-red-400">&hearts;</span> for healthcare excellence</p>
+                @if ($footerLegalItems->isNotEmpty())
+                    <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                        @foreach ($footerLegalItems as $item)
+                            @continue(! $item->resolveUrl())
+                            <a href="{{ $item->resolveUrl() }}" @if ($item->open_in_new_tab) target="_blank" rel="noopener" @endif class="hover:text-white">{{ $item->label }}</a>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
     </footer>
+
+    @php
+        $__whatsappDigits = preg_replace('/\D/', '', (string) config('company.whatsapp'));
+    @endphp
+    @if ($__whatsappDigits)
+        <a href="https://wa.me/{{ $__whatsappDigits }}?text={{ urlencode('Hi '.config('company.short_name', config('company.name')).', I have a question about your products.') }}"
+           target="_blank" rel="noopener"
+           aria-label="Chat with us on WhatsApp"
+           class="group fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 transition duration-300 hover:scale-110 hover:bg-emerald-400">
+            <span class="absolute inset-0 rounded-full bg-emerald-500 opacity-75 animate-ping"></span>
+            <svg viewBox="0 0 24 24" class="relative h-7 w-7" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.79.47 3.47 1.29 4.93L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.15c-.24.68-1.39 1.32-1.92 1.4-.49.08-1.11.11-1.79-.11-.41-.13-.94-.31-1.62-.6-2.84-1.23-4.69-4.1-4.83-4.29-.14-.19-1.15-1.53-1.15-2.92 0-1.39.73-2.07.99-2.35.26-.28.57-.35.76-.35.19 0 .38 0 .55.01.18.01.41-.07.64.49.24.58.81 1.99.88 2.13.07.14.12.31.02.5-.09.19-.14.31-.28.47-.14.16-.29.36-.42.48-.14.13-.28.28-.12.55.16.28.71 1.17 1.53 1.9 1.05.94 1.94 1.23 2.21 1.37.28.14.44.12.6-.07.16-.19.68-.79.87-1.06.18-.28.37-.23.62-.14.26.09 1.63.77 1.91.91.28.14.47.21.54.33.07.12.07.68-.17 1.36Z"/></svg>
+        </a>
+    @endif
 
 </body>
 </html>

@@ -24,7 +24,7 @@
                     <div class="group overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
                         <div class="flex aspect-[4/3] items-center justify-center overflow-hidden bg-teal-50 {{ $item->image_path ? '' : 'p-6' }}">
                             @if ($item->image_path)
-                                <img src="{{ asset('storage/'.$item->image_path) }}" alt="{{ $item->title }}" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105">
+                                <img src="{{ asset('storage/'.$item->image_path) }}" alt="{{ $item->title }}" loading="lazy" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105">
                             @elseif ($item->illustration)
                                 <x-illustration :name="$item->illustration" class="h-full w-full transition-transform duration-300 group-hover:scale-105" />
                             @else

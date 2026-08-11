@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\NavItem;
+use App\Models\Page;
 use Illuminate\Database\Seeder;
 
 class NavItemSeeder extends Seeder
@@ -39,6 +40,29 @@ class NavItemSeeder extends Seeder
                 [
                     'label' => $item['label'],
                     'sort_order' => $item['sort_order'],
+                    'is_visible' => true,
+                    'open_in_new_tab' => false,
+                ]
+            );
+        }
+
+        $legalPages = [
+            'privacy-policy' => ['label' => 'Privacy Policy', 'sort_order' => 1],
+            'terms-of-service' => ['label' => 'Terms of Service', 'sort_order' => 2],
+        ];
+
+        foreach ($legalPages as $slug => $meta) {
+            $page = Page::where('slug', $slug)->first();
+
+            if (! $page) {
+                continue;
+            }
+
+            NavItem::updateOrCreate(
+                ['location' => 'footer_legal', 'page_id' => $page->id],
+                [
+                    'label' => $meta['label'],
+                    'sort_order' => $meta['sort_order'],
                     'is_visible' => true,
                     'open_in_new_tab' => false,
                 ]

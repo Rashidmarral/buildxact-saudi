@@ -47,7 +47,7 @@
                     @foreach ($featuredProducts as $product)
                         <a href="{{ route('catalog.show', $product) }}" class="group rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm transition duration-300 hover:-translate-y-1.5 hover:shadow-lg">
                             @if ($product->image_path)
-                                <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" class="mx-auto h-14 w-14 rounded-full object-cover transition-transform duration-300 group-hover:scale-110">
+                                <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" loading="lazy" class="mx-auto h-14 w-14 rounded-full object-cover transition-transform duration-300 group-hover:scale-110">
                             @else
                                 <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-teal-900 text-coral-400 transition-transform duration-300 group-hover:scale-110">
                                     <x-icon name="pill" class="h-7 w-7" />
@@ -126,7 +126,7 @@
                             <a href="{{ route('catalog.show', $product) }}" class="group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1.5 hover:shadow-lg">
                                 <div class="flex items-center justify-between">
                                     @if ($product->image_path)
-                                        <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" class="h-14 w-14 rounded-xl object-cover transition-transform duration-300 group-hover:scale-110">
+                                        <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" loading="lazy" class="h-14 w-14 rounded-xl object-cover transition-transform duration-300 group-hover:scale-110">
                                     @else
                                         <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-coral-50 text-coral-600 transition-transform duration-300 group-hover:scale-110">
                                             <x-icon name="pill" class="h-7 w-7" />

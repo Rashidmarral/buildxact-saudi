@@ -15,7 +15,7 @@
                     <a href="{{ $client->website_url ?: '#' }}" @if ($client->website_url) target="_blank" rel="noopener" @endif
                        class="group flex h-10 items-center opacity-60 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0 {{ $client->website_url ? '' : 'pointer-events-none' }}">
                         @if ($client->logo_path)
-                            <img src="{{ asset('storage/'.$client->logo_path) }}" alt="{{ $client->name }}" class="h-full w-auto max-w-[140px] object-contain">
+                            <img src="{{ asset('storage/'.$client->logo_path) }}" alt="{{ $client->name }}" loading="lazy" class="h-full w-auto max-w-[140px] object-contain">
                         @else
                             <span class="text-lg font-bold text-slate-400 group-hover:text-teal-800">{{ $client->name }}</span>
                         @endif

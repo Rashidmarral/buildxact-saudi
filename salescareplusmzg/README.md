@@ -27,11 +27,17 @@ styled with Tailwind CSS in an original **teal + coral** theme, with a page stru
 | `/quality` | Certifications, licences and cold-chain quality standards |
 | `/gallery` | Photo grid of warehouse/operations, fully managed from the admin panel (ships with placeholder illustrations until real photos are uploaded) |
 | `/careers` | Open roles and how to apply |
+| `/careers/apply` | Job application form (resume upload) — works for a specific listed role or as a general application |
 | `/faq` | Common questions grouped by category (ordering, delivery, products, partnerships, account), accordion UI |
 | `/contact` | Two-column contact form (with subject dropdown) + contact info + map placeholder |
+| `/search` | Site-wide search across Products, Principals, custom Pages and FAQs |
+| `/privacy-policy`, `/terms-of-service` | Legal pages (admin-editable via the page builder — seeded with generic starter text, not legal advice) |
+| `/sitemap.xml` | Auto-generated sitemap covering every static page, product and published custom page |
 
 Secondary pages (Services, Quality, Gallery, Careers, FAQs) live under a **"More" dropdown** in
 the main nav to keep the primary nav short — see `resources/views/components/layout.blade.php`.
+A floating WhatsApp click-to-chat button (using the WhatsApp number in Settings) appears on every
+public page.
 
 ## Data model
 
@@ -46,6 +52,8 @@ the main nav to keep the primary nav short — see `resources/views/components/l
 - `client_logos` — "Our Clients" trust-bar logos shown on the homepage
 - `contact_messages` — every contact form submission is validated and stored here
 - `newsletter_subscribers` — footer newsletter signup (`POST /newsletter`) stores emails here
+- `job_applications` — Careers apply-form submissions, including uploaded resumes (stored on the
+  **private** disk, downloadable only by an authenticated admin — never web-accessible by URL)
 - `settings` — key/value store for all admin-editable site-wide text, branding and theme colors
 - `nav_items`, `pages`, `page_sections` — the dynamic navigation and page-builder tables behind the
   admin CMS (see Admin Panel section below)
@@ -78,7 +86,7 @@ tinker session needed.
 |---|---|
 | **Branding & Logo** | Upload/replace the site logo (shown in the header, footer and admin sidebar — falls back to a text wordmark if none is set) |
 | **Theme Colors** | Pick a primary and accent brand color (native color pickers) — the entire site's color palette (11 shades of each, buttons, links, backgrounds, everywhere) regenerates instantly, no rebuild needed. This is the fastest way to re-skin the whole site for a different company/brand |
-| **Site Settings** | Company name, short name, legal name, tagline, contact email/phone/WhatsApp, address, business hours, footer "about" blurb, homepage stats, coverage areas, social media links, and a homepage hero video banner (upload a file or paste an `.mp4` URL) |
+| **Site Settings** | Company name, short name, legal name, tagline, contact email/phone/WhatsApp, address, business hours, footer "about" blurb, homepage stats, coverage areas, social media links, a homepage hero video banner (upload a file or paste an `.mp4` URL), and an SEO social-share image used for Open Graph/Twitter link previews |
 | **My Profile** | Update your own admin name, email and password |
 | **Navigation** | Header menu, header "More" dropdown, and both footer link columns — add/remove/reorder links, point them at built-in pages, custom pages, or external URLs, and control which open in a new tab |
 | **Pages** | Create brand-new pages with their own URL (e.g. `/our-story`), built from stackable sections — see full list below — each with its own heading, text, image/video upload, button, background style and **entrance animation** (fade, zoom, 3D tilt, 3D flip, or fade + float) |
@@ -90,6 +98,7 @@ tinker session needed.
 | **Gallery** | Upload/replace/reorder photos shown on the public Gallery page |
 | **Contact Messages** | View and manage every contact form submission |
 | **Newsletter Subscribers** | View and remove footer newsletter signups |
+| **Job Applications** | View submitted applications (per role or general), including a secure resume download — never accessible by direct URL |
 
 **Every public page is now fully admin-editable** — Home, About, Services, Quality, Careers,
 Principals, Catalog, Gallery, FAQ, Contact, plus unlimited custom Pages. None of them require a
@@ -97,9 +106,10 @@ code change to update copy, swap images, or restructure content for a new client
 
 **Page builder section types:** Hero, Hero with Video Banner, Rich Text, Image + Text, Call to
 Action banner, Card Grid, Image Gallery, Stats Row, Featured Quote, Team Members (pulled live from
-the Team Members list), Testimonials (pulled live), and an FAQ Accordion (pulled live from FAQs) —
-the last three stay in sync automatically since they pull from the same data the rest of the site
-uses, rather than needing content pasted twice.
+the Team Members list), Testimonials (pulled live), an FAQ Accordion (pulled live from FAQs), and a
+Client Logo Strip (pulled live from Our Clients) — the live-pull types stay in sync automatically
+since they pull from the same data the rest of the site uses, rather than needing content pasted
+twice.
 
 Uploaded images/videos are stored in `storage/app/public` and served via the `public/storage`
 symlink — run `php artisan storage:link` once after a fresh deploy if it isn't already linked.
@@ -111,6 +121,23 @@ views didn't need to change — they just automatically pick up admin-edited val
 hex values are expanded into full 50–950 shade ramps by `app/Support/ColorPalette.php` and injected
 as CSS custom-property overrides in the page `<head>`, which is all Tailwind utility classes read
 from — so no CSS rebuild is required when an admin changes the brand color.
+
+### SEO & site features
+
+- **Sitemap** at `/sitemap.xml`, auto-generated from every static page, product and published
+  custom page — referenced from `public/robots.txt`.
+- **Open Graph / Twitter Card meta tags + JSON-LD `LocalBusiness` schema** on every page, built from
+  Site Settings (name, address, phone, email, social links) and the SEO social-share image, so links
+  shared on WhatsApp/Facebook/Twitter show a proper preview card and Google can show rich snippets.
+- **Canonical URLs** on every page.
+- **WhatsApp floating chat button** on every public page, using the WhatsApp number from Settings.
+- **Site-wide search** (`/search`) across Products, Principals, custom Pages and FAQs.
+- **Spam protection** on the Contact, Newsletter and Careers-apply forms: an invisible honeypot
+  field plus a minimum-time trap (rejects submissions faster than a human could type), and rate
+  limiting (5 submissions/minute/IP) — no CAPTCHA or third-party service required. Both silently
+  succeed from the bot's perspective so it doesn't know to retry differently.
+- **Custom branded 404 page** instead of Laravel's default error page.
+- **Lazy-loaded images** on galleries, catalogs and card grids for faster page loads.
 
 ### Reusing this codebase for a new client
 
@@ -179,10 +206,14 @@ which overrides them at runtime for every visitor without a rebuild.
   product/warehouse photography and the Contact page map — swap in real photos/an embedded map
   when available (or upload real photos directly from the admin panel wherever an image field
   exists).
-- **Contact/newsletter notifications**: submissions are saved to the database but no email/SMS
-  notification is wired up yet — plug a `Mail` or `Notification` class into
-  `ContactController::store()` / `NewsletterController::store()` if you want an alert on every
-  enquiry or subscription.
+- **Contact/newsletter/job-application notifications**: submissions are saved to the database but
+  no email/SMS notification is wired up yet — plug a `Mail` or `Notification` class into
+  `ContactController::store()`, `NewsletterController::store()` or `JobApplicationController::store()`
+  if you want an alert on every enquiry, subscription, or application.
+- **Privacy Policy / Terms of Service content**: `database/seeders/LegalPageSeeder.php` seeds
+  generic starter text so the pages aren't empty — this is placeholder boilerplate, not legal
+  advice. Have a lawyer review and replace it before relying on it, especially if you run ads or
+  operate under specific data-protection regulations.
 
 ## Ideas for further growth
 
