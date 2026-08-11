@@ -1,4 +1,4 @@
-<section class="bg-teal-900 bg-teal-pattern reveal">
+<section class="bg-teal-900 bg-teal-pattern {{ $section->animationClass() }}">
     <div class="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 lg:px-8">
         @if ($section->heading)
             <h2 class="text-2xl font-bold text-white sm:text-3xl">{{ $section->heading }}</h2>

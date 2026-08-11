@@ -5,7 +5,7 @@
         default => 'bg-white text-slate-700',
     };
 @endphp
-<section class="{{ $bgClass }} reveal">
+<section class="{{ $bgClass }} {{ $section->animationClass() }}">
     <div class="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-20">
         @if ($section->image_path)
             <img src="{{ asset('storage/'.$section->image_path) }}" alt="{{ $section->heading }}" class="w-full rounded-2xl shadow-md">

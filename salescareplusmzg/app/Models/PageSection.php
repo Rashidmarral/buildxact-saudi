@@ -20,6 +20,7 @@ class PageSection extends Model
         'button_url',
         'items',
         'background',
+        'animation',
         'sort_order',
         'is_visible',
     ];
@@ -37,10 +38,36 @@ class PageSection extends Model
         'cta' => 'Call to Action Banner',
         'cards' => 'Card Grid (title/text items)',
         'gallery' => 'Image Gallery',
+        'stats' => 'Stats Row (number/label items)',
+        'quote' => 'Featured Quote',
+        'team' => 'Team Members (pulled live from Team Members)',
+        'testimonials' => 'Testimonials (pulled live from Testimonials)',
+        'faq' => 'FAQ Accordion (pulled live from FAQs)',
+    ];
+
+    public const ANIMATIONS = [
+        'fade' => 'Fade Up (default)',
+        'zoom' => 'Zoom In',
+        'tilt' => '3D Tilt',
+        'flip' => '3D Flip',
+        'float' => 'Fade + Gentle Float',
+        'none' => 'None',
     ];
 
     public function page(): BelongsTo
     {
         return $this->belongsTo(Page::class);
+    }
+
+    public function animationClass(): string
+    {
+        return match ($this->animation) {
+            'zoom' => 'reveal-scale',
+            'tilt' => 'reveal-tilt',
+            'flip' => 'reveal-flip',
+            'float' => 'reveal animate-float',
+            'none' => '',
+            default => 'reveal',
+        };
     }
 }

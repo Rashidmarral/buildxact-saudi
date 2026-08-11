@@ -25,7 +25,7 @@ styled with Tailwind CSS in an original **teal + coral** theme, with a page stru
 | `/catalog/{slug}` | Individual product detail page |
 | `/services` | Distribution services offered + "how it works" process |
 | `/quality` | Certifications, licences and cold-chain quality standards |
-| `/gallery` | Illustrated overview of warehouse/operations (swap in real photos when available) |
+| `/gallery` | Photo grid of warehouse/operations, fully managed from the admin panel (ships with placeholder illustrations until real photos are uploaded) |
 | `/careers` | Open roles and how to apply |
 | `/faq` | Common questions grouped by category (ordering, delivery, products, partnerships, account), accordion UI |
 | `/contact` | Two-column contact form (with subject dropdown) + contact info + map placeholder |
@@ -40,8 +40,12 @@ the main nav to keep the primary nav short — see `resources/views/components/l
   names** — replace with your real principal agreements before launch, see note below)
 - `testimonials`, `certifications`, `team_members` — content shown on Home/About/Quality pages
 - `faqs` — grouped by category, shown on `/faq`
+- `gallery_images` — photos shown on `/gallery`, manageable from the admin panel
 - `contact_messages` — every contact form submission is validated and stored here
 - `newsletter_subscribers` — footer newsletter signup (`POST /newsletter`) stores emails here
+- `settings` — key/value store for all admin-editable site-wide text, branding and theme colors
+- `nav_items`, `pages`, `page_sections` — the dynamic navigation and page-builder tables behind the
+  admin CMS (see Admin Panel section below)
 
 All content is seeded via `database/seeders/*` with real, company-specific copy — no Lorem Ipsum.
 Seeded content is a starting point — once the site is running, everything below is editable from
@@ -62,21 +66,31 @@ Password: AdminSCP@2026
 ```
 
 ⚠️ **Change this password immediately after your first login in production** — go to
-`php artisan tinker` and run `User::where('email', 'admin@salescareplusmzg.com')->first()->update(['password' => Hash::make('your-new-password')])`,
-or add a "change password" form if you'd like one.
+`/admin/profile` while logged in and set a new password (current password required), no code or
+tinker session needed.
 
 **What the admin can manage:**
 
 | Area | What it controls |
 |---|---|
-| **Site Settings** | Company name, tagline, contact email/phone/WhatsApp, address, business hours, homepage stats, coverage areas, social media links, and a homepage hero video banner (upload a file or paste an `.mp4` URL) |
+| **Branding & Logo** | Upload/replace the site logo (shown in the header, footer and admin sidebar — falls back to a text wordmark if none is set) |
+| **Theme Colors** | Pick a primary and accent brand color (native color pickers) — the entire site's color palette (11 shades of each, buttons, links, backgrounds, everywhere) regenerates instantly, no rebuild needed. This is the fastest way to re-skin the whole site for a different company/brand |
+| **Site Settings** | Company name, short name, legal name, tagline, contact email/phone/WhatsApp, address, business hours, footer "about" blurb, homepage stats, coverage areas, social media links, and a homepage hero video banner (upload a file or paste an `.mp4` URL) |
+| **My Profile** | Update your own admin name, email and password |
 | **Navigation** | Header menu, header "More" dropdown, and both footer link columns — add/remove/reorder links, point them at built-in pages, custom pages, or external URLs, and control which open in a new tab |
-| **Pages** | Create brand-new pages with their own URL (e.g. `/our-story`), built from stackable sections: Hero, Hero with Video Banner, Rich Text, Image + Text, Call to Action banner, Card Grid, and Image Gallery — each with its own heading, text, image/video upload, and button |
-| **Products / Categories** | Full catalog CRUD, including product photos |
+| **Pages** | Create brand-new pages with their own URL (e.g. `/our-story`), built from stackable sections — see full list below — each with its own heading, text, image/video upload, button, background style and **entrance animation** (fade, zoom, 3D tilt, 3D flip, or fade + float) |
+| **Products / Categories** | Full catalog CRUD, including product photos — the public product page shows full specs in a table and the real uploaded photo (falls back to an illustration if none is set) |
 | **Principals** | Manufacturer partners, including logos |
 | **Testimonials, Certifications, Team Members, FAQs** | Full CRUD, including team photos |
+| **Gallery** | Upload/replace/reorder photos shown on the public Gallery page |
 | **Contact Messages** | View and manage every contact form submission |
 | **Newsletter Subscribers** | View and remove footer newsletter signups |
+
+**Page builder section types:** Hero, Hero with Video Banner, Rich Text, Image + Text, Call to
+Action banner, Card Grid, Image Gallery, Stats Row, Featured Quote, Team Members (pulled live from
+the Team Members list), Testimonials (pulled live), and an FAQ Accordion (pulled live from FAQs) —
+the last three stay in sync automatically since they pull from the same data the rest of the site
+uses, rather than needing content pasted twice.
 
 Uploaded images/videos are stored in `storage/app/public` and served via the `public/storage`
 symlink — run `php artisan storage:link` once after a fresh deploy if it isn't already linked.
@@ -84,7 +98,24 @@ symlink — run `php artisan storage:link` once after a fresh deploy if it isn't
 Behind the scenes: site-wide text is stored in a `settings` key/value table and merged into
 `config('company.*')` at boot (`app/Providers/SettingsServiceProvider.php`), so existing Blade
 views didn't need to change — they just automatically pick up admin-edited values, falling back to
-`config/company.php` defaults if a setting is empty.
+`config/company.php` defaults if a setting is empty. Theme colors work the same way: the two brand
+hex values are expanded into full 50–950 shade ramps by `app/Support/ColorPalette.php` and injected
+as CSS custom-property overrides in the page `<head>`, which is all Tailwind utility classes read
+from — so no CSS rebuild is required when an admin changes the brand color.
+
+### Rebranding this site for a different company
+
+Because branding, theme colors, contact info, navigation and every content section are database-
+driven, turning this into a different company's site is mostly point-and-click:
+
+1. Log in to `/admin`, open **Site Settings**, and update the company name/tagline/contact details,
+   upload the new logo, and pick the two new brand colors.
+2. Update or replace the seeded demo content (Products, Principals, Team, Testimonials, etc.) from
+   their respective admin screens.
+3. Adjust **Navigation** and **Pages** if the new company needs a different set of pages.
+
+No Blade templates, CSS, or `config/company.php` edits are required for a rebrand — those are only
+the *fallback* defaults used before the admin sets anything.
 
 ## Local setup
 
@@ -110,15 +141,17 @@ Visit `http://127.0.0.1:8000`.
 ## Configuration
 
 Company-wide details (name, tagline, contact info, business hours, stats, coverage areas, social
-links) live in `config/company.php`, pulling contact details from `.env`
-(`COMPANY_CONTACT_EMAIL`, `COMPANY_CONTACT_PHONE`, `COMPANY_WHATSAPP`, `COMPANY_ADDRESS`).
-**Update these before going live** — they currently contain realistic Muzaffargarh-based
-placeholders, not your real phone/email/address, and `config('company.stats')` /
-`coverage_areas` are illustrative.
+links, logo, theme colors) all live in the database and are editable from `/admin` — see the Admin
+Panel section above. `config/company.php` (pulling initial contact details from `.env`:
+`COMPANY_CONTACT_EMAIL`, `COMPANY_CONTACT_PHONE`, `COMPANY_WHATSAPP`, `COMPANY_ADDRESS`) only
+supplies the fallback values used the first time the app boots, before `SettingSeeder` /
+the admin panel populate the `settings` table — you generally shouldn't need to touch it after the
+first deploy.
 
-Theme colors (teal primary, coral accent) are defined as Tailwind design tokens in
-`resources/css/app.css` (`--color-teal-*`, `--color-coral-*`) — change the hex values there to
-retheme the entire site without touching any Blade view.
+The base theme colors (teal primary, coral accent) are still defined as Tailwind design tokens in
+`resources/css/app.css` (`--color-teal-*`, `--color-coral-*`) as the **compiled-CSS fallback** —
+but in normal use, change colors from **Site Settings → Theme Colors** in the admin panel instead,
+which overrides them at runtime for every visitor without a rebuild.
 
 ## What's intentionally out of scope
 

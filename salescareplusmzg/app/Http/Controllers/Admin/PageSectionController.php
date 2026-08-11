@@ -66,11 +66,13 @@ class PageSectionController extends Controller
             'button_text' => ['nullable', 'string', 'max:100'],
             'button_url' => ['nullable', 'string', 'max:255'],
             'background' => ['nullable', 'in:white,tint,dark'],
+            'animation' => ['nullable', 'in:'.implode(',', array_keys(PageSection::ANIMATIONS))],
             'sort_order' => ['nullable', 'integer'],
         ]);
 
         $validated['is_visible'] = $request->boolean('is_visible');
         $validated['background'] = $validated['background'] ?? 'white';
+        $validated['animation'] = $validated['animation'] ?? 'fade';
 
         return $validated;
     }

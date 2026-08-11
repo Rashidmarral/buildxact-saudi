@@ -22,6 +22,12 @@ class SettingSeeder extends Seeder
             'company_address' => [config('company.address'), 'contact', 'textarea', 'Address'],
             'company_hours' => ['Saturday – Thursday, 9:00 AM – 8:00 PM', 'contact', 'text', 'Business Hours (full)'],
             'company_hours_short' => ['Sat–Thu: 9:00 AM – 8:00 PM', 'contact', 'text', 'Business Hours (short, footer)'],
+            'company_footer_about' => [
+                'Leading pharmaceutical distribution organisation serving healthcare providers across South Punjab, headquartered in Muzaffargarh since 2014.',
+                'company', 'textarea', 'Footer About Text',
+            ],
+            'theme_primary_color' => ['#2a9078', 'theme', 'color', 'Primary Brand Color'],
+            'theme_accent_color' => ['#e35f38', 'theme', 'color', 'Accent Brand Color'],
             'company_stats_years' => ['10', 'stats', 'text', 'Stat: Years of Excellence'],
             'company_stats_professionals' => ['45', 'stats', 'text', 'Stat: Professionals'],
             'company_stats_monthly_reach' => ['250+', 'stats', 'text', 'Stat: Pharmacies Reached Monthly'],

@@ -11,7 +11,11 @@
 
     <div class="w-full max-w-sm">
         <div class="mb-8 text-center">
-            <span class="text-2xl font-bold text-white">SalesCare<span class="text-coral-400">+</span></span>
+            @if (config('company.logo_path'))
+                <img src="{{ asset('storage/'.config('company.logo_path')) }}" alt="{{ config('company.short_name') }}" class="mx-auto h-11 w-auto object-contain">
+            @else
+                <span class="text-2xl font-bold text-white">{{ config('company.short_name', config('company.name')) }}</span>
+            @endif
             <p class="mt-1 text-sm text-teal-200">Admin Panel Login</p>
         </div>
 

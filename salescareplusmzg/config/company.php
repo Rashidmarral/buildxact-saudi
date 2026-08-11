@@ -39,4 +39,13 @@ return [
         'linkedin' => 'https://linkedin.com/company/salescareplusmzg',
         'twitter' => 'https://twitter.com/salescareplusmzg',
     ],
+
+    'logo_path' => null,
+
+    'footer_about' => 'Leading pharmaceutical distribution organisation serving healthcare providers across South Punjab, headquartered in Muzaffargarh since 2014.',
+
+    'theme' => [
+        'primary' => '#2a9078',
+        'accent' => '#e35f38',
+    ],
 ];

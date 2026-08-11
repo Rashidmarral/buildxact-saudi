@@ -58,7 +58,7 @@ function initDropdowns() {
 }
 
 function initScrollReveal() {
-    const targets = document.querySelectorAll('.reveal, .reveal-scale, .reveal-stagger');
+    const targets = document.querySelectorAll('.reveal, .reveal-scale, .reveal-tilt, .reveal-flip, .reveal-stagger');
 
     if (!targets.length) return;
 

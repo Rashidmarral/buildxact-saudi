@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             CertificationSeeder::class,
             TeamMemberSeeder::class,
             FaqSeeder::class,
+            GalleryImageSeeder::class,
             AdminUserSeeder::class,
             SettingSeeder::class,
             NavItemSeeder::class,

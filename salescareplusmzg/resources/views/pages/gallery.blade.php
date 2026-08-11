@@ -14,29 +14,33 @@
     </section>
 
     <section class="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div class="reveal-stagger grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            @foreach ([
-                ['illustration' => 'warehouse', 'label' => 'Our Warehouse', 'text' => 'GDP-compliant storage in Muzaffargarh, organised by category and batch.'],
-                ['illustration' => 'cold-chain', 'label' => 'Cold-Chain Storage', 'text' => 'Monitored temperature-controlled units for sensitive medicines.'],
-                ['illustration' => 'delivery', 'label' => 'Delivery Fleet', 'text' => 'Daily routes covering Muzaffargarh, Alipur, Kot Addu and Jatoi.'],
-                ['illustration' => 'medicines', 'label' => 'Medicine Handling', 'text' => 'Careful picking and packing across our full product catalogue.'],
-                ['illustration' => 'pharmacist', 'label' => 'Quality Checks', 'text' => 'Batch verification and quality assurance before every dispatch.'],
-                ['illustration' => 'team', 'label' => 'Our Team', 'text' => 'The people behind every order, from warehouse to doorstep.'],
-            ] as $item)
-                <div class="group overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
-                    <div class="flex aspect-[4/3] items-center justify-center bg-teal-50 p-6 transition-transform duration-300 group-hover:scale-105">
-                        <x-illustration :name="$item['illustration']" class="h-full w-full" />
+        @if ($images->isEmpty())
+            <p class="rounded-2xl border border-dashed border-slate-200 px-4 py-16 text-center text-slate-400">
+                No gallery photos yet — add some from the admin panel.
+            </p>
+        @else
+            <div class="reveal-stagger grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach ($images as $item)
+                    <div class="group overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+                        <div class="flex aspect-[4/3] items-center justify-center overflow-hidden bg-teal-50 {{ $item->image_path ? '' : 'p-6' }}">
+                            @if ($item->image_path)
+                                <img src="{{ asset('storage/'.$item->image_path) }}" alt="{{ $item->title }}" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105">
+                            @elseif ($item->illustration)
+                                <x-illustration :name="$item->illustration" class="h-full w-full transition-transform duration-300 group-hover:scale-105" />
+                            @else
+                                <x-icon name="building" class="h-12 w-12 text-teal-300" />
+                            @endif
+                        </div>
+                        <div class="p-5">
+                            <h3 class="font-semibold text-teal-900">{{ $item->title }}</h3>
+                            @if ($item->caption)
+                                <p class="mt-1.5 text-sm leading-relaxed text-slate-500">{{ $item->caption }}</p>
+                            @endif
+                        </div>
                     </div>
-                    <div class="p-5">
-                        <h3 class="font-semibold text-teal-900">{{ $item['label'] }}</h3>
-                        <p class="mt-1.5 text-sm leading-relaxed text-slate-500">{{ $item['text'] }}</p>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-        <p class="reveal mt-10 text-center text-sm text-slate-500">
-            Real photos from our facility are coming soon — contact us to arrange a warehouse visit in the meantime.
-        </p>
+                @endforeach
+            </div>
+        @endif
     </section>
 
 </x-layout>

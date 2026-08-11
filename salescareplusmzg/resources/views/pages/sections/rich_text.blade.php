@@ -5,7 +5,7 @@
         default => 'bg-white text-slate-700',
     };
 @endphp
-<section class="{{ $bgClass }} reveal">
+<section class="{{ $bgClass }} {{ $section->animationClass() }}">
     <div class="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
         @if ($section->heading)
             <h2 class="text-2xl font-bold sm:text-3xl {{ $section->background === 'dark' ? 'text-white' : 'text-teal-900' }}">{{ $section->heading }}</h2>

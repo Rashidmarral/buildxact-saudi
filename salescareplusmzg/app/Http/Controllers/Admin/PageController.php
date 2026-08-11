@@ -24,7 +24,7 @@ class PageController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validated($request);
-        $validated['slug'] = $validated['slug'] ? Str::slug($validated['slug']) : Str::slug($request->title);
+        $validated['slug'] = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($request->title);
 
         $page = Page::create($validated);
 
@@ -41,7 +41,7 @@ class PageController extends Controller
     public function update(Request $request, Page $page)
     {
         $validated = $this->validated($request);
-        $validated['slug'] = $validated['slug'] ? Str::slug($validated['slug']) : Str::slug($request->title);
+        $validated['slug'] = ! empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($request->title);
 
         $page->update($validated);
 

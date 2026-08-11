@@ -1,7 +1,7 @@
 @php
     $videoSrc = $section->video_path ? asset('storage/'.$section->video_path) : $section->video_url;
 @endphp
-<section class="relative overflow-hidden bg-teal-950 text-white reveal">
+<section class="relative overflow-hidden bg-teal-950 text-white {{ $section->animationClass() }}">
     @if ($videoSrc)
         <video autoplay muted loop playsinline class="absolute inset-0 h-full w-full object-cover opacity-40">
             <source src="{{ $videoSrc }}" type="video/mp4">

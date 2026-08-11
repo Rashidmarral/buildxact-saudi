@@ -13,7 +13,11 @@
     <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div class="grid gap-12 lg:grid-cols-2">
             <div class="reveal-scale flex aspect-square items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-teal-50 to-coral-50 p-10">
-                <x-illustration name="medicines" class="w-full max-w-xs animate-float" />
+                @if ($product->image_path)
+                    <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" class="h-full w-full rounded-2xl object-cover">
+                @else
+                    <x-illustration name="medicines" class="w-full max-w-xs animate-float" />
+                @endif
             </div>
 
             <div class="hero-fade-in">
@@ -25,26 +29,36 @@
                     <p class="mt-6 leading-relaxed text-slate-600">{{ $product->description }}</p>
                 @endif
 
-                <dl class="mt-8 grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 p-6 sm:grid-cols-2">
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pack Size</dt>
-                        <dd class="mt-1 font-medium text-teal-900">{{ $product->pack_size ?? '—' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Sourcing</dt>
-                        <dd class="mt-1 font-medium text-teal-900">{{ $product->manufacturer ?? '—' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Category</dt>
-                        <dd class="mt-1 font-medium text-teal-900">{{ $product->category->name }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">Availability</dt>
-                        <dd class="mt-1 inline-flex items-center gap-1.5 font-medium text-emerald-600">
-                            <x-icon name="check-circle" class="h-4 w-4" /> In Stock for Partner Pharmacies
-                        </dd>
-                    </div>
-                </dl>
+                <div class="mt-8 overflow-hidden rounded-2xl border border-slate-100">
+                    <table class="w-full text-left text-sm">
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <th scope="row" class="w-2/5 bg-slate-50 px-5 py-3 font-medium text-slate-500">Generic Name</th>
+                                <td class="px-5 py-3 font-medium text-teal-900">{{ $product->generic_name ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row" class="bg-slate-50 px-5 py-3 font-medium text-slate-500">Pack Size</th>
+                                <td class="px-5 py-3 font-medium text-teal-900">{{ $product->pack_size ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row" class="bg-slate-50 px-5 py-3 font-medium text-slate-500">Manufacturer</th>
+                                <td class="px-5 py-3 font-medium text-teal-900">{{ $product->manufacturer ?? '—' }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row" class="bg-slate-50 px-5 py-3 font-medium text-slate-500">Category</th>
+                                <td class="px-5 py-3 font-medium text-teal-900">{{ $product->category->name }}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row" class="bg-slate-50 px-5 py-3 font-medium text-slate-500">Availability</th>
+                                <td class="px-5 py-3">
+                                    <span class="inline-flex items-center gap-1.5 font-medium text-emerald-600">
+                                        <x-icon name="check-circle" class="h-4 w-4" /> In Stock for Partner Pharmacies
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 <div class="mt-8 flex flex-wrap gap-4">
                     <a href="{{ route('contact') }}" class="inline-flex items-center gap-2 rounded-full bg-coral-500 px-6 py-3.5 font-semibold text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-coral-400 hover:shadow-lg">

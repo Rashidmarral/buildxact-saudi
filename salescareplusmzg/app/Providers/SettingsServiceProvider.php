@@ -40,6 +40,10 @@ class SettingsServiceProvider extends ServiceProvider
         'social_instagram' => 'company.social.instagram',
         'social_linkedin' => 'company.social.linkedin',
         'social_twitter' => 'company.social.twitter',
+        'company_logo_path' => 'company.logo_path',
+        'company_footer_about' => 'company.footer_about',
+        'theme_primary_color' => 'company.theme.primary',
+        'theme_accent_color' => 'company.theme.accent',
     ];
 
     public function boot(): void

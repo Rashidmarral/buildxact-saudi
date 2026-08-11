@@ -29,6 +29,7 @@ class SettingController extends Controller
         'company_address' => ['Address', 'contact', 'textarea'],
         'company_hours' => ['Business Hours (full)', 'contact', 'text'],
         'company_hours_short' => ['Business Hours (short, footer)', 'contact', 'text'],
+        'company_footer_about' => ['Footer About Text', 'company', 'textarea'],
         'company_stats_years' => ['Stat: Years of Excellence', 'stats', 'text'],
         'company_stats_professionals' => ['Stat: Professionals', 'stats', 'text'],
         'company_stats_monthly_reach' => ['Stat: Pharmacies Reached Monthly', 'stats', 'text'],
@@ -37,6 +38,8 @@ class SettingController extends Controller
         'social_instagram' => ['Instagram URL', 'social', 'text'],
         'social_linkedin' => ['LinkedIn URL', 'social', 'text'],
         'social_twitter' => ['Twitter / X URL', 'social', 'text'],
+        'theme_primary_color' => ['Primary Brand Color', 'theme', 'color'],
+        'theme_accent_color' => ['Accent Brand Color', 'theme', 'color'],
         'home_hero_video_url' => ['Home Hero Video URL (mp4 link, optional)', 'hero', 'text'],
     ];
 
@@ -78,6 +81,24 @@ class SettingController extends Controller
             Setting::updateOrCreate(
                 ['key' => 'home_hero_video_path'],
                 ['value' => null, 'group' => 'hero', 'label' => 'Home Hero Video (uploaded file)', 'type' => 'video']
+            );
+        }
+
+        $logoPath = Setting::query()->where('key', 'company_logo_path')->value('value');
+        $newLogoPath = $this->storeUpload($request, 'company_logo_file', 'branding', $logoPath);
+
+        if ($newLogoPath !== $logoPath) {
+            Setting::updateOrCreate(
+                ['key' => 'company_logo_path'],
+                ['value' => $newLogoPath, 'group' => 'branding', 'label' => 'Site Logo', 'type' => 'image']
+            );
+        }
+
+        if ($request->boolean('remove_company_logo') && $logoPath) {
+            Storage::disk('public')->delete($logoPath);
+            Setting::updateOrCreate(
+                ['key' => 'company_logo_path'],
+                ['value' => null, 'group' => 'branding', 'label' => 'Site Logo', 'type' => 'image']
             );
         }
 

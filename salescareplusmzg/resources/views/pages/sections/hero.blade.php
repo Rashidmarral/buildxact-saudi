@@ -6,7 +6,7 @@
     };
     $isDark = $section->background === 'dark';
 @endphp
-<section class="{{ $bgClass }} reveal">
+<section class="{{ $bgClass }} {{ $section->animationClass() }}">
     <div class="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 lg:px-8 lg:py-28">
         @if ($section->subheading)
             <p class="mb-3 text-sm font-semibold uppercase tracking-wide {{ $isDark ? 'text-coral-300' : 'text-coral-600' }}">{{ $section->subheading }}</p>

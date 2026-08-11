@@ -3,6 +3,7 @@
     $groupTitles = [
         'company' => 'Company Details',
         'contact' => 'Contact Details',
+        'theme' => 'Theme Colors',
         'stats' => 'Homepage Stats & Coverage',
         'social' => 'Social Links',
         'hero' => 'Homepage Hero Video Banner',
@@ -19,6 +20,25 @@
         @csrf
         @method('PUT')
 
+        <div class="rounded-xl border border-slate-200 bg-white p-6">
+            <h3 class="mb-4 text-lg font-semibold text-slate-900">Branding &amp; Logo</h3>
+            <div class="space-y-5">
+                <div>
+                    <x-admin.field label="Upload Logo" name="company_logo_file" type="file" accept="image/*" hint="Shown in the header, footer and admin sidebar. Transparent PNG recommended." />
+                    @if ($values['company_logo_path'] ?? null)
+                        <div class="mt-2 flex items-center gap-3 rounded-lg bg-teal-50 px-3 py-2 text-xs text-teal-700">
+                            <img src="{{ asset('storage/'.$values['company_logo_path']) }}" alt="" class="h-8 w-auto object-contain">
+                            <span>Current logo</span>
+                            <label class="ml-auto flex items-center gap-1.5">
+                                <input type="checkbox" name="remove_company_logo" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-coral-500">
+                                Remove
+                            </label>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
         @foreach ($groupTitles as $groupKey => $groupTitle)
             @if ($grouped->has($groupKey))
                 <div class="rounded-xl border border-slate-200 bg-white p-6">
@@ -27,10 +47,15 @@
                         @foreach ($grouped[$groupKey] as $field)
                             @php
                                 $rawValue = $values[$field['key']] ?? null;
-                                $fieldType = $field['type'] === 'lines' ? 'textarea' : ($field['type'] === 'textarea' ? 'textarea' : 'text');
+                                $fieldType = match ($field['type']) {
+                                    'lines', 'textarea' => 'textarea',
+                                    'color' => 'color',
+                                    default => 'text',
+                                };
                                 $fieldValue = $field['type'] === 'lines' && $rawValue ? implode("\n", json_decode($rawValue, true) ?: []) : $rawValue;
+                                $fieldValue = $field['type'] === 'color' ? ($rawValue ?: '#2a9078') : $fieldValue;
                             @endphp
-                            <x-admin.field :label="$field['label']" :name="$field['key']" :type="$fieldType" :value="$fieldValue" />
+                            <x-admin.field :label="$field['label']" :name="$field['key']" :type="$fieldType" :value="$fieldValue" :class="$field['type'] === 'color' ? 'h-11 w-24 cursor-pointer p-1' : ''" />
                         @endforeach
 
                         @if ($groupKey === 'hero')

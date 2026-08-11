@@ -46,9 +46,13 @@
                 <div class="reveal-stagger mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($featuredProducts as $product)
                         <a href="{{ route('catalog.show', $product) }}" class="group rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm transition duration-300 hover:-translate-y-1.5 hover:shadow-lg">
-                            <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-teal-900 text-coral-400 transition-transform duration-300 group-hover:scale-110">
-                                <x-icon name="pill" class="h-7 w-7" />
-                            </span>
+                            @if ($product->image_path)
+                                <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" class="mx-auto h-14 w-14 rounded-full object-cover transition-transform duration-300 group-hover:scale-110">
+                            @else
+                                <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-teal-900 text-coral-400 transition-transform duration-300 group-hover:scale-110">
+                                    <x-icon name="pill" class="h-7 w-7" />
+                                </span>
+                            @endif
                             <h3 class="mt-4 font-semibold text-teal-900">{{ $product->name }}</h3>
                             <p class="mt-1 text-sm text-slate-500">Category: {{ $product->category->name }}</p>
                             <span class="mt-3 inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Available</span>
@@ -121,9 +125,13 @@
                         @foreach ($products as $product)
                             <a href="{{ route('catalog.show', $product) }}" class="group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1.5 hover:shadow-lg">
                                 <div class="flex items-center justify-between">
-                                    <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-coral-50 text-coral-600 transition-transform duration-300 group-hover:scale-110">
-                                        <x-icon name="pill" class="h-7 w-7" />
-                                    </div>
+                                    @if ($product->image_path)
+                                        <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" class="h-14 w-14 rounded-xl object-cover transition-transform duration-300 group-hover:scale-110">
+                                    @else
+                                        <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-coral-50 text-coral-600 transition-transform duration-300 group-hover:scale-110">
+                                            <x-icon name="pill" class="h-7 w-7" />
+                                        </div>
+                                    @endif
                                     @if ($product->is_featured)
                                         <span class="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">Popular</span>
                                     @endif

@@ -17,11 +17,11 @@
         </x-admin.field>
 
         <div class="grid gap-5 sm:grid-cols-2">
-            <x-admin.field label="Heading" name="heading" :value="$section->heading" hint="Used by: Hero, Image+Text, CTA, Card Grid, Gallery" />
-            <x-admin.field label="Subheading" name="subheading" :value="$section->subheading" />
+            <x-admin.field label="Heading" name="heading" :value="$section->heading" hint="Used by: Hero, Image+Text, CTA, Card Grid, Gallery, Stats, Team, Testimonials, FAQ (as section title)" />
+            <x-admin.field label="Subheading" name="subheading" :value="$section->subheading" hint="For Featured Quote, this is the attribution line (name/title)." />
         </div>
 
-        <x-admin.field label="Body Text" name="body" type="textarea" rows="5" :value="$section->body" hint="Used by: Hero, Rich Text, Image+Text, CTA" />
+        <x-admin.field label="Body Text" name="body" type="textarea" rows="5" :value="$section->body" hint="Used by: Hero, Rich Text, Image+Text, CTA, and as the quote text for Featured Quote" />
 
         <div class="grid gap-5 sm:grid-cols-2">
             <div>
@@ -45,14 +45,22 @@
             <x-admin.field label="Button URL" name="button_url" :value="$section->button_url" />
         </div>
 
-        <x-admin.field label="Card / Gallery Items" name="items_raw" type="textarea" rows="4" :value="$itemsRaw" hint='Used by: Card Grid, Gallery. One item per line, formatted as "Heading | Text"' />
+        <x-admin.field label="Card / Gallery / Stats Items" name="items_raw" type="textarea" rows="4" :value="$itemsRaw" hint='Used by: Card Grid, Gallery, Stats Row. One item per line, formatted as "Heading | Text" — for Stats Row, Heading is the number (e.g. "10+") and Text is the label.' />
 
-        <div class="grid gap-5 sm:grid-cols-3">
+        <div class="grid gap-5 sm:grid-cols-2">
             <x-admin.field label="Background" name="background" type="select">
                 @foreach (['white' => 'White', 'tint' => 'Tinted', 'dark' => 'Dark'] as $value => $bgLabel)
                     <option value="{{ $value }}" @selected(old('background', $section->background ?: 'white') === $value)>{{ $bgLabel }}</option>
                 @endforeach
             </x-admin.field>
+            <x-admin.field label="Entrance Animation" name="animation" type="select" hint="Plays once, as the section scrolls into view.">
+                @foreach (\App\Models\PageSection::ANIMATIONS as $value => $animLabel)
+                    <option value="{{ $value }}" @selected(old('animation', $section->animation ?: 'fade') === $value)>{{ $animLabel }}</option>
+                @endforeach
+            </x-admin.field>
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
             <x-admin.field label="Sort Order" name="sort_order" type="number" :value="$section->sort_order ?? 0" />
             <div class="pt-6">
                 <x-admin.field label="" name="is_visible" type="checkbox" :value="$section->exists ? $section->is_visible : true" hint="Visible" />

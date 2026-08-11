@@ -8,6 +8,18 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23173c36%22><rect x=%223%22 y=%223%22 width=%2218%22 height=%2218%22 rx=%225%22/><path d=%22M8 12h8M12 8v8%22 stroke=%22%23e35f38%22 stroke-width=%222%22/></svg>">
     <script>document.documentElement.classList.add('js-ready');</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if (config('company.theme.primary') || config('company.theme.accent'))
+        <style>
+            :root {
+                @foreach (\App\Support\ColorPalette::ramp(config('company.theme.primary', '#2a9078')) as $shade => $hex)
+                    --color-teal-{{ $shade }}: {{ $hex }};
+                @endforeach
+                @foreach (\App\Support\ColorPalette::ramp(config('company.theme.accent', '#e35f38')) as $shade => $hex)
+                    --color-coral-{{ $shade }}: {{ $hex }};
+                @endforeach
+            }
+        </style>
+    @endif
 </head>
 <body class="min-h-screen bg-white text-slate-700 antialiased">
 
@@ -46,9 +58,13 @@
 
     <header data-site-header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur transition-shadow duration-300">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
-            <a href="{{ route('home') }}" class="leading-tight">
-                <span class="block text-xl font-bold tracking-tight text-teal-900">SalesCare<span class="text-coral-500">+</span></span>
-                <span class="block text-xs text-slate-500">{{ config('company.tagline') }}</span>
+            <a href="{{ route('home') }}" class="flex items-center gap-2.5 leading-tight">
+                @if (config('company.logo_path'))
+                    <img src="{{ asset('storage/'.config('company.logo_path')) }}" alt="{{ config('company.short_name') }}" class="h-10 w-auto object-contain">
+                @else
+                    <span class="block text-xl font-bold tracking-tight text-teal-900">{{ config('company.short_name', config('company.name')) }}</span>
+                @endif
+                <span class="hidden text-xs text-slate-500 sm:block">{{ config('company.tagline') }}</span>
             </a>
 
             @php
@@ -183,10 +199,13 @@
         <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
                 <div>
-                    <span class="text-xl font-bold text-white">SalesCare<span class="text-coral-400">+</span></span>
+                    @if (config('company.logo_path'))
+                        <img src="{{ asset('storage/'.config('company.logo_path')) }}" alt="{{ config('company.short_name') }}" class="h-9 w-auto object-contain brightness-0 invert">
+                    @else
+                        <span class="text-xl font-bold text-white">{{ config('company.short_name', config('company.name')) }}</span>
+                    @endif
                     <p class="mt-4 text-sm leading-relaxed text-teal-300">
-                        Leading pharmaceutical distribution organisation serving healthcare providers
-                        across South Punjab, headquartered in Muzaffargarh since {{ config('company.founded_year') }}.
+                        {{ config('company.footer_about') }}
                     </p>
                     <div class="mt-5 flex gap-3">
                         <a href="{{ config('company.social.facebook') }}" class="rounded-full border border-teal-700 p-2 text-teal-300 transition hover:border-coral-400 hover:text-white" aria-label="Facebook">

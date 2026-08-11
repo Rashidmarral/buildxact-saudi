@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\CertificationController as AdminCertificationCont
 use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FaqController as AdminFaqController;
+use App\Http\Controllers\Admin\GalleryImageController as AdminGalleryImageController;
 use App\Http\Controllers\Admin\NavItemController as AdminNavItemController;
 use App\Http\Controllers\Admin\NewsletterSubscriberController as AdminNewsletterSubscriberController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Admin\PageSectionController as AdminPageSectionControll
 use App\Http\Controllers\Admin\PrincipalController as AdminPrincipalController;
 use App\Http\Controllers\Admin\ProductCategoryController as AdminProductCategoryController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\SettingController as AdminSettingController;
 use App\Http\Controllers\Admin\TeamMemberController as AdminTeamMemberController;
 use App\Http\Controllers\Admin\TestimonialController as AdminTestimonialController;
@@ -64,6 +66,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('certifications', AdminCertificationController::class)->except('show');
         Route::resource('team-members', AdminTeamMemberController::class)->except('show');
         Route::resource('faqs', AdminFaqController::class)->except('show');
+        Route::resource('gallery-images', AdminGalleryImageController::class)->except('show');
         Route::resource('nav-items', AdminNavItemController::class)->except('show');
 
         Route::resource('pages', AdminPageController::class)->except('show');
@@ -75,6 +78,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('settings', [AdminSettingController::class, 'edit'])->name('settings.edit');
         Route::put('settings', [AdminSettingController::class, 'update'])->name('settings.update');
+
+        Route::get('profile', [AdminProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('profile', [AdminProfileController::class, 'update'])->name('profile.update');
 
         Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
         Route::get('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'show'])->name('contact-messages.show');
