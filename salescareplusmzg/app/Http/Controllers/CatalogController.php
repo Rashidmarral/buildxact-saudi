@@ -6,7 +6,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Http\Request;
 
-class ProductController extends Controller
+class CatalogController extends Controller
 {
     public function index(Request $request)
     {
@@ -26,9 +26,11 @@ class ProductController extends Controller
             });
         }
 
+        $featuredProducts = Product::with('category')->where('is_featured', true)->orderBy('sort_order')->limit(6)->get();
+
         $products = $query->paginate(12)->withQueryString();
 
-        return view('pages.products.index', compact('categories', 'products'));
+        return view('pages.catalog.index', compact('categories', 'products', 'featuredProducts'));
     }
 
     public function show(Product $product)
@@ -39,6 +41,6 @@ class ProductController extends Controller
             ->limit(4)
             ->get();
 
-        return view('pages.products.show', compact('product', 'related'));
+        return view('pages.catalog.show', compact('product', 'related'));
     }
 }
