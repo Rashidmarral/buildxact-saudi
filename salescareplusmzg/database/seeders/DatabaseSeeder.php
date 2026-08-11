@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
             CertificationSeeder::class,
             TeamMemberSeeder::class,
             FaqSeeder::class,
+            AdminUserSeeder::class,
+            SettingSeeder::class,
+            NavItemSeeder::class,
         ]);
     }
 }

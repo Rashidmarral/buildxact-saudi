@@ -44,6 +44,47 @@ the main nav to keep the primary nav short — see `resources/views/components/l
 - `newsletter_subscribers` — footer newsletter signup (`POST /newsletter`) stores emails here
 
 All content is seeded via `database/seeders/*` with real, company-specific copy — no Lorem Ipsum.
+Seeded content is a starting point — once the site is running, everything below is editable from
+the admin panel without touching code.
+
+## Admin Panel (CMS)
+
+The whole site is manageable from a built-in admin panel — no code changes or redeploys needed to
+update content.
+
+**Login:** `/admin/login`
+
+**Default credentials** (created by `AdminUserSeeder`, runs with `php artisan migrate --seed`):
+
+```
+Email:    admin@salescareplusmzg.com
+Password: AdminSCP@2026
+```
+
+⚠️ **Change this password immediately after your first login in production** — go to
+`php artisan tinker` and run `User::where('email', 'admin@salescareplusmzg.com')->first()->update(['password' => Hash::make('your-new-password')])`,
+or add a "change password" form if you'd like one.
+
+**What the admin can manage:**
+
+| Area | What it controls |
+|---|---|
+| **Site Settings** | Company name, tagline, contact email/phone/WhatsApp, address, business hours, homepage stats, coverage areas, social media links, and a homepage hero video banner (upload a file or paste an `.mp4` URL) |
+| **Navigation** | Header menu, header "More" dropdown, and both footer link columns — add/remove/reorder links, point them at built-in pages, custom pages, or external URLs, and control which open in a new tab |
+| **Pages** | Create brand-new pages with their own URL (e.g. `/our-story`), built from stackable sections: Hero, Hero with Video Banner, Rich Text, Image + Text, Call to Action banner, Card Grid, and Image Gallery — each with its own heading, text, image/video upload, and button |
+| **Products / Categories** | Full catalog CRUD, including product photos |
+| **Principals** | Manufacturer partners, including logos |
+| **Testimonials, Certifications, Team Members, FAQs** | Full CRUD, including team photos |
+| **Contact Messages** | View and manage every contact form submission |
+| **Newsletter Subscribers** | View and remove footer newsletter signups |
+
+Uploaded images/videos are stored in `storage/app/public` and served via the `public/storage`
+symlink — run `php artisan storage:link` once after a fresh deploy if it isn't already linked.
+
+Behind the scenes: site-wide text is stored in a `settings` key/value table and merged into
+`config('company.*')` at boot (`app/Providers/SettingsServiceProvider.php`), so existing Blade
+views didn't need to change — they just automatically pick up admin-edited values, falling back to
+`config/company.php` defaults if a setting is empty.
 
 ## Local setup
 
@@ -86,10 +127,8 @@ retheme the entire site without touching any Blade view.
   business relationships with real companies. Replace with your actual principal agreements.
 - **Real photography**: illustrations (`resources/views/components/illustrations/*`) stand in for
   product/warehouse photography and the Contact page map — swap in real photos/an embedded map
-  when available.
-- **Admin panel**: products/categories/principals/testimonials/certifications/team/FAQs are
-  managed via the seeders (`database/seeders/`) for now. Add a simple authenticated `/admin` CRUD
-  if the content needs to change without a deploy.
+  when available (or upload real photos directly from the admin panel wherever an image field
+  exists).
 - **Contact/newsletter notifications**: submissions are saved to the database but no email/SMS
   notification is wired up yet — plug a `Mail` or `Notification` class into
   `ContactController::store()` / `NewsletterController::store()` if you want an alert on every
@@ -105,7 +144,7 @@ Beyond what's built, a few additions worth considering as the company grows:
   view their account, request quotes, and track order history online instead of by phone/WhatsApp.
 - **Downloadable resources** — a PDF price list / catalog download, and printable certificates on
   the Quality page.
-- **Admin panel** — CRUD for products, principals, FAQs and viewing contact/newsletter submissions
-  without touching code or re-seeding.
+- **Admin roles/permissions** — the current `is_admin` flag is all-or-nothing; a "Content Editor"
+  role with narrower access would help once more staff need admin access.
 - **Real testimonials with photos**, and a **case studies** page for larger institutional clients
   (hospitals) once you have a few strong examples to showcase.

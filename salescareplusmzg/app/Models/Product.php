@@ -15,6 +15,7 @@ class Product extends Model
         'pack_size',
         'manufacturer',
         'description',
+        'image_path',
         'is_featured',
         'sort_order',
     ];

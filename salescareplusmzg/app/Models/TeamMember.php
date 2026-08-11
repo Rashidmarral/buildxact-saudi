@@ -11,6 +11,7 @@ class TeamMember extends Model
         'designation',
         'bio',
         'initials',
+        'photo_path',
         'sort_order',
     ];
 }

@@ -12,6 +12,7 @@ class Principal extends Model
         'initials',
         'tagline',
         'description',
+        'logo_path',
         'years_partnership',
         'products_count',
         'sort_order',

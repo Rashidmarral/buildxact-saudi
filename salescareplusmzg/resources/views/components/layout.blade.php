@@ -52,48 +52,44 @@
             </a>
 
             @php
-                $navLinks = [
-                    'home' => 'Home',
-                    'about' => 'About',
-                    'principals' => 'Principals',
-                    'catalog.index' => 'Catalog',
-                    'services' => 'Services',
-                ];
-                $moreLinks = [
-                    'quality' => 'Quality &amp; Certifications',
-                    'gallery' => 'Gallery',
-                    'careers' => 'Careers',
-                    'faq' => 'FAQs',
-                ];
-                $moreIsActive = collect(array_keys($moreLinks))->contains(fn ($r) => request()->routeIs($r) || request()->routeIs($r.'.*'));
+                $__navItems = \App\Models\NavItem::with('page')->where('is_visible', true)->orderBy('sort_order')->get();
+                $navHeaderItems = $__navItems->where('location', 'header');
+                $moreItems = $__navItems->where('location', 'header_more');
+                $footerCompanyItems = $__navItems->where('location', 'footer_company');
+                $footerResourcesItems = $__navItems->where('location', 'footer_resources');
+                $moreIsActive = $moreItems->contains(fn ($item) => $item->isActive());
             @endphp
 
             <nav class="hidden items-center gap-7 text-sm font-medium text-slate-600 lg:flex">
-                @foreach ($navLinks as $routeName => $label)
-                    @php $isActive = request()->routeIs($routeName) || request()->routeIs($routeName.'.*'); @endphp
-                    <a href="{{ route($routeName) }}"
+                @foreach ($navHeaderItems as $item)
+                    @continue(! $item->resolveUrl())
+                    @php $isActive = $item->isActive(); @endphp
+                    <a href="{{ $item->resolveUrl() }}" @if ($item->open_in_new_tab) target="_blank" rel="noopener" @endif
                        class="group relative py-1 transition hover:text-coral-600 {{ $isActive ? 'text-teal-900 font-semibold' : '' }}">
-                        {{ $label }}
+                        {{ $item->label }}
                         <span class="absolute -bottom-0.5 left-0 h-0.5 rounded-full bg-coral-500 transition-all duration-300 {{ $isActive ? 'w-full' : 'w-0 group-hover:w-full' }}"></span>
                     </a>
                 @endforeach
 
-                <div class="relative" data-dropdown>
-                    <button type="button" data-dropdown-toggle aria-expanded="false" aria-controls="more-menu"
-                        class="group flex items-center gap-1 py-1 transition hover:text-coral-600 {{ $moreIsActive ? 'text-teal-900 font-semibold' : '' }}">
-                        More
-                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 transition-transform duration-200" data-dropdown-chevron fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                    </button>
-                    <div id="more-menu" data-dropdown-panel class="invisible absolute left-1/2 top-full z-30 mt-3 w-56 -translate-x-1/2 translate-y-1 rounded-2xl border border-slate-100 bg-white p-2 opacity-0 shadow-xl transition-all duration-200">
-                        @foreach ($moreLinks as $routeName => $label)
-                            @php $isActive = request()->routeIs($routeName) || request()->routeIs($routeName.'.*'); @endphp
-                            <a href="{{ route($routeName) }}"
-                               class="block rounded-lg px-3 py-2 text-sm transition-colors duration-150 {{ $isActive ? 'bg-teal-50 font-semibold text-teal-900' : 'text-slate-600 hover:bg-teal-50 hover:text-teal-900' }}">
-                                {!! $label !!}
-                            </a>
-                        @endforeach
+                @if ($moreItems->isNotEmpty())
+                    <div class="relative" data-dropdown>
+                        <button type="button" data-dropdown-toggle aria-expanded="false" aria-controls="more-menu"
+                            class="group flex items-center gap-1 py-1 transition hover:text-coral-600 {{ $moreIsActive ? 'text-teal-900 font-semibold' : '' }}">
+                            More
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 transition-transform duration-200" data-dropdown-chevron fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                        </button>
+                        <div id="more-menu" data-dropdown-panel class="invisible absolute left-1/2 top-full z-30 mt-3 w-56 -translate-x-1/2 translate-y-1 rounded-2xl border border-slate-100 bg-white p-2 opacity-0 shadow-xl transition-all duration-200">
+                            @foreach ($moreItems as $item)
+                                @continue(! $item->resolveUrl())
+                                @php $isActive = $item->isActive(); @endphp
+                                <a href="{{ $item->resolveUrl() }}" @if ($item->open_in_new_tab) target="_blank" rel="noopener" @endif
+                                   class="block rounded-lg px-3 py-2 text-sm transition-colors duration-150 {{ $isActive ? 'bg-teal-50 font-semibold text-teal-900' : 'text-slate-600 hover:bg-teal-50 hover:text-teal-900' }}">
+                                    {{ $item->label }}
+                                </a>
+                            @endforeach
+                        </div>
                     </div>
-                </div>
+                @endif
 
                 @php $isActive = request()->routeIs('contact'); @endphp
                 <a href="{{ route('contact') }}"
@@ -119,19 +115,23 @@
 
         <nav id="mobile-menu" class="hidden border-t border-slate-100 bg-white px-4 pb-4 pt-2 lg:hidden">
             <div class="flex flex-col gap-1">
-                @foreach ($navLinks as $routeName => $label)
-                    <a href="{{ route($routeName) }}"
-                       class="rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ request()->routeIs($routeName) || request()->routeIs($routeName.'.*') ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-teal-50' }}">
-                        {{ $label }}
+                @foreach ($navHeaderItems as $item)
+                    @continue(! $item->resolveUrl())
+                    <a href="{{ $item->resolveUrl() }}" @if ($item->open_in_new_tab) target="_blank" rel="noopener" @endif
+                       class="rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ $item->isActive() ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-teal-50' }}">
+                        {{ $item->label }}
                     </a>
                 @endforeach
-                <p class="mt-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">More</p>
-                @foreach ($moreLinks as $routeName => $label)
-                    <a href="{{ route($routeName) }}"
-                       class="rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ request()->routeIs($routeName) || request()->routeIs($routeName.'.*') ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-teal-50' }}">
-                        {!! $label !!}
-                    </a>
-                @endforeach
+                @if ($moreItems->isNotEmpty())
+                    <p class="mt-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-400">More</p>
+                    @foreach ($moreItems as $item)
+                        @continue(! $item->resolveUrl())
+                        <a href="{{ $item->resolveUrl() }}" @if ($item->open_in_new_tab) target="_blank" rel="noopener" @endif
+                           class="rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ $item->isActive() ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-teal-50' }}">
+                            {{ $item->label }}
+                        </a>
+                    @endforeach
+                @endif
                 <a href="{{ route('contact') }}"
                    class="rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 {{ request()->routeIs('contact') ? 'bg-teal-50 text-teal-900' : 'text-slate-600 hover:bg-teal-50' }}">
                     Contact
@@ -207,21 +207,20 @@
                 <div>
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-teal-400">Company</h3>
                     <ul class="mt-4 space-y-2.5 text-sm text-teal-200">
-                        <li><a href="{{ route('about') }}" class="hover:text-white">About</a></li>
-                        <li><a href="{{ route('principals') }}" class="hover:text-white">Principals</a></li>
-                        <li><a href="{{ route('services') }}" class="hover:text-white">Services</a></li>
-                        <li><a href="{{ route('quality') }}" class="hover:text-white">Quality &amp; Certifications</a></li>
-                        <li><a href="{{ route('careers') }}" class="hover:text-white">Careers</a></li>
+                        @foreach ($footerCompanyItems as $item)
+                            @continue(! $item->resolveUrl())
+                            <li><a href="{{ $item->resolveUrl() }}" @if ($item->open_in_new_tab) target="_blank" rel="noopener" @endif class="hover:text-white">{{ $item->label }}</a></li>
+                        @endforeach
                     </ul>
                 </div>
 
                 <div>
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-teal-400">Resources</h3>
                     <ul class="mt-4 space-y-2.5 text-sm text-teal-200">
-                        <li><a href="{{ route('catalog.index') }}" class="hover:text-white">Catalog</a></li>
-                        <li><a href="{{ route('gallery') }}" class="hover:text-white">Gallery</a></li>
-                        <li><a href="{{ route('faq') }}" class="hover:text-white">FAQs</a></li>
-                        <li><a href="{{ route('contact') }}" class="hover:text-white">Contact</a></li>
+                        @foreach ($footerResourcesItems as $item)
+                            @continue(! $item->resolveUrl())
+                            <li><a href="{{ $item->resolveUrl() }}" @if ($item->open_in_new_tab) target="_blank" rel="noopener" @endif class="hover:text-white">{{ $item->label }}</a></li>
+                        @endforeach
                     </ul>
                     <h3 class="mt-6 text-sm font-semibold uppercase tracking-wide text-teal-400">Coverage Areas</h3>
                     <ul class="mt-4 space-y-2.5 text-sm text-teal-200">

@@ -1,8 +1,19 @@
 <x-layout title="Home" description="Sales Care Plus MZG — a trusted pharmaceutical distribution company headquartered in Muzaffargarh, Pakistan, delivering healthcare with trust and excellence across South Punjab.">
 
     {{-- Hero --}}
+    @php
+        $heroVideoSrc = config('company.home_hero_video_path')
+            ? asset('storage/'.config('company.home_hero_video_path'))
+            : config('company.home_hero_video_url');
+    @endphp
     <section class="relative overflow-hidden bg-teal-pattern">
-        <div class="mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-28">
+        @if ($heroVideoSrc)
+            <video autoplay muted loop playsinline class="absolute inset-0 h-full w-full object-cover opacity-30">
+                <source src="{{ $heroVideoSrc }}" type="video/mp4">
+            </video>
+            <div class="absolute inset-0 bg-teal-950/60"></div>
+        @endif
+        <div class="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-28">
             <div>
                 <span class="hero-fade-in inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-coral-300 ring-1 ring-white/10">
                     <x-icon name="badge-check" class="h-4 w-4" /> Serving South Punjab since {{ config('company.founded_year') }}
