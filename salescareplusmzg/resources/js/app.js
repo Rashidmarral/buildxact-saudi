@@ -16,7 +16,46 @@ document.addEventListener('DOMContentLoaded', () => {
     initScrollReveal();
     initCounters();
     initHeaderShadow();
+    initDropdowns();
 });
+
+function initDropdowns() {
+    const dropdowns = document.querySelectorAll('[data-dropdown]');
+
+    dropdowns.forEach((dropdown) => {
+        const button = dropdown.querySelector('[data-dropdown-toggle]');
+        const panel = dropdown.querySelector('[data-dropdown-panel]');
+        const chevron = dropdown.querySelector('[data-dropdown-chevron]');
+
+        if (!button || !panel) return;
+
+        const close = () => {
+            panel.classList.add('invisible', 'opacity-0', 'translate-y-1');
+            button.setAttribute('aria-expanded', 'false');
+            chevron?.classList.remove('rotate-180');
+        };
+
+        const open = () => {
+            panel.classList.remove('invisible', 'opacity-0', 'translate-y-1');
+            button.setAttribute('aria-expanded', 'true');
+            chevron?.classList.add('rotate-180');
+        };
+
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const isOpen = button.getAttribute('aria-expanded') === 'true';
+            isOpen ? close() : open();
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!dropdown.contains(event.target)) close();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') close();
+        });
+    });
+}
 
 function initScrollReveal() {
     const targets = document.querySelectorAll('.reveal, .reveal-scale, .reveal-stagger');
