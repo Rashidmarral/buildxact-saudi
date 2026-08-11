@@ -10,6 +10,12 @@ class SettingSeeder extends Seeder
     public function run(): void
     {
         $defaults = [
+            'maintenance_mode_enabled' => ['0', 'maintenance', 'checkbox', 'Maintenance Mode'],
+            'maintenance_message' => [
+                "We're making some improvements to our website right now. We'll be back online shortly — thanks for your patience.",
+                'maintenance', 'textarea', 'Maintenance Message',
+            ],
+
             'company_name' => ['Sales Care Plus MZG', 'company', 'text', 'Company Name'],
             'company_short_name' => ['SalesCare+ MZG', 'company', 'text', 'Short Name (header logo)'],
             'company_legal_name' => ['Sales Care Plus MZG (Pvt) Ltd.', 'company', 'text', 'Legal Name (footer copyright)'],

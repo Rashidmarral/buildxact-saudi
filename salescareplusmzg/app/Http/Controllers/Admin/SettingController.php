@@ -17,6 +17,9 @@ class SettingController extends Controller
      * Seeded with defaults by SettingSeeder; this list drives the form.
      */
     private const FIELDS = [
+        'maintenance_mode_enabled' => ['Maintenance Mode', 'maintenance', 'checkbox'],
+        'maintenance_message' => ['Maintenance Message', 'maintenance', 'textarea'],
+
         'company_name' => ['Company Name', 'company', 'text'],
         'company_short_name' => ['Short Name (header logo)', 'company', 'text'],
         'company_legal_name' => ['Legal Name (footer copyright)', 'company', 'text'],
@@ -81,6 +84,10 @@ class SettingController extends Controller
             if ($type === 'lines') {
                 $lines = array_values(array_filter(array_map('trim', explode("\n", (string) $value))));
                 $value = json_encode($lines);
+            }
+
+            if ($type === 'checkbox') {
+                $value = $request->boolean($key) ? '1' : '0';
             }
 
             Setting::updateOrCreate(

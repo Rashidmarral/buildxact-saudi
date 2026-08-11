@@ -1,6 +1,7 @@
 @php
     $grouped = collect($fields)->map(fn ($field, $key) => ['key' => $key, 'label' => $field[0], 'group' => $field[1], 'type' => $field[2]])->groupBy('group');
     $groupTitles = [
+        'maintenance' => 'Maintenance Mode',
         'company' => 'Company Details',
         'contact' => 'Contact Details',
         'theme' => 'Theme Colors',
@@ -77,12 +78,16 @@
                                 $fieldType = match ($field['type']) {
                                     'lines', 'textarea' => 'textarea',
                                     'color' => 'color',
+                                    'checkbox' => 'checkbox',
                                     default => 'text',
                                 };
                                 $fieldValue = $field['type'] === 'lines' && $rawValue ? implode("\n", json_decode($rawValue, true) ?: []) : $rawValue;
                                 $fieldValue = $field['type'] === 'color' ? ($rawValue ?: '#2a9078') : $fieldValue;
+                                $fieldHint = $field['key'] === 'maintenance_mode_enabled'
+                                    ? 'Show a "we\'ll be right back" page to visitors. You stay logged in and can keep editing the site while this is on.'
+                                    : null;
                             @endphp
-                            <x-admin.field :label="$field['label']" :name="$field['key']" :type="$fieldType" :value="$fieldValue" :class="$field['type'] === 'color' ? 'h-11 w-24 cursor-pointer p-1' : ''" />
+                            <x-admin.field :label="$field['label']" :name="$field['key']" :type="$fieldType" :value="$fieldValue" :hint="$fieldHint" :class="$field['type'] === 'color' ? 'h-11 w-24 cursor-pointer p-1' : ''" />
                         @endforeach
 
                         @if ($groupKey === 'hero')

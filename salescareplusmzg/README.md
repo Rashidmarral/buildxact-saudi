@@ -84,6 +84,7 @@ tinker session needed.
 
 | Area | What it controls |
 |---|---|
+| **Maintenance Mode** | One checkbox in Site Settings shows a branded "we'll be right back" page to every visitor (503 status, so search engines don't deindex the site), with a custom message you control. You stay logged in as admin and can keep browsing/editing the live site while it's on — only the public sees the maintenance page |
 | **Branding & Logo** | Upload/replace the site logo (shown in the header, footer and admin sidebar — falls back to a text wordmark if none is set) |
 | **Theme Colors** | Pick a primary and accent brand color (native color pickers) — the entire site's color palette (11 shades of each, buttons, links, backgrounds, everywhere) regenerates instantly, no rebuild needed. This is the fastest way to re-skin the whole site for a different company/brand |
 | **Site Settings** | Company name, short name, legal name, tagline, contact email/phone/WhatsApp, address, business hours, footer "about" blurb, homepage stats, coverage areas, social media links, a homepage hero video banner (upload a file or paste an `.mp4` URL), and an SEO social-share image used for Open Graph/Twitter link previews |
@@ -102,7 +103,9 @@ tinker session needed.
 
 **Every public page is now fully admin-editable** — Home, About, Services, Quality, Careers,
 Principals, Catalog, Gallery, FAQ, Contact, plus unlimited custom Pages. None of them require a
-code change to update copy, swap images, or restructure content for a new client.
+code change to update copy, swap images, or restructure content for a new client. This includes
+**Privacy Policy and Terms of Service** — they're ordinary rows in **Pages**, not special-cased, so
+editing them (or adding more legal pages) works exactly like editing/adding any other page.
 
 **Page builder section types:** Hero, Hero with Video Banner, Rich Text, Image + Text, Call to
 Action banner, Card Grid, Image Gallery, Stats Row, Featured Quote, Team Members (pulled live from
