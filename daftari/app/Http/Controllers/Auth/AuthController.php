@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Plan;
+use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -75,6 +76,8 @@ class AuthController extends Controller
                 'trial_ends_at' => now()->addDays((int) config('daftari.trial_days')),
                 'currency' => config('daftari.default_currency'),
             ]);
+
+            Role::seedSystemRoles($company->id);
 
             $user = User::create([
                 'company_id' => $company->id,

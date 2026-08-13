@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Item;
 use App\Models\Plan;
+use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -35,6 +36,8 @@ class DemoSeeder extends Seeder
                 'trial_ends_at' => now()->addDays(config('daftari.trial_days')),
             ]
         );
+
+        Role::seedSystemRoles($company->id);
 
         $owner = User::updateOrCreate(
             ['email' => 'owner@daftari.local'],

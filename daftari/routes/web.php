@@ -26,6 +26,7 @@ use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
 use App\Http\Controllers\User\ReportController;
+use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\SalespersonController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\StockAdjustmentController;
@@ -72,69 +73,88 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 
 // User panel
 Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->group(function () {
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard');
 
-    Route::resource('clients', ClientController::class)->except(['show']);
-    Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
-    Route::resource('items', ItemController::class)->except(['show']);
+    Route::middleware('permission:clients')->group(function () {
+        Route::resource('clients', ClientController::class)->except(['show']);
+        Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
+    });
+    Route::resource('items', ItemController::class)->except(['show'])->middleware('permission:items');
 
-    Route::resource('invoices', InvoiceController::class);
-    Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
-    Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+    Route::middleware('permission:invoices')->group(function () {
+        Route::resource('invoices', InvoiceController::class);
+        Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+        Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+    });
 
-    Route::resource('quotations', QuotationController::class);
-    Route::post('quotations/{quotation}/send', [QuotationController::class, 'send'])->name('quotations.send');
-    Route::post('quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
-    Route::post('quotations/{quotation}/reject', [QuotationController::class, 'reject'])->name('quotations.reject');
-    Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');
+    Route::middleware('permission:quotations')->group(function () {
+        Route::resource('quotations', QuotationController::class);
+        Route::post('quotations/{quotation}/send', [QuotationController::class, 'send'])->name('quotations.send');
+        Route::post('quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
+        Route::post('quotations/{quotation}/reject', [QuotationController::class, 'reject'])->name('quotations.reject');
+        Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');
+    });
 
-    Route::resource('expenses', ExpenseController::class)->except(['show']);
-    Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
-    Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+    Route::middleware('permission:expenses')->group(function () {
+        Route::resource('expenses', ExpenseController::class)->except(['show']);
+        Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
+        Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+    });
 
-    Route::get('reports/vat', [ReportController::class, 'vat'])->name('reports.vat');
+    Route::get('reports/vat', [ReportController::class, 'vat'])->name('reports.vat')->middleware('permission:reports');
 
-    Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
-    Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show']);
-    Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
-    Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show']);
-    Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
-    Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
+    Route::middleware('permission:cash_banks')->group(function () {
+        Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
+        Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
+        Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
+        Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
+    });
 
-    Route::resource('suppliers', SupplierController::class)->except(['show']);
-    Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
+    Route::middleware('permission:purchases')->group(function () {
+        Route::resource('suppliers', SupplierController::class)->except(['show']);
+        Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
 
-    Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
-    Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
-    Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
+        Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
+        Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
 
-    Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
-    Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
-    Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
-    Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
+        Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+        Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
+        Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
+    });
 
-    Route::resource('warehouses', WarehouseController::class)->except(['show']);
-    Route::post('warehouses/{warehouse}/make-default', [WarehouseController::class, 'makeDefault'])->name('warehouses.make-default');
-    Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'create', 'store']);
-    Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
-    Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
+    Route::middleware('permission:inventory')->group(function () {
+        Route::resource('warehouses', WarehouseController::class)->except(['show']);
+        Route::post('warehouses/{warehouse}/make-default', [WarehouseController::class, 'makeDefault'])->name('warehouses.make-default');
+        Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'create', 'store']);
+        Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
+        Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
+    });
 
-    Route::resource('salespersons', SalespersonController::class)->except(['show']);
-
-    Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
-    Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+    Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');
 
     Route::middleware('role:owner')->group(function () {
+        Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
+        Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+    });
+
+    Route::middleware('permission:members_roles')->group(function () {
         Route::get('team', [TeamController::class, 'index'])->name('team.index');
         Route::post('team', [TeamController::class, 'store'])->name('team.store');
         Route::delete('team/{user}', [TeamController::class, 'destroy'])->name('team.destroy');
 
-        Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
-        Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
-
-        Route::resource('branches', BranchController::class)->except(['show']);
-        Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default');
+        Route::resource('roles', RoleController::class)->except(['show']);
+        Route::get('roles/{role}', [RoleController::class, 'show'])->name('roles.show');
     });
+
+    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update')->middleware('permission:settings');
+    Route::get('settings', [SettingsController::class, 'index'])->name('settings.index')->middleware('permission:settings');
+
+    Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
+    Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');
 });
 
 // Platform admin panel
