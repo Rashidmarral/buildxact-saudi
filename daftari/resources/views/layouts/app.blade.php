@@ -27,6 +27,7 @@
                     };
                 @endphp
                 {!! $navItem('app.dashboard', __('Dashboard'), '📊') !!}
+                {!! $navItem('app.quotations.index', __('Quotations'), '📋') !!}
                 {!! $navItem('app.invoices.index', __('Invoices'), '🧾') !!}
                 {!! $navItem('app.clients.index', __('Clients'), '👥') !!}
                 {!! $navItem('app.items.index', __('Items'), '📦') !!}

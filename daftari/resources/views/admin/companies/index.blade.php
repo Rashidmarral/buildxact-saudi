@@ -4,7 +4,7 @@
 
 @section('content')
 <form method="GET" class="mb-6">
-    <input type="text" name="q" value="{{ request('q') }}" placeholder="{{ __('Search companies...') }}" class="w-full max-w-sm rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+    <input type="text" name="q" value="{{ request('q') }}" placeholder="{{ __('Search companies...') }}" class="w-full max-w-sm rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
 </form>
 
 <div class="bg-white rounded-xl border border-slate-100">

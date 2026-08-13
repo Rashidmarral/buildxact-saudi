@@ -18,7 +18,7 @@
         @php
             $yearlyMonthlyEquivalent = $plan->price_yearly > 0 ? $plan->price_yearly / 12 : 0;
         @endphp
-        <div class="rounded-2xl border {{ $loop->index === 1 ? 'border-brand-500 shadow-lg ring-1 ring-brand-500' : 'border-slate-200' }} bg-white p-8 flex flex-col">
+        <div class="rounded-2xl border {{ $loop->index === 1 ? 'border-brand-500 shadow-lg ring-1 ring-brand-500' : 'border border-slate-200' }} bg-white p-8 flex flex-col">
             @if ($loop->index === 1)
                 <span class="self-start mb-3 rounded-full bg-brand-600 text-white text-xs font-semibold px-3 py-1">{{ __('Most popular') }}</span>
             @endif

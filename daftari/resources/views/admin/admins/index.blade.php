@@ -37,19 +37,19 @@
         @csrf
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Name') }}</label>
-            <input type="text" name="name" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Email') }}</label>
-            <input type="email" name="email" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="email" name="email" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Password') }}</label>
-            <input type="password" name="password" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="password" name="password" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Confirm password') }}</label>
-            <input type="password" name="password_confirmation" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="password" name="password_confirmation" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Add admin') }}</button>
     </form>

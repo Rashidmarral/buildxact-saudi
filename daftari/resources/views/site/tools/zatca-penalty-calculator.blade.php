@@ -8,7 +8,7 @@
 <section class="mx-auto max-w-2xl px-6 pb-8">
     <div class="rounded-xl border border-slate-100 bg-white p-6">
         <label class="block text-sm font-medium text-slate-700">{{ __('Violation type') }}</label>
-        <select id="pen-select" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500"></select>
+        <select id="pen-select" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500"></select>
 
         <div class="mt-6 rounded-lg bg-brand-50 p-4 text-center">
             <div class="text-xs text-brand-700">{{ __('Illustrative range') }}</div>

@@ -5,7 +5,7 @@
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <form method="GET" class="flex items-center gap-2">
-        <select name="status" onchange="this.form.submit()" class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <select name="status" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">{{ __('All statuses') }}</option>
             @foreach (['draft' => __('Draft'), 'sent' => __('Sent'), 'paid' => __('Paid'), 'partially_paid' => __('Partially paid'), 'overdue' => __('Overdue'), 'cancelled' => __('Cancelled')] as $value => $label)
                 <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>

@@ -122,15 +122,15 @@
             @csrf
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Amount') }}</label>
-                <input type="number" step="0.01" min="0.01" max="{{ $invoice->balanceDue() }}" name="amount" value="{{ $invoice->balanceDue() }}" required class="mt-1 w-32 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" step="0.01" min="0.01" max="{{ $invoice->balanceDue() }}" name="amount" value="{{ $invoice->balanceDue() }}" required class="mt-1 w-32 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Date') }}</label>
-                <input type="date" name="paid_at" value="{{ now()->toDateString() }}" required class="mt-1 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="date" name="paid_at" value="{{ now()->toDateString() }}" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Method') }}</label>
-                <select name="method" class="mt-1 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <select name="method" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="cash">{{ __('Cash') }}</option>
                     <option value="bank_transfer">{{ __('Bank transfer') }}</option>
                     <option value="card">{{ __('Card') }}</option>
@@ -139,7 +139,7 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Reference') }}</label>
-                <input type="text" name="reference" class="mt-1 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" name="reference" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Record payment') }}</button>
         </form>

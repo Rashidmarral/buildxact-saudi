@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Client;
 use App\Models\Expense;
 use App\Models\Invoice;
+use App\Models\Item;
+use App\Models\Quotation;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -22,10 +25,52 @@ class DashboardController extends Controller
             'total_expenses_this_month' => Expense::whereMonth('expense_date', now()->month)->whereYear('expense_date', now()->year)->sum('amount'),
             'invoice_count' => (clone $invoices)->count(),
             'overdue_count' => (clone $invoices)->where('status', 'overdue')->count(),
+            'open_quotations' => Quotation::whereIn('status', ['draft', 'issued'])->count(),
         ];
 
         $recentInvoices = Invoice::with('client')->latest('issue_date')->latest('id')->take(8)->get();
 
-        return view('user.dashboard', compact('company', 'stats', 'recentInvoices'));
+        $aging = $this->receivablesAging();
+
+        $checklist = [
+            ['label' => __('Add your company logo'), 'done' => (bool) $company->logo_path, 'route' => 'app.settings.index'],
+            ['label' => __('Add your VAT number'), 'done' => (bool) $company->vat_number, 'route' => 'app.settings.index'],
+            ['label' => __('Add a client'), 'done' => Client::exists(), 'route' => 'app.clients.create'],
+            ['label' => __('Add an item or service'), 'done' => Item::exists(), 'route' => 'app.items.create'],
+            ['label' => __('Create your first invoice'), 'done' => Invoice::exists(), 'route' => 'app.invoices.create'],
+            ['label' => __('Record your first expense'), 'done' => Expense::exists(), 'route' => 'app.expenses.create'],
+        ];
+
+        return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist'));
+    }
+
+    private function receivablesAging(): array
+    {
+        $outstanding = Invoice::with('client')
+            ->whereIn('status', ['sent', 'partially_paid', 'overdue'])
+            ->get();
+
+        $buckets = ['current' => 0.0, '1_30' => 0.0, '31_60' => 0.0, '61_plus' => 0.0];
+
+        foreach ($outstanding as $invoice) {
+            $balance = $invoice->balanceDue();
+            if ($balance <= 0) {
+                continue;
+            }
+
+            $daysOverdue = $invoice->due_date ? now()->diffInDays($invoice->due_date, false) * -1 : -1;
+
+            if ($daysOverdue <= 0) {
+                $buckets['current'] += $balance;
+            } elseif ($daysOverdue <= 30) {
+                $buckets['1_30'] += $balance;
+            } elseif ($daysOverdue <= 60) {
+                $buckets['31_60'] += $balance;
+            } else {
+                $buckets['61_plus'] += $balance;
+            }
+        }
+
+        return $buckets;
     }
 }

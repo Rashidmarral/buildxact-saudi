@@ -18,24 +18,24 @@
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Voucher no.') }}</label>
-                    <input type="text" id="pv-number" value="PV-0001" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" id="pv-number" value="PV-0001" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Date') }}</label>
-                    <input type="date" id="pv-date" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="date" id="pv-date" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
             <div>
                 <label class="block text-xs text-slate-500 mb-1">{{ __('Paid to') }}</label>
-                <input type="text" id="pv-to" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" id="pv-to" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-xs text-slate-500 mb-1">{{ __('Amount (SAR)') }}</label>
-                <input type="number" id="pv-amount" min="0" step="0.01" value="0" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="pv-amount" min="0" step="0.01" value="0" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-xs text-slate-500 mb-1">{{ __('Payment method') }}</label>
-                <select id="pv-method" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <select id="pv-method" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="{{ __('Cash') }}">{{ __('Cash') }}</option>
                     <option value="{{ __('Bank transfer') }}">{{ __('Bank transfer') }}</option>
                     <option value="{{ __('Card') }}">{{ __('Card') }}</option>
@@ -44,7 +44,7 @@
             </div>
             <div>
                 <label class="block text-xs text-slate-500 mb-1">{{ __('For') }}</label>
-                <input type="text" id="pv-reason" placeholder="{{ __('e.g. supplier bill #, expense, refund') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" id="pv-reason" placeholder="{{ __('e.g. supplier bill #, expense, refund') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
         <button type="button" onclick="window.print()" class="w-full rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white hover:bg-brand-700">{{ __('Print / Save as PDF') }}</button>

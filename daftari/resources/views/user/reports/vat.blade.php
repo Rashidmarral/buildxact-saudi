@@ -4,12 +4,12 @@
 
 @section('content')
 <form method="GET" class="flex items-center gap-3 mb-6">
-    <select name="month" onchange="this.form.submit()" class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+    <select name="month" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
         @foreach (range(1, 12) as $m)
             <option value="{{ $m }}" @selected($month == $m)>{{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}</option>
         @endforeach
     </select>
-    <select name="year" onchange="this.form.submit()" class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+    <select name="year" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
         @foreach (range(now()->year, now()->year - 3) as $y)
             <option value="{{ $y }}" @selected($year == $y)>{{ $y }}</option>
         @endforeach

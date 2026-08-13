@@ -44,15 +44,15 @@
         @csrf
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Name') }}</label>
-            <input type="text" name="name" value="{{ old('name') }}" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" name="name" value="{{ old('name') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Email') }}</label>
-            <input type="email" name="email" value="{{ old('email') }}" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="email" name="email" value="{{ old('email') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Message') }}</label>
-            <textarea name="message" rows="5" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('message') }}</textarea>
+            <textarea name="message" rows="5" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('message') }}</textarea>
         </div>
         <button type="submit" class="w-full rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white hover:bg-brand-700">{{ __('Send message') }}</button>
     </form>

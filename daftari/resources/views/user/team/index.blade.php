@@ -50,15 +50,15 @@
         @csrf
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Name') }}</label>
-            <input type="text" name="name" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" name="name" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Email') }}</label>
-            <input type="email" name="email" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="email" name="email" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Role') }}</label>
-            <select name="role" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <select name="role" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="staff">{{ __('Staff') }}</option>
                 <option value="owner">{{ __('Owner') }}</option>
             </select>

@@ -15,6 +15,7 @@
         <table class="w-full text-sm">
             <thead>
                 <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="px-6 py-3 font-medium">{{ __('Code') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Name') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('VAT number') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Email') }}</th>
@@ -25,7 +26,11 @@
             <tbody>
                 @foreach ($clients as $client)
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                        <td class="px-6 py-3 font-medium text-slate-800">{{ $client->name }}</td>
+                        <td class="px-6 py-3 text-slate-400 font-mono text-xs">{{ $client->client_code }}</td>
+                        <td class="px-6 py-3 font-medium text-slate-800">
+                            {{ $client->name }}
+                            <span class="ms-1 text-xs text-slate-400">({{ $client->type === 'individual' ? __('Individual') : __('Company') }})</span>
+                        </td>
                         <td class="px-6 py-3 text-slate-500">{{ $client->vat_number ?: '—' }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $client->email ?: '—' }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $client->phone ?: '—' }}</td>

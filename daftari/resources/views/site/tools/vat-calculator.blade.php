@@ -13,7 +13,7 @@
         </div>
 
         <label class="block text-sm font-medium text-slate-700">{{ __('Amount (SAR)') }}</label>
-        <input type="number" id="vat-amount" step="0.01" min="0" value="100" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="number" id="vat-amount" step="0.01" min="0" value="100" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
 
         <div class="mt-6 grid grid-cols-3 gap-4 text-center">
             <div class="rounded-lg bg-slate-50 p-4">

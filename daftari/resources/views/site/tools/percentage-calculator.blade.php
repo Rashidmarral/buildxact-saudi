@@ -16,33 +16,33 @@
         <div id="p-of" class="p-panel grid sm:grid-cols-2 gap-5">
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Percentage (%)') }}</label>
-                <input type="number" id="p-of-x" step="0.01" value="15" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="p-of-x" step="0.01" value="15" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Of amount') }}</label>
-                <input type="number" id="p-of-y" step="0.01" value="1000" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="p-of-y" step="0.01" value="1000" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
 
         <div id="p-change" class="p-panel hidden grid sm:grid-cols-2 gap-5">
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('From') }}</label>
-                <input type="number" id="p-change-a" step="0.01" value="100" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="p-change-a" step="0.01" value="100" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('To') }}</label>
-                <input type="number" id="p-change-b" step="0.01" value="120" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="p-change-b" step="0.01" value="120" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
 
         <div id="p-margin" class="p-panel hidden grid sm:grid-cols-2 gap-5">
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Cost') }}</label>
-                <input type="number" id="p-margin-cost" step="0.01" value="70" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="p-margin-cost" step="0.01" value="70" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Selling price') }}</label>
-                <input type="number" id="p-margin-price" step="0.01" value="100" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="p-margin-price" step="0.01" value="100" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
 

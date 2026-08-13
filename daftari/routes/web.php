@@ -16,6 +16,7 @@ use App\Http\Controllers\User\ExpenseCategoryController;
 use App\Http\Controllers\User\ExpenseController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\ItemController;
+use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReportController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\TeamController;
@@ -67,6 +68,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::resource('invoices', InvoiceController::class);
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
     Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+
+    Route::resource('quotations', QuotationController::class);
+    Route::post('quotations/{quotation}/send', [QuotationController::class, 'send'])->name('quotations.send');
+    Route::post('quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
+    Route::post('quotations/{quotation}/reject', [QuotationController::class, 'reject'])->name('quotations.reject');
+    Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');
 
     Route::resource('expenses', ExpenseController::class)->except(['show']);
     Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');

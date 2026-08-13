@@ -10,11 +10,11 @@
         <div class="grid sm:grid-cols-2 gap-5">
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Last monthly wage (SAR)') }}</label>
-                <input type="number" id="e-wage" step="0.01" min="0" value="10000" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="e-wage" step="0.01" min="0" value="10000" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Years of service') }}</label>
-                <input type="number" id="e-years" step="0.1" min="0" value="6" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="e-years" step="0.1" min="0" value="6" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
 

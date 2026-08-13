@@ -3,12 +3,29 @@
 @section('title', __('Dashboard'))
 
 @section('content')
-<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+@php($pendingSteps = collect($checklist)->reject(fn ($step) => $step['done']))
+@if ($pendingSteps->isNotEmpty())
+    <div class="mb-8 bg-white rounded-xl border border-slate-100 p-6">
+        <h2 class="font-semibold text-slate-900 mb-1">{{ __('Get started in a few steps') }}</h2>
+        <p class="text-sm text-slate-500 mb-4">{{ __('A quick checklist to get your books set up.') }}</p>
+        <div class="grid sm:grid-cols-2 gap-2">
+            @foreach ($checklist as $step)
+                <a href="{{ route($step['route']) }}" class="flex items-center gap-2 text-sm rounded-lg px-3 py-2 {{ $step['done'] ? 'text-slate-400' : 'text-slate-700 hover:bg-slate-50' }}">
+                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-full text-xs {{ $step['done'] ? 'bg-brand-100 text-brand-700' : 'border border-slate-300' }}">{{ $step['done'] ? '✓' : '' }}</span>
+                    <span class="{{ $step['done'] ? 'line-through' : '' }}">{{ $step['label'] }}</span>
+                </a>
+            @endforeach
+        </div>
+    </div>
+@endif
+
+<div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-5">
     @foreach ([
         [__('Total invoiced'), 'SAR '.number_format($stats['total_invoiced'], 2), '🧾'],
         [__('Outstanding'), 'SAR '.number_format($stats['total_outstanding'], 2), '⏳'],
         [__('Paid this month'), 'SAR '.number_format($stats['total_paid_this_month'], 2), '✅'],
         [__('Expenses this month'), 'SAR '.number_format($stats['total_expenses_this_month'], 2), '💳'],
+        [__('Open quotations'), $stats['open_quotations'], '📋'],
     ] as [$label, $value, $icon])
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center justify-between">
@@ -18,6 +35,24 @@
             <div class="mt-2 text-2xl font-bold text-slate-900">{{ $value }}</div>
         </div>
     @endforeach
+</div>
+
+<div class="mt-8 bg-white rounded-xl border border-slate-100 p-6">
+    <h2 class="font-semibold text-slate-900 mb-1">{{ __('Receivables aging') }}</h2>
+    <p class="text-sm text-slate-500 mb-4">{{ __('Outstanding invoice balances by how overdue they are.') }}</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        @foreach ([
+            'current' => __('Current'),
+            '1_30' => __('1–30 days'),
+            '31_60' => __('31–60 days'),
+            '61_plus' => __('61+ days'),
+        ] as $key => $label)
+            <div class="rounded-lg {{ $key === 'current' ? 'bg-slate-50' : ($aging[$key] > 0 ? 'bg-amber-50' : 'bg-slate-50') }} p-4 text-center">
+                <div class="text-xs text-slate-500">{{ $label }}</div>
+                <div class="mt-1 text-lg font-bold {{ $key !== 'current' && $aging[$key] > 0 ? 'text-amber-700' : 'text-slate-900' }}">SAR {{ number_format($aging[$key], 2) }}</div>
+            </div>
+        @endforeach
+    </div>
 </div>
 
 <div class="mt-8 bg-white rounded-xl border border-slate-100">

@@ -32,7 +32,7 @@
             <form method="POST" action="{{ route('app.billing.upgrade') }}" class="mt-4 space-y-2">
                 @csrf
                 <input type="hidden" name="plan_id" value="{{ $plan->id }}">
-                <select name="billing_cycle" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <select name="billing_cycle" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="monthly">{{ __('Monthly') }}</option>
                     <option value="yearly">{{ __('Yearly') }}</option>
                 </select>

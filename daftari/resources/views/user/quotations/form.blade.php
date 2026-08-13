@@ -1,15 +1,16 @@
 @extends('layouts.app')
 
-@section('title', $invoice->exists ? __('Edit Invoice') : __('New Invoice'))
+@section('title', $quotation->exists ? __('Edit Quotation') : ($quotation->type === 'proforma' ? __('New Proforma Invoice') : __('New Quotation')))
 
 @section('content')
 @php
-    $existingItems = $invoice->exists ? $invoice->items()->orderBy('sort_order')->get() : collect();
+    $existingItems = $quotation->exists ? $quotation->items()->orderBy('sort_order')->get() : collect();
 @endphp
 
-<form method="POST" action="{{ $invoice->exists ? route('app.invoices.update', $invoice) : route('app.invoices.store') }}" id="invoice-form" class="space-y-6">
+<form method="POST" action="{{ $quotation->exists ? route('app.quotations.update', $quotation) : route('app.quotations.store') }}" id="quotation-form" class="space-y-6">
     @csrf
-    @if ($invoice->exists) @method('PUT') @endif
+    @if ($quotation->exists) @method('PUT') @endif
+    <input type="hidden" name="type" value="{{ $quotation->type }}">
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div>
@@ -17,28 +18,25 @@
             <select name="client_id" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a client') }}</option>
                 @foreach ($clients as $client)
-                    <option value="{{ $client->id }}" @selected(old('client_id', $invoice->client_id) == $client->id)>{{ $client->name }}</option>
+                    <option value="{{ $client->id }}" @selected(old('client_id', $quotation->client_id) == $client->id)>{{ $client->name }}</option>
                 @endforeach
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-700">{{ __('Type') }}</label>
-            <select name="type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                <option value="standard" @selected(old('type', $invoice->type ?? 'standard') === 'standard')>{{ __('Standard (B2B)') }}</option>
-                <option value="simplified" @selected(old('type', $invoice->type ?? 'standard') === 'simplified')>{{ __('Simplified (B2C)') }}</option>
-            </select>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Document type') }}</label>
+            <input type="text" value="{{ $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation') }}" disabled class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Issue date') }}</label>
-            <input type="date" name="issue_date" value="{{ old('issue_date', optional($invoice->issue_date)->format('Y-m-d')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="date" name="issue_date" value="{{ old('issue_date', optional($quotation->issue_date)->format('Y-m-d')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-700">{{ __('Due date') }}</label>
-            <input type="date" name="due_date" value="{{ old('due_date', optional($invoice->due_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <label class="block text-sm font-medium text-slate-700">{{ __('Expiry date') }}</label>
+            <input type="date" name="expiry_date" value="{{ old('expiry_date', optional($quotation->expiry_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
-        @if (! $invoice->exists)
+        @if (! $quotation->exists)
             <div>
-                <label class="block text-sm font-medium text-slate-700">{{ __('Invoice number') }}</label>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Quotation number') }}</label>
                 <input type="text" value="{{ $nextNumberPreview }}" disabled class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
             </div>
         @endif
@@ -72,7 +70,7 @@
                 <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">SAR 0.00</span></div>
                 <div class="flex justify-between items-center text-slate-500">
                     <span>{{ __('Discount') }}</span>
-                    <input type="number" step="0.01" min="0" name="discount_total" id="discount_total" value="{{ old('discount_total', $invoice->discount_total ?? 0) }}" class="w-28 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" step="0.01" min="0" name="discount_total" id="discount_total" value="{{ old('discount_total', $quotation->discount_total ?? 0) }}" class="w-28 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">SAR 0.00</span></div>
                 <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-100"><span>{{ __('Total') }}</span><span id="summary-total">SAR 0.00</span></div>
@@ -82,12 +80,12 @@
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <label class="block text-sm font-medium text-slate-700">{{ __('Notes') }}</label>
-        <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $invoice->notes) }}</textarea>
+        <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $quotation->notes) }}</textarea>
     </div>
 
     <div class="flex gap-3">
-        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save invoice') }}</button>
-        <a href="{{ route('app.invoices.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
+        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save quotation') }}</button>
+        <a href="{{ route('app.quotations.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
     </div>
 </form>
 
@@ -180,7 +178,7 @@ if (EXISTING.length) {
     addRow();
 }
 
-document.getElementById('invoice-form').addEventListener('submit', (e) => {
+document.getElementById('quotation-form').addEventListener('submit', (e) => {
     if (!tbody.querySelector('tr')) {
         e.preventDefault();
         alert(@json(__('Add at least one line item.')));

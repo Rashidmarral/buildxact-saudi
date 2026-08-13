@@ -25,7 +25,7 @@
     </div>
     <form method="POST" action="{{ route('app.expense-categories.store') }}" class="flex gap-2">
         @csrf
-        <input type="text" name="name" placeholder="{{ __('New category name') }}" required class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <input type="text" name="name" placeholder="{{ __('New category name') }}" required class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
         <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:border-brand-300">{{ __('Add') }}</button>
     </form>
 </div>

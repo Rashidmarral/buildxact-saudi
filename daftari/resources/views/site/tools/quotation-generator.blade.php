@@ -16,12 +16,12 @@
     <div class="print-hide space-y-6">
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <h3 class="font-semibold text-slate-900 mb-4">{{ __('From') }}</h3>
-            <input type="text" id="qg-issuer-name" placeholder="{{ __('Name / business') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" id="qg-issuer-name" placeholder="{{ __('Name / business') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
         </div>
 
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <h3 class="font-semibold text-slate-900 mb-4">{{ __('To') }}</h3>
-            <input type="text" id="qg-customer-name" placeholder="{{ __('Customer name') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" id="qg-customer-name" placeholder="{{ __('Customer name') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
         </div>
 
         <div class="rounded-xl border border-slate-100 bg-white p-6">
@@ -29,11 +29,11 @@
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Quotation no.') }}</label>
-                    <input type="text" id="qg-number" value="Q-0001" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" id="qg-number" value="Q-0001" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Valid until') }}</label>
-                    <input type="date" id="qg-valid-until" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="date" id="qg-valid-until" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
 
@@ -42,7 +42,7 @@
             <button type="button" id="qg-add-item" class="mt-2 text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add item') }}</button>
 
             <label class="block text-xs text-slate-500 mb-1 mt-4">{{ __('Notes (optional)') }}</label>
-            <textarea id="qg-notes" rows="2" placeholder="{{ __('Payment terms, delivery time, ...') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
+            <textarea id="qg-notes" rows="2" placeholder="{{ __('Payment terms, delivery time, ...') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
         </div>
 
         <button type="button" onclick="window.print()" class="w-full rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white hover:bg-brand-700">{{ __('Print / Save as PDF') }}</button>
@@ -113,9 +113,9 @@
             const row = document.createElement('div');
             row.className = 'grid grid-cols-12 gap-2 mb-2 items-center';
             row.innerHTML = `
-                <input type="text" placeholder="${@json(__('Description'))}" class="col-span-7 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.description}" data-field="description">
-                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.qty}" data-field="qty">
-                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.price}" data-field="price">
+                <input type="text" placeholder="${@json(__('Description'))}" class="col-span-7 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.description}" data-field="description">
+                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.qty}" data-field="qty">
+                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.price}" data-field="price">
                 <button type="button" class="col-span-1 text-slate-400 hover:text-red-600" data-remove>&times;</button>
             `;
             row.querySelectorAll('[data-field]').forEach(input => {

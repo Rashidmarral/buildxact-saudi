@@ -24,22 +24,22 @@
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <h3 class="font-semibold text-slate-900 mb-4">{{ __('Issuer details') }}</h3>
             <div class="space-y-3">
-                <input type="text" id="ig-issuer-name" placeholder="{{ __('Name / business') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" id="ig-issuer-name" placeholder="{{ __('Name / business') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="ig-issuer-vat" placeholder="{{ __('VAT number (optional)') }}" class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    <input type="text" id="ig-issuer-phone" placeholder="{{ __('Phone (optional)') }}" class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" id="ig-issuer-vat" placeholder="{{ __('VAT number (optional)') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" id="ig-issuer-phone" placeholder="{{ __('Phone (optional)') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
-                <input type="text" id="ig-issuer-address" placeholder="{{ __('Address (optional)') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" id="ig-issuer-address" placeholder="{{ __('Address (optional)') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
 
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <h3 class="font-semibold text-slate-900 mb-4">{{ __('Customer details') }}</h3>
             <div class="space-y-3">
-                <input type="text" id="ig-customer-name" placeholder="{{ __('Customer name') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" id="ig-customer-name" placeholder="{{ __('Customer name') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="ig-customer-vat" placeholder="{{ __('VAT number (optional)') }}" class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    <input type="text" id="ig-customer-phone" placeholder="{{ __('Phone (optional)') }}" class="rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" id="ig-customer-vat" placeholder="{{ __('VAT number (optional)') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" id="ig-customer-phone" placeholder="{{ __('Phone (optional)') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
         </div>
@@ -49,11 +49,11 @@
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Invoice no.') }}</label>
-                    <input type="text" id="ig-number" value="0001" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" id="ig-number" value="0001" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Date') }}</label>
-                    <input type="date" id="ig-date" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="date" id="ig-date" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
 
@@ -64,11 +64,11 @@
             <div class="grid grid-cols-2 gap-3 mt-4">
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Discount on total (optional)') }}</label>
-                    <input type="number" id="ig-discount" value="0" min="0" step="0.01" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" id="ig-discount" value="0" min="0" step="0.01" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs text-slate-500 mb-1">{{ __('Prices entered are') }}</label>
-                    <select id="ig-price-mode" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <select id="ig-price-mode" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="excl">{{ __('VAT-exclusive') }}</option>
                         <option value="incl">{{ __('VAT-inclusive') }}</option>
                     </select>
@@ -76,7 +76,7 @@
             </div>
 
             <label class="block text-xs text-slate-500 mb-1 mt-4">{{ __('Notes (optional)') }}</label>
-            <textarea id="ig-notes" rows="2" placeholder="{{ __('Payment terms, offer validity, ...') }}" class="w-full rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
+            <textarea id="ig-notes" rows="2" placeholder="{{ __('Payment terms, offer validity, ...') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
         </div>
 
         <button type="button" onclick="window.print()" class="w-full rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white hover:bg-brand-700">{{ __('Print / Save as PDF') }}</button>
@@ -155,10 +155,10 @@
             const row = document.createElement('div');
             row.className = 'grid grid-cols-12 gap-2 mb-2 items-center';
             row.innerHTML = `
-                <input type="text" placeholder="${@json(__('Description'))}" class="col-span-5 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.description}" data-field="description">
-                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.qty}" data-field="qty">
-                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.price}" data-field="price">
-                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.vat}" data-field="vat">
+                <input type="text" placeholder="${@json(__('Description'))}" class="col-span-5 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.description}" data-field="description">
+                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.qty}" data-field="qty">
+                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.price}" data-field="price">
+                <input type="number" min="0" step="0.01" class="col-span-2 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" value="${item.vat}" data-field="vat">
                 <button type="button" class="col-span-1 text-slate-400 hover:text-red-600" data-remove>&times;</button>
             `;
             row.querySelectorAll('[data-field]').forEach(input => {

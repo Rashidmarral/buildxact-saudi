@@ -10,11 +10,11 @@
         <div class="grid sm:grid-cols-2 gap-5">
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Original price (SAR)') }}</label>
-                <input type="number" id="d-price" step="0.01" min="0" value="100" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="d-price" step="0.01" min="0" value="100" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Discount (%)') }}</label>
-                <input type="number" id="d-rate" step="0.01" min="0" max="100" value="20" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" id="d-rate" step="0.01" min="0" max="100" value="20" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
 

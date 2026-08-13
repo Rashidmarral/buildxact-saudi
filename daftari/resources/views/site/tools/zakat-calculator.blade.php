@@ -9,7 +9,7 @@
     <div class="rounded-xl border border-slate-100 bg-white p-6">
         <label class="block text-sm font-medium text-slate-700">{{ __('Zakatable amount (SAR)') }}</label>
         <p class="text-xs text-slate-400 mb-1">{{ __('Cash, business assets, and receivables, minus short-term liabilities.') }}</p>
-        <input type="number" id="z-amount" step="0.01" min="0" value="100000" class="w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="number" id="z-amount" step="0.01" min="0" value="100000" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
 
         <label class="block text-sm font-medium text-slate-700 mt-5">{{ __('Calendar used') }}</label>
         <div class="flex items-center gap-1 rounded-full border border-slate-200 p-1 w-fit mt-1" id="z-mode">

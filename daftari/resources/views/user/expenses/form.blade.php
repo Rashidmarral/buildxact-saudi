@@ -10,11 +10,11 @@
     <div class="grid sm:grid-cols-2 gap-5">
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Vendor') }}</label>
-            <input type="text" name="vendor_name" value="{{ old('vendor_name', $expense->vendor_name) }}" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" name="vendor_name" value="{{ old('vendor_name', $expense->vendor_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Category') }}</label>
-            <select name="expense_category_id" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <select name="expense_category_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">—</option>
                 @foreach ($categories as $category)
                     <option value="{{ $category->id }}" @selected(old('expense_category_id', $expense->expense_category_id) == $category->id)>{{ $category->name }}</option>
@@ -23,19 +23,19 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Amount (SAR)') }}</label>
-            <input type="number" step="0.01" min="0" name="amount" value="{{ old('amount', $expense->amount) }}" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="number" step="0.01" min="0" name="amount" value="{{ old('amount', $expense->amount) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('VAT amount (SAR)') }}</label>
-            <input type="number" step="0.01" min="0" name="vat_amount" value="{{ old('vat_amount', $expense->vat_amount ?? 0) }}" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="number" step="0.01" min="0" name="vat_amount" value="{{ old('vat_amount', $expense->vat_amount ?? 0) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Date') }}</label>
-            <input type="date" name="expense_date" value="{{ old('expense_date', optional($expense->expense_date)->format('Y-m-d') ?? now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="date" name="expense_date" value="{{ old('expense_date', optional($expense->expense_date)->format('Y-m-d') ?? now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-slate-700">{{ __('Description') }}</label>
-            <input type="text" name="description" value="{{ old('description', $expense->description) }}" class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" name="description" value="{{ old('description', $expense->description) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
     </div>
 

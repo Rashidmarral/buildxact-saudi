@@ -13,11 +13,11 @@
     @csrf
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Email') }}</label>
-        <input type="email" name="email" value="{{ old('email') }}" required autofocus class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="email" name="email" value="{{ old('email') }}" required autofocus class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Password') }}</label>
-        <input type="password" name="password" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="password" name="password" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <label class="flex items-center gap-2 text-sm text-slate-600">
         <input type="checkbox" name="remember" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">

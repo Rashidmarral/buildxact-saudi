@@ -10,27 +10,27 @@
     @csrf
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Company name') }}</label>
-        <input type="text" name="company_name" value="{{ old('company_name') }}" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="text" name="company_name" value="{{ old('company_name') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Your name') }}</label>
-        <input type="text" name="name" value="{{ old('name') }}" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="text" name="name" value="{{ old('name') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Email') }}</label>
-        <input type="email" name="email" value="{{ old('email') }}" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="email" name="email" value="{{ old('email') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Password') }}</label>
-        <input type="password" name="password" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="password" name="password" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Confirm password') }}</label>
-        <input type="password" name="password_confirmation" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="password" name="password_confirmation" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Plan') }}</label>
-        <select name="plan_id" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <select name="plan_id" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             @foreach ($plans as $plan)
                 <option value="{{ $plan->id }}" @selected(old('plan_id') == $plan->id)>
                     {{ $plan->name }} — SAR {{ number_format($plan->price_monthly, 0) }}/{{ __('month') }}

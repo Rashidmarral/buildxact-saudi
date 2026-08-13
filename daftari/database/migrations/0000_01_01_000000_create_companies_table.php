@@ -22,6 +22,10 @@ return new class extends Migration
             $table->string('logo_path')->nullable();
             $table->string('invoice_prefix', 10)->default('INV');
             $table->unsignedInteger('next_invoice_number')->default(1);
+            $table->string('quotation_prefix', 10)->default('QTN');
+            $table->unsignedInteger('next_quotation_number')->default(1);
+            $table->string('proforma_prefix', 10)->default('PRO');
+            $table->unsignedInteger('next_proforma_number')->default(1);
             $table->string('currency', 3)->default('SAR');
             $table->string('locale', 2)->default('en');
             $table->string('status', 20)->default('active'); // active, suspended
