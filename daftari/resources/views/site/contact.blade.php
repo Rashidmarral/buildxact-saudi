@@ -3,12 +3,35 @@
 @section('title', __('Contact') . ' · Daftari')
 
 @section('content')
-<section class="mx-auto max-w-2xl px-6 py-16">
-    <h1 class="text-4xl font-extrabold text-slate-900 text-center">{{ __('Get in touch') }}</h1>
-    <p class="mt-4 text-lg text-slate-600 text-center">{{ __('Questions about Daftari or your subscription? Send us a message.') }}</p>
+<section class="mx-auto max-w-4xl px-6 py-16 text-center">
+    <h1 class="text-4xl font-extrabold text-slate-900">{{ __('Contact us') }}</h1>
+    <p class="mt-4 text-lg text-slate-600">{{ __('Our team is ready to help. Choose what works best for you.') }}</p>
+</section>
 
+<section class="mx-auto max-w-5xl px-6 pb-8 grid sm:grid-cols-3 gap-6">
+    @foreach ([
+        ['icon' => '✉️', 't' => __('Email'), 'd' => __('For support and general inquiries'), 'v' => 'support@daftari.app', 'href' => 'mailto:support@daftari.app'],
+        ['icon' => '📞', 't' => __('Phone'), 'd' => __('Call us during business hours'), 'v' => '+966 11 000 0000', 'href' => 'tel:+966110000000'],
+        ['icon' => '💬', 't' => __('WhatsApp'), 'd' => __('Message us directly on WhatsApp'), 'v' => '+966 50 000 0000', 'href' => '#'],
+    ] as $card)
+        <div class="rounded-xl border border-slate-100 bg-white p-6 text-center">
+            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-2xl">{{ $card['icon'] }}</div>
+            <h3 class="mt-4 font-semibold text-slate-900">{{ $card['t'] }}</h3>
+            <p class="mt-1 text-sm text-slate-500">{{ $card['d'] }}</p>
+            <a href="{{ $card['href'] }}" class="mt-2 inline-block text-sm font-semibold text-brand-700 hover:underline">{{ $card['v'] }}</a>
+        </div>
+    @endforeach
+</section>
+
+<section class="mx-auto max-w-2xl px-6 pb-16">
+    <div class="rounded-xl border border-slate-100 bg-slate-50 px-6 py-4 text-center text-sm text-slate-500">
+        {{ __("We'd love to hear from you. Our team responds during business days as quickly as possible.") }}
+    </div>
+</section>
+
+<section class="mx-auto max-w-2xl px-6 pb-16">
     @if ($errors->any())
-        <div class="mt-8 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
+        <div class="mb-8 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
             <ul class="list-disc ps-4 space-y-1">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -17,7 +40,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('contact.submit') }}" class="mt-8 space-y-5 bg-white rounded-2xl border border-slate-100 p-8">
+    <form method="POST" action="{{ route('contact.submit') }}" class="space-y-5 bg-white rounded-2xl border border-slate-100 p-8">
         @csrf
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Name') }}</label>

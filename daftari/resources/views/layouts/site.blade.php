@@ -17,6 +17,7 @@
             <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
                 <a href="{{ route('features') }}" class="hover:text-brand-700">{{ __('Features') }}</a>
                 <a href="{{ route('pricing') }}" class="hover:text-brand-700">{{ __('Pricing') }}</a>
+                <a href="{{ route('compliance') }}" class="hover:text-brand-700">{{ __('Compliance') }}</a>
                 <a href="{{ route('about') }}" class="hover:text-brand-700">{{ __('About') }}</a>
                 <a href="{{ route('contact') }}" class="hover:text-brand-700">{{ __('Contact') }}</a>
             </nav>
@@ -57,6 +58,7 @@
                 <ul class="mt-3 space-y-2 text-slate-500">
                     <li><a href="{{ route('features') }}" class="hover:text-brand-700">{{ __('Features') }}</a></li>
                     <li><a href="{{ route('pricing') }}" class="hover:text-brand-700">{{ __('Pricing') }}</a></li>
+                    <li><a href="{{ route('compliance') }}" class="hover:text-brand-700">{{ __('Compliance') }}</a></li>
                 </ul>
             </div>
             <div>

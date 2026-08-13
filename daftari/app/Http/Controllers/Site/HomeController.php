@@ -30,6 +30,11 @@ class HomeController extends Controller
         return view('site.about');
     }
 
+    public function compliance()
+    {
+        return view('site.compliance');
+    }
+
     public function contact()
     {
         return view('site.contact');

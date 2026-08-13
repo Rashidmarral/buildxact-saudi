@@ -3,58 +3,49 @@
 @section('title', __('Features') . ' · Daftari')
 
 @section('content')
-<section class="mx-auto max-w-5xl px-6 py-16 text-center">
-    <h1 class="text-4xl font-extrabold text-slate-900">{{ __('Built for how Saudi businesses actually invoice') }}</h1>
-    <p class="mt-4 text-lg text-slate-600">{{ __('From your first quote to your VAT return, Daftari keeps everything in one place.') }}</p>
+<section class="mx-auto max-w-4xl px-6 py-16">
+    <h1 class="text-4xl font-extrabold text-slate-900">{{ __('Features — everything for VAT invoicing, in one place') }}</h1>
+    <p class="mt-4 text-lg text-slate-600">{{ __('Daftari brings invoicing, expenses, and VAT reporting together for Saudi businesses. Some capabilities below are live today; others are on our near-term roadmap and clearly marked.') }}</p>
 </section>
 
-<section class="mx-auto max-w-6xl px-6 pb-24 space-y-16">
-    @foreach ([
-        [
-            'title' => __('VAT-compliant invoicing'),
-            'desc' => __('Create standard and simplified tax invoices with automatic 15% VAT calculation per line item, sequential numbering per company, and a ZATCA-style QR code embedding seller name, VAT number, timestamp, invoice total, and VAT total.'),
-            'points' => [__('Standard & simplified invoice types'), __('Per-line VAT rates'), __('Scannable QR code on every invoice'), __('Sequential, gap-free numbering')],
-        ],
-        [
-            'title' => __('Payments & aging'),
-            'desc' => __('Record partial or full payments against any invoice and track outstanding balances automatically — know exactly who owes you and how much.'),
-            'points' => [__('Partial payment support'), __('Automatic status (draft, sent, paid, overdue)'), __('Outstanding balance at a glance')],
-        ],
-        [
-            'title' => __('Expense tracking'),
-            'desc' => __('Log vendor purchases with recoverable input VAT, organized by category, so your VAT report nets output VAT against input VAT automatically.'),
-            'points' => [__('Custom expense categories'), __('Input VAT capture'), __('Monthly and yearly views')],
-        ],
-        [
-            'title' => __('Clients, items & catalog'),
-            'desc' => __('Keep a reusable directory of clients (with their VAT/CR numbers) and priced items or services so building an invoice takes seconds.'),
-            'points' => [__('Client VAT & CR numbers'), __('Per-item default VAT rate'), __('Bilingual names (EN/AR)')],
-        ],
-        [
-            'title' => __('Team & roles'),
-            'desc' => __('Invite staff or your bookkeeper to help manage invoices and expenses, while billing and company settings stay owner-only.'),
-            'points' => [__('Owner and staff roles'), __('Per-company data isolation'), __('Add or remove teammates anytime')],
-        ],
-        [
-            'title' => __('Subscription billing'),
-            'desc' => __('Pick a plan that fits your business, pay monthly or yearly in SAR, and manage your subscription from your dashboard.'),
-            'points' => [__('Free trial, no card required'), __('Monthly or yearly billing'), __('Upgrade or downgrade anytime')],
-        ],
-    ] as $i => $section)
-        <div class="grid md:grid-cols-2 gap-10 items-center {{ $i % 2 === 1 ? 'md:[direction:rtl]' : '' }}">
-            <div class="{{ $i % 2 === 1 ? 'md:[direction:ltr]' : '' }}">
-                <h2 class="text-2xl font-bold text-slate-900">{{ $section['title'] }}</h2>
-                <p class="mt-3 text-slate-600">{{ $section['desc'] }}</p>
-                <ul class="mt-5 space-y-2">
-                    @foreach ($section['points'] as $point)
-                        <li class="flex items-center gap-2 text-sm text-slate-700"><span class="text-brand-600">✓</span>{{ $point }}</li>
-                    @endforeach
-                </ul>
+<section class="mx-auto max-w-6xl px-6 pb-16">
+    <div class="grid md:grid-cols-3 gap-6">
+        @foreach ([
+            ['n' => 1, 'i' => '🧾', 't' => __('Create and send invoices'), 'd' => __('Build VAT-compliant invoices with line items and send them to clients, tracked by status.'), 'live' => true],
+            ['n' => 2, 'i' => '🏷️', 't' => __('Apply tax rates'), 'd' => __('Set a default VAT rate per item and override it per invoice line when needed.'), 'live' => true],
+            ['n' => 3, 'i' => '📱', 't' => __('ZATCA-style QR codes'), 'd' => __('Every tax invoice includes a scannable QR code encoding seller, VAT number, timestamp, and totals.'), 'live' => true],
+            ['n' => 4, 'i' => '💳', 't' => __('Expense tracking'), 'd' => __('Record and categorize purchases and their recoverable VAT so nothing falls through the cracks.'), 'live' => true],
+            ['n' => 5, 'i' => '📈', 't' => __('VAT return report'), 'd' => __('A summary of output VAT, input VAT, and net VAT due for any period, ready to review before filing.'), 'live' => true],
+            ['n' => 6, 'i' => '🧑‍🤝‍🧑', 't' => __('Users & roles'), 'd' => __('Invite your team with owner or staff roles, while billing and company settings stay owner-only.'), 'live' => true],
+            ['n' => 7, 'i' => '🏦', 't' => __('Account reconciliation'), 'd' => __('Match bank and cash activity against your records so your numbers reflect reality.'), 'live' => false],
+            ['n' => 8, 'i' => '💰', 't' => __('Cash, bank accounts & cards'), 'd' => __('Track multiple balances and accounts in one place.'), 'live' => false],
+            ['n' => 9, 'i' => '📄', 't' => __('Supplier bills'), 'd' => __('Organize purchases and costs from your suppliers for accurate reporting.'), 'live' => false],
+            ['n' => 10, 'i' => '📝', 't' => __('Purchase orders'), 'd' => __('Document purchase requests before they become costs, for clearer purchasing visibility.'), 'live' => false],
+            ['n' => 11, 'i' => '↩️', 't' => __('Debit notes'), 'd' => __('Record purchase adjustments and price or quantity variances in an organized way.'), 'live' => false],
+            ['n' => 12, 'i' => '💬', 't' => __('Quotes'), 'd' => __('Send a professional quote and convert it straight into an invoice once approved.'), 'live' => false],
+            ['n' => 13, 'i' => '📊', 't' => __('Cash flow report'), 'd' => __('Understand cash in and cash out for clearer visibility into liquidity.'), 'live' => false],
+            ['n' => 14, 'i' => '🗂️', 't' => __('Cost centers'), 'd' => __('Allocate costs to departments, branches, or activities for clearer breakdowns.'), 'live' => false],
+            ['n' => 15, 'i' => '🌍', 't' => __('Multi-currency'), 'd' => __('Work in more than one currency and track exchange rates clearly.'), 'live' => false],
+            ['n' => 16, 'i' => '🏬', 't' => __('Branches'), 'd' => __('Organize invoices, bills, and expenses by branch and track performance separately.'), 'live' => false],
+            ['n' => 17, 'i' => '🎨', 't' => __('Invoice & quote templates'), 'd' => __('Multiple document templates that unify the look of your paperwork.'), 'live' => false],
+        ] as $feature)
+            <div class="relative rounded-xl border border-slate-100 bg-white p-6">
+                @unless ($feature['live'])
+                    <span class="absolute top-4 end-4 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold px-2 py-0.5">{{ __('Coming soon') }}</span>
+                @endunless
+                <div class="text-2xl">{{ $feature['i'] }}</div>
+                <h3 class="mt-3 font-semibold text-slate-900">{{ $feature['t'] }}</h3>
+                <p class="mt-2 text-sm text-slate-500">{{ $feature['d'] }}</p>
             </div>
-            <div class="{{ $i % 2 === 1 ? 'md:[direction:ltr]' : '' }} rounded-2xl bg-slate-50 border border-slate-100 h-56 flex items-center justify-center text-6xl">
-                {{ ['🧾','💵','💳','👥','🧑‍🤝‍🧑','💰'][$i] }}
-            </div>
-        </div>
-    @endforeach
+        @endforeach
+    </div>
+</section>
+
+<section class="mx-auto max-w-7xl px-6 py-20">
+    <div class="rounded-2xl bg-brand-600 px-8 py-14 text-center text-white">
+        <h2 class="text-2xl md:text-3xl font-bold">{{ __('Ready to simplify your VAT invoicing?') }}</h2>
+        <p class="mt-3 text-brand-50">{{ __('Join Saudi businesses managing their invoicing and VAT with Daftari.') }}</p>
+        <a href="{{ route('register') }}" class="mt-6 inline-block rounded-lg bg-white px-6 py-3 font-semibold text-brand-700 hover:bg-brand-50">{{ __('Start your free trial') }}</a>
+    </div>
 </section>
 @endsection
