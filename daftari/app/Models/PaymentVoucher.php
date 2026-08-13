@@ -11,8 +11,8 @@ class PaymentVoucher extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'bank_account_id', 'expense_id', 'created_by', 'voucher_number',
-        'date', 'payee_name', 'amount', 'method', 'reference', 'notes', 'status',
+        'company_id', 'bank_account_id', 'expense_id', 'bill_id', 'bill_payment_id', 'created_by',
+        'voucher_number', 'date', 'payee_name', 'amount', 'method', 'reference', 'notes', 'status',
     ];
 
     protected function casts(): array
@@ -28,5 +28,15 @@ class PaymentVoucher extends Model
     public function expense(): BelongsTo
     {
         return $this->belongsTo(Expense::class);
+    }
+
+    public function bill(): BelongsTo
+    {
+        return $this->belongsTo(Bill::class);
+    }
+
+    public function billPayment(): BelongsTo
+    {
+        return $this->belongsTo(BillPayment::class);
     }
 }

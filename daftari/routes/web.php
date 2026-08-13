@@ -11,6 +11,7 @@ use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\BankAccountController;
 use App\Http\Controllers\User\BankTransferController;
+use App\Http\Controllers\User\BillController;
 use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
@@ -20,10 +21,12 @@ use App\Http\Controllers\User\ExpenseController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\PaymentVoucherController;
+use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
 use App\Http\Controllers\User\ReportController;
 use App\Http\Controllers\User\SettingsController;
+use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use Illuminate\Support\Facades\Route;
 
@@ -93,6 +96,18 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show']);
     Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
     Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
+
+    Route::resource('suppliers', SupplierController::class)->except(['show']);
+    Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
+
+    Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
+    Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
+
+    Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+    Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
+    Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
 
     Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
     Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');

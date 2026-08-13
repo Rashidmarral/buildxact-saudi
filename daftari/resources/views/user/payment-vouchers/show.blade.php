@@ -36,6 +36,9 @@
         <div><span class="text-slate-400">{{ __('Amount:') }}</span> <span class="font-bold text-slate-900">SAR {{ number_format($voucher->amount, 2) }}</span></div>
         <div><span class="text-slate-400">{{ __('Account:') }}</span> <span class="font-medium text-slate-800">{{ $voucher->bankAccount->name }}</span></div>
         <div><span class="text-slate-400">{{ __('Payment method:') }}</span> <span class="font-medium text-slate-800">{{ ucfirst(str_replace('_', ' ', $voucher->method)) }}</span></div>
+        @if ($voucher->bill)
+            <div><span class="text-slate-400">{{ __('Applied to bill:') }}</span> <a href="{{ route('app.bills.show', $voucher->bill) }}" class="font-medium text-brand-700 hover:underline">{{ $voucher->bill->bill_number }}</a></div>
+        @endif
         @if ($voucher->expense)
             <div><span class="text-slate-400">{{ __('Related expense:') }}</span> <span class="font-medium text-slate-800">{{ $voucher->expense->vendor_name }} — {{ $voucher->expense->description }}</span></div>
         @endif

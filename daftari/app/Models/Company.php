@@ -12,6 +12,7 @@ class Company extends Model
         'phone', 'email', 'logo_path', 'invoice_prefix', 'next_invoice_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
+        'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
         'currency', 'locale', 'status', 'trial_ends_at', 'default_branch_id',
     ];
 
@@ -30,6 +31,10 @@ class Company extends Model
         'next_receipt_number' => 1,
         'payment_voucher_prefix' => 'PV',
         'next_payment_voucher_number' => 1,
+        'bill_prefix' => 'BILL',
+        'next_bill_number' => 1,
+        'po_prefix' => 'PO',
+        'next_po_number' => 1,
         'currency' => 'SAR',
         'locale' => 'en',
         'status' => 'active',
@@ -142,6 +147,37 @@ class Company extends Model
         $this->increment('next_payment_voucher_number');
 
         return $number;
+    }
+
+    public function nextBillNumber(): string
+    {
+        $number = $this->bill_prefix.'-'.str_pad((string) $this->next_bill_number, 5, '0', STR_PAD_LEFT);
+        $this->increment('next_bill_number');
+
+        return $number;
+    }
+
+    public function nextPoNumber(): string
+    {
+        $number = $this->po_prefix.'-'.str_pad((string) $this->next_po_number, 5, '0', STR_PAD_LEFT);
+        $this->increment('next_po_number');
+
+        return $number;
+    }
+
+    public function suppliers(): HasMany
+    {
+        return $this->hasMany(Supplier::class);
+    }
+
+    public function bills(): HasMany
+    {
+        return $this->hasMany(Bill::class);
+    }
+
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(PurchaseOrder::class);
     }
 
     public function defaultBranch(): ?Branch

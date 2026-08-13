@@ -30,6 +30,10 @@ return new class extends Migration
             $table->unsignedInteger('next_receipt_number')->default(1);
             $table->string('payment_voucher_prefix', 10)->default('PV');
             $table->unsignedInteger('next_payment_voucher_number')->default(1);
+            $table->string('bill_prefix', 10)->default('BILL');
+            $table->unsignedInteger('next_bill_number')->default(1);
+            $table->string('po_prefix', 10)->default('PO');
+            $table->unsignedInteger('next_po_number')->default(1);
             $table->string('currency', 3)->default('SAR');
             $table->string('locale', 2)->default('en');
             $table->string('status', 20)->default('active'); // active, suspended

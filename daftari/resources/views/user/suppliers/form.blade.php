@@ -1,0 +1,62 @@
+@extends('layouts.app')
+
+@section('title', $supplier->exists ? __('Edit Supplier') : __('New Supplier'))
+
+@section('content')
+<form method="POST" action="{{ $supplier->exists ? route('app.suppliers.update', $supplier) : route('app.suppliers.store') }}" class="max-w-xl space-y-6">
+    @csrf
+    @if ($supplier->exists) @method('PUT') @endif
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-5">
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Name') }}</label>
+                <input type="text" name="name" value="{{ old('name', $supplier->name) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Name (Arabic)') }}</label>
+                <input type="text" name="name_ar" value="{{ old('name_ar', $supplier->name_ar) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('VAT number') }}</label>
+                <input type="text" name="vat_number" value="{{ old('vat_number', $supplier->vat_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('CR number') }}</label>
+                <input type="text" name="cr_number" value="{{ old('cr_number', $supplier->cr_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Email') }}</label>
+                <input type="email" name="email" value="{{ old('email', $supplier->email) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Phone') }}</label>
+                <input type="text" name="phone" value="{{ old('phone', $supplier->phone) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Address') }}</label>
+                <input type="text" name="address" value="{{ old('address', $supplier->address) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('City') }}</label>
+                <input type="text" name="city" value="{{ old('city', $supplier->city) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Notes') }}</label>
+            <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $supplier->notes) }}</textarea>
+        </div>
+    </div>
+
+    <div class="flex gap-3">
+        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
+        <a href="{{ route('app.suppliers.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
+    </div>
+</form>
+@endsection
