@@ -11,7 +11,7 @@ class Company extends Model
         'name', 'name_ar', 'slug', 'vat_number', 'cr_number', 'address', 'city',
         'phone', 'email', 'logo_path', 'invoice_prefix', 'next_invoice_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
-        'currency', 'locale', 'status', 'trial_ends_at',
+        'currency', 'locale', 'status', 'trial_ends_at', 'default_branch_id',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -111,6 +111,16 @@ class Company extends Model
     public function quotations(): HasMany
     {
         return $this->hasMany(Quotation::class);
+    }
+
+    public function branches(): HasMany
+    {
+        return $this->hasMany(Branch::class);
+    }
+
+    public function defaultBranch(): ?Branch
+    {
+        return $this->default_branch_id ? Branch::find($this->default_branch_id) : null;
     }
 
     public function isSuspended(): bool

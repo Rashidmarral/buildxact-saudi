@@ -12,7 +12,7 @@ class Quotation extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'client_id', 'created_by', 'converted_invoice_id', 'quotation_number',
+        'company_id', 'client_id', 'branch_id', 'created_by', 'converted_invoice_id', 'quotation_number',
         'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total',
         'vat_total', 'total', 'currency', 'notes',
     ];

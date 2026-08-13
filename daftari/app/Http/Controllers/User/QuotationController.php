@@ -68,6 +68,7 @@ class QuotationController extends Controller
 
             $quotation = Quotation::create([
                 'client_id' => $data['client_id'],
+                'branch_id' => $company->default_branch_id,
                 'created_by' => Auth::id(),
                 'quotation_number' => $company->nextQuotationNumber($data['type']),
                 'type' => $data['type'],
@@ -170,6 +171,7 @@ class QuotationController extends Controller
 
             $invoice = Invoice::create([
                 'client_id' => $quotation->client_id,
+                'branch_id' => $quotation->branch_id ?? $company->default_branch_id,
                 'created_by' => Auth::id(),
                 'invoice_number' => $company->nextInvoiceNumber(),
                 'type' => 'standard',

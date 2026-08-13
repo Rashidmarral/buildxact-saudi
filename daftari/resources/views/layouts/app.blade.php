@@ -36,6 +36,7 @@
                 {!! $navItem('app.billing.index', __('Billing'), '💰') !!}
                 @if (auth()->user()->isOwner())
                     {!! $navItem('app.team.index', __('Team'), '🧑‍🤝‍🧑') !!}
+                    {!! $navItem('app.branches.index', __('Branches'), '🏢') !!}
                     {!! $navItem('app.settings.index', __('Settings'), '⚙️') !!}
                 @endif
             </nav>

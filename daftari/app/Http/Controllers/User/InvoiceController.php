@@ -49,6 +49,7 @@ class InvoiceController extends Controller
 
             $invoice = Invoice::create([
                 'client_id' => $data['client_id'],
+                'branch_id' => $company->default_branch_id,
                 'created_by' => Auth::id(),
                 'invoice_number' => $company->nextInvoiceNumber(),
                 'type' => $data['type'],

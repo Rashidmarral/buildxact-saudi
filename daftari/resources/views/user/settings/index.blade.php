@@ -48,4 +48,18 @@
 
     <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save settings') }}</button>
 </form>
+
+<div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between">
+    <div>
+        <h3 class="font-semibold text-slate-900">{{ __('Branches') }}</h3>
+        <p class="text-sm text-slate-500">
+            @if (auth()->user()->company->default_branch_id)
+                {{ __('Default branch:') }} {{ auth()->user()->company->defaultBranch()?->name }}
+            @else
+                {{ __('No branches yet — your company details are used on new documents.') }}
+            @endif
+        </p>
+    </div>
+    <a href="{{ route('app.branches.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Manage branches') }}</a>
+</div>
 @endsection

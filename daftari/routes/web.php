@@ -10,6 +10,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\BillingController;
+use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ExpenseCategoryController;
@@ -91,6 +92,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
 
         Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+
+        Route::resource('branches', BranchController::class)->except(['show']);
+        Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default');
     });
 });
 
