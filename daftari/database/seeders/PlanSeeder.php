@@ -29,7 +29,7 @@ class PlanSeeder extends Seeder
                 'price_yearly' => 1290,
                 'max_users' => 10,
                 'max_invoices_per_month' => null,
-                'features' => ['Unlimited invoices', 'VAT report exports', 'Team roles', 'Priority support'],
+                'features' => ['VAT report exports', 'Team roles', 'Priority support'],
                 'sort_order' => 2,
             ],
             [

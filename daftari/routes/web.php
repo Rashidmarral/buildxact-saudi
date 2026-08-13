@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
+use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\DashboardController;
@@ -30,6 +31,22 @@ Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit');
 Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
+
+Route::get('/glossary', [ToolsController::class, 'glossary'])->name('glossary');
+Route::prefix('tools')->name('tools.')->group(function () {
+    Route::get('/', [ToolsController::class, 'index'])->name('index');
+    Route::get('/percentage-calculator', [ToolsController::class, 'percentageCalculator'])->name('percentage');
+    Route::get('/discount-calculator', [ToolsController::class, 'discountCalculator'])->name('discount');
+    Route::get('/vat-calculator', [ToolsController::class, 'vatCalculator'])->name('vat');
+    Route::get('/zakat-calculator', [ToolsController::class, 'zakatCalculator'])->name('zakat');
+    Route::get('/gosi-calculator', [ToolsController::class, 'gosiCalculator'])->name('gosi');
+    Route::get('/end-of-service-calculator', [ToolsController::class, 'endOfServiceCalculator'])->name('end-of-service');
+    Route::get('/zatca-penalty-calculator', [ToolsController::class, 'zatcaPenaltyCalculator'])->name('zatca-penalty');
+    Route::get('/invoice-generator', [ToolsController::class, 'invoiceGenerator'])->name('invoice-generator');
+    Route::get('/quotation-generator', [ToolsController::class, 'quotationGenerator'])->name('quotation-generator');
+    Route::get('/receipt-voucher', [ToolsController::class, 'receiptVoucher'])->name('receipt-voucher');
+    Route::get('/payment-voucher', [ToolsController::class, 'paymentVoucher'])->name('payment-voucher');
+});
 
 // Auth
 Route::middleware('guest')->group(function () {
