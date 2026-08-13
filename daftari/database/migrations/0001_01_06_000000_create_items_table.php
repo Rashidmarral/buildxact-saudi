@@ -19,6 +19,8 @@ return new class extends Migration
             $table->decimal('unit_price', 12, 2)->default(0);
             $table->decimal('vat_rate', 5, 2)->default(15.00);
             $table->boolean('is_active')->default(true);
+            $table->boolean('track_inventory')->default(false);
+            $table->decimal('reorder_point', 10, 2)->nullable();
             $table->timestamps();
 
             $table->index(['company_id', 'name']);

@@ -36,10 +36,20 @@
             <label class="block text-sm font-medium text-slate-700">{{ __('Description') }}</label>
             <textarea name="description" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('description', $item->description) }}</textarea>
         </div>
-        <label class="flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $item->is_active ?? true)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
-            {{ __('Active') }}
-        </label>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Reorder point (optional)') }}</label>
+            <input type="number" step="0.01" min="0" name="reorder_point" value="{{ old('reorder_point', $item->reorder_point) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div class="flex flex-col justify-end gap-3 pb-2">
+            <label class="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $item->is_active ?? true)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                {{ __('Active') }}
+            </label>
+            <label class="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" name="track_inventory" value="1" @checked(old('track_inventory', $item->track_inventory ?? false)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                {{ __('Track inventory for this item') }}
+            </label>
+        </div>
     </div>
 
     <div class="flex gap-3 pt-2">

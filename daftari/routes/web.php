@@ -18,6 +18,7 @@ use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ExpenseCategoryController;
 use App\Http\Controllers\User\ExpenseController;
+use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\PaymentVoucherController;
@@ -26,8 +27,10 @@ use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
 use App\Http\Controllers\User\ReportController;
 use App\Http\Controllers\User\SettingsController;
+use App\Http\Controllers\User\StockAdjustmentController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
+use App\Http\Controllers\User\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 // Marketing site
@@ -108,6 +111,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
     Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
     Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
+
+    Route::resource('warehouses', WarehouseController::class)->except(['show']);
+    Route::post('warehouses/{warehouse}/make-default', [WarehouseController::class, 'makeDefault'])->name('warehouses.make-default');
+    Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'create', 'store']);
+    Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
+    Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
 
     Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
     Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');

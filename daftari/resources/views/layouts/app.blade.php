@@ -31,6 +31,7 @@
                 {!! $navItem('app.invoices.index', __('Invoices'), '🧾') !!}
                 {!! $navItem('app.clients.index', __('Clients'), '👥') !!}
                 {!! $navItem('app.items.index', __('Items'), '📦') !!}
+                {!! $navItem('app.warehouses.index', __('Inventory'), '🏷️') !!}
                 {!! $navItem('app.expenses.index', __('Expenses'), '💳') !!}
                 {!! $navItem('app.bills.index', __('Purchases'), '🛒') !!}
                 {!! $navItem('app.bank-accounts.index', __('Cash & Banks'), '🏦') !!}

@@ -58,9 +58,11 @@ class ItemController extends Controller
             'unit' => ['nullable', 'string', 'max:20'],
             'unit_price' => ['required', 'numeric', 'min:0'],
             'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'reorder_point' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['track_inventory'] = $request->boolean('track_inventory');
 
         return $data;
     }
