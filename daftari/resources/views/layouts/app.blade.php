@@ -30,6 +30,7 @@
                 {!! $navItem('app.quotations.index', __('Quotations'), '📋') !!}
                 {!! $navItem('app.invoices.index', __('Invoices'), '🧾') !!}
                 {!! $navItem('app.clients.index', __('Clients'), '👥') !!}
+                {!! $navItem('app.salespersons.index', __('Salespersons'), '🧑‍💼') !!}
                 {!! $navItem('app.items.index', __('Items'), '📦') !!}
                 {!! $navItem('app.warehouses.index', __('Inventory'), '🏷️') !!}
                 {!! $navItem('app.expenses.index', __('Expenses'), '💳') !!}

@@ -26,6 +26,7 @@ use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
 use App\Http\Controllers\User\ReportController;
+use App\Http\Controllers\User\SalespersonController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\StockAdjustmentController;
 use App\Http\Controllers\User\SupplierController;
@@ -117,6 +118,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'create', 'store']);
     Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
     Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
+
+    Route::resource('salespersons', SalespersonController::class)->except(['show']);
 
     Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
     Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');

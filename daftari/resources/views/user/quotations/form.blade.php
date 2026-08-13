@@ -40,6 +40,17 @@
                 <input type="text" value="{{ $nextNumberPreview }}" disabled class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
             </div>
         @endif
+        @if ($salespersons->isNotEmpty())
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Salesperson (optional)') }}</label>
+                <select name="salesperson_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($salespersons as $salesperson)
+                        <option value="{{ $salesperson->id }}" @selected(old('salesperson_id', $quotation->salesperson_id) == $salesperson->id)>{{ $salesperson->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">

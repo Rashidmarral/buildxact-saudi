@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Item;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Models\Salesperson;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,7 @@ class QuotationController extends Controller
     {
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->orderBy('name')->get();
+        $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
         $company = Auth::user()->company;
         $type = $request->get('type', 'quotation') === 'proforma' ? 'proforma' : 'quotation';
 
@@ -53,6 +55,7 @@ class QuotationController extends Controller
             ]),
             'clients' => $clients,
             'items' => $items,
+            'salespersons' => $salespersons,
             'nextNumberPreview' => $type === 'proforma'
                 ? $company->proforma_prefix.'-'.str_pad((string) $company->next_proforma_number, 5, '0', STR_PAD_LEFT)
                 : $company->quotation_prefix.'-'.str_pad((string) $company->next_quotation_number, 5, '0', STR_PAD_LEFT),
@@ -69,6 +72,7 @@ class QuotationController extends Controller
             $quotation = Quotation::create([
                 'client_id' => $data['client_id'],
                 'branch_id' => $company->default_branch_id,
+                'salesperson_id' => $data['salesperson_id'] ?? null,
                 'created_by' => Auth::id(),
                 'quotation_number' => $company->nextQuotationNumber($data['type']),
                 'type' => $data['type'],
@@ -101,8 +105,9 @@ class QuotationController extends Controller
         $quotation->load('items');
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->orderBy('name')->get();
+        $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
 
-        return view('user.quotations.form', compact('quotation', 'clients', 'items'));
+        return view('user.quotations.form', compact('quotation', 'clients', 'items', 'salespersons'));
     }
 
     public function update(Request $request, Quotation $quotation)
@@ -112,6 +117,7 @@ class QuotationController extends Controller
         DB::transaction(function () use ($quotation, $data) {
             $quotation->update([
                 'client_id' => $data['client_id'],
+                'salesperson_id' => $data['salesperson_id'] ?? null,
                 'issue_date' => $data['issue_date'],
                 'expiry_date' => $data['expiry_date'] ?? null,
                 'discount_total' => $data['discount_total'] ?? 0,
@@ -229,6 +235,7 @@ class QuotationController extends Controller
 
         return $request->validate([
             'client_id' => ['required', Rule::exists('clients', 'id')->where('company_id', $companyId)],
+            'salesperson_id' => ['nullable', Rule::exists('salespersons', 'id')->where('company_id', $companyId)],
             'type' => ['required', 'in:quotation,proforma'],
             'issue_date' => ['required', 'date'],
             'expiry_date' => ['nullable', 'date', 'after_or_equal:issue_date'],

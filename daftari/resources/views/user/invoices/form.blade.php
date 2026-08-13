@@ -36,6 +36,17 @@
             <label class="block text-sm font-medium text-slate-700">{{ __('Due date') }}</label>
             <input type="date" name="due_date" value="{{ old('due_date', optional($invoice->due_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        @if ($salespersons->isNotEmpty())
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Salesperson (optional)') }}</label>
+                <select name="salesperson_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($salespersons as $salesperson)
+                        <option value="{{ $salesperson->id }}" @selected(old('salesperson_id', $invoice->salesperson_id) == $salesperson->id)>{{ $salesperson->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
         @if (! $invoice->exists)
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Invoice number') }}</label>

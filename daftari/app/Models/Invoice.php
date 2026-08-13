@@ -13,7 +13,7 @@ class Invoice extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'client_id', 'branch_id', 'created_by', 'invoice_number', 'type',
+        'company_id', 'client_id', 'branch_id', 'salesperson_id', 'created_by', 'invoice_number', 'type',
         'status', 'issue_date', 'due_date', 'subtotal', 'discount_total',
         'vat_total', 'total', 'amount_paid', 'currency', 'notes', 'qr_code',
     ];
@@ -34,6 +34,11 @@ class Invoice extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function salesperson(): BelongsTo
+    {
+        return $this->belongsTo(Salesperson::class);
     }
 
     public function creator(): BelongsTo

@@ -12,8 +12,8 @@ class Quotation extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'client_id', 'branch_id', 'created_by', 'converted_invoice_id', 'quotation_number',
-        'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total',
+        'company_id', 'client_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
+        'quotation_number', 'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total',
         'vat_total', 'total', 'currency', 'notes',
     ];
 
@@ -33,6 +33,11 @@ class Quotation extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function salesperson(): BelongsTo
+    {
+        return $this->belongsTo(Salesperson::class);
     }
 
     public function convertedInvoice(): BelongsTo
