@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
 {
@@ -27,6 +28,7 @@ class ReportController extends Controller
         $inputVat = $expenses->sum('vat_amount');
 
         return view('user.reports.vat', [
+            'company' => Auth::user()->company,
             'month' => $month,
             'year' => $year,
             'salesTotal' => $invoices->sum('subtotal'),

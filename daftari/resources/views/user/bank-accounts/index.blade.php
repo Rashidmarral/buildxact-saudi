@@ -23,7 +23,7 @@
                 <span class="text-xs text-slate-400">{{ $account->type === 'cash' ? __('Cash') : __('Bank') }}</span>
             </div>
             @if ($account->bank_name)<p class="text-xs text-slate-400 mt-1">{{ $account->bank_name }}</p>@endif
-            <div class="mt-3 text-2xl font-bold text-slate-900">SAR {{ number_format($account->currentBalance(), 2) }}</div>
+            <div class="mt-3 text-2xl font-bold text-slate-900">SAR {{ auth()->user()->company->formatNumber($account->currentBalance()) }}</div>
             <div class="mt-4 flex gap-3 text-xs">
                 <a href="{{ route('app.bank-accounts.edit', $account) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
                 <form method="POST" action="{{ route('app.bank-accounts.destroy', $account) }}" onsubmit="return confirm('{{ __('Delete this account?') }}')">

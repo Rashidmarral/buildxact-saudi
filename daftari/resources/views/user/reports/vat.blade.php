@@ -36,8 +36,8 @@
 </div>
 
 <div class="mt-6 bg-brand-600 text-white rounded-xl p-6 flex items-center justify-between">
-    <span class="font-semibold">{{ __('Net VAT due') }}</span>
-    <span class="text-2xl font-bold">SAR {{ number_format($netVatDue, 2) }}</span>
+    <span class="font-semibold">{{ $netVatDue >= 0 ? __('Net VAT due') : __('Net VAT refundable') }}</span>
+    <span class="text-2xl font-bold">SAR {{ $company->formatNumber($netVatDue) }}</span>
 </div>
 
 <p class="mt-4 text-xs text-slate-400">{{ __('This is a summary for your own records. Verify figures against your ZATCA VAT return before filing.') }}</p>

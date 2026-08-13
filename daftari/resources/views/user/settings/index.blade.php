@@ -7,6 +7,7 @@
     @csrf
     @method('PUT')
 
+    <h3 class="font-semibold text-slate-900">{{ __('Company details') }}</h3>
     <div class="grid sm:grid-cols-2 gap-5">
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Company name') }}</label>
@@ -25,6 +26,23 @@
             <input type="text" name="cr_number" value="{{ old('cr_number', $company->cr_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Alternative seller ID type') }}</label>
+            <select name="alternative_seller_id_type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None') }}</option>
+                <option value="commercial_registration" @selected(old('alternative_seller_id_type', $company->alternative_seller_id_type) === 'commercial_registration')>{{ __('Commercial registration') }}</option>
+                <option value="momra_license" @selected(old('alternative_seller_id_type', $company->alternative_seller_id_type) === 'momra_license')>{{ __('MOMRA license') }}</option>
+                <option value="mhrsd_license" @selected(old('alternative_seller_id_type', $company->alternative_seller_id_type) === 'mhrsd_license')>{{ __('MHRSD license') }}</option>
+                <option value="passport_number" @selected(old('alternative_seller_id_type', $company->alternative_seller_id_type) === 'passport_number')>{{ __('Passport number') }}</option>
+                <option value="gcc_id" @selected(old('alternative_seller_id_type', $company->alternative_seller_id_type) === 'gcc_id')>{{ __('GCC ID') }}</option>
+                <option value="other_id" @selected(old('alternative_seller_id_type', $company->alternative_seller_id_type) === 'other_id')>{{ __('Other ID') }}</option>
+            </select>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Used only when no CR number is set.') }}</p>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Alternative seller ID') }}</label>
+            <input type="text" name="alternative_seller_id" value="{{ old('alternative_seller_id', $company->alternative_seller_id) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Email') }}</label>
             <input type="email" name="email" value="{{ old('email', $company->email) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
@@ -40,10 +58,47 @@
             <label class="block text-sm font-medium text-slate-700">{{ __('Invoice prefix') }}</label>
             <input type="text" name="invoice_prefix" value="{{ old('invoice_prefix', $company->invoice_prefix) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Primary customer type') }}</label>
+            <select name="primary_customer_type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="mixed" @selected(old('primary_customer_type', $company->primary_customer_type ?? 'mixed') === 'mixed')>{{ __('Mixed (both)') }}</option>
+                <option value="b2b" @selected(old('primary_customer_type', $company->primary_customer_type) === 'b2b')>{{ __('Businesses (B2B)') }}</option>
+                <option value="b2c" @selected(old('primary_customer_type', $company->primary_customer_type) === 'b2c')>{{ __('Individuals (B2C)') }}</option>
+            </select>
+        </div>
         <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-slate-700">{{ __('Address') }}</label>
             <input type="text" name="address" value="{{ old('address', $company->address) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Default branch') }}</label>
+            <select name="default_branch_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None — use company details') }}</option>
+                @foreach ($branches as $branch)
+                    <option value="{{ $branch->id }}" @selected(old('default_branch_id', $company->default_branch_id) == $branch->id)>{{ $branch->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Default bank account for invoices') }}</label>
+            <select name="default_bank_account_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None') }}</option>
+                @foreach ($bankAccounts as $account)
+                    <option value="{{ $account->id }}" @selected(old('default_bank_account_id', $company->default_bank_account_id) == $account->id)>{{ $account->name }}</option>
+                @endforeach
+            </select>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Shown on invoices so customers know where to pay.') }}</p>
+        </div>
+    </div>
+
+    <h3 class="font-semibold text-slate-900 pt-2">{{ __('Number formatting') }}</h3>
+    <div>
+        <label class="block text-sm font-medium text-slate-700">{{ __('Negative numbers') }}</label>
+        <select name="negative_number_format" id="negative_number_format" class="mt-1 w-full max-w-xs rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <option value="minus" @selected(old('negative_number_format', $company->negative_number_format ?? 'minus') === 'minus')>{{ __('Show as -101,600') }}</option>
+            <option value="parentheses" @selected(old('negative_number_format', $company->negative_number_format) === 'parentheses')>{{ __('Show as (101,600)') }}</option>
+        </select>
+        <p class="text-xs text-slate-400 mt-2">{{ __('Preview:') }} <span id="format-preview" class="font-mono font-medium text-slate-600"></span></p>
     </div>
 
     <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save settings') }}</button>
@@ -53,8 +108,8 @@
     <div>
         <h3 class="font-semibold text-slate-900">{{ __('Branches') }}</h3>
         <p class="text-sm text-slate-500">
-            @if (auth()->user()->company->default_branch_id)
-                {{ __('Default branch:') }} {{ auth()->user()->company->defaultBranch()?->name }}
+            @if ($company->default_branch_id)
+                {{ __('Default branch:') }} {{ $company->defaultBranch()?->name }}
             @else
                 {{ __('No branches yet — your company details are used on new documents.') }}
             @endif
@@ -62,4 +117,16 @@
     </div>
     <a href="{{ route('app.branches.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Manage branches') }}</a>
 </div>
+
+<script>
+(function () {
+    const select = document.getElementById('negative_number_format');
+    const preview = document.getElementById('format-preview');
+    function update() {
+        preview.textContent = select.value === 'parentheses' ? '(101,600)' : '-101,600';
+    }
+    select.addEventListener('change', update);
+    update();
+})();
+</script>
 @endsection

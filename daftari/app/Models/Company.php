@@ -14,6 +14,8 @@ class Company extends Model
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
         'currency', 'locale', 'status', 'trial_ends_at', 'default_branch_id',
+        'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
+        'primary_customer_type', 'negative_number_format',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -35,6 +37,8 @@ class Company extends Model
         'next_bill_number' => 1,
         'po_prefix' => 'PO',
         'next_po_number' => 1,
+        'primary_customer_type' => 'mixed',
+        'negative_number_format' => 'minus',
         'currency' => 'SAR',
         'locale' => 'en',
         'status' => 'active',
@@ -131,6 +135,22 @@ class Company extends Model
     public function bankAccounts(): HasMany
     {
         return $this->hasMany(BankAccount::class);
+    }
+
+    public function defaultBankAccount(): ?BankAccount
+    {
+        return $this->default_bank_account_id ? BankAccount::find($this->default_bank_account_id) : null;
+    }
+
+    public function formatNumber(float $amount, int $decimals = 2): string
+    {
+        $formatted = number_format(abs($amount), $decimals);
+
+        if ($amount >= 0) {
+            return $formatted;
+        }
+
+        return $this->negative_number_format === 'parentheses' ? "($formatted)" : "-$formatted";
     }
 
     public function nextReceiptNumber(): string

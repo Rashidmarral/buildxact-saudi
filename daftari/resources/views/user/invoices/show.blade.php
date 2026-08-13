@@ -86,6 +86,18 @@
         </div>
     </div>
 
+    @if ($invoice->company->defaultBankAccount())
+        @php($bankAccount = $invoice->company->defaultBankAccount())
+        <div class="mt-8 pt-4 border-t border-slate-100 text-sm">
+            <h4 class="text-xs font-semibold uppercase text-slate-400 mb-1">{{ __('Payment details') }}</h4>
+            <p class="text-slate-600">
+                {{ $bankAccount->name }}
+                @if ($bankAccount->bank_name) — {{ $bankAccount->bank_name }} @endif
+                @if ($bankAccount->iban) — {{ __('IBAN') }}: {{ $bankAccount->iban }} @endif
+            </p>
+        </div>
+    @endif
+
     @if ($invoice->notes)
         <div class="mt-8 pt-4 border-t border-slate-100 text-sm text-slate-500">{{ $invoice->notes }}</div>
     @endif
