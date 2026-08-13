@@ -18,6 +18,21 @@ class ClientController extends Controller
         return view('user.clients.index', compact('clients'));
     }
 
+    public function outstandingInvoices(Client $client)
+    {
+        $invoices = $client->invoices()
+            ->whereIn('status', ['sent', 'partially_paid', 'overdue'])
+            ->get()
+            ->map(fn ($invoice) => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'balance' => number_format($invoice->balanceDue(), 2),
+            ])
+            ->values();
+
+        return response()->json($invoices);
+    }
+
     public function create()
     {
         $client = new Client(['client_code' => Client::generateClientCode(Auth::user()->company_id)]);

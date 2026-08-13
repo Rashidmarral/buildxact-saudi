@@ -32,6 +32,7 @@
                 {!! $navItem('app.clients.index', __('Clients'), '👥') !!}
                 {!! $navItem('app.items.index', __('Items'), '📦') !!}
                 {!! $navItem('app.expenses.index', __('Expenses'), '💳') !!}
+                {!! $navItem('app.bank-accounts.index', __('Cash & Banks'), '🏦') !!}
                 {!! $navItem('app.reports.vat', __('VAT Report'), '📈') !!}
                 {!! $navItem('app.billing.index', __('Billing'), '💰') !!}
                 @if (auth()->user()->isOwner())

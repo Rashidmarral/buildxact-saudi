@@ -11,6 +11,7 @@ class Company extends Model
         'name', 'name_ar', 'slug', 'vat_number', 'cr_number', 'address', 'city',
         'phone', 'email', 'logo_path', 'invoice_prefix', 'next_invoice_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
+        'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'currency', 'locale', 'status', 'trial_ends_at', 'default_branch_id',
     ];
 
@@ -25,6 +26,10 @@ class Company extends Model
         'next_quotation_number' => 1,
         'proforma_prefix' => 'PRO',
         'next_proforma_number' => 1,
+        'receipt_prefix' => 'RV',
+        'next_receipt_number' => 1,
+        'payment_voucher_prefix' => 'PV',
+        'next_payment_voucher_number' => 1,
         'currency' => 'SAR',
         'locale' => 'en',
         'status' => 'active',
@@ -116,6 +121,27 @@ class Company extends Model
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class);
+    }
+
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(BankAccount::class);
+    }
+
+    public function nextReceiptNumber(): string
+    {
+        $number = $this->receipt_prefix.'-'.str_pad((string) $this->next_receipt_number, 5, '0', STR_PAD_LEFT);
+        $this->increment('next_receipt_number');
+
+        return $number;
+    }
+
+    public function nextPaymentVoucherNumber(): string
+    {
+        $number = $this->payment_voucher_prefix.'-'.str_pad((string) $this->next_payment_voucher_number, 5, '0', STR_PAD_LEFT);
+        $this->increment('next_payment_voucher_number');
+
+        return $number;
     }
 
     public function defaultBranch(): ?Branch

@@ -9,6 +9,8 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
+use App\Http\Controllers\User\BankAccountController;
+use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
@@ -17,7 +19,9 @@ use App\Http\Controllers\User\ExpenseCategoryController;
 use App\Http\Controllers\User\ExpenseController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\ItemController;
+use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\QuotationController;
+use App\Http\Controllers\User\ReceiptVoucherController;
 use App\Http\Controllers\User\ReportController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\TeamController;
@@ -64,6 +68,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::resource('clients', ClientController::class)->except(['show']);
+    Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
     Route::resource('items', ItemController::class)->except(['show']);
 
     Route::resource('invoices', InvoiceController::class);
@@ -81,6 +86,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
 
     Route::get('reports/vat', [ReportController::class, 'vat'])->name('reports.vat');
+
+    Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
+    Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
+    Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
+    Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
 
     Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
     Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');

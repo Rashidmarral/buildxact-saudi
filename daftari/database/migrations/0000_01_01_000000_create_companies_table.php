@@ -26,6 +26,10 @@ return new class extends Migration
             $table->unsignedInteger('next_quotation_number')->default(1);
             $table->string('proforma_prefix', 10)->default('PRO');
             $table->unsignedInteger('next_proforma_number')->default(1);
+            $table->string('receipt_prefix', 10)->default('RV');
+            $table->unsignedInteger('next_receipt_number')->default(1);
+            $table->string('payment_voucher_prefix', 10)->default('PV');
+            $table->unsignedInteger('next_payment_voucher_number')->default(1);
             $table->string('currency', 3)->default('SAR');
             $table->string('locale', 2)->default('en');
             $table->string('status', 20)->default('active'); // active, suspended
