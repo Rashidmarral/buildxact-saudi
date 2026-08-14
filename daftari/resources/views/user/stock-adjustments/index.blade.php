@@ -3,16 +3,25 @@
 @section('title', __('Stock adjustments'))
 
 @section('content')
-<div class="flex flex-wrap items-center gap-2 mb-6 text-sm">
-    <a href="{{ route('app.warehouses.index') }}" class="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Warehouses') }}</a>
-    <a href="{{ route('app.stock-adjustments.index') }}" class="rounded-lg px-3 py-1.5 bg-slate-900 text-white">{{ __('Stock adjustments') }}</a>
-    <a href="{{ route('app.inventory.stock') }}" class="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Stock levels') }}</a>
-</div>
+@php($canAdjust = $items->isNotEmpty())
 
 <div class="flex items-center justify-between mb-6">
-    <p class="text-sm text-slate-500">{{ __('Manual increases and decreases to stock on hand.') }}</p>
-    <a href="{{ route('app.stock-adjustments.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New adjustment') }}</a>
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">{{ __('Inventory Adjustments') }}</h1>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Correct counted stock quantities') }}</p>
+    </div>
+    @if ($canAdjust)
+        <button type="button" onclick="document.getElementById('adjust-modal').showModal()" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Record adjustment') }}</button>
+    @else
+        <a href="{{ route('app.items.index') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Go to Items') }}</a>
+    @endif
 </div>
+
+@unless ($canAdjust)
+    <div class="bg-white rounded-xl border border-slate-100 p-4 mb-6">
+        <p class="text-sm text-slate-500">{{ __('No items are tracked for inventory yet. Enable "Track inventory" on an item to adjust its stock.') }}</p>
+    </div>
+@endunless
 
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($adjustments->isEmpty())
@@ -66,4 +75,83 @@
     @endif
 </div>
 <div class="mt-4">{{ $adjustments->links() }}</div>
+
+@if ($canAdjust)
+<dialog id="adjust-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
+    <form method="POST" action="{{ route('app.stock-adjustments.store') }}" class="p-6 space-y-4">
+        @csrf
+        <div class="flex items-start justify-between">
+            <h3 class="text-lg font-bold text-slate-900">{{ __('Record adjustment') }}</h3>
+            <button type="button" onclick="document.getElementById('adjust-modal').close()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Item') }}</label>
+            <select name="item_id" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Select tracked item') }}</option>
+                @foreach ($items as $item)
+                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Warehouse') }}</label>
+            <select name="warehouse_id" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Select a warehouse') }}</option>
+                @foreach ($warehouses as $warehouse)
+                    <option value="{{ $warehouse->id }}" @selected($warehouse->is_default)>{{ $warehouse->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500 mb-2">{{ __('Type') }}</label>
+            <input type="hidden" name="type" id="adjust-type" value="increase">
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" data-type="increase" class="adjust-type-btn rounded-lg border py-2.5 font-semibold flex items-center justify-center gap-2 border-emerald-500 bg-emerald-50 text-emerald-700">
+                    <span>↗</span>{{ __('Increase') }}
+                </button>
+                <button type="button" data-type="decrease" class="adjust-type-btn rounded-lg border border-slate-200 py-2.5 font-semibold text-slate-600 flex items-center justify-center gap-2">
+                    <span>−</span>{{ __('Decrease') }}
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Quantity') }}</label>
+            <input type="number" step="0.01" min="0.01" name="quantity" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        </div>
+
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reason') }}</label>
+            <input type="text" name="reason" placeholder="{{ __('e.g. stock count correction, damaged goods') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button type="button" onclick="document.getElementById('adjust-modal').close()" class="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</button>
+            <button type="submit" class="flex-1 rounded-lg bg-brand-800 px-4 py-2.5 font-semibold text-white hover:bg-brand-900">{{ __('Record adjustment') }}</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    const buttons = document.querySelectorAll('.adjust-type-btn');
+    const typeInput = document.getElementById('adjust-type');
+
+    buttons.forEach(btn => btn.addEventListener('click', () => {
+        typeInput.value = btn.dataset.type;
+        buttons.forEach(b => {
+            const active = b === btn;
+            b.classList.toggle('border-emerald-500', active);
+            b.classList.toggle('bg-emerald-50', active);
+            b.classList.toggle('text-emerald-700', active);
+            b.classList.toggle('border-slate-200', ! active);
+            b.classList.toggle('text-slate-600', ! active);
+        });
+    }));
+})();
+</script>
+@endif
 @endsection

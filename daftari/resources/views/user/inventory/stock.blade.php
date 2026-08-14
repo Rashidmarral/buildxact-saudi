@@ -1,15 +1,9 @@
 @extends('layouts.app')
 
-@section('title', __('Stock levels'))
+@section('title', __('Inventory Reports'))
 
 @section('content')
-<div class="flex flex-wrap items-center gap-2 mb-6 text-sm">
-    <a href="{{ route('app.warehouses.index') }}" class="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Warehouses') }}</a>
-    <a href="{{ route('app.stock-adjustments.index') }}" class="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Stock adjustments') }}</a>
-    <a href="{{ route('app.inventory.stock') }}" class="rounded-lg px-3 py-1.5 bg-slate-900 text-white">{{ __('Stock levels') }}</a>
-</div>
-
-<p class="text-sm text-slate-500 mb-6">{{ __('Current quantity on hand for tracked items, by warehouse.') }}</p>
+@include('user.inventory.partials.tabs')
 
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($stocks->isEmpty())

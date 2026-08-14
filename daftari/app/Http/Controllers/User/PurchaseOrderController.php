@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attachment;
 use App\Models\Bill;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
@@ -11,6 +12,7 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class PurchaseOrderController extends Controller
@@ -50,6 +52,7 @@ class PurchaseOrderController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $postImmediately = $request->boolean('post_immediately');
 
         $order = DB::transaction(function () use ($data) {
             $company = Auth::user()->company;
@@ -72,12 +75,16 @@ class PurchaseOrderController extends Controller
             return $order;
         });
 
-        return redirect()->route('app.purchase-orders.show', $order)->with('status', __('Purchase order created.'));
+        if ($postImmediately) {
+            $order->update(['status' => 'approved']);
+        }
+
+        return redirect()->route('app.purchase-orders.show', $order)->with('status', $postImmediately ? __('Purchase order created and approved.') : __('Purchase order created.'));
     }
 
     public function show(PurchaseOrder $purchaseOrder)
     {
-        $purchaseOrder->load('items', 'supplier', 'convertedBill');
+        $purchaseOrder->load('items', 'supplier', 'convertedBill', 'attachments');
 
         return view('user.purchase-orders.show', ['order' => $purchaseOrder]);
     }
@@ -143,6 +150,34 @@ class PurchaseOrderController extends Controller
         });
 
         return redirect()->route('app.bills.show', $bill)->with('status', __('Purchase order converted to bill.'));
+    }
+
+    public function storeAttachment(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        $request->validate(['file' => ['required', 'file', 'max:10240']]);
+
+        $file = $request->file('file');
+
+        $purchaseOrder->attachments()->create([
+            'company_id' => $purchaseOrder->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('po-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(PurchaseOrder $purchaseOrder, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === PurchaseOrder::class && $attachment->attachable_id === $purchaseOrder->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
     }
 
     private function syncItems(PurchaseOrder $order, array $items): void

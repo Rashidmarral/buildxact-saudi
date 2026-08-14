@@ -17,6 +17,7 @@ use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\CostCenterController;
+use App\Http\Controllers\User\CreditNoteController;
 use App\Http\Controllers\User\CustomsDeclarationController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ExpenseCategoryController;
@@ -87,11 +88,16 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
     });
     Route::resource('items', ItemController::class)->except(['show'])->middleware('permission:items');
+    Route::get('items-generate-barcode', [ItemController::class, 'generateBarcode'])->name('items.generate-barcode')->middleware('permission:items');
 
     Route::middleware('permission:invoices')->group(function () {
         Route::resource('invoices', InvoiceController::class);
         Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
         Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+
+        Route::get('credit-notes/eligible-invoices', [CreditNoteController::class, 'eligibleInvoices'])->name('credit-notes.eligible-invoices');
+        Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('credit-notes/{creditNote}/void', [CreditNoteController::class, 'void'])->name('credit-notes.void');
     });
 
     Route::middleware('permission:quotations')->group(function () {
@@ -164,21 +170,26 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
         Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
+        Route::post('bills/{bill}/attachments', [BillController::class, 'storeAttachment'])->name('bills.attachments.store');
+        Route::delete('bills/{bill}/attachments/{attachment}', [BillController::class, 'destroyAttachment'])->name('bills.attachments.destroy');
 
         Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
         Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
         Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
+        Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
+        Route::delete('purchase-orders/{purchaseOrder}/attachments/{attachment}', [PurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
 
         Route::resource('customs-declarations', CustomsDeclarationController::class)->only(['index', 'store', 'destroy']);
     });
 
     Route::middleware('permission:inventory')->group(function () {
-        Route::resource('warehouses', WarehouseController::class)->except(['show']);
+        Route::resource('warehouses', WarehouseController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::post('warehouses/{warehouse}/make-default', [WarehouseController::class, 'makeDefault'])->name('warehouses.make-default');
-        Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'create', 'store']);
+        Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'store']);
         Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
         Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
+        Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->name('inventory.valuation');
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');

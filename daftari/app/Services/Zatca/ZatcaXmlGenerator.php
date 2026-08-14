@@ -81,7 +81,7 @@ class ZatcaXmlGenerator
             $line = $doc->createElement('cac:InvoiceLine');
             $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
-            $qty->setAttribute('unitCode', 'PCE');
+            $qty->setAttribute('unitCode', $item->item?->unit_code ?: 'PCE');
             $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $item->quantity * $item->unit_price);
 
             $lineTax = $doc->createElement('cac:TaxTotal');

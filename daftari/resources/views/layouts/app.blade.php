@@ -27,12 +27,33 @@
                     };
                 @endphp
                 {!! $navItem('app.dashboard', __('Dashboard'), '📊') !!}
-                {!! $navItem('app.quotations.index', __('Quotations'), '📋') !!}
-                {!! $navItem('app.invoices.index', __('Invoices'), '🧾') !!}
-                {!! $navItem('app.clients.index', __('Clients'), '👥') !!}
-                {!! $navItem('app.salespersons.index', __('Salespersons'), '🧑‍💼') !!}
-                {!! $navItem('app.items.index', __('Items'), '📦') !!}
-                {!! $navItem('app.warehouses.index', __('Inventory'), '🏷️') !!}
+
+                @php($salesActive = request()->routeIs('app.quotations.*') || request()->routeIs('app.invoices.*') || request()->routeIs('app.credit-notes.*') || request()->routeIs('app.clients.*') || request()->routeIs('app.salespersons.*'))
+                <details class="group" @if($salesActive) open @endif>
+                    <summary class="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer list-none {{ $salesActive ? 'text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <span>💰</span><span>{{ __('Sales') }}</span>
+                    </summary>
+                    <div class="ms-6 mt-1 space-y-1">
+                        {!! $navItem('app.quotations.index', __('Quotations & Proforma Invoices'), '') !!}
+                        {!! $navItem('app.invoices.index', __('Invoices'), '') !!}
+                        {!! $navItem('app.credit-notes.index', __('Credit notes'), '') !!}
+                        {!! $navItem('app.clients.index', __('Customers'), '') !!}
+                        {!! $navItem('app.salespersons.index', __('Salespersons'), '') !!}
+                    </div>
+                </details>
+
+                @php($itemsActive = request()->routeIs('app.items.*') || request()->routeIs('app.warehouses.*') || request()->routeIs('app.stock-adjustments.*') || request()->routeIs('app.inventory.*'))
+                <details class="group" @if($itemsActive) open @endif>
+                    <summary class="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer list-none {{ $itemsActive ? 'text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <span>📦</span><span>{{ __('Items & Services') }}</span>
+                    </summary>
+                    <div class="ms-6 mt-1 space-y-1">
+                        {!! $navItem('app.items.index', __('Items'), '') !!}
+                        {!! $navItem('app.warehouses.index', __('Warehouses'), '') !!}
+                        {!! $navItem('app.stock-adjustments.index', __('Inventory adjustments'), '') !!}
+                        {!! $navItem('app.inventory.valuation', __('Inventory reports'), '') !!}
+                    </div>
+                </details>
 
                 @php($purchasesActive = request()->routeIs('app.bills.*') || request()->routeIs('app.purchase-orders.*') || request()->routeIs('app.customs-declarations.*') || request()->routeIs('app.suppliers.*') || request()->routeIs('app.expenses.*') || request()->routeIs('app.expense-categories.*'))
                 <details class="group" @if($purchasesActive) open @endif>

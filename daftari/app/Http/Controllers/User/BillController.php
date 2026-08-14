@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attachment;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Item;
@@ -11,6 +12,7 @@ use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class BillController extends Controller
@@ -46,9 +48,10 @@ class BillController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
+        $postImmediately = $request->boolean('post_immediately');
 
         $bill = DB::transaction(function () use ($data) {
             $company = Auth::user()->company;
@@ -73,12 +76,17 @@ class BillController extends Controller
             return $bill;
         });
 
-        return redirect()->route('app.bills.show', $bill)->with('status', __('Bill created.'));
+        if ($postImmediately) {
+            $bill->update(['status' => 'posted']);
+            $ledger->postBillPosted($bill);
+        }
+
+        return redirect()->route('app.bills.show', $bill)->with('status', $postImmediately ? __('Bill created and posted.') : __('Bill created.'));
     }
 
     public function show(Bill $bill)
     {
-        $bill->load('items', 'supplier', 'billPayments');
+        $bill->load('items', 'supplier', 'billPayments', 'attachments');
 
         return view('user.bills.show', compact('bill'));
     }
@@ -99,6 +107,34 @@ class BillController extends Controller
         $ledger->reverse($bill->company, 'bill', $bill->id, __('Bill :number voided', ['number' => $bill->bill_number]));
 
         return back()->with('status', __('Bill voided.'));
+    }
+
+    public function storeAttachment(Request $request, Bill $bill)
+    {
+        $request->validate(['file' => ['required', 'file', 'max:10240']]);
+
+        $file = $request->file('file');
+
+        $bill->attachments()->create([
+            'company_id' => $bill->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('bill-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(Bill $bill, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === Bill::class && $attachment->attachable_id === $bill->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
     }
 
     private function syncItems(Bill $bill, array $items): void

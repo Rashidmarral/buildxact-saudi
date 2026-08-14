@@ -42,16 +42,24 @@ class SettingsController extends Controller
             'default_branch_id' => ['nullable', Rule::exists('branches', 'id')->where('company_id', $companyId)],
             'default_bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
             'logo' => ['nullable', 'image', 'max:2048'],
+            'stamp' => ['nullable', 'image', 'max:2048'],
         ]);
 
         $company = Auth::user()->company;
-        unset($data['logo']);
+        unset($data['logo'], $data['stamp']);
 
         if ($request->hasFile('logo')) {
             if ($company->logo_path) {
                 Storage::disk('public')->delete($company->logo_path);
             }
             $data['logo_path'] = $request->file('logo')->store('logos', 'public');
+        }
+
+        if ($request->hasFile('stamp')) {
+            if ($company->stamp_path) {
+                Storage::disk('public')->delete($company->stamp_path);
+            }
+            $data['stamp_path'] = $request->file('stamp')->store('stamps', 'public');
         }
 
         $company->update($data);

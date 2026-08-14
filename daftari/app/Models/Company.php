@@ -9,7 +9,8 @@ class Company extends Model
 {
     protected $fillable = [
         'name', 'name_ar', 'slug', 'vat_number', 'cr_number', 'address', 'city',
-        'phone', 'email', 'logo_path', 'invoice_prefix', 'next_invoice_number',
+        'phone', 'email', 'logo_path', 'stamp_path', 'invoice_prefix', 'next_invoice_number',
+        'credit_note_prefix', 'next_credit_note_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
@@ -31,6 +32,8 @@ class Company extends Model
     protected $attributes = [
         'invoice_prefix' => 'INV',
         'next_invoice_number' => 1,
+        'credit_note_prefix' => 'CN',
+        'next_credit_note_number' => 1,
         'quotation_prefix' => 'QTN',
         'next_quotation_number' => 1,
         'proforma_prefix' => 'PRO',
@@ -127,6 +130,14 @@ class Company extends Model
     {
         $number = $this->invoice_prefix.'-'.str_pad((string) $this->next_invoice_number, 5, '0', STR_PAD_LEFT);
         $this->increment('next_invoice_number');
+
+        return $number;
+    }
+
+    public function nextCreditNoteNumber(): string
+    {
+        $number = $this->credit_note_prefix.'-'.str_pad((string) $this->next_credit_note_number, 5, '0', STR_PAD_LEFT);
+        $this->increment('next_credit_note_number');
 
         return $number;
     }

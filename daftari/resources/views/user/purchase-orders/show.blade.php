@@ -83,4 +83,34 @@
         <div class="mt-6 pt-4 border-t border-slate-100 text-sm text-slate-500">{{ $order->notes }}</div>
     @endif
 </div>
+
+<div class="bg-white rounded-xl border border-slate-100 p-6 mt-6 print:hidden">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-900">{{ __('Attachments') }}</h3>
+        <button type="button" onclick="document.getElementById('attach-file-input').click()" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Attach file') }}</button>
+        <form method="POST" action="{{ route('app.purchase-orders.attachments.store', $order) }}" enctype="multipart/form-data" id="attach-file-form" class="hidden">
+            @csrf
+            <input type="file" name="file" id="attach-file-input" onchange="document.getElementById('attach-file-form').submit()">
+        </form>
+    </div>
+
+    @if ($order->attachments->isEmpty())
+        <p class="text-sm text-slate-400">{{ __('No attachments') }}</p>
+    @else
+        <ul class="divide-y divide-slate-50">
+            @foreach ($order->attachments as $attachment)
+                <li class="flex items-center justify-between py-2 text-sm">
+                    <a href="{{ Storage::url($attachment->path) }}" target="_blank" class="text-brand-700 hover:underline">{{ $attachment->original_name }}</a>
+                    <div class="flex items-center gap-3 text-slate-400">
+                        <span>{{ $attachment->humanSize() }}</span>
+                        <form method="POST" action="{{ route('app.purchase-orders.attachments.destroy', [$order, $attachment]) }}" onsubmit="return confirm('{{ __('Remove this attachment?') }}')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:underline">{{ __('Remove') }}</button>
+                        </form>
+                    </div>
+                </li>
+            @endforeach
+        </ul>
+    @endif
+</div>
 @endsection

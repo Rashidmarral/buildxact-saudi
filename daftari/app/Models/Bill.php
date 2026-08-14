@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Bill extends Model
 {
@@ -49,6 +50,11 @@ class Bill extends Model
     public function customsDeclarations(): BelongsToMany
     {
         return $this->belongsToMany(CustomsDeclaration::class, 'customs_declaration_bill');
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 
     public function recalculateTotals(): void

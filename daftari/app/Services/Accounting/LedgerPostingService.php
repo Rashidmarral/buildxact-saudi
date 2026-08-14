@@ -8,6 +8,7 @@ use App\Models\BankTransfer;
 use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Company;
+use App\Models\CreditNote;
 use App\Models\CustomsDeclaration;
 use App\Models\Expense;
 use App\Models\Invoice;
@@ -162,6 +163,26 @@ class LedgerPostingService
         }
 
         return $this->post($company, 'invoice', $invoice->id, __('Invoice :number issued', ['number' => $invoice->invoice_number]), $invoice->issue_date, $lines);
+    }
+
+    public function postCreditNote(CreditNote $creditNote): ?JournalEntry
+    {
+        $company = $creditNote->company;
+        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
+        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
+        $vatOutput = $this->account($company, 'VAT_OUTPUT');
+
+        if (! $ar || ! $revenue || ! $vatOutput) {
+            return null;
+        }
+
+        $lines = [
+            ['account_id' => $revenue->id, 'debit' => $creditNote->subtotal, 'memo' => $creditNote->credit_note_number],
+            ['account_id' => $vatOutput->id, 'debit' => $creditNote->vat_total],
+            ['account_id' => $ar->id, 'credit' => $creditNote->total],
+        ];
+
+        return $this->post($company, 'credit_note', $creditNote->id, __('Credit note :number', ['number' => $creditNote->credit_note_number]), $creditNote->issue_date, $lines);
     }
 
     public function postInvoicePayment(InvoicePayment $payment): ?JournalEntry

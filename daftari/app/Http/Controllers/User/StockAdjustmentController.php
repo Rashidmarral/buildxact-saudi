@@ -17,14 +17,8 @@ class StockAdjustmentController extends Controller
 {
     public function index()
     {
-        $adjustments = StockAdjustment::with('item', 'warehouse')->latest('date')->latest('id')->paginate(20);
-
-        return view('user.stock-adjustments.index', compact('adjustments'));
-    }
-
-    public function create()
-    {
-        return view('user.stock-adjustments.form', [
+        return view('user.stock-adjustments.index', [
+            'adjustments' => StockAdjustment::with('item', 'warehouse')->latest('date')->latest('id')->paginate(20),
             'items' => Item::where('track_inventory', true)->orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
         ]);
@@ -42,9 +36,8 @@ class StockAdjustmentController extends Controller
                 'type' => $data['type'],
                 'quantity' => $data['quantity'],
                 'reason' => $data['reason'] ?? null,
-                'date' => $data['date'],
+                'date' => now()->toDateString(),
                 'status' => 'recorded',
-                'notes' => $data['notes'] ?? null,
             ]);
 
             $this->applyToStock($adjustment, 1);
@@ -93,8 +86,6 @@ class StockAdjustmentController extends Controller
             'type' => ['required', 'in:increase,decrease'],
             'quantity' => ['required', 'numeric', 'min:0.01'],
             'reason' => ['nullable', 'string', 'max:255'],
-            'date' => ['required', 'date'],
-            'notes' => ['nullable', 'string', 'max:2000'],
         ]);
     }
 }

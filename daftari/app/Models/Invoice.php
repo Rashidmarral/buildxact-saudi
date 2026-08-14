@@ -66,6 +66,21 @@ class Invoice extends Model
         return $this->hasMany(ZatcaInvoiceLog::class);
     }
 
+    public function creditNotes(): HasMany
+    {
+        return $this->hasMany(CreditNote::class);
+    }
+
+    public function creditedTotal(): float
+    {
+        return (float) $this->creditNotes()->where('status', 'issued')->sum('total');
+    }
+
+    public function remainingCreditableTotal(): float
+    {
+        return round((float) $this->total - $this->creditedTotal(), 2);
+    }
+
     public function recalculateTotals(): void
     {
         $items = $this->items;
