@@ -190,11 +190,14 @@ class LedgerPostingService
             return null;
         }
 
-        // Linked to an invoice: settles Accounts Receivable. Otherwise this
-        // is a general receipt (no prior AR accrual), booked to Other Income.
-        $counterpart = $voucher->invoice_id
-            ? $this->account($company, 'ACCOUNTS_RECEIVABLE')
-            : $this->account($company, 'OTHER_INCOME_DEFAULT');
+        // An explicit counter account on the voucher always wins (e.g. the
+        // user knows this receipt should be credited to a specific account).
+        // Otherwise: linked to an invoice settles Accounts Receivable;
+        // anything else is a general receipt booked to Other Income.
+        $counterpart = $voucher->counterAccount
+            ?? ($voucher->invoice_id
+                ? $this->account($company, 'ACCOUNTS_RECEIVABLE')
+                : $this->account($company, 'OTHER_INCOME_DEFAULT'));
 
         if (! $counterpart) {
             return null;
@@ -255,12 +258,14 @@ class LedgerPostingService
             return null;
         }
 
-        // Linked to a bill or expense: settles Accounts Payable (the bill
-        // or the expense already posted its own accrual). Otherwise this is
-        // a direct, unaccrued payment booked straight to operating expenses.
-        $counterpart = ($voucher->bill_id || $voucher->expense_id)
-            ? $this->account($company, 'ACCOUNTS_PAYABLE')
-            : $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
+        // An explicit counter account on the voucher always wins. Otherwise:
+        // linked to a bill or expense settles Accounts Payable (the bill or
+        // the expense already posted its own accrual); anything else is a
+        // direct, unaccrued payment booked straight to operating expenses.
+        $counterpart = $voucher->counterAccount
+            ?? (($voucher->bill_id || $voucher->expense_id)
+                ? $this->account($company, 'ACCOUNTS_PAYABLE')
+                : $this->account($company, 'DEFAULT_OPERATING_EXPENSES'));
 
         if (! $counterpart) {
             return null;

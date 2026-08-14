@@ -7,6 +7,7 @@ use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\ReceiptVoucher;
+use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,23 +18,26 @@ class ReceiptVoucherController extends Controller
 {
     public function index()
     {
-        $vouchers = ReceiptVoucher::with('bankAccount', 'client')->latest('date')->latest('id')->paginate(20);
+        $vouchers = ReceiptVoucher::with('bankAccount', 'client', 'supplier')->latest('date')->latest('id')->paginate(20);
 
         return view('user.receipt-vouchers.index', compact('vouchers'));
     }
 
     public function create()
     {
+        $company = Auth::user()->company;
+
         return view('user.receipt-vouchers.form', [
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'clients' => Client::orderBy('name')->get(),
+            'suppliers' => Supplier::orderBy('name')->get(),
+            'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
         ]);
     }
 
     public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
-        $companyId = Auth::user()->company_id;
 
         $voucher = DB::transaction(function () use ($data) {
             $company = Auth::user()->company;
@@ -55,13 +59,21 @@ class ReceiptVoucherController extends Controller
 
             return ReceiptVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
-                'client_id' => $data['client_id'] ?? null,
+                'party_type' => $data['party_type'],
+                'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
+                'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
+                'counter_account_id' => $data['counter_account_id'] ?? null,
                 'invoice_id' => $data['invoice_id'] ?? null,
                 'invoice_payment_id' => $invoicePaymentId,
                 'created_by' => Auth::id(),
                 'voucher_number' => $company->nextReceiptNumber(),
                 'date' => $data['date'],
                 'payer_name' => $data['payer_name'],
+                'party_name_ar' => $data['party_name_ar'] ?? null,
+                'party_vat_number' => $data['party_vat_number'] ?? null,
+                'party_phone' => $data['party_phone'] ?? null,
+                'party_email' => $data['party_email'] ?? null,
+                'party_address' => $data['party_address'] ?? null,
                 'amount' => $data['amount'],
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
@@ -77,7 +89,7 @@ class ReceiptVoucherController extends Controller
 
     public function show(ReceiptVoucher $receiptVoucher)
     {
-        $receiptVoucher->load('bankAccount', 'client', 'invoice');
+        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice', 'counterAccount');
 
         return view('user.receipt-vouchers.show', ['voucher' => $receiptVoucher]);
     }
@@ -111,10 +123,18 @@ class ReceiptVoucherController extends Controller
 
         return $request->validate([
             'bank_account_id' => ['required', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
-            'client_id' => ['nullable', Rule::exists('clients', 'id')->where('company_id', $companyId)],
+            'party_type' => ['required', 'in:manual,customer,supplier'],
+            'client_id' => ['nullable', 'required_if:party_type,customer', Rule::exists('clients', 'id')->where('company_id', $companyId)],
+            'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
+            'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
             'invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
             'date' => ['required', 'date'],
             'payer_name' => ['required', 'string', 'max:255'],
+            'party_name_ar' => ['nullable', 'string', 'max:255'],
+            'party_vat_number' => ['nullable', 'string', 'max:32'],
+            'party_phone' => ['nullable', 'string', 'max:30'],
+            'party_email' => ['nullable', 'email', 'max:255'],
+            'party_address' => ['nullable', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'method' => ['required', 'in:cash,bank_transfer,card,cheque'],
             'reference' => ['nullable', 'string', 'max:255'],

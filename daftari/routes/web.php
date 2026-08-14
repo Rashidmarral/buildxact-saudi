@@ -11,13 +11,12 @@ use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\User\BankAccountController;
-use App\Http\Controllers\User\CostCenterController;
-use App\Http\Controllers\User\JournalController;
 use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
 use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
+use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ExpenseCategoryController;
 use App\Http\Controllers\User\ExpenseController;
@@ -25,6 +24,7 @@ use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
+use App\Http\Controllers\User\JournalController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\PurchaseOrderController;
@@ -147,6 +147,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
 
     Route::middleware('permission:cash_banks')->group(function () {
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
+        Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
         Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show']);

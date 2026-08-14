@@ -11,13 +11,17 @@ class BankAccount extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'name', 'bank_name', 'account_number', 'iban',
-        'type', 'opening_balance', 'currency', 'is_active',
+        'company_id', 'name', 'bank_name', 'account_holder_name', 'account_number', 'iban',
+        'bank_phone', 'bank_address', 'type', 'opening_balance', 'opening_balance_date',
+        'opening_balance_reference', 'currency', 'is_active',
     ];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'is_active' => 'boolean',
+            'opening_balance_date' => 'date',
+        ];
     }
 
     public function receiptVouchers(): HasMany
