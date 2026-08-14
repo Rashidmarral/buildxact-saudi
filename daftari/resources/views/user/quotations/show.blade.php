@@ -39,14 +39,27 @@
     </div>
 </div>
 
+@php
+    $accent = $template->accent_color ?? null;
+    $layout = $template->layout ?? 'minimal';
+    $showLogo = $template->show_logo ?? true;
+@endphp
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
-    <div class="flex justify-between items-start">
-        <div>
-            <h1 class="text-2xl font-bold text-slate-900">{{ $quotation->company->name }}</h1>
-            @if ($quotation->company->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $quotation->company->vat_number }}</p>@endif
+    @if ($layout === 'bordered' && $accent)
+        <div class="h-2 rounded-full mb-6 -mt-2" style="background-color: {{ $accent }}"></div>
+    @endif
+    <div class="flex justify-between items-start {{ $layout === 'bordered' && $accent ? 'border-s-4 ps-4' : '' }}" @if ($layout === 'bordered' && $accent) style="border-color: {{ $accent }}" @endif>
+        <div class="flex items-center gap-3">
+            @if ($showLogo && $quotation->company->logo_path)
+                <img src="{{ Storage::url($quotation->company->logo_path) }}" alt="{{ $quotation->company->name }}" class="h-12 w-12 rounded-lg object-cover border border-slate-100">
+            @endif
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">{{ $quotation->company->name }}</h1>
+                @if ($quotation->company->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $quotation->company->vat_number }}</p>@endif
+            </div>
         </div>
         <div class="text-end">
-            <h2 class="text-xl font-bold text-slate-900">{{ $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation') }}</h2>
+            <h2 class="text-xl font-bold" style="color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }}">{{ $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation') }}</h2>
             <p class="text-sm text-slate-500">{{ $quotation->quotation_number }}</p>
             <p class="text-sm text-slate-500">{{ __('Issued') }}: {{ $quotation->issue_date->format('Y-m-d') }}</p>
             @if ($quotation->expiry_date)<p class="text-sm text-slate-500">{{ __('Valid until') }}: {{ $quotation->expiry_date->format('Y-m-d') }}</p>@endif
@@ -83,18 +96,23 @@
     </table>
 
     <div class="mt-6 flex justify-end">
-        <div class="w-full max-w-xs space-y-2 text-sm">
-            <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span>SAR {{ number_format($quotation->subtotal, 2) }}</span></div>
+        <div class="w-full max-w-xs space-y-2 text-sm {{ $layout === 'boxed' && $accent ? 'rounded-lg p-4 text-white' : '' }}" @if ($layout === 'boxed' && $accent) style="background-color: {{ $accent }}" @endif>
+            @php($boxed = $layout === 'boxed' && $accent)
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Subtotal') }}</span><span>SAR {{ number_format($quotation->subtotal, 2) }}</span></div>
             @if ($quotation->discount_total > 0)
-                <div class="flex justify-between text-slate-500"><span>{{ __('Discount') }}</span><span>-SAR {{ number_format($quotation->discount_total, 2) }}</span></div>
+                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Discount') }}</span><span>-SAR {{ number_format($quotation->discount_total, 2) }}</span></div>
             @endif
-            <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span>SAR {{ number_format($quotation->vat_total, 2) }}</span></div>
-            <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-200"><span>{{ __('Total') }}</span><span>SAR {{ number_format($quotation->total, 2) }}</span></div>
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('VAT') }}</span><span>SAR {{ number_format($quotation->vat_total, 2) }}</span></div>
+            <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ __('Total') }}</span><span>SAR {{ number_format($quotation->total, 2) }}</span></div>
         </div>
     </div>
 
     @if ($quotation->notes)
         <div class="mt-8 pt-4 border-t border-slate-100 text-sm text-slate-500">{{ $quotation->notes }}</div>
+    @endif
+
+    @if ($template && $template->notesFor(app()->getLocale()))
+        <div class="mt-2 text-sm text-slate-400">{{ $template->notesFor(app()->getLocale()) }}</div>
     @endif
 </div>
 @endsection

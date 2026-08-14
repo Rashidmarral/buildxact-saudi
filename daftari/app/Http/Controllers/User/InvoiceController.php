@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Item;
 use App\Models\Salesperson;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -78,8 +79,9 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice)
     {
         $invoice->load('items', 'client', 'invoicePayments');
+        $template = $invoice->company->defaultTemplateFor('invoice');
 
-        return view('user.invoices.show', compact('invoice'));
+        return view('user.invoices.show', compact('invoice', 'template'));
     }
 
     public function edit(Invoice $invoice)
@@ -122,10 +124,11 @@ class InvoiceController extends Controller
         return redirect()->route('app.invoices.index')->with('status', __('Invoice deleted.'));
     }
 
-    public function send(Invoice $invoice)
+    public function send(Invoice $invoice, LedgerPostingService $ledger)
     {
         if ($invoice->status === 'draft') {
             $invoice->update(['status' => 'sent']);
+            $ledger->postInvoiceIssued($invoice);
 
             if ($invoice->company->zatca_sync_frequency === 'instant') {
                 SyncInvoiceToZatca::dispatch($invoice->id);
@@ -135,7 +138,7 @@ class InvoiceController extends Controller
         return back()->with('status', __('Invoice marked as sent.'));
     }
 
-    public function storePayment(Request $request, Invoice $invoice)
+    public function storePayment(Request $request, Invoice $invoice, LedgerPostingService $ledger)
     {
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01', 'max:'.max($invoice->balanceDue(), 0.01)],
@@ -144,10 +147,11 @@ class InvoiceController extends Controller
             'reference' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $invoice->invoicePayments()->create($data);
+        $payment = $invoice->invoicePayments()->create($data);
         $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
         $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
         $invoice->save();
+        $ledger->postInvoicePayment($payment);
 
         return back()->with('status', __('Payment recorded.'));
     }

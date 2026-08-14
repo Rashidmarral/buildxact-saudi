@@ -7,6 +7,7 @@ use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\ReceiptVoucher;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,7 @@ class ReceiptVoucherController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
         $companyId = Auth::user()->company_id;
@@ -69,6 +70,8 @@ class ReceiptVoucherController extends Controller
             ]);
         });
 
+        $ledger->postReceiptVoucher($voucher);
+
         return redirect()->route('app.receipt-vouchers.show', $voucher)->with('status', __('Receipt voucher created.'));
     }
 
@@ -79,7 +82,7 @@ class ReceiptVoucherController extends Controller
         return view('user.receipt-vouchers.show', ['voucher' => $receiptVoucher]);
     }
 
-    public function void(ReceiptVoucher $receiptVoucher)
+    public function void(ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)
     {
         if ($receiptVoucher->status === 'void') {
             return back();
@@ -96,6 +99,8 @@ class ReceiptVoucherController extends Controller
 
             $receiptVoucher->update(['status' => 'void']);
         });
+
+        $ledger->reverse($receiptVoucher->company, 'receipt_voucher', $receiptVoucher->id, __('Receipt voucher :number voided', ['number' => $receiptVoucher->voucher_number]));
 
         return back()->with('status', __('Receipt voucher voided.'));
     }

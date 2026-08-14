@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Account;
+use App\Models\AccountMapping;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Expense;
@@ -38,6 +40,8 @@ class DemoSeeder extends Seeder
         );
 
         Role::seedSystemRoles($company->id);
+        Account::seedSystemAccounts($company->id);
+        AccountMapping::seedDefaults($company->id);
 
         $owner = User::updateOrCreate(
             ['email' => 'owner@daftari.local'],

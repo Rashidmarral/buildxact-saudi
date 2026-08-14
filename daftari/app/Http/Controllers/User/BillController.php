@@ -7,6 +7,7 @@ use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Item;
 use App\Models\Supplier;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -82,18 +83,20 @@ class BillController extends Controller
         return view('user.bills.show', compact('bill'));
     }
 
-    public function post(Bill $bill)
+    public function post(Bill $bill, LedgerPostingService $ledger)
     {
         if ($bill->status === 'draft') {
             $bill->update(['status' => 'posted']);
+            $ledger->postBillPosted($bill);
         }
 
         return back()->with('status', __('Bill posted.'));
     }
 
-    public function void(Bill $bill)
+    public function void(Bill $bill, LedgerPostingService $ledger)
     {
         $bill->update(['status' => 'void']);
+        $ledger->reverse($bill->company, 'bill', $bill->id, __('Bill :number voided', ['number' => $bill->bill_number]));
 
         return back()->with('status', __('Bill voided.'));
     }

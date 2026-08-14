@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\BankTransfer;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -25,7 +26,7 @@ class BankTransferController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LedgerPostingService $ledger)
     {
         $companyId = Auth::user()->company_id;
 
@@ -37,7 +38,8 @@ class BankTransferController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        BankTransfer::create($data + ['created_by' => Auth::id()]);
+        $transfer = BankTransfer::create($data + ['created_by' => Auth::id()]);
+        $ledger->postBankTransfer($transfer);
 
         return redirect()->route('app.bank-transfers.index')->with('status', __('Transfer recorded.'));
     }

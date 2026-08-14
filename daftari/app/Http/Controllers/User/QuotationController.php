@@ -96,8 +96,9 @@ class QuotationController extends Controller
     public function show(Quotation $quotation)
     {
         $quotation->load('items', 'client', 'convertedInvoice');
+        $template = $quotation->company->defaultTemplateFor($quotation->type);
 
-        return view('user.quotations.show', compact('quotation'));
+        return view('user.quotations.show', compact('quotation', 'template'));
     }
 
     public function edit(Quotation $quotation)

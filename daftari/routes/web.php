@@ -9,7 +9,10 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
+use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\User\BankAccountController;
+use App\Http\Controllers\User\CostCenterController;
+use App\Http\Controllers\User\JournalController;
 use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
 use App\Http\Controllers\User\BillingController;
@@ -20,6 +23,7 @@ use App\Http\Controllers\User\ExpenseCategoryController;
 use App\Http\Controllers\User\ExpenseController;
 use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
+use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\PurchaseOrderController;
@@ -104,6 +108,31 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
 
     Route::get('reports/vat', [ReportController::class, 'vat'])->name('reports.vat')->middleware('permission:reports');
 
+    Route::middleware('permission:accounting')->prefix('accounting')->group(function () {
+        Route::prefix('accounts')->name('accounts.')->group(function () {
+            Route::get('/', [AccountController::class, 'index'])->name('index');
+            Route::post('/', [AccountController::class, 'store'])->name('store');
+            Route::put('{account}', [AccountController::class, 'update'])->name('update');
+            Route::delete('{account}', [AccountController::class, 'destroy'])->name('destroy');
+            Route::post('{account}/deactivate', [AccountController::class, 'deactivate'])->name('deactivate');
+            Route::post('{account}/activate', [AccountController::class, 'activate'])->name('activate');
+        });
+        Route::post('mappings', [AccountController::class, 'updateMapping'])->name('accounts.mappings.update');
+
+        Route::prefix('journals')->name('journals.')->group(function () {
+            Route::get('/', [JournalController::class, 'index'])->name('index');
+            Route::get('{journalEntry}', [JournalController::class, 'show'])->name('show');
+        });
+        Route::get('ledger', [JournalController::class, 'ledger'])->name('ledger.index');
+
+        Route::prefix('cost-centers')->name('cost-centers.')->group(function () {
+            Route::get('/', [CostCenterController::class, 'index'])->name('index');
+            Route::post('/', [CostCenterController::class, 'store'])->name('store');
+            Route::put('{costCenter}', [CostCenterController::class, 'update'])->name('update');
+            Route::delete('{costCenter}', [CostCenterController::class, 'destroy'])->name('destroy');
+        });
+    });
+
     Route::middleware('permission:cash_banks')->group(function () {
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show']);
@@ -156,6 +185,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');
+
+    Route::middleware('permission:settings')->prefix('invoice-templates')->name('invoice-templates.')->group(function () {
+        Route::get('/', [InvoiceTemplateController::class, 'index'])->name('index');
+        Route::post('/', [InvoiceTemplateController::class, 'store'])->name('store');
+        Route::post('use', [InvoiceTemplateController::class, 'useTemplate'])->name('use');
+        Route::put('{invoiceTemplate}', [InvoiceTemplateController::class, 'update'])->name('update');
+        Route::delete('{invoiceTemplate}', [InvoiceTemplateController::class, 'destroy'])->name('destroy');
+        Route::post('{invoiceTemplate}/make-default', [InvoiceTemplateController::class, 'makeDefault'])->name('make-default');
+    });
 
     Route::middleware('permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
         Route::get('/', [ZatcaController::class, 'dashboard'])->name('dashboard');

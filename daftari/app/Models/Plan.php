@@ -9,7 +9,8 @@ class Plan extends Model
 {
     protected $fillable = [
         'name', 'name_ar', 'slug', 'price_monthly', 'price_yearly',
-        'max_users', 'max_invoices_per_month', 'features', 'is_active', 'sort_order',
+        'max_users', 'max_invoices_per_month', 'max_customers', 'max_suppliers',
+        'features', 'is_active', 'sort_order',
     ];
 
     protected function casts(): array

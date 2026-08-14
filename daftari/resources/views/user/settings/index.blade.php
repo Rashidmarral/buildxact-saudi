@@ -3,11 +3,23 @@
 @section('title', __('Settings'))
 
 @section('content')
-<form method="POST" action="{{ route('app.settings.update') }}" class="max-w-2xl bg-white rounded-xl border border-slate-100 p-6 space-y-5">
+<form method="POST" action="{{ route('app.settings.update') }}" enctype="multipart/form-data" class="max-w-2xl bg-white rounded-xl border border-slate-100 p-6 space-y-5">
     @csrf
     @method('PUT')
 
     <h3 class="font-semibold text-slate-900">{{ __('Company details') }}</h3>
+    <div>
+        <label class="block text-sm font-medium text-slate-700">{{ __('Company logo') }}</label>
+        <div class="mt-1 flex items-center gap-4">
+            @if ($company->logo_path)
+                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ __('Company logo') }}" class="h-14 w-14 rounded-lg object-cover border border-slate-200">
+            @else
+                <div class="h-14 w-14 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-xs">{{ __('No logo') }}</div>
+            @endif
+            <input type="file" name="logo" accept="image/*" class="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-600 hover:file:bg-slate-200">
+        </div>
+        <p class="mt-1 text-xs text-slate-400">{{ __('Used on invoices, quotations, and other documents when the active template shows the logo.') }}</p>
+    </div>
     <div class="grid sm:grid-cols-2 gap-5">
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Company name') }}</label>

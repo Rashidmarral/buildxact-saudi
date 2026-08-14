@@ -7,6 +7,7 @@ use App\Models\BankAccount;
 use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
@@ -40,9 +41,20 @@ class SettingsController extends Controller
             'negative_number_format' => ['required', 'in:minus,parentheses'],
             'default_branch_id' => ['nullable', Rule::exists('branches', 'id')->where('company_id', $companyId)],
             'default_bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
+            'logo' => ['nullable', 'image', 'max:2048'],
         ]);
 
-        Auth::user()->company->update($data);
+        $company = Auth::user()->company;
+        unset($data['logo']);
+
+        if ($request->hasFile('logo')) {
+            if ($company->logo_path) {
+                Storage::disk('public')->delete($company->logo_path);
+            }
+            $data['logo_path'] = $request->file('logo')->store('logos', 'public');
+        }
+
+        $company->update($data);
 
         return back()->with('status', __('Settings saved.'));
     }

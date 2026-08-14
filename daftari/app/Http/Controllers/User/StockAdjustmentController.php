@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\ItemStock;
 use App\Models\StockAdjustment;
 use App\Models\Warehouse;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,7 @@ class StockAdjustmentController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
 
@@ -51,10 +52,12 @@ class StockAdjustmentController extends Controller
             return $adjustment;
         });
 
+        $ledger->postStockAdjustment($adjustment);
+
         return redirect()->route('app.stock-adjustments.index')->with('status', __('Stock adjustment recorded.'));
     }
 
-    public function revoke(StockAdjustment $stockAdjustment)
+    public function revoke(StockAdjustment $stockAdjustment, LedgerPostingService $ledger)
     {
         if ($stockAdjustment->status === 'revoked') {
             return back();
@@ -64,6 +67,8 @@ class StockAdjustmentController extends Controller
             $this->applyToStock($stockAdjustment, -1);
             $stockAdjustment->update(['status' => 'revoked']);
         });
+
+        $ledger->reverse($stockAdjustment->company, 'stock_adjustment', $stockAdjustment->id, __('Stock adjustment revoked: :item', ['item' => $stockAdjustment->item->name]));
 
         return back()->with('status', __('Stock adjustment revoked.'));
     }

@@ -37,11 +37,13 @@
                 {!! $navItem('app.bills.index', __('Purchases'), '🛒') !!}
                 {!! $navItem('app.bank-accounts.index', __('Cash & Banks'), '🏦') !!}
                 {!! $navItem('app.reports.vat', __('VAT Report'), '📈') !!}
+                {!! $navItem('app.accounts.index', __('Accounting'), '📒') !!}
                 {!! $navItem('app.zatca.dashboard', __('ZATCA'), '🔗') !!}
                 {!! $navItem('app.billing.index', __('Billing'), '💰') !!}
                 @if (auth()->user()->isOwner())
                     {!! $navItem('app.team.index', __('Team'), '🧑‍🤝‍🧑') !!}
                     {!! $navItem('app.branches.index', __('Branches'), '🏢') !!}
+                    {!! $navItem('app.invoice-templates.index', __('Invoice Templates'), '🎨') !!}
                     {!! $navItem('app.settings.index', __('Settings'), '⚙️') !!}
                 @endif
             </nav>

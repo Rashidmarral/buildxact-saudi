@@ -11,14 +11,40 @@ use Illuminate\Support\Facades\DB;
 
 class BillingController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $company = Auth::user()->company;
         $subscription = $company->activeSubscription();
         $plans = Plan::where('is_active', true)->orderBy('sort_order')->get();
         $payments = $company->payments()->latest('paid_at')->latest('id')->paginate(15);
 
-        return view('user.billing.index', compact('company', 'subscription', 'plans', 'payments'));
+        $tab = in_array($request->query('tab'), ['overview', 'plans', 'addons'], true) ? $request->query('tab') : 'overview';
+
+        $usage = null;
+        if ($subscription) {
+            $periodStart = $subscription->current_period_start ?? $company->created_at;
+
+            $usage = [
+                'invoices' => [
+                    'used' => $company->invoices()->where('created_at', '>=', $periodStart)->count(),
+                    'limit' => $subscription->plan->max_invoices_per_month,
+                ],
+                'customers' => [
+                    'used' => $company->clients()->count(),
+                    'limit' => $subscription->plan->max_customers,
+                ],
+                'suppliers' => [
+                    'used' => $company->suppliers()->count(),
+                    'limit' => $subscription->plan->max_suppliers,
+                ],
+                'users' => [
+                    'used' => $company->users()->count(),
+                    'limit' => $subscription->plan->max_users,
+                ],
+            ];
+        }
+
+        return view('user.billing.index', compact('company', 'subscription', 'plans', 'payments', 'tab', 'usage'));
     }
 
     public function upgrade(Request $request)

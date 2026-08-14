@@ -42,6 +42,8 @@ class Company extends Model
         'next_bill_number' => 1,
         'po_prefix' => 'PO',
         'next_po_number' => 1,
+        'journal_prefix' => 'JE',
+        'next_journal_number' => 1,
         'primary_customer_type' => 'mixed',
         'negative_number_format' => 'minus',
         'currency' => 'SAR',
@@ -204,6 +206,14 @@ class Company extends Model
         return $number;
     }
 
+    public function nextJournalNumber(): string
+    {
+        $number = $this->journal_prefix.'-'.str_pad((string) $this->next_journal_number, 5, '0', STR_PAD_LEFT);
+        $this->increment('next_journal_number');
+
+        return $number;
+    }
+
     public function suppliers(): HasMany
     {
         return $this->hasMany(Supplier::class);
@@ -232,6 +242,47 @@ class Company extends Model
     public function zatcaInvoiceLogs(): HasMany
     {
         return $this->hasMany(ZatcaInvoiceLog::class);
+    }
+
+    public function invoiceTemplates(): HasMany
+    {
+        return $this->hasMany(InvoiceTemplate::class);
+    }
+
+    public function accounts(): HasMany
+    {
+        return $this->hasMany(Account::class);
+    }
+
+    public function accountMappings(): HasMany
+    {
+        return $this->hasMany(AccountMapping::class);
+    }
+
+    public function journalEntries(): HasMany
+    {
+        return $this->hasMany(JournalEntry::class);
+    }
+
+    public function costCenters(): HasMany
+    {
+        return $this->hasMany(CostCenter::class);
+    }
+
+    /**
+     * The template that should style a given document type: the closest
+     * default (type-specific default, else the "all types" default), or
+     * null if the company hasn't set one up — callers fall back to the
+     * hardcoded look.
+     */
+    public function defaultTemplateFor(string $documentType): ?InvoiceTemplate
+    {
+        $candidates = $this->invoiceTemplates()
+            ->where('is_default', true)
+            ->whereIn('document_type', [$documentType, 'all'])
+            ->get();
+
+        return $candidates->firstWhere('document_type', $documentType) ?? $candidates->firstWhere('document_type', 'all');
     }
 
     public function isZatcaOnboarded(): bool

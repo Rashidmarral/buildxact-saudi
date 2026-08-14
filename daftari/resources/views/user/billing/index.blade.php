@@ -3,75 +3,152 @@
 @section('title', __('Billing'))
 
 @section('content')
-<div class="bg-white rounded-xl border border-slate-100 p-6 mb-8">
-    <h2 class="font-semibold text-slate-900 mb-3">{{ __('Current subscription') }}</h2>
-    @if ($subscription)
+<div class="mb-2">
+    <h2 class="text-lg font-semibold text-slate-900">{{ __('Billing') }}</h2>
+    <p class="text-sm text-slate-500">{{ __('Manage subscription') }}</p>
+</div>
+
+@if ($subscription && $subscription->isTrial())
+    <div class="mt-4 mb-6 rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 flex items-center justify-between gap-4">
+        <div>
+            <p class="font-semibold text-amber-800">{{ __("You're on a free trial") }}</p>
+            <p class="text-sm text-amber-700 mt-0.5">{{ __('All features in your plan are available during your trial. Subscribe before it ends to keep uninterrupted access.') }}</p>
+        </div>
+        <a href="{{ route('app.billing.index', ['tab' => 'plans']) }}" class="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600">{{ __('Subscribe now') }}</a>
+    </div>
+@endif
+
+<div class="flex items-center gap-2 mb-6 text-sm">
+    <a href="{{ route('app.billing.index', ['tab' => 'overview']) }}" class="rounded-lg px-3 py-1.5 {{ $tab === 'overview' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Overview') }}</a>
+    <a href="{{ route('app.billing.index', ['tab' => 'plans']) }}" class="rounded-lg px-3 py-1.5 {{ $tab === 'plans' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Plans') }}</a>
+    <a href="{{ route('app.billing.index', ['tab' => 'addons']) }}" class="rounded-lg px-3 py-1.5 {{ $tab === 'addons' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Add-ons') }}</a>
+</div>
+
+@if ($tab === 'overview')
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-lg font-bold text-slate-900">{{ $subscription->plan->name }}</p>
-                <p class="text-sm text-slate-500">
-                    {{ $subscription->isTrial() ? __('Trial') : ucfirst($subscription->status) }}
-                    · {{ ucfirst($subscription->billing_cycle) }}
-                    @if ($subscription->current_period_end)
-                        · {{ __('Renews') }} {{ $subscription->current_period_end->format('Y-m-d') }}
-                    @endif
-                </p>
+                <p class="text-xs font-semibold uppercase text-slate-400">{{ __('Plan') }}</p>
+                <p class="text-xl font-bold text-slate-900 mt-1">{{ $subscription->plan->name ?? __('No active subscription') }}</p>
+                @if ($subscription?->current_period_end)
+                    <p class="text-sm text-slate-500 mt-1">{{ __('Renewal date') }}: {{ $subscription->current_period_end->format('Y-m-d') }}</p>
+                @endif
+            </div>
+            <div class="flex items-center gap-3">
+                @if ($subscription)
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ $subscription->isTrial() ? __('trialing') : ucfirst($subscription->status) }}</span>
+                @endif
+                <a href="{{ route('app.billing.index', ['tab' => 'plans']) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Subscribe now') }}</a>
             </div>
         </div>
-    @else
-        <p class="text-sm text-slate-500">{{ __('No active subscription.') }}</p>
-    @endif
-</div>
-
-<div class="grid md:grid-cols-3 gap-6 mb-8">
-    @foreach ($plans as $plan)
-        <div class="bg-white rounded-xl border {{ $subscription && $subscription->plan_id === $plan->id ? 'border-brand-500 ring-1 ring-brand-500' : 'border-slate-100' }} p-6">
-            <h3 class="font-bold text-slate-900">{{ $plan->name }}</h3>
-            <p class="mt-2 text-2xl font-extrabold text-slate-900">SAR {{ number_format($plan->price_monthly, 0) }}<span class="text-sm font-normal text-slate-500">/{{ __('month') }}</span></p>
-            <p class="text-xs text-slate-400">SAR {{ number_format($plan->price_yearly, 0) }}/{{ __('year') }}</p>
-            <form method="POST" action="{{ route('app.billing.upgrade') }}" class="mt-4 space-y-2">
-                @csrf
-                <input type="hidden" name="plan_id" value="{{ $plan->id }}">
-                <select name="billing_cycle" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    <option value="monthly">{{ __('Monthly') }}</option>
-                    <option value="yearly">{{ __('Yearly') }}</option>
-                </select>
-                <button type="submit" class="w-full rounded-lg {{ $subscription && $subscription->plan_id === $plan->id ? 'bg-slate-100 text-slate-500' : 'bg-brand-600 text-white hover:bg-brand-700' }} px-4 py-2 text-sm font-semibold">
-                    {{ $subscription && $subscription->plan_id === $plan->id ? __('Current plan') : __('Choose plan') }}
-                </button>
-            </form>
-        </div>
-    @endforeach
-</div>
-
-<div class="bg-white rounded-xl border border-slate-100">
-    <div class="px-6 py-4 border-b border-slate-100">
-        <h2 class="font-semibold text-slate-900">{{ __('Payment history') }}</h2>
     </div>
-    @if ($payments->isEmpty())
-        <p class="px-6 py-8 text-sm text-slate-500">{{ __('No payments yet.') }}</p>
-    @else
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-slate-500 border-b border-slate-100">
-                    <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Plan') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Amount') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($payments as $payment)
-                    <tr class="border-b border-slate-50 last:border-0">
-                        <td class="px-6 py-3">{{ optional($payment->paid_at)->format('Y-m-d') ?? '—' }}</td>
-                        <td class="px-6 py-3">{{ $payment->plan->name ?? '—' }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($payment->amount, 2) }}</td>
-                        <td class="px-6 py-3">{{ ucfirst($payment->status) }}</td>
-                    </tr>
+
+    @if ($usage)
+        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+            <h3 class="font-semibold text-slate-900 mb-4">{{ __('Usage') }}</h3>
+            <div class="space-y-5">
+                @foreach ([
+                    'invoices' => __('Invoices this period'),
+                    'customers' => __('Customers'),
+                    'suppliers' => __('Suppliers'),
+                    'users' => __('Users'),
+                ] as $key => $label)
+                    @php
+                        $u = $usage[$key];
+                        $pct = $u['limit'] ? min(100, round(($u['used'] / max($u['limit'], 1)) * 100)) : 0;
+                    @endphp
+                    <div>
+                        <div class="flex justify-between text-sm mb-1.5">
+                            <span class="text-slate-600">{{ $label }}</span>
+                            <span class="text-slate-500">{{ $u['used'] }} {{ __('of') }} {{ $u['limit'] ?? __('Unlimited') }}</span>
+                        </div>
+                        <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            @if ($u['limit'])
+                                <div class="h-full rounded-full {{ $pct >= 90 ? 'bg-red-500' : 'bg-slate-900' }}" style="width: {{ $pct }}%"></div>
+                            @else
+                                <div class="h-full rounded-full bg-slate-300" style="width: 100%"></div>
+                            @endif
+                        </div>
+                    </div>
                 @endforeach
-            </tbody>
-        </table>
+            </div>
+        </div>
     @endif
-</div>
-<div class="mt-4">{{ $payments->links() }}</div>
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-slate-900">{{ __('Saved payment methods') }}</h3>
+            <button type="button" disabled title="{{ __('Card storage will be available once a live payment gateway is connected.') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed">{{ __('Add a new card') }}</button>
+        </div>
+        <p class="text-sm text-slate-500 mb-3">{{ __('Cards on file with Stripe for renewals and other charges.') }}</p>
+        <div class="rounded-lg border border-dashed border-slate-200 px-6 py-8 text-center text-sm text-slate-400">{{ __('No saved cards yet.') }}</div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        <div class="px-6 py-4 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-900">{{ __('Payment history') }}</h2>
+        </div>
+        @if ($payments->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No payments yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Plan') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Amount') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($payments as $payment)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3">{{ optional($payment->paid_at)->format('Y-m-d') ?? '—' }}</td>
+                            <td class="px-6 py-3">{{ $payment->plan->name ?? '—' }}</td>
+                            <td class="px-6 py-3">SAR {{ number_format($payment->amount, 2) }}</td>
+                            <td class="px-6 py-3">{{ ucfirst($payment->status) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+    <div class="mt-4">{{ $payments->links() }}</div>
+@elseif ($tab === 'plans')
+    <div class="grid md:grid-cols-3 gap-6">
+        @foreach ($plans as $plan)
+            <div class="bg-white rounded-xl border {{ $subscription && $subscription->plan_id === $plan->id ? 'border-brand-500 ring-1 ring-brand-500' : 'border-slate-100' }} p-6">
+                <h3 class="font-bold text-slate-900">{{ $plan->name }}</h3>
+                <p class="mt-2 text-2xl font-extrabold text-slate-900">SAR {{ number_format($plan->price_monthly, 0) }}<span class="text-sm font-normal text-slate-500">/{{ __('month') }}</span></p>
+                <p class="text-xs text-slate-400">SAR {{ number_format($plan->price_yearly, 0) }}/{{ __('year') }}</p>
+                <ul class="mt-4 space-y-1.5 text-xs text-slate-500">
+                    <li>{{ __('Invoices/month') }}: {{ $plan->max_invoices_per_month ?? __('Unlimited') }}</li>
+                    <li>{{ __('Customers') }}: {{ $plan->max_customers ?? __('Unlimited') }}</li>
+                    <li>{{ __('Suppliers') }}: {{ $plan->max_suppliers ?? __('Unlimited') }}</li>
+                    <li>{{ __('Users') }}: {{ $plan->max_users ?? __('Unlimited') }}</li>
+                    @foreach ($plan->features ?? [] as $feature)
+                        <li>✓ {{ $feature }}</li>
+                    @endforeach
+                </ul>
+                <form method="POST" action="{{ route('app.billing.upgrade') }}" class="mt-4 space-y-2">
+                    @csrf
+                    <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                    <select name="billing_cycle" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <option value="monthly">{{ __('Monthly') }}</option>
+                        <option value="yearly">{{ __('Yearly') }}</option>
+                    </select>
+                    <button type="submit" class="w-full rounded-lg {{ $subscription && $subscription->plan_id === $plan->id ? 'bg-slate-100 text-slate-500' : 'bg-brand-600 text-white hover:bg-brand-700' }} px-4 py-2 text-sm font-semibold">
+                        {{ $subscription && $subscription->plan_id === $plan->id ? __('Current plan') : __('Choose plan') }}
+                    </button>
+                </form>
+            </div>
+        @endforeach
+    </div>
+@else
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <h3 class="font-semibold text-slate-900 mb-1">{{ __('Active add-ons') }}</h3>
+        <p class="text-sm text-slate-500 mb-4">{{ __('Optional extras for your subscription.') }}</p>
+        <div class="rounded-lg border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-slate-400">{{ __('No add-ons available yet.') }}</div>
+    </div>
+@endif
 @endsection

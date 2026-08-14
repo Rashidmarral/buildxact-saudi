@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
+use App\Models\AccountMapping;
 use App\Models\Company;
 use App\Models\Plan;
 use App\Models\Role;
@@ -78,6 +80,8 @@ class AuthController extends Controller
             ]);
 
             Role::seedSystemRoles($company->id);
+            Account::seedSystemAccounts($company->id);
+            AccountMapping::seedDefaults($company->id);
 
             $user = User::create([
                 'company_id' => $company->id,

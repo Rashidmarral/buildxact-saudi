@@ -8,6 +8,7 @@ use App\Models\Bill;
 use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\Supplier;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,7 @@ class PaymentVoucherController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
 
@@ -69,6 +70,8 @@ class PaymentVoucherController extends Controller
             ]);
         });
 
+        $ledger->postPaymentVoucher($voucher);
+
         return redirect()->route('app.payment-vouchers.show', $voucher)->with('status', __('Payment voucher created.'));
     }
 
@@ -79,7 +82,7 @@ class PaymentVoucherController extends Controller
         return view('user.payment-vouchers.show', ['voucher' => $paymentVoucher]);
     }
 
-    public function void(PaymentVoucher $paymentVoucher)
+    public function void(PaymentVoucher $paymentVoucher, LedgerPostingService $ledger)
     {
         if ($paymentVoucher->status === 'void') {
             return back();
@@ -95,6 +98,8 @@ class PaymentVoucherController extends Controller
 
             $paymentVoucher->update(['status' => 'void']);
         });
+
+        $ledger->reverse($paymentVoucher->company, 'payment_voucher', $paymentVoucher->id, __('Payment voucher :number voided', ['number' => $paymentVoucher->voucher_number]));
 
         return back()->with('status', __('Payment voucher voided.'));
     }
