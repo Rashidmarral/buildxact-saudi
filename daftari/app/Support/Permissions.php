@@ -32,6 +32,7 @@ class Permissions
             'branches' => __('Branches'),
             'members_roles' => __('Members & Roles'),
             'settings' => __('Settings'),
+            'zatca' => __('ZATCA Integration'),
         ];
     }
 
@@ -49,7 +50,7 @@ class Permissions
     {
         return [
             'admin' => self::keys(),
-            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'reports'],
+            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'reports', 'zatca'],
             'sales' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'salespersons', 'reports'],
             'member' => ['dashboard', 'reports'],
         ];

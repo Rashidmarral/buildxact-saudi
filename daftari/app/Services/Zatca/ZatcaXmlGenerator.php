@@ -1,0 +1,163 @@
+<?php
+
+namespace App\Services\Zatca;
+
+use App\Models\Invoice;
+use DOMDocument;
+use Illuminate\Support\Str;
+
+/**
+ * Builds the UBL 2.1 XML representation of an invoice per ZATCA's
+ * e-invoicing implementation standard: standard tax invoices (B2B) use
+ * InvoiceTypeCode name "0100000" (cleared before delivery to the buyer),
+ * simplified invoices (B2C) use "0200000" (reported after delivery).
+ */
+class ZatcaXmlGenerator
+{
+    public function generate(Invoice $invoice, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid): string
+    {
+        $doc = new DOMDocument('1.0', 'UTF-8');
+        $doc->formatOutput = false;
+
+        $root = $doc->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        $doc->appendChild($root);
+
+        $company = $invoice->company;
+        $client = $invoice->client;
+
+        $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
+        $this->append($doc, $root, 'cbc:ID', $invoice->invoice_number);
+        $this->append($doc, $root, 'cbc:UUID', $uuid);
+        $this->append($doc, $root, 'cbc:IssueDate', $invoice->issue_date->format('Y-m-d'));
+        $this->append($doc, $root, 'cbc:IssueTime', $invoice->created_at?->format('H:i:s') ?? now()->format('H:i:s'));
+
+        $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', $invoice->status === 'cancelled' ? '381' : '388');
+        $typeCode->setAttribute('name', $invoiceTypeName);
+
+        $this->append($doc, $root, 'cbc:DocumentCurrencyCode', $invoice->currency ?: 'SAR');
+        $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
+
+        if ($previousInvoiceHash) {
+            $pih = $doc->createElement('cac:AdditionalDocumentReference');
+            $this->append($doc, $pih, 'cbc:ID', 'PIH');
+            $attachment = $doc->createElement('cac:Attachment');
+            $binary = $doc->createElement('cbc:EmbeddedDocumentBinaryObject', $previousInvoiceHash);
+            $binary->setAttribute('mimeCode', 'text/plain');
+            $attachment->appendChild($binary);
+            $pih->appendChild($attachment);
+            $root->appendChild($pih);
+        }
+
+        $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
+            'name' => $company->name,
+            'vat_number' => $company->vat_number,
+            'street' => $company->address,
+            'city' => $company->city,
+        ]));
+
+        $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
+            'name' => $client->name,
+            'vat_number' => $client->vat_number,
+            'street' => $client->street_name,
+            'city' => $client->city,
+        ]));
+
+        $taxTotal = $doc->createElement('cac:TaxTotal');
+        $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $invoice->vat_total, 2, '.', ''))
+            ->setAttribute('currencyID', 'SAR');
+        $root->appendChild($taxTotal);
+
+        $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $invoice->total);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', $invoice->discount_total);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total);
+        $root->appendChild($monetaryTotal);
+
+        foreach ($invoice->items as $index => $item) {
+            $line = $doc->createElement('cac:InvoiceLine');
+            $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
+            $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
+            $qty->setAttribute('unitCode', 'PCE');
+            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $item->quantity * $item->unit_price);
+
+            $lineTax = $doc->createElement('cac:TaxTotal');
+            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', $item->vat_amount);
+            $line->appendChild($lineTax);
+
+            $itemEl = $doc->createElement('cac:Item');
+            $this->append($doc, $itemEl, 'cbc:Name', $item->description);
+            $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
+            $this->append($doc, $taxCategory, 'cbc:ID', 'S');
+            $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $item->vat_rate, 2, '.', ''));
+            $itemEl->appendChild($taxCategory);
+            $line->appendChild($itemEl);
+
+            $price = $doc->createElement('cac:Price');
+            $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price);
+            $line->appendChild($price);
+
+            $root->appendChild($line);
+        }
+
+        return $doc->saveXML();
+    }
+
+    public function newUuid(): string
+    {
+        return (string) Str::uuid();
+    }
+
+    private function party(DOMDocument $doc, string $wrapperTag, array $data): \DOMElement
+    {
+        $wrapper = $doc->createElement($wrapperTag);
+        $party = $doc->createElement('cac:Party');
+
+        if (! empty($data['vat_number'])) {
+            $taxScheme = $doc->createElement('cac:PartyTaxScheme');
+            $this->append($doc, $taxScheme, 'cbc:CompanyID', $data['vat_number']);
+            $party->appendChild($taxScheme);
+        }
+
+        $legalEntity = $doc->createElement('cac:PartyLegalEntity');
+        $this->append($doc, $legalEntity, 'cbc:RegistrationName', $data['name'] ?: '');
+        $party->appendChild($legalEntity);
+
+        if (! empty($data['street']) || ! empty($data['city'])) {
+            $address = $doc->createElement('cac:PostalAddress');
+            if (! empty($data['street'])) {
+                $this->append($doc, $address, 'cbc:StreetName', $data['street']);
+            }
+            if (! empty($data['city'])) {
+                $this->append($doc, $address, 'cbc:CityName', $data['city']);
+            }
+            $country = $doc->createElement('cac:Country');
+            $this->append($doc, $country, 'cbc:IdentificationCode', 'SA');
+            $address->appendChild($country);
+            $party->appendChild($address);
+        }
+
+        $wrapper->appendChild($party);
+
+        return $wrapper;
+    }
+
+    private function append(DOMDocument $doc, \DOMElement $parent, string $tag, string $value): \DOMElement
+    {
+        $el = $doc->createElement($tag, htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8'));
+        $parent->appendChild($el);
+
+        return $el;
+    }
+
+    private function appendAmount(DOMDocument $doc, \DOMElement $parent, string $tag, float $amount): \DOMElement
+    {
+        $el = $this->append($doc, $parent, $tag, number_format($amount, 2, '.', ''));
+        $el->setAttribute('currencyID', 'SAR');
+
+        return $el;
+    }
+}

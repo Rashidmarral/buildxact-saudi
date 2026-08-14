@@ -37,6 +37,7 @@
                 {!! $navItem('app.bills.index', __('Purchases'), '🛒') !!}
                 {!! $navItem('app.bank-accounts.index', __('Cash & Banks'), '🏦') !!}
                 {!! $navItem('app.reports.vat', __('VAT Report'), '📈') !!}
+                {!! $navItem('app.zatca.dashboard', __('ZATCA'), '🔗') !!}
                 {!! $navItem('app.billing.index', __('Billing'), '💰') !!}
                 @if (auth()->user()->isOwner())
                     {!! $navItem('app.team.index', __('Team'), '🧑‍🤝‍🧑') !!}
@@ -78,6 +79,9 @@
             <main class="flex-1 px-6 py-8">
                 @if (session('status'))
                     <div class="mb-6 rounded-lg bg-brand-50 border border-brand-200 text-brand-800 px-4 py-3 text-sm">{{ session('status') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="mb-6 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">{{ session('error') }}</div>
                 @endif
                 @if ($errors->any())
                     <div class="mb-6 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">

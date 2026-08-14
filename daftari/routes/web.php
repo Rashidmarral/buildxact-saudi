@@ -33,6 +33,7 @@ use App\Http\Controllers\User\StockAdjustmentController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\WarehouseController;
+use App\Http\Controllers\User\ZatcaController;
 use Illuminate\Support\Facades\Route;
 
 // Marketing site
@@ -155,6 +156,17 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');
+
+    Route::middleware('permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
+        Route::get('/', [ZatcaController::class, 'dashboard'])->name('dashboard');
+        Route::put('settings', [ZatcaController::class, 'updateSettings'])->name('settings.update');
+        Route::post('csr', [ZatcaController::class, 'generateCsr'])->name('csr');
+        Route::post('compliance-csid', [ZatcaController::class, 'issueComplianceCsid'])->name('compliance-csid');
+        Route::post('compliance-check', [ZatcaController::class, 'runComplianceCheck'])->name('compliance-check');
+        Route::post('production-csid', [ZatcaController::class, 'issueProductionCsid'])->name('production-csid');
+        Route::post('reset', [ZatcaController::class, 'resetOnboarding'])->name('reset');
+        Route::post('sync', [ZatcaController::class, 'sync'])->name('sync');
+    });
 });
 
 // Platform admin panel

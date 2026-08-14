@@ -16,6 +16,11 @@ class Company extends Model
         'currency', 'locale', 'status', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
+        'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c',
+        'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_csr', 'zatca_private_key',
+        'zatca_compliance_request_id', 'zatca_compliance_csid', 'zatca_compliance_secret',
+        'zatca_production_request_id', 'zatca_production_csid', 'zatca_production_secret',
+        'zatca_last_invoice_hash', 'zatca_linked_at', 'zatca_last_sync_at',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -42,12 +47,26 @@ class Company extends Model
         'currency' => 'SAR',
         'locale' => 'en',
         'status' => 'active',
+        'zatca_environment' => 'developer',
+        'zatca_sync_frequency' => 'manual',
+        'zatca_sync_b2b' => true,
+        'zatca_sync_b2c' => true,
+        'zatca_onboarding_status' => 'not_started',
     ];
 
     protected function casts(): array
     {
         return [
             'trial_ends_at' => 'datetime',
+            'zatca_sync_b2b' => 'boolean',
+            'zatca_sync_b2c' => 'boolean',
+            'zatca_private_key' => 'encrypted',
+            'zatca_compliance_csid' => 'encrypted',
+            'zatca_compliance_secret' => 'encrypted',
+            'zatca_production_csid' => 'encrypted',
+            'zatca_production_secret' => 'encrypted',
+            'zatca_linked_at' => 'datetime',
+            'zatca_last_sync_at' => 'datetime',
         ];
     }
 
@@ -208,5 +227,25 @@ class Company extends Model
     public function isSuspended(): bool
     {
         return $this->status === 'suspended';
+    }
+
+    public function zatcaInvoiceLogs(): HasMany
+    {
+        return $this->hasMany(ZatcaInvoiceLog::class);
+    }
+
+    public function isZatcaOnboarded(): bool
+    {
+        return $this->zatca_onboarding_status === 'onboarded';
+    }
+
+    public function zatcaCsidFor(string $environment): ?string
+    {
+        return $environment === 'production' ? $this->zatca_production_csid : $this->zatca_compliance_csid;
+    }
+
+    public function zatcaSecretFor(string $environment): ?string
+    {
+        return $environment === 'production' ? $this->zatca_production_secret : $this->zatca_compliance_secret;
     }
 }

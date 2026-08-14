@@ -56,6 +56,11 @@ class Invoice extends Model
         return $this->hasMany(InvoicePayment::class);
     }
 
+    public function zatcaInvoiceLogs(): HasMany
+    {
+        return $this->hasMany(ZatcaInvoiceLog::class);
+    }
+
     public function recalculateTotals(): void
     {
         $items = $this->items;

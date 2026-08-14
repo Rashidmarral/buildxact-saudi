@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SyncInvoiceToZatca;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -125,6 +126,10 @@ class InvoiceController extends Controller
     {
         if ($invoice->status === 'draft') {
             $invoice->update(['status' => 'sent']);
+
+            if ($invoice->company->zatca_sync_frequency === 'instant') {
+                SyncInvoiceToZatca::dispatch($invoice->id);
+            }
         }
 
         return back()->with('status', __('Invoice marked as sent.'));
