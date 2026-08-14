@@ -25,6 +25,17 @@
             <label class="block text-sm font-medium text-slate-700">{{ __('Amount (SAR)') }}</label>
             <input type="number" step="0.01" min="0" name="amount" value="{{ old('amount', $expense->amount) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        @if ($projects->isNotEmpty())
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Project (optional)') }}</label>
+                <select name="project_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($projects as $project)
+                        <option value="{{ $project->id }}" @selected(old('project_id', $expense->project_id) == $project->id)>{{ $project->code }} - {{ $project->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('VAT amount (SAR)') }}</label>
             <input type="number" step="0.01" min="0" name="vat_amount" value="{{ old('vat_amount', $expense->vat_amount ?? 0) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">

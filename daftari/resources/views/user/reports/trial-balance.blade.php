@@ -3,9 +3,12 @@
 @section('title', __('Trial Balance'))
 
 @section('content')
-<div class="mb-6">
-    <h2 class="text-lg font-semibold text-slate-900">{{ __('Trial Balance') }}</h2>
-    <p class="text-sm text-slate-500 mt-1">{{ __('Total debits and credits posted to each account for the period.') }}</p>
+<div class="flex items-start justify-between mb-6">
+    <div>
+        <h2 class="text-lg font-semibold text-slate-900">{{ __('Trial Balance') }}</h2>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Total debits and credits posted to each account for the period.') }}</p>
+    </div>
+    <a href="{{ route('app.reports.trial-balance', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
 </div>
 
 @include('user.reports.partials.period-selector')

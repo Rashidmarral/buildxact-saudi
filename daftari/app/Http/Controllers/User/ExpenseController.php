@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\Project;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,8 +24,9 @@ class ExpenseController extends Controller
     public function create()
     {
         $categories = ExpenseCategory::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
 
-        return view('user.expenses.form', ['expense' => new Expense, 'categories' => $categories]);
+        return view('user.expenses.form', ['expense' => new Expense, 'categories' => $categories, 'projects' => $projects]);
     }
 
     public function store(Request $request, LedgerPostingService $ledger)
@@ -40,8 +42,9 @@ class ExpenseController extends Controller
     public function edit(Expense $expense)
     {
         $categories = ExpenseCategory::orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
 
-        return view('user.expenses.form', compact('expense', 'categories'));
+        return view('user.expenses.form', compact('expense', 'categories', 'projects'));
     }
 
     public function update(Request $request, Expense $expense, LedgerPostingService $ledger)
@@ -64,8 +67,11 @@ class ExpenseController extends Controller
 
     private function validated(Request $request): array
     {
+        $companyId = Auth::user()->company_id;
+
         return $request->validate([
-            'expense_category_id' => ['nullable', Rule::exists('expense_categories', 'id')->where('company_id', Auth::user()->company_id)],
+            'expense_category_id' => ['nullable', Rule::exists('expense_categories', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'vendor_name' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
             'amount' => ['required', 'numeric', 'min:0'],

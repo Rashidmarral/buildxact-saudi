@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Item;
+use App\Models\Project;
 use App\Models\Salesperson;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ class InvoiceController extends Controller
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
         $company = Auth::user()->company;
 
         return view('user.invoices.form', [
@@ -41,6 +43,7 @@ class InvoiceController extends Controller
             'clients' => $clients,
             'items' => $items,
             'salespersons' => $salespersons,
+            'projects' => $projects,
             'nextNumberPreview' => $company->invoice_prefix.'-'.str_pad((string) $company->next_invoice_number, 5, '0', STR_PAD_LEFT),
         ]);
     }
@@ -56,6 +59,7 @@ class InvoiceController extends Controller
                 'client_id' => $data['client_id'],
                 'branch_id' => $company->default_branch_id,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
+                'project_id' => $data['project_id'] ?? null,
                 'created_by' => Auth::id(),
                 'invoice_number' => $company->nextInvoiceNumber(),
                 'type' => $data['type'],
@@ -90,8 +94,9 @@ class InvoiceController extends Controller
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
 
-        return view('user.invoices.form', compact('invoice', 'clients', 'items', 'salespersons'));
+        return view('user.invoices.form', compact('invoice', 'clients', 'items', 'salespersons', 'projects'));
     }
 
     public function update(Request $request, Invoice $invoice)
@@ -102,6 +107,7 @@ class InvoiceController extends Controller
             $invoice->update([
                 'client_id' => $data['client_id'],
                 'salesperson_id' => $data['salesperson_id'] ?? null,
+                'project_id' => $data['project_id'] ?? null,
                 'type' => $data['type'],
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
@@ -180,6 +186,7 @@ class InvoiceController extends Controller
         return $request->validate([
             'client_id' => ['required', Rule::exists('clients', 'id')->where('company_id', $companyId)],
             'salesperson_id' => ['nullable', Rule::exists('salespersons', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'type' => ['required', 'in:standard,simplified'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],

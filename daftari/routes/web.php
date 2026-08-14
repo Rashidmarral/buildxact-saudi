@@ -26,6 +26,7 @@ use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\PaymentVoucherController;
+use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
@@ -176,6 +177,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');
+
+    Route::resource('projects', ProjectController::class)->middleware('permission:projects');
 
     Route::middleware('role:owner')->group(function () {
         Route::get('billing', [BillingController::class, 'index'])->name('billing.index');

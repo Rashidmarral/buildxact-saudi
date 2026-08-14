@@ -21,6 +21,7 @@ class Company extends Model
         'zatca_compliance_request_id', 'zatca_compliance_csid', 'zatca_compliance_secret',
         'zatca_production_request_id', 'zatca_production_csid', 'zatca_production_secret',
         'zatca_last_invoice_hash', 'zatca_linked_at', 'zatca_last_sync_at',
+        'project_prefix', 'next_project_number',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -44,6 +45,8 @@ class Company extends Model
         'next_po_number' => 1,
         'journal_prefix' => 'JE',
         'next_journal_number' => 1,
+        'project_prefix' => 'PROJ',
+        'next_project_number' => 1,
         'primary_customer_type' => 'mixed',
         'negative_number_format' => 'minus',
         'currency' => 'SAR',
@@ -212,6 +215,19 @@ class Company extends Model
         $this->increment('next_journal_number');
 
         return $number;
+    }
+
+    public function nextProjectCode(): string
+    {
+        $number = $this->project_prefix.'_'.str_pad((string) $this->next_project_number, 6, '0', STR_PAD_LEFT);
+        $this->increment('next_project_number');
+
+        return $number;
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
     }
 
     public function suppliers(): HasMany

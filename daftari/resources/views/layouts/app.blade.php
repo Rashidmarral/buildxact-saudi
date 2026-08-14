@@ -36,6 +36,7 @@
                 {!! $navItem('app.expenses.index', __('Expenses'), '💳') !!}
                 {!! $navItem('app.bills.index', __('Purchases'), '🛒') !!}
                 {!! $navItem('app.bank-accounts.index', __('Cash & Banks'), '🏦') !!}
+                {!! $navItem('app.projects.index', __('Projects'), '📁') !!}
 
                 @php($reportsActive = request()->routeIs('app.reports.*'))
                 <details class="group" @if($reportsActive) open @endif>

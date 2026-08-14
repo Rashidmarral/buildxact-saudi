@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesReportPeriod;
 use App\Models\Account;
+use App\Models\BillPayment;
 use App\Models\Client;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
@@ -12,12 +14,16 @@ use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Item;
 use App\Models\Salesperson;
+use App\Models\Supplier;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
 {
-    use ResolvesReportPeriod;
+    use ExportsCsv, ResolvesReportPeriod;
 
     public function vat(Request $request)
     {
@@ -54,8 +60,25 @@ class ReportController extends Controller
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
+        $rows = $this->trialBalanceRows($company, $period);
 
-        $rows = Account::where('company_id', $company->id)
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('trial-balance.csv', [__('Code'), __('Account'), __('Debit'), __('Credit')],
+                $rows->map(fn ($r) => [$r['account']->code, $r['account']->name, number_format($r['debit'], 2, '.', ''), number_format($r['credit'], 2, '.', '')]));
+        }
+
+        return view('user.reports.trial-balance', [
+            'company' => $company,
+            'period' => $period,
+            'rows' => $rows,
+            'totalDebit' => $rows->sum('debit'),
+            'totalCredit' => $rows->sum('credit'),
+        ]);
+    }
+
+    private function trialBalanceRows($company, array $period)
+    {
+        return Account::where('company_id', $company->id)
             ->where('is_active', true)
             ->orderBy('code')
             ->get()
@@ -67,37 +90,47 @@ class ReportController extends Controller
                     ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$period['from'], $period['to']]))
                     ->sum('credit');
 
-                return [
-                    'account' => $account,
-                    'debit' => $debit,
-                    'credit' => $credit,
-                ];
+                return ['account' => $account, 'debit' => $debit, 'credit' => $credit];
             })
             ->filter(fn ($row) => $row['debit'] > 0 || $row['credit'] > 0)
             ->values();
-
-        return view('user.reports.trial-balance', [
-            'company' => $company,
-            'period' => $period,
-            'rows' => $rows,
-            'totalDebit' => $rows->sum('debit'),
-            'totalCredit' => $rows->sum('credit'),
-        ]);
     }
 
     public function balanceSheet(Request $request)
     {
         $company = Auth::user()->company;
-        $period = $this->resolvePeriod($request);
+        $asOf = $request->filled('as_of') ? Carbon::parse($request->query('as_of'))->endOfDay() : now()->endOfDay();
 
+        $data = $this->balanceSheetData($company, $asOf);
+
+        if ($request->query('export') === 'csv') {
+            $rows = collect()
+                ->concat($data['assets']->map(fn ($r) => [__('Assets'), $r['account']->code, $r['account']->name, number_format($r['balance'], 2, '.', '')]))
+                ->concat($data['liabilities']->map(fn ($r) => [__('Liabilities'), $r['account']->code, $r['account']->name, number_format($r['balance'], 2, '.', '')]))
+                ->concat($data['equity']->map(fn ($r) => [__('Equity'), $r['account']->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', '')]));
+
+            return $this->csvResponse('balance-sheet.csv', [__('Section'), __('Code'), __('Account'), __('Balance')], $rows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = Pdf::loadView('user.reports.pdf.balance-sheet', ['company' => $company, 'asOf' => $asOf] + $data);
+
+            return $pdf->download('balance-sheet.pdf');
+        }
+
+        return view('user.reports.balance-sheet', ['company' => $company, 'asOf' => $asOf] + $data);
+    }
+
+    private function balanceSheetData($company, Carbon $asOf): array
+    {
         $balances = Account::where('company_id', $company->id)
             ->where('is_active', true)
             ->whereIn('type', ['asset', 'liability', 'equity'])
             ->orderBy('code')
             ->get()
-            ->map(function (Account $account) use ($period) {
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $period['to']))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $period['to']))->sum('credit');
+            ->map(function (Account $account) use ($asOf) {
+                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
+                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
                 $balance = $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
 
                 return ['account' => $account, 'balance' => $balance];
@@ -112,32 +145,33 @@ class ReportController extends Controller
         $netIncomeToDate = Account::where('company_id', $company->id)
             ->whereIn('type', ['revenue', 'expense'])
             ->get()
-            ->sum(function (Account $account) use ($period) {
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $period['to']))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $period['to']))->sum('credit');
+            ->sum(function (Account $account) use ($asOf) {
+                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
+                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
 
                 return $account->type === 'revenue' ? $credit - $debit : -($debit - $credit);
             });
 
         $equity = $balances->get('equity', collect());
         if (abs($netIncomeToDate) > 0.005) {
-            $equity = $equity->push(['account' => null, 'label' => __('Retained earnings (current period)'), 'balance' => $netIncomeToDate]);
+            $equity = $equity->push(['account' => null, 'key' => 'CURRENT_EARNINGS', 'label' => __('Current period earnings'), 'balance' => $netIncomeToDate]);
         }
 
-        $totalAssets = $balances->get('asset', collect())->sum('balance');
-        $totalLiabilities = $balances->get('liability', collect())->sum('balance');
+        $assets = $balances->get('asset', collect());
+        $liabilities = $balances->get('liability', collect());
+        $totalAssets = $assets->sum('balance');
+        $totalLiabilities = $liabilities->sum('balance');
         $totalEquity = $equity->sum('balance');
 
-        return view('user.reports.balance-sheet', [
-            'company' => $company,
-            'period' => $period,
-            'assets' => $balances->get('asset', collect()),
-            'liabilities' => $balances->get('liability', collect()),
+        return [
+            'assets' => $assets,
+            'liabilities' => $liabilities,
             'equity' => $equity,
             'totalAssets' => $totalAssets,
             'totalLiabilities' => $totalLiabilities,
             'totalEquity' => $totalEquity,
-        ]);
+            'balanced' => abs($totalAssets - ($totalLiabilities + $totalEquity)) < 0.01,
+        ];
     }
 
     public function incomeStatement(Request $request)
@@ -171,6 +205,14 @@ class ReportController extends Controller
         $grossProfit = $netSales - $cogs;
         $operatingProfit = $grossProfit - $operatingExpenses;
         $netProfit = $operatingProfit;
+
+        if ($request->query('export') === 'csv') {
+            $rows = collect()
+                ->concat($revenueLines->map(fn ($r) => [__('Revenue'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]))
+                ->concat($expenseLines->map(fn ($r) => [__('Expenses'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]));
+
+            return $this->csvResponse('income-statement.csv', [__('Section'), __('Code'), __('Account'), __('Amount')], $rows);
+        }
 
         return view('user.reports.income-statement', [
             'company' => $company,
@@ -224,6 +266,11 @@ class ReportController extends Controller
             default => $row->invoice->issue_date,
         }, SORT_REGULAR, $direction === 'desc')->values();
 
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('sales-report.csv', [__('Date'), __('Invoice'), __('Customer'), __('Description'), __('Total')],
+                $items->map(fn ($r) => [$r->invoice->issue_date->format('Y-m-d'), $r->invoice->invoice_number, $r->invoice->client->name ?? '', $r->line->description, number_format($r->line->line_total, 2, '.', '')]));
+        }
+
         return view('user.reports.sales', [
             'company' => $company,
             'period' => $period,
@@ -253,6 +300,11 @@ class ReportController extends Controller
                 ->orWhere('description', 'like', '%'.$request->query('search').'%')))
             ->orderByDesc('expense_date')
             ->get();
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('expense-report.csv', [__('Date'), __('Vendor'), __('Category'), __('Description'), __('Amount'), __('VAT')],
+                $expenses->map(fn ($e) => [$e->expense_date->format('Y-m-d'), $e->vendor_name, $e->category->name ?? '', $e->description, number_format($e->amount, 2, '.', ''), number_format($e->vat_amount, 2, '.', '')]));
+        }
 
         return view('user.reports.expenses', [
             'company' => $company,
@@ -289,6 +341,11 @@ class ReportController extends Controller
                 ];
             });
 
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('cash-flow.csv', [__('Account'), __('Opening'), __('Cash in'), __('Cash out'), __('Closing')],
+                $rows->map(fn ($r) => [$r['account']->name, number_format($r['opening'], 2, '.', ''), number_format($r['inflow'], 2, '.', ''), number_format($r['outflow'], 2, '.', ''), number_format($r['closing'], 2, '.', '')]));
+        }
+
         return view('user.reports.cash-flow', [
             'company' => $company,
             'period' => $period,
@@ -305,51 +362,123 @@ class ReportController extends Controller
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
+        $type = $request->query('type', 'customer') === 'supplier' ? 'supplier' : 'customer';
 
-        $client = null;
+        $party = null;
         $lines = collect();
         $openingBalance = 0.0;
 
-        if ($request->filled('client_id')) {
-            $client = Client::find($request->query('client_id'));
+        if ($type === 'customer' && $request->filled('client_id')) {
+            $party = Client::find($request->query('client_id'));
+            [$lines, $openingBalance] = $this->customerStatementLines($party, $period);
+        } elseif ($type === 'supplier' && $request->filled('supplier_id')) {
+            $party = Supplier::find($request->query('supplier_id'));
+            [$lines, $openingBalance] = $this->supplierStatementLines($party, $period);
         }
 
-        if ($client) {
-            $invoices = $client->invoices()->whereNotIn('status', ['draft'])->get();
-            $payments = InvoicePayment::whereIn('invoice_id', $invoices->pluck('id'))->get();
+        if ($request->query('export') === 'csv' && $party) {
+            $rows = collect([['', __('Opening balance'), '', '', number_format($openingBalance, 2, '.', '')]])
+                ->concat($lines->map(fn ($l) => [$l->date->format('Y-m-d'), $l->description, $l->debit > 0 ? number_format($l->debit, 2, '.', '') : '', $l->credit > 0 ? number_format($l->credit, 2, '.', '') : '', number_format($l->balance, 2, '.', '')]));
 
-            foreach ($invoices as $invoice) {
-                if ($invoice->issue_date->lt($period['from'])) {
-                    $openingBalance += $invoice->total;
-                } elseif ($invoice->issue_date->lte($period['to'])) {
-                    $lines->push((object) ['date' => $invoice->issue_date, 'description' => __('Invoice :number', ['number' => $invoice->invoice_number]), 'debit' => $invoice->total, 'credit' => 0]);
-                }
-            }
-            foreach ($payments as $payment) {
-                if ($payment->paid_at->lt($period['from'])) {
-                    $openingBalance -= $payment->amount;
-                } elseif ($payment->paid_at->lte($period['to'])) {
-                    $lines->push((object) ['date' => $payment->paid_at, 'description' => __('Payment received'), 'debit' => 0, 'credit' => $payment->amount]);
-                }
-            }
+            return $this->csvResponse('account-statement.csv', [__('Date'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
+        }
 
-            $lines = $lines->sortBy('date')->values();
-            $running = $openingBalance;
-            $lines = $lines->map(function ($line) use (&$running) {
-                $running += $line->debit - $line->credit;
-                $line->balance = $running;
+        if (in_array($request->query('export'), ['pdf-ar', 'pdf-en']) && $party) {
+            $locale = $request->query('export') === 'pdf-ar' ? 'ar' : 'en';
+            $previousLocale = App::getLocale();
+            App::setLocale($locale);
 
-                return $line;
-            });
+            $pdf = Pdf::loadView('user.reports.pdf.account-statement', [
+                'company' => $company, 'period' => $period, 'party' => $party, 'type' => $type,
+                'lines' => $lines, 'openingBalance' => $openingBalance, 'locale' => $locale,
+            ]);
+
+            App::setLocale($previousLocale);
+
+            return $pdf->download('account-statement-'.$locale.'.pdf');
         }
 
         return view('user.reports.account-statement', [
             'company' => $company,
             'period' => $period,
+            'type' => $type,
             'clients' => Client::orderBy('name')->get(),
-            'client' => $client,
+            'suppliers' => Supplier::orderBy('name')->get(),
+            'party' => $party,
             'lines' => $lines,
             'openingBalance' => $openingBalance,
         ]);
+    }
+
+    private function customerStatementLines(?Client $client, array $period): array
+    {
+        if (! $client) {
+            return [collect(), 0.0];
+        }
+
+        $lines = collect();
+        $openingBalance = 0.0;
+
+        $invoices = $client->invoices()->whereNotIn('status', ['draft', 'cancelled'])->get();
+        $payments = InvoicePayment::whereIn('invoice_id', $invoices->pluck('id'))->get();
+
+        foreach ($invoices as $invoice) {
+            if ($invoice->issue_date->lt($period['from'])) {
+                $openingBalance += $invoice->total;
+            } elseif ($invoice->issue_date->lte($period['to'])) {
+                $lines->push((object) ['date' => $invoice->issue_date, 'description' => __('Invoice :number', ['number' => $invoice->invoice_number]), 'debit' => $invoice->total, 'credit' => 0]);
+            }
+        }
+        foreach ($payments as $payment) {
+            if ($payment->paid_at->lt($period['from'])) {
+                $openingBalance -= $payment->amount;
+            } elseif ($payment->paid_at->lte($period['to'])) {
+                $lines->push((object) ['date' => $payment->paid_at, 'description' => __('Payment received'), 'debit' => 0, 'credit' => $payment->amount]);
+            }
+        }
+
+        return [$this->runningBalance($lines, $openingBalance), $openingBalance];
+    }
+
+    private function supplierStatementLines(?Supplier $supplier, array $period): array
+    {
+        if (! $supplier) {
+            return [collect(), 0.0];
+        }
+
+        $lines = collect();
+        $openingBalance = 0.0;
+
+        $bills = $supplier->bills()->whereNotIn('status', ['draft', 'void'])->get();
+        $payments = BillPayment::whereIn('bill_id', $bills->pluck('id'))->get();
+
+        foreach ($bills as $bill) {
+            if ($bill->bill_date->lt($period['from'])) {
+                $openingBalance += $bill->total;
+            } elseif ($bill->bill_date->lte($period['to'])) {
+                $lines->push((object) ['date' => $bill->bill_date, 'description' => __('Bill :number', ['number' => $bill->bill_number]), 'debit' => 0, 'credit' => $bill->total]);
+            }
+        }
+        foreach ($payments as $payment) {
+            if ($payment->paid_at->lt($period['from'])) {
+                $openingBalance -= $payment->amount;
+            } elseif ($payment->paid_at->lte($period['to'])) {
+                $lines->push((object) ['date' => $payment->paid_at, 'description' => __('Payment made'), 'debit' => $payment->amount, 'credit' => 0]);
+            }
+        }
+
+        return [$this->runningBalance($lines, $openingBalance), $openingBalance];
+    }
+
+    private function runningBalance($lines, float $openingBalance)
+    {
+        $running = $openingBalance;
+
+        return $lines->sortBy('date')->values()->map(function ($line) use (&$running) {
+            $running += $line->debit - $line->credit;
+            $line->balance = $running;
+
+            return $line;
+        });
     }
 }
