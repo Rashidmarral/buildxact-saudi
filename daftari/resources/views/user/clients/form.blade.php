@@ -90,7 +90,16 @@
                 <input type="text" name="contact_name" value="{{ old('contact_name', $client->contact_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div>
+                <p class="block text-xs font-semibold uppercase text-slate-500 mb-2">{{ __('This contact includes') }}</p>
+                <div class="flex items-center gap-6 text-sm text-slate-700">
+                    <label class="flex items-center gap-2"><input type="checkbox" id="client-include-phone" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">{{ __('Phone') }}</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="client-include-email" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">{{ __('Email address') }}</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="client-include-address" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">{{ __('Address') }}</label>
+                </div>
+            </div>
+
+            <div id="client-section-phone" class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700">{{ __('Phone') }}</label>
                     <input type="text" name="phone" value="{{ old('phone', $client->phone) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -100,43 +109,45 @@
                     <input type="text" name="mobile" value="{{ old('mobile', $client->mobile) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
-            <div>
+            <div id="client-section-email">
                 <label class="block text-sm font-medium text-slate-700">{{ __('Email address') }}</label>
                 <input type="email" name="email" value="{{ old('email', $client->email) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
 
-            <h3 class="font-semibold text-slate-900 pt-2">{{ __('Address') }}</h3>
-            <div>
-                <label class="block text-sm font-medium text-slate-700">{{ __('Street name') }}</label>
-                <input type="text" name="street_name" value="{{ old('street_name', $client->street_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700">{{ __('Building number') }}</label>
-                <input type="text" name="building_number" value="{{ old('building_number', $client->building_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('District') }}</label>
-                    <input type="text" name="district" value="{{ old('district', $client->district) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <div id="client-section-address">
+                <h3 class="font-semibold text-slate-900 pt-2">{{ __('Address') }}</h3>
+                <div class="mt-3">
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Street name') }}</label>
+                    <input type="text" name="street_name" value="{{ old('street_name', $client->street_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('City') }}</label>
-                    <input type="text" name="city" value="{{ old('city', $client->city) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <div class="mt-3">
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Building number') }}</label>
+                    <input type="text" name="building_number" value="{{ old('building_number', $client->building_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('State') }}</label>
-                    <input type="text" name="state" value="{{ old('state', $client->state) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <div class="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('District') }}</label>
+                        <input type="text" name="district" value="{{ old('district', $client->district) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('City') }}</label>
+                        <input type="text" name="city" value="{{ old('city', $client->city) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('Postal code') }}</label>
-                    <input type="text" name="postal_code" value="{{ old('postal_code', $client->postal_code) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <div class="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('State') }}</label>
+                        <input type="text" name="state" value="{{ old('state', $client->state) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('Postal code') }}</label>
+                        <input type="text" name="postal_code" value="{{ old('postal_code', $client->postal_code) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
                 </div>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700">{{ __('Country') }}</label>
-                <input type="text" name="country" value="{{ old('country', $client->country) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <div class="mt-3">
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Country') }}</label>
+                    <input type="text" name="country" value="{{ old('country', $client->country) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                </div>
             </div>
         </div>
     </div>
@@ -154,6 +165,32 @@
 </form>
 
 <script>
+(function () {
+    function bindToggle(checkboxId, sectionId) {
+        const checkbox = document.getElementById(checkboxId);
+        const section = document.getElementById(sectionId);
+
+        function sync() {
+            section.classList.toggle('hidden', ! checkbox.checked);
+            section.querySelectorAll('input').forEach(input => {
+                if (! checkbox.checked) {
+                    input.dataset.hiddenValue = input.value;
+                    input.value = '';
+                } else if (input.dataset.hiddenValue) {
+                    input.value = input.dataset.hiddenValue;
+                }
+            });
+        }
+
+        checkbox.addEventListener('change', sync);
+        sync();
+    }
+
+    bindToggle('client-include-phone', 'client-section-phone');
+    bindToggle('client-include-email', 'client-section-email');
+    bindToggle('client-include-address', 'client-section-address');
+})();
+
 (function () {
     const body = document.getElementById('contacts-body');
     let index = 0;

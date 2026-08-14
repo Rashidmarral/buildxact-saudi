@@ -4,18 +4,63 @@
 
 @section('content')
 @php
-    $existingItems = $quotation->exists ? $quotation->items()->orderBy('sort_order')->get() : collect();
+$existingItems = $quotation->exists ? $quotation->items()->orderBy('sort_order')->get() : collect();
+$company = auth()->user()->company;
 @endphp
+
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold text-slate-900">{{ __('Create') }}</h1>
+        @unless ($quotation->exists)
+            <div class="flex items-center gap-1 text-sm bg-slate-100 rounded-lg p-1">
+                <button type="button" data-type-tab="quotation" class="type-tab rounded-md px-3 py-1.5 font-semibold {{ $quotation->type !== 'proforma' ? 'bg-slate-900 text-white' : 'text-slate-500' }}">{{ __('Quotation') }}</button>
+                <button type="button" data-type-tab="proforma" class="type-tab rounded-md px-3 py-1.5 font-semibold {{ $quotation->type === 'proforma' ? 'bg-slate-900 text-white' : 'text-slate-500' }}">{{ __('Proforma Invoice') }}</button>
+            </div>
+        @endunless
+    </div>
+    <div class="flex items-center gap-3">
+        <button type="button" id="preview-btn" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Preview') }}</button>
+        <div class="relative">
+            <div class="flex">
+                <button type="submit" form="quotation-form" name="send_immediately" value="0" class="rounded-s-lg bg-brand-700 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-800">{{ __('Save as draft') }}</button>
+                <button type="button" id="save-menu-toggle" class="rounded-e-lg border-s border-brand-800 bg-brand-700 px-2 text-white hover:bg-brand-800">▾</button>
+            </div>
+            <div id="save-menu" class="hidden absolute end-0 mt-1 w-48 rounded-lg border border-slate-200 bg-white shadow-lg z-10">
+                <button type="submit" form="quotation-form" name="send_immediately" value="1" class="block w-full text-start px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">{{ __('Save & issue') }}</button>
+            </div>
+        </div>
+        <a href="{{ route('app.quotations.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Back') }}</a>
+    </div>
+</div>
 
 <form method="POST" action="{{ $quotation->exists ? route('app.quotations.update', $quotation) : route('app.quotations.store') }}" id="quotation-form" class="space-y-6">
     @csrf
     @if ($quotation->exists) @method('PUT') @endif
-    <input type="hidden" name="type" value="{{ $quotation->type }}">
+    <input type="hidden" name="type" id="type-input" value="{{ $quotation->type }}">
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 flex items-start justify-between gap-6">
+        <div class="space-y-2 text-sm">
+            @unless ($quotation->exists)
+                <p class="text-slate-500">{{ __('Quotation number') }}: <span class="font-semibold text-slate-800">{{ $nextNumberPreview }}</span></p>
+            @endunless
+        </div>
+        <div class="flex items-center gap-3">
+            @if ($company->logo_path)
+                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-12 w-12 rounded-lg object-cover border border-slate-100">
+            @else
+                <a href="{{ route('app.settings.index') }}" class="h-12 w-12 shrink-0 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-xs text-center hover:border-brand-300">{{ __('+ Logo') }}</a>
+            @endif
+            <div>
+                <p class="font-semibold text-slate-900">{{ $company->name }}</p>
+                @if ($company->vat_number)<p class="text-xs text-slate-400">{{ __('Tax ID') }}: {{ $company->vat_number }}</p>@endif
+            </div>
+        </div>
+    </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Client') }}</label>
-            <select name="client_id" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <select name="client_id" id="pv-client" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a client') }}</option>
                 @foreach ($clients as $client)
                     <option value="{{ $client->id }}" @selected(old('client_id', $quotation->client_id) == $client->id)>{{ $client->name }}</option>
@@ -23,23 +68,13 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-700">{{ __('Document type') }}</label>
-            <input type="text" value="{{ $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation') }}" disabled class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
-        </div>
-        <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Issue date') }}</label>
-            <input type="date" name="issue_date" value="{{ old('issue_date', optional($quotation->issue_date)->format('Y-m-d')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="date" name="issue_date" id="pv-issue-date" value="{{ old('issue_date', optional($quotation->issue_date)->format('Y-m-d')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Expiry date') }}</label>
             <input type="date" name="expiry_date" value="{{ old('expiry_date', optional($quotation->expiry_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
-        @if (! $quotation->exists)
-            <div>
-                <label class="block text-sm font-medium text-slate-700">{{ __('Quotation number') }}</label>
-                <input type="text" value="{{ $nextNumberPreview }}" disabled class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-400">
-            </div>
-        @endif
         @if ($salespersons->isNotEmpty())
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Salesperson (optional)') }}</label>
@@ -76,7 +111,24 @@
             </table>
         </div>
 
-        <div class="mt-6 flex justify-end">
+        <div class="mt-6 flex flex-col sm:flex-row justify-between gap-6">
+            <div class="w-full max-w-xs">
+                <h3 class="text-xs font-semibold uppercase text-slate-500 mb-2">{{ __('Bank details') }}</h3>
+                <select name="bank_account_id" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($bankAccounts as $account)
+                        <option value="{{ $account->id }}" @selected(old('bank_account_id', $quotation->bank_account_id) == $account->id)>{{ $account->name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-slate-400 mt-1">{{ __('Shown on the printed quotation so the client knows where to pay.') }}</p>
+
+                <h3 class="text-xs font-semibold uppercase text-slate-500 mt-6 mb-2">{{ __('Stamp') }}</h3>
+                @if ($company->stamp_path)
+                    <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-16 w-16 rounded-lg object-cover border border-slate-200">
+                @else
+                    <a href="{{ route('app.settings.index') }}" class="inline-flex h-16 w-16 rounded-lg border border-dashed border-slate-200 items-center justify-center text-slate-300 text-xs text-center hover:border-brand-300">{{ __('+ Stamp') }}</a>
+                @endif
+            </div>
             <div class="w-full max-w-xs space-y-2 text-sm">
                 <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">SAR 0.00</span></div>
                 <div class="flex justify-between items-center text-slate-500">
@@ -91,13 +143,14 @@
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <label class="block text-sm font-medium text-slate-700">{{ __('Notes') }}</label>
-        <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $quotation->notes) }}</textarea>
+        <textarea name="notes" id="pv-notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $quotation->notes) }}</textarea>
     </div>
 
-    <div class="flex gap-3">
-        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save quotation') }}</button>
-        <a href="{{ route('app.quotations.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
-    </div>
+    @if ($quotation->exists)
+        <p class="text-xs text-slate-400">{{ __('Manage attachments from the quotation page after saving.') }}</p>
+    @else
+        <p class="text-xs text-slate-400">{{ __('Attachments can be added once the quotation is saved.') }}</p>
+    @endif
 </form>
 
 @php
@@ -108,6 +161,44 @@
         return ['item_id' => $i->item_id, 'description' => $i->description, 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'vat_rate' => (float) $i->vat_rate];
     })->values());
 @endphp
+
+<dialog id="preview-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-2xl backdrop:bg-slate-900/40">
+    <div class="p-6">
+        <div class="flex items-start justify-between mb-4">
+            <h3 class="text-lg font-bold text-slate-900">{{ __('Document preview') }}</h3>
+            <button type="button" onclick="document.getElementById('preview-modal').close()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <div class="flex justify-between items-start">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">{{ $company->name }}</h2>
+                @if ($company->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $company->vat_number }}</p>@endif
+            </div>
+            <div class="text-end text-sm text-slate-500">
+                <p id="preview-date"></p>
+            </div>
+        </div>
+        <p class="mt-4 text-sm text-slate-500">{{ __('Client') }}: <span id="preview-client" class="font-medium text-slate-800"></span></p>
+        <table class="w-full text-sm mt-4">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-200">
+                    <th class="py-2">{{ __('Description') }}</th>
+                    <th class="py-2 text-end">{{ __('Qty') }}</th>
+                    <th class="py-2 text-end">{{ __('Unit price') }}</th>
+                    <th class="py-2 text-end">{{ __('Total') }}</th>
+                </tr>
+            </thead>
+            <tbody id="preview-items"></tbody>
+        </table>
+        <div class="mt-4 flex justify-end">
+            <div class="w-full max-w-xs space-y-1 text-sm">
+                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="preview-subtotal"></span></div>
+                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="preview-vat"></span></div>
+                <div class="flex justify-between font-bold text-slate-900 border-t border-slate-100 pt-1"><span>{{ __('Total') }}</span><span id="preview-total"></span></div>
+            </div>
+        </div>
+        <p id="preview-notes" class="mt-4 text-sm text-slate-500"></p>
+    </div>
+</dialog>
 
 <script>
 const CATALOG = {!! $catalogJson !!};
@@ -194,6 +285,53 @@ document.getElementById('quotation-form').addEventListener('submit', (e) => {
         e.preventDefault();
         alert(@json(__('Add at least one line item.')));
     }
+});
+
+document.querySelectorAll('.type-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.getElementById('type-input').value = btn.dataset.typeTab;
+        document.querySelectorAll('.type-tab').forEach(b => {
+            const active = b === btn;
+            b.classList.toggle('bg-slate-900', active);
+            b.classList.toggle('text-white', active);
+            b.classList.toggle('text-slate-500', ! active);
+        });
+    });
+});
+
+document.getElementById('save-menu-toggle').addEventListener('click', () => {
+    document.getElementById('save-menu').classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+    if (! e.target.closest('#save-menu-toggle') && ! e.target.closest('#save-menu')) {
+        document.getElementById('save-menu').classList.add('hidden');
+    }
+});
+
+document.getElementById('preview-btn').addEventListener('click', () => {
+    const clientSelect = document.getElementById('pv-client');
+    document.getElementById('preview-client').textContent = clientSelect.selectedOptions[0]?.text || '—';
+    document.getElementById('preview-date').textContent = document.getElementById('pv-issue-date').value || '';
+    document.getElementById('preview-notes').textContent = document.getElementById('pv-notes').value || '';
+
+    let subtotal = 0, vat = 0;
+    const rows = [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const description = tr.querySelector('[data-role="description"]').value;
+        const q = parseFloat(tr.querySelector('[data-role="quantity"]').value) || 0;
+        const p = parseFloat(tr.querySelector('[data-role="unit_price"]').value) || 0;
+        const v = parseFloat(tr.querySelector('[data-role="vat_rate"]').value) || 0;
+        const lineSub = q * p;
+        subtotal += lineSub;
+        vat += lineSub * (v / 100);
+        rows.push(`<tr class="border-b border-slate-50"><td class="py-2">${description}</td><td class="py-2 text-end">${q}</td><td class="py-2 text-end">${fmt(p)}</td><td class="py-2 text-end">${fmt(lineSub)}</td></tr>`);
+    });
+    document.getElementById('preview-items').innerHTML = rows.join('');
+    document.getElementById('preview-subtotal').textContent = fmt(subtotal);
+    document.getElementById('preview-vat').textContent = fmt(vat);
+    document.getElementById('preview-total').textContent = fmt(subtotal + vat - (parseFloat(document.getElementById('discount_total').value) || 0));
+
+    document.getElementById('preview-modal').showModal();
 });
 </script>
 @endsection

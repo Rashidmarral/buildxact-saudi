@@ -7,6 +7,7 @@ use App\Services\ZatcaQrGenerator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Invoice extends Model
 {
@@ -14,8 +15,8 @@ class Invoice extends Model
 
     protected $fillable = [
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'project_id', 'created_by', 'invoice_number', 'type',
-        'status', 'issue_date', 'due_date', 'subtotal', 'discount_total',
-        'vat_total', 'total', 'amount_paid', 'currency', 'notes', 'qr_code',
+        'status', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'retention_rate', 'retention_amount',
+        'vat_total', 'total', 'amount_paid', 'currency', 'notes', 'qr_code', 'bank_account_id', 'warehouse_id', 'stock_deducted',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class Invoice extends Model
         return [
             'issue_date' => 'date',
             'due_date' => 'date',
+            'stock_deducted' => 'boolean',
         ];
     }
 
@@ -34,6 +36,21 @@ class Invoice extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 
     public function salesperson(): BelongsTo

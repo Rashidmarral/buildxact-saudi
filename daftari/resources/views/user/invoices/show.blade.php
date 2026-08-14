@@ -19,6 +19,12 @@
         @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid', 'overdue']) && $invoice->remainingCreditableTotal() > 0.01)
             <a href="{{ route('app.credit-notes.create') }}?invoice_id={{ $invoice->id }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Issue credit note') }}</a>
         @endif
+        @if (! in_array($invoice->status, ['draft', 'cancelled']))
+            <form method="POST" action="{{ route('app.invoices.cancel', $invoice) }}" onsubmit="return confirm('{{ __('Cancel this invoice?') }}')">
+                @csrf
+                <button type="submit" class="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:border-red-300">{{ __('Cancel invoice') }}</button>
+            </form>
+        @endif
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>
@@ -98,13 +104,16 @@
             @endif
             <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('VAT') }}</span><span>SAR {{ number_format($invoice->vat_total, 2) }}</span></div>
             <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ __('Total') }}</span><span>SAR {{ number_format($invoice->total, 2) }}</span></div>
+            @if ($invoice->retention_amount > 0)
+                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Retention held') }} ({{ rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.') }}%)</span><span>SAR {{ number_format($invoice->retention_amount, 2) }}</span></div>
+            @endif
             <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Paid') }}</span><span>SAR {{ number_format($invoice->amount_paid, 2) }}</span></div>
             <div class="flex justify-between font-semibold {{ $boxed ? 'text-white' : ($invoice->balanceDue() > 0 ? 'text-red-600' : 'text-brand-700') }}"><span>{{ __('Balance due') }}</span><span>SAR {{ number_format($invoice->balanceDue(), 2) }}</span></div>
         </div>
     </div>
 
-    @if ($invoice->company->defaultBankAccount())
-        @php($bankAccount = $invoice->company->defaultBankAccount())
+    @if ($invoice->bankAccount ?? $invoice->company->defaultBankAccount())
+        @php($bankAccount = $invoice->bankAccount ?? $invoice->company->defaultBankAccount())
         <div class="mt-8 pt-4 border-t border-slate-100 text-sm">
             <h4 class="text-xs font-semibold uppercase text-slate-400 mb-1">{{ __('Payment details') }}</h4>
             <p class="text-slate-600">
@@ -176,6 +185,36 @@
             </div>
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Record payment') }}</button>
         </form>
+    @endif
+</div>
+
+<div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-900">{{ __('Attachments') }}</h3>
+        <button type="button" onclick="document.getElementById('attach-file-input').click()" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Attach file') }}</button>
+        <form method="POST" action="{{ route('app.invoices.attachments.store', $invoice) }}" enctype="multipart/form-data" id="attach-file-form" class="hidden">
+            @csrf
+            <input type="file" name="file" id="attach-file-input" onchange="document.getElementById('attach-file-form').submit()">
+        </form>
+    </div>
+
+    @if ($invoice->attachments->isEmpty())
+        <p class="text-sm text-slate-400">{{ __('No attachments') }}</p>
+    @else
+        <ul class="divide-y divide-slate-50">
+            @foreach ($invoice->attachments as $attachment)
+                <li class="flex items-center justify-between py-2 text-sm">
+                    <a href="{{ Storage::url($attachment->path) }}" target="_blank" class="text-brand-700 hover:underline">{{ $attachment->original_name }}</a>
+                    <div class="flex items-center gap-3 text-slate-400">
+                        <span>{{ $attachment->humanSize() }}</span>
+                        <form method="POST" action="{{ route('app.invoices.attachments.destroy', [$invoice, $attachment]) }}" onsubmit="return confirm('{{ __('Remove this attachment?') }}')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:underline">{{ __('Remove') }}</button>
+                        </form>
+                    </div>
+                </li>
+            @endforeach
+        </ul>
     @endif
 </div>
 @endsection

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attachment;
+use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Item;
@@ -12,6 +14,7 @@ use App\Models\Salesperson;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class QuotationController extends Controller
@@ -44,6 +47,7 @@ class QuotationController extends Controller
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
+        $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
         $company = Auth::user()->company;
         $type = $request->get('type', 'quotation') === 'proforma' ? 'proforma' : 'quotation';
 
@@ -56,6 +60,7 @@ class QuotationController extends Controller
             'clients' => $clients,
             'items' => $items,
             'salespersons' => $salespersons,
+            'bankAccounts' => $bankAccounts,
             'nextNumberPreview' => $type === 'proforma'
                 ? $company->proforma_prefix.'-'.str_pad((string) $company->next_proforma_number, 5, '0', STR_PAD_LEFT)
                 : $company->quotation_prefix.'-'.str_pad((string) $company->next_quotation_number, 5, '0', STR_PAD_LEFT),
@@ -65,12 +70,14 @@ class QuotationController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $sendImmediately = $request->boolean('send_immediately');
 
         $quotation = DB::transaction(function () use ($data) {
             $company = Auth::user()->company;
 
             $quotation = Quotation::create([
                 'client_id' => $data['client_id'],
+                'bank_account_id' => $data['bank_account_id'] ?? null,
                 'branch_id' => $company->default_branch_id,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
                 'created_by' => Auth::id(),
@@ -90,12 +97,16 @@ class QuotationController extends Controller
             return $quotation;
         });
 
-        return redirect()->route('app.quotations.show', $quotation)->with('status', __('Quotation created.'));
+        if ($sendImmediately) {
+            $quotation->update(['status' => 'issued']);
+        }
+
+        return redirect()->route('app.quotations.show', $quotation)->with('status', $sendImmediately ? __('Quotation created and issued.') : __('Quotation created.'));
     }
 
     public function show(Quotation $quotation)
     {
-        $quotation->load('items', 'client', 'convertedInvoice');
+        $quotation->load('items', 'client', 'convertedInvoice', 'bankAccount', 'attachments');
         $template = $quotation->company->defaultTemplateFor($quotation->type);
 
         return view('user.quotations.show', compact('quotation', 'template'));
@@ -107,8 +118,9 @@ class QuotationController extends Controller
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
+        $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
 
-        return view('user.quotations.form', compact('quotation', 'clients', 'items', 'salespersons'));
+        return view('user.quotations.form', compact('quotation', 'clients', 'items', 'salespersons', 'bankAccounts'));
     }
 
     public function update(Request $request, Quotation $quotation)
@@ -118,6 +130,7 @@ class QuotationController extends Controller
         DB::transaction(function () use ($quotation, $data) {
             $quotation->update([
                 'client_id' => $data['client_id'],
+                'bank_account_id' => $data['bank_account_id'] ?? null,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
                 'issue_date' => $data['issue_date'],
                 'expiry_date' => $data['expiry_date'] ?? null,
@@ -131,6 +144,34 @@ class QuotationController extends Controller
         });
 
         return redirect()->route('app.quotations.show', $quotation)->with('status', __('Quotation updated.'));
+    }
+
+    public function storeAttachment(Request $request, Quotation $quotation)
+    {
+        $request->validate(['file' => ['required', 'file', 'max:10240']]);
+
+        $file = $request->file('file');
+
+        $quotation->attachments()->create([
+            'company_id' => $quotation->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('quotation-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(Quotation $quotation, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === Quotation::class && $attachment->attachable_id === $quotation->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
     }
 
     public function destroy(Quotation $quotation)
@@ -236,6 +277,7 @@ class QuotationController extends Controller
 
         return $request->validate([
             'client_id' => ['required', Rule::exists('clients', 'id')->where('company_id', $companyId)],
+            'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
             'salesperson_id' => ['nullable', Rule::exists('salespersons', 'id')->where('company_id', $companyId)],
             'type' => ['required', 'in:quotation,proforma'],
             'issue_date' => ['required', 'date'],

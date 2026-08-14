@@ -4,16 +4,21 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SyncInvoiceToZatca;
+use App\Models\Attachment;
+use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Item;
+use App\Models\ItemStock;
 use App\Models\Project;
 use App\Models\Salesperson;
+use App\Models\Warehouse;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
@@ -32,31 +37,34 @@ class InvoiceController extends Controller
 
     public function create()
     {
-        $clients = Client::orderBy('name')->get();
-        $items = Item::where('is_active', true)->orderBy('name')->get();
-        $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
         $company = Auth::user()->company;
 
         return view('user.invoices.form', [
             'invoice' => new Invoice(['issue_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString()]),
-            'clients' => $clients,
-            'items' => $items,
-            'salespersons' => $salespersons,
-            'projects' => $projects,
+            'clients' => Client::orderBy('name')->get(),
+            'items' => Item::where('is_active', true)->orderBy('name')->get(),
+            'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'warehouses' => Warehouse::orderBy('name')->get(),
             'nextNumberPreview' => $company->invoice_prefix.'-'.str_pad((string) $company->next_invoice_number, 5, '0', STR_PAD_LEFT),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
+        $sendImmediately = $request->boolean('send_immediately');
 
         $invoice = DB::transaction(function () use ($data) {
             $company = Auth::user()->company;
+            $subtotal = collect($data['items'])->sum(fn ($row) => $row['quantity'] * $row['unit_price']);
+            $retentionAmount = round($subtotal * (($data['retention_rate'] ?? 0) / 100), 2);
 
             $invoice = Invoice::create([
                 'client_id' => $data['client_id'],
+                'bank_account_id' => $data['bank_account_id'] ?? null,
+                'warehouse_id' => $data['warehouse_id'] ?? null,
                 'branch_id' => $company->default_branch_id,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
                 'project_id' => $data['project_id'] ?? null,
@@ -67,6 +75,8 @@ class InvoiceController extends Controller
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'discount_total' => $data['discount_total'] ?? 0,
+                'retention_rate' => $data['retention_rate'] ?? 0,
+                'retention_amount' => $retentionAmount,
                 'currency' => $company->currency,
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -77,12 +87,16 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        return redirect()->route('app.invoices.show', $invoice)->with('status', __('Invoice created.'));
+        if ($sendImmediately) {
+            $this->doSend($invoice, $ledger);
+        }
+
+        return redirect()->route('app.invoices.show', $invoice)->with('status', $sendImmediately ? __('Invoice created and sent.') : __('Invoice created.'));
     }
 
     public function show(Invoice $invoice)
     {
-        $invoice->load('items', 'client', 'invoicePayments');
+        $invoice->load('items', 'client', 'invoicePayments', 'bankAccount', 'warehouse', 'attachments');
         $template = $invoice->company->defaultTemplateFor('invoice');
 
         return view('user.invoices.show', compact('invoice', 'template'));
@@ -91,12 +105,16 @@ class InvoiceController extends Controller
     public function edit(Invoice $invoice)
     {
         $invoice->load('items');
-        $clients = Client::orderBy('name')->get();
-        $items = Item::where('is_active', true)->orderBy('name')->get();
-        $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
-        $projects = Project::orderBy('name')->get();
 
-        return view('user.invoices.form', compact('invoice', 'clients', 'items', 'salespersons', 'projects'));
+        return view('user.invoices.form', [
+            'invoice' => $invoice,
+            'clients' => Client::orderBy('name')->get(),
+            'items' => Item::where('is_active', true)->orderBy('name')->get(),
+            'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'warehouses' => Warehouse::orderBy('name')->get(),
+        ]);
     }
 
     public function update(Request $request, Invoice $invoice)
@@ -104,14 +122,21 @@ class InvoiceController extends Controller
         $data = $this->validated($request);
 
         DB::transaction(function () use ($invoice, $data) {
+            $subtotal = collect($data['items'])->sum(fn ($row) => $row['quantity'] * $row['unit_price']);
+            $retentionAmount = round($subtotal * (($data['retention_rate'] ?? 0) / 100), 2);
+
             $invoice->update([
                 'client_id' => $data['client_id'],
+                'bank_account_id' => $data['bank_account_id'] ?? null,
+                'warehouse_id' => $data['warehouse_id'] ?? null,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
                 'project_id' => $data['project_id'] ?? null,
                 'type' => $data['type'],
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'discount_total' => $data['discount_total'] ?? 0,
+                'retention_rate' => $data['retention_rate'] ?? 0,
+                'retention_amount' => $retentionAmount,
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -132,16 +157,30 @@ class InvoiceController extends Controller
 
     public function send(Invoice $invoice, LedgerPostingService $ledger)
     {
-        if ($invoice->status === 'draft') {
-            $invoice->update(['status' => 'sent']);
-            $ledger->postInvoiceIssued($invoice);
-
-            if ($invoice->company->zatca_sync_frequency === 'instant') {
-                SyncInvoiceToZatca::dispatch($invoice->id);
-            }
-        }
+        $this->doSend($invoice, $ledger);
 
         return back()->with('status', __('Invoice marked as sent.'));
+    }
+
+    public function cancel(Invoice $invoice, LedgerPostingService $ledger)
+    {
+        if (in_array($invoice->status, ['draft', 'cancelled'], true)) {
+            return back()->withErrors(['invoice' => __('This invoice cannot be cancelled.')]);
+        }
+
+        DB::transaction(function () use ($invoice) {
+            if ($invoice->stock_deducted) {
+                $this->applyStock($invoice, 1);
+                $invoice->stock_deducted = false;
+            }
+
+            $invoice->status = 'cancelled';
+            $invoice->save();
+        });
+
+        $ledger->reverse($invoice->company, 'invoice', $invoice->id, __('Invoice :number cancelled', ['number' => $invoice->invoice_number]));
+
+        return back()->with('status', __('Invoice cancelled.'));
     }
 
     public function storePayment(Request $request, Invoice $invoice, LedgerPostingService $ledger)
@@ -160,6 +199,75 @@ class InvoiceController extends Controller
         $ledger->postInvoicePayment($payment);
 
         return back()->with('status', __('Payment recorded.'));
+    }
+
+    public function storeAttachment(Request $request, Invoice $invoice)
+    {
+        $request->validate(['file' => ['required', 'file', 'max:10240']]);
+
+        $file = $request->file('file');
+
+        $invoice->attachments()->create([
+            'company_id' => $invoice->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('invoice-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(Invoice $invoice, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === Invoice::class && $attachment->attachable_id === $invoice->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
+    }
+
+    private function doSend(Invoice $invoice, LedgerPostingService $ledger): void
+    {
+        if ($invoice->status !== 'draft') {
+            return;
+        }
+
+        DB::transaction(function () use ($invoice) {
+            $invoice->update(['status' => 'sent']);
+
+            if ($invoice->warehouse_id && ! $invoice->stock_deducted) {
+                $this->applyStock($invoice, -1);
+                $invoice->stock_deducted = true;
+                $invoice->save();
+            }
+        });
+
+        $ledger->postInvoiceIssued($invoice);
+
+        if ($invoice->company->zatca_sync_frequency === 'instant') {
+            SyncInvoiceToZatca::dispatch($invoice->id);
+        }
+    }
+
+    private function applyStock(Invoice $invoice, int $direction): void
+    {
+        $invoice->loadMissing('items.item');
+
+        foreach ($invoice->items as $line) {
+            if (! $line->item || ! $line->item->track_inventory) {
+                continue;
+            }
+
+            $stock = ItemStock::firstOrCreate(
+                ['item_id' => $line->item_id, 'warehouse_id' => $invoice->warehouse_id],
+                ['quantity' => 0]
+            );
+
+            $stock->increment('quantity', $line->quantity * $direction);
+        }
     }
 
     private function syncItems(Invoice $invoice, array $items): void
@@ -185,12 +293,15 @@ class InvoiceController extends Controller
 
         return $request->validate([
             'client_id' => ['required', Rule::exists('clients', 'id')->where('company_id', $companyId)],
+            'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
+            'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
             'salesperson_id' => ['nullable', Rule::exists('salespersons', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'type' => ['required', 'in:standard,simplified'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'discount_total' => ['nullable', 'numeric', 'min:0'],
+            'retention_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],

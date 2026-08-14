@@ -144,6 +144,7 @@ class LedgerPostingService
     {
         $company = $invoice->company;
         $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
+        $arRetention = $this->account($company, 'AR_RETENTION');
         $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
         $vatOutput = $this->account($company, 'VAT_OUTPUT');
         $discounts = $this->account($company, 'DEFAULT_SALES_DISCOUNTS');
@@ -152,11 +153,24 @@ class LedgerPostingService
             return null;
         }
 
-        $lines = [
-            ['account_id' => $ar->id, 'debit' => $invoice->total, 'memo' => $invoice->invoice_number],
-            ['account_id' => $revenue->id, 'credit' => $invoice->subtotal],
-            ['account_id' => $vatOutput->id, 'credit' => $invoice->vat_total],
-        ];
+        // A retained portion of the receivable isn't collectible until the
+        // retention is released later, so it's tracked in its own AR account
+        // rather than blended into ordinary receivables.
+        $retentionAmount = min((float) $invoice->retention_amount, (float) $invoice->total);
+        $regularAr = round((float) $invoice->total - $retentionAmount, 2);
+
+        $lines = [];
+
+        if ($regularAr > 0) {
+            $lines[] = ['account_id' => $ar->id, 'debit' => $regularAr, 'memo' => $invoice->invoice_number];
+        }
+
+        if ($retentionAmount > 0) {
+            $lines[] = ['account_id' => ($arRetention ?: $ar)->id, 'debit' => $retentionAmount, 'memo' => __('Retention held on :number', ['number' => $invoice->invoice_number])];
+        }
+
+        $lines[] = ['account_id' => $revenue->id, 'credit' => $invoice->subtotal];
+        $lines[] = ['account_id' => $vatOutput->id, 'credit' => $invoice->vat_total];
 
         if ($invoice->discount_total > 0 && $discounts) {
             $lines[] = ['account_id' => $discounts->id, 'debit' => $invoice->discount_total];
