@@ -36,8 +36,37 @@
                 {!! $navItem('app.expenses.index', __('Expenses'), '💳') !!}
                 {!! $navItem('app.bills.index', __('Purchases'), '🛒') !!}
                 {!! $navItem('app.bank-accounts.index', __('Cash & Banks'), '🏦') !!}
-                {!! $navItem('app.reports.vat', __('VAT Report'), '📈') !!}
-                {!! $navItem('app.accounts.index', __('Accounting'), '📒') !!}
+
+                @php($reportsActive = request()->routeIs('app.reports.*'))
+                <details class="group" @if($reportsActive) open @endif>
+                    <summary class="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer list-none {{ $reportsActive ? 'text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <span>📈</span><span>{{ __('Reports') }}</span>
+                    </summary>
+                    <div class="ms-6 mt-1 space-y-1">
+                        {!! $navItem('app.reports.sales', __('Sales Report'), '') !!}
+                        {!! $navItem('app.reports.income-statement', __('Income Statement (P&L)'), '') !!}
+                        {!! $navItem('app.reports.expenses', __('Expense Report'), '') !!}
+                        {!! $navItem('app.reports.cash-flow', __('Cash Flow'), '') !!}
+                        {!! $navItem('app.reports.trial-balance', __('Trial Balance'), '') !!}
+                        {!! $navItem('app.reports.balance-sheet', __('Balance Sheet'), '') !!}
+                        {!! $navItem('app.reports.vat', __('VAT Return'), '') !!}
+                        {!! $navItem('app.reports.account-statement', __('Account Statement'), '') !!}
+                    </div>
+                </details>
+
+                @php($accountingActive = request()->routeIs('app.accounts.*') || request()->routeIs('app.journals.*') || request()->routeIs('app.ledger.*') || request()->routeIs('app.cost-centers.*'))
+                <details class="group" @if($accountingActive) open @endif>
+                    <summary class="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer list-none {{ $accountingActive ? 'text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <span>📒</span><span>{{ __('Accounting') }}</span>
+                    </summary>
+                    <div class="ms-6 mt-1 space-y-1">
+                        {!! $navItem('app.accounts.index', __('Chart of Accounts'), '') !!}
+                        {!! $navItem('app.cost-centers.index', __('Cost Centers'), '') !!}
+                        {!! $navItem('app.journals.index', __('Journals'), '') !!}
+                        {!! $navItem('app.ledger.index', __('Ledger'), '') !!}
+                    </div>
+                </details>
+
                 {!! $navItem('app.zatca.dashboard', __('ZATCA'), '🔗') !!}
                 {!! $navItem('app.billing.index', __('Billing'), '💰') !!}
                 @if (auth()->user()->isOwner())

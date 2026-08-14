@@ -269,6 +269,11 @@ class Company extends Model
         return $this->hasMany(CostCenter::class);
     }
 
+    public function costCenterLinks(): HasMany
+    {
+        return $this->hasMany(CostCenterLink::class);
+    }
+
     /**
      * The template that should style a given document type: the closest
      * default (type-specific default, else the "all types" default), or

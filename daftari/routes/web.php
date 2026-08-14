@@ -106,7 +106,16 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
     });
 
-    Route::get('reports/vat', [ReportController::class, 'vat'])->name('reports.vat')->middleware('permission:reports');
+    Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('vat', [ReportController::class, 'vat'])->name('vat');
+        Route::get('sales', [ReportController::class, 'sales'])->name('sales');
+        Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement');
+        Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
+        Route::get('cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
+        Route::get('trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
+        Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet');
+        Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
+    });
 
     Route::middleware('permission:accounting')->prefix('accounting')->group(function () {
         Route::prefix('accounts')->name('accounts.')->group(function () {
@@ -130,6 +139,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
             Route::post('/', [CostCenterController::class, 'store'])->name('store');
             Route::put('{costCenter}', [CostCenterController::class, 'update'])->name('update');
             Route::delete('{costCenter}', [CostCenterController::class, 'destroy'])->name('destroy');
+            Route::post('links', [CostCenterController::class, 'storeLink'])->name('links.store');
+            Route::delete('links/{costCenterLink}', [CostCenterController::class, 'destroyLink'])->name('links.destroy');
         });
     });
 
