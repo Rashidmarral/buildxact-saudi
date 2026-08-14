@@ -38,9 +38,9 @@
             <thead>
                 <tr class="text-left text-slate-500 border-b border-slate-100">
                     <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Vendor') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Category') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Amount') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Expense account') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Financial account') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Gross amount') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('VAT') }}</th>
                     <th class="px-6 py-3"></th>
                 </tr>
@@ -49,9 +49,9 @@
                 @foreach ($expenses as $expense)
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3">{{ $expense->expense_date->format('Y-m-d') }}</td>
-                        <td class="px-6 py-3">{{ $expense->vendor_name ?: '—' }}</td>
-                        <td class="px-6 py-3">{{ $expense->category->name ?? '—' }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($expense->amount, 2) }}</td>
+                        <td class="px-6 py-3">{{ $expense->account?->label() ?? $expense->category?->name ?? '—' }}</td>
+                        <td class="px-6 py-3">{{ $expense->bankAccount?->name ?? __('Unpaid (payable)') }}</td>
+                        <td class="px-6 py-3">SAR {{ number_format($expense->gross_amount ?? ($expense->amount + $expense->vat_amount), 2) }}</td>
                         <td class="px-6 py-3">SAR {{ number_format($expense->vat_amount, 2) }}</td>
                         <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
                             <a href="{{ route('app.expenses.edit', $expense) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>

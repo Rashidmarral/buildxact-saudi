@@ -33,8 +33,21 @@
                 {!! $navItem('app.salespersons.index', __('Salespersons'), '🧑‍💼') !!}
                 {!! $navItem('app.items.index', __('Items'), '📦') !!}
                 {!! $navItem('app.warehouses.index', __('Inventory'), '🏷️') !!}
-                {!! $navItem('app.expenses.index', __('Expenses'), '💳') !!}
-                {!! $navItem('app.bills.index', __('Purchases'), '🛒') !!}
+
+                @php($purchasesActive = request()->routeIs('app.bills.*') || request()->routeIs('app.purchase-orders.*') || request()->routeIs('app.customs-declarations.*') || request()->routeIs('app.suppliers.*') || request()->routeIs('app.expenses.*') || request()->routeIs('app.expense-categories.*'))
+                <details class="group" @if($purchasesActive) open @endif>
+                    <summary class="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer list-none {{ $purchasesActive ? 'text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                        <span>🛒</span><span>{{ __('Purchases & Expenses') }}</span>
+                    </summary>
+                    <div class="ms-6 mt-1 space-y-1">
+                        {!! $navItem('app.bills.index', __('Bills'), '') !!}
+                        {!! $navItem('app.purchase-orders.index', __('Purchase orders'), '') !!}
+                        {!! $navItem('app.customs-declarations.index', __('Customs Declarations'), '') !!}
+                        {!! $navItem('app.suppliers.index', __('Suppliers'), '') !!}
+                        {!! $navItem('app.expenses.index', __('Expenses'), '') !!}
+                    </div>
+                </details>
+
                 {!! $navItem('app.bank-accounts.index', __('Cash & Banks'), '🏦') !!}
                 {!! $navItem('app.projects.index', __('Projects'), '📁') !!}
 

@@ -8,6 +8,7 @@ use App\Models\BankTransfer;
 use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Company;
+use App\Models\CustomsDeclaration;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
@@ -280,17 +281,28 @@ class LedgerPostingService
     public function postExpense(Expense $expense): ?JournalEntry
     {
         $company = $expense->company;
-        $ap = $this->account($company, 'ACCOUNTS_PAYABLE');
-        $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
+        $expenseAccount = $expense->account ?? $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
         $vatInput = $this->account($company, 'VAT_INPUT');
 
-        if (! $ap || ! $expenseAccount) {
+        if (! $expenseAccount) {
+            return null;
+        }
+
+        // Paid immediately from a financial account when one is chosen;
+        // otherwise recorded as an accrued payable, to be settled later by
+        // a Payment Voucher referencing this expense.
+        $bankAccount = $expense->bankAccount;
+        $counterpart = $bankAccount
+            ? $this->bankOrCashAccount($company, $bankAccount->type)
+            : $this->account($company, 'ACCOUNTS_PAYABLE');
+
+        if (! $counterpart) {
             return null;
         }
 
         $lines = [
             ['account_id' => $expenseAccount->id, 'debit' => $expense->amount, 'memo' => $expense->vendor_name],
-            ['account_id' => $ap->id, 'credit' => $expense->amount + $expense->vat_amount],
+            ['account_id' => $counterpart->id, 'credit' => $expense->amount + $expense->vat_amount],
         ];
 
         if ($expense->vat_amount > 0 && $vatInput) {
@@ -298,6 +310,39 @@ class LedgerPostingService
         }
 
         return $this->post($company, 'expense', $expense->id, __('Expense: :description', ['description' => $expense->description]), $expense->expense_date, $lines);
+    }
+
+    public function postCustomsDeclaration(CustomsDeclaration $declaration): ?JournalEntry
+    {
+        $company = $declaration->company;
+        $vatInputImports = $this->account($company, 'VAT_INPUT_IMPORTS');
+        $customsPayable = $this->account($company, 'CUSTOMS_PAYABLE');
+        $dutyExpense = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
+
+        if (! $customsPayable) {
+            return null;
+        }
+
+        $lines = [];
+
+        if ($declaration->vat_amount > 0 && $vatInputImports) {
+            $lines[] = ['account_id' => $vatInputImports->id, 'debit' => $declaration->vat_amount, 'memo' => __('Import VAT')];
+        }
+
+        if ($declaration->customs_duty > 0 && $dutyExpense) {
+            $lines[] = ['account_id' => $dutyExpense->id, 'debit' => $declaration->customs_duty, 'memo' => __('Customs duty')];
+        }
+
+        $lines[] = ['account_id' => $customsPayable->id, 'credit' => (float) $declaration->vat_amount + (float) $declaration->customs_duty];
+
+        return $this->post(
+            $company,
+            'customs_declaration',
+            $declaration->id,
+            __('Customs declaration :number', ['number' => $declaration->declaration_number ?: '#'.$declaration->id]),
+            $declaration->declaration_date,
+            $lines
+        );
     }
 
     // ---- Inventory ----------------------------------------------------

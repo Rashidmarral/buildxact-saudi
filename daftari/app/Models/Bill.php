@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Bill extends Model
@@ -43,6 +44,11 @@ class Bill extends Model
     public function billPayments(): HasMany
     {
         return $this->hasMany(BillPayment::class);
+    }
+
+    public function customsDeclarations(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomsDeclaration::class, 'customs_declaration_bill');
     }
 
     public function recalculateTotals(): void

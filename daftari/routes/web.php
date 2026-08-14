@@ -17,6 +17,7 @@ use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\CostCenterController;
+use App\Http\Controllers\User\CustomsDeclarationController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ExpenseCategoryController;
 use App\Http\Controllers\User\ExpenseController;
@@ -158,6 +159,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::middleware('permission:purchases')->group(function () {
         Route::resource('suppliers', SupplierController::class)->except(['show']);
         Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
+        Route::get('suppliers/{supplier}/bills', [SupplierController::class, 'bills'])->name('suppliers.bills');
 
         Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
@@ -167,6 +169,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
         Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
         Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
+
+        Route::resource('customs-declarations', CustomsDeclarationController::class)->only(['index', 'store', 'destroy']);
     });
 
     Route::middleware('permission:inventory')->group(function () {

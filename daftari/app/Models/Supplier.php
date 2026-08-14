@@ -11,9 +11,17 @@ class Supplier extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'supplier_code', 'name', 'name_ar', 'vat_number', 'cr_number',
-        'email', 'phone', 'address', 'city', 'notes',
+        'company_id', 'supplier_code', 'type', 'name', 'name_ar', 'contact_name', 'vat_number',
+        'cr_number', 'initial_balance', 'email', 'phone', 'mobile', 'address_line_1',
+        'address_line_2', 'district', 'city', 'postal_code', 'state', 'country', 'notes',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'initial_balance' => 'decimal:2',
+        ];
+    }
 
     protected static function booted(): void
     {
@@ -41,5 +49,23 @@ class Supplier extends Model
     public function purchaseOrders(): HasMany
     {
         return $this->hasMany(PurchaseOrder::class);
+    }
+
+    public function customsDeclarations(): HasMany
+    {
+        return $this->hasMany(CustomsDeclaration::class);
+    }
+
+    public function fullAddress(): string
+    {
+        return collect([
+            $this->address_line_1,
+            $this->address_line_2,
+            $this->district,
+            $this->city,
+            $this->state,
+            $this->postal_code,
+            $this->country,
+        ])->filter()->implode(', ');
     }
 }

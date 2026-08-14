@@ -10,9 +10,12 @@ class Expense extends Model
 {
     use BelongsToCompany;
 
+    public const TAX_CATEGORIES = ['standard_15', 'zero_rated', 'exempt'];
+
     protected $fillable = [
-        'company_id', 'expense_category_id', 'project_id', 'created_by', 'vendor_name',
-        'description', 'amount', 'vat_amount', 'expense_date', 'receipt_path',
+        'company_id', 'expense_category_id', 'project_id', 'bank_account_id', 'account_id', 'created_by',
+        'vendor_name', 'description', 'amount', 'gross_amount', 'vat_amount', 'tax_category',
+        'reference', 'expense_date', 'receipt_path',
     ];
 
     protected function casts(): array
@@ -32,8 +35,23 @@ class Expense extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public static function taxRateFor(string $taxCategory): float
+    {
+        return $taxCategory === 'standard_15' ? 15.0 : 0.0;
     }
 }

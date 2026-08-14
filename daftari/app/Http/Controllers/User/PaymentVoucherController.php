@@ -30,7 +30,7 @@ class PaymentVoucherController extends Controller
 
         return view('user.payment-vouchers.form', [
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
-            'expenses' => Expense::latest('expense_date')->take(100)->get(),
+            'expenses' => Expense::whereNull('bank_account_id')->latest('expense_date')->take(100)->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
             'clients' => Client::orderBy('name')->get(),
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
