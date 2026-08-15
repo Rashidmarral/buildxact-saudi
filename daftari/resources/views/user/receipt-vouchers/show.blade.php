@@ -23,8 +23,10 @@
     </div>
 </div>
 
-<div class="max-w-xl bg-white rounded-xl border border-slate-100 p-8">
-    <div class="flex justify-between items-start border-b border-slate-100 pb-4">
+<div class="max-w-xl bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
+    @include('documents.print.chrome-header', ['company' => $voucher->company, 'template' => $template])
+
+    <div class="flex justify-between items-start border-b border-slate-100 pb-4 mt-4">
         <h2 class="text-xl font-bold text-slate-900">{{ __('Receipt Voucher') }}</h2>
         <div class="text-end text-xs text-slate-500">
             <div>{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
@@ -52,5 +54,7 @@
         <div>{{ __('Received by') }}</div>
         <div>{{ __('Authorized signature') }}</div>
     </div>
+
+    @include('documents.print.chrome-footer', ['company' => $voucher->company, 'template' => $template])
 </div>
 @endsection

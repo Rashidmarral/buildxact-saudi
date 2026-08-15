@@ -8,11 +8,17 @@ use App\Support\InvoiceTemplatePresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class InvoiceTemplateController extends Controller
 {
-    private const TYPES = ['all', 'invoice', 'quotation', 'proforma', 'receipt_voucher', 'payment_voucher'];
+    private const TYPES = [
+        'all', 'invoice', 'quotation', 'proforma', 'bill', 'purchase_order',
+        'receipt_voucher', 'payment_voucher',
+    ];
+
+    private const LAYOUTS = ['minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead'];
 
     public function index(Request $request)
     {
@@ -86,13 +92,22 @@ class InvoiceTemplateController extends Controller
             'name_ar' => ['nullable', 'string', 'max:255'],
             'document_type' => ['required', Rule::in(self::TYPES)],
             'accent_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'layout' => ['required', 'in:boxed,bordered,minimal'],
+            'layout' => ['required', Rule::in(self::LAYOUTS)],
             'show_logo' => ['nullable', 'boolean'],
+            'letterhead' => ['nullable', 'image', 'max:4096'],
             'notes_en' => ['nullable', 'string', 'max:2000'],
             'notes_ar' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $data['show_logo'] = $request->boolean('show_logo');
+        unset($data['letterhead']);
+
+        if ($request->hasFile('letterhead')) {
+            if ($invoiceTemplate->letterhead_path) {
+                Storage::disk('public')->delete($invoiceTemplate->letterhead_path);
+            }
+            $data['letterhead_path'] = $request->file('letterhead')->store('letterheads', 'public');
+        }
 
         $invoiceTemplate->update($data);
 
@@ -101,6 +116,10 @@ class InvoiceTemplateController extends Controller
 
     public function destroy(InvoiceTemplate $invoiceTemplate): RedirectResponse
     {
+        if ($invoiceTemplate->letterhead_path) {
+            Storage::disk('public')->delete($invoiceTemplate->letterhead_path);
+        }
+
         $invoiceTemplate->delete();
 
         return redirect()->route('app.invoice-templates.index')->with('status', __('Template deleted.'));

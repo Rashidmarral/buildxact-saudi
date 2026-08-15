@@ -91,7 +91,9 @@ class ReceiptVoucherController extends Controller
     {
         $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice', 'counterAccount');
 
-        return view('user.receipt-vouchers.show', ['voucher' => $receiptVoucher]);
+        $template = $receiptVoucher->company->defaultTemplateFor('receipt_voucher');
+
+        return view('user.receipt-vouchers.show', ['voucher' => $receiptVoucher, 'template' => $template]);
     }
 
     public function void(ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)

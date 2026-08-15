@@ -30,107 +30,42 @@
 </div>
 
 @php
-    $accent = $template->accent_color ?? null;
-    $layout = $template->layout ?? 'minimal';
-    $showLogo = $template->show_logo ?? true;
+    $doc = [
+        'type_label' => __('Tax Invoice'),
+        'type_label_ar' => 'فاتورة ضريبية',
+        'number' => $invoice->invoice_number,
+        'date_label' => __('Issued'),
+        'date' => $invoice->issue_date,
+        'date2_label' => __('Due'),
+        'date2_label_ar' => 'الاستحقاق',
+        'date2' => $invoice->due_date,
+        'party_label' => __('Bill to'),
+        'party_label_ar' => 'العميل',
+        'party' => $invoice->client,
+        'qr_code' => $invoice->qr_code,
+        'lines' => $invoice->items,
+        'subtotal' => $invoice->subtotal,
+        'discount_total' => $invoice->discount_total,
+        'vat_total' => $invoice->vat_total,
+        'total' => $invoice->total,
+        'extra_rows' => array_values(array_filter([
+            $invoice->retention_amount > 0 ? [
+                'label' => __('Retention held').' ('.rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.').'%)',
+                'value' => $invoice->retention_amount,
+            ] : null,
+            ['label' => __('Paid'), 'value' => $invoice->amount_paid],
+            [
+                'label' => __('Balance due'), 'value' => $invoice->balanceDue(), 'emphasis' => true,
+                'variant' => $invoice->balanceDue() > 0 ? 'red' : null,
+            ],
+        ])),
+        'bank_account' => $invoice->bankAccount ?? $invoice->company->defaultBankAccount(),
+        'salesperson' => $invoice->salesperson,
+        'notes' => $invoice->notes,
+    ];
 @endphp
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
-    @if ($layout === 'bordered' && $accent)
-        <div class="h-2 rounded-full mb-6 -mt-2" style="background-color: {{ $accent }}"></div>
-    @endif
-    <div class="flex justify-between items-start {{ $layout === 'bordered' && $accent ? 'border-s-4 ps-4' : '' }}" @if ($layout === 'bordered' && $accent) style="border-color: {{ $accent }}" @endif>
-        <div class="flex items-center gap-3">
-            @if ($showLogo && $invoice->company->logo_path)
-                <img src="{{ Storage::url($invoice->company->logo_path) }}" alt="{{ $invoice->company->name }}" class="h-12 w-12 rounded-lg object-cover border border-slate-100">
-            @endif
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900">{{ $invoice->company->name }}</h1>
-                @if ($invoice->company->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $invoice->company->vat_number }}</p>@endif
-                @if ($invoice->company->address)<p class="text-sm text-slate-500">{{ $invoice->company->address }}</p>@endif
-            </div>
-        </div>
-        <div class="text-end">
-            <h2 class="text-xl font-bold" style="color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }}">{{ __('Tax Invoice') }}</h2>
-            <p class="text-sm text-slate-500">{{ $invoice->invoice_number }}</p>
-            <p class="text-sm text-slate-500">{{ __('Issued') }}: {{ $invoice->issue_date->format('Y-m-d') }}</p>
-            @if ($invoice->due_date)<p class="text-sm text-slate-500">{{ __('Due') }}: {{ $invoice->due_date->format('Y-m-d') }}</p>@endif
-        </div>
-    </div>
-
-    <div class="mt-8 grid grid-cols-2 gap-8">
-        <div>
-            <h3 class="text-xs font-semibold uppercase text-slate-400">{{ __('Bill to') }}</h3>
-            <p class="mt-1 font-medium text-slate-800">{{ $invoice->client->name }}</p>
-            @if ($invoice->client->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $invoice->client->vat_number }}</p>@endif
-            @if ($invoice->client->email)<p class="text-sm text-slate-500">{{ $invoice->client->email }}</p>@endif
-        </div>
-        <div class="text-end">
-            @if ($invoice->qr_code)
-                <img src="data:image/png;base64,{{ $invoice->qr_code }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-28 w-28" onerror="this.style.display='none'">
-                <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
-            @endif
-        </div>
-    </div>
-
-    <table class="w-full text-sm mt-8">
-        <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-200">
-                <th class="py-2">{{ __('Description') }}</th>
-                <th class="py-2 text-end">{{ __('Qty') }}</th>
-                <th class="py-2 text-end">{{ __('Unit price') }}</th>
-                <th class="py-2 text-end">{{ __('VAT') }}</th>
-                <th class="py-2 text-end">{{ __('Total') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($invoice->items as $item)
-                <tr class="border-b border-slate-50">
-                    <td class="py-2">{{ $item->description }}</td>
-                    <td class="py-2 text-end">{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($item->unit_price, 2) }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($item->vat_amount, 2) }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($item->line_total, 2) }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    <div class="mt-6 flex justify-end">
-        <div class="w-full max-w-xs space-y-2 text-sm {{ $layout === 'boxed' && $accent ? 'rounded-lg p-4 text-white' : '' }}" @if ($layout === 'boxed' && $accent) style="background-color: {{ $accent }}" @endif>
-            @php($boxed = $layout === 'boxed' && $accent)
-            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Subtotal') }}</span><span>SAR {{ number_format($invoice->subtotal, 2) }}</span></div>
-            @if ($invoice->discount_total > 0)
-                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Discount') }}</span><span>-SAR {{ number_format($invoice->discount_total, 2) }}</span></div>
-            @endif
-            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('VAT') }}</span><span>SAR {{ number_format($invoice->vat_total, 2) }}</span></div>
-            <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ __('Total') }}</span><span>SAR {{ number_format($invoice->total, 2) }}</span></div>
-            @if ($invoice->retention_amount > 0)
-                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Retention held') }} ({{ rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.') }}%)</span><span>SAR {{ number_format($invoice->retention_amount, 2) }}</span></div>
-            @endif
-            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Paid') }}</span><span>SAR {{ number_format($invoice->amount_paid, 2) }}</span></div>
-            <div class="flex justify-between font-semibold {{ $boxed ? 'text-white' : ($invoice->balanceDue() > 0 ? 'text-red-600' : 'text-brand-700') }}"><span>{{ __('Balance due') }}</span><span>SAR {{ number_format($invoice->balanceDue(), 2) }}</span></div>
-        </div>
-    </div>
-
-    @if ($invoice->bankAccount ?? $invoice->company->defaultBankAccount())
-        @php($bankAccount = $invoice->bankAccount ?? $invoice->company->defaultBankAccount())
-        <div class="mt-8 pt-4 border-t border-slate-100 text-sm">
-            <h4 class="text-xs font-semibold uppercase text-slate-400 mb-1">{{ __('Payment details') }}</h4>
-            <p class="text-slate-600">
-                {{ $bankAccount->name }}
-                @if ($bankAccount->bank_name) — {{ $bankAccount->bank_name }} @endif
-                @if ($bankAccount->iban) — {{ __('IBAN') }}: {{ $bankAccount->iban }} @endif
-            </p>
-        </div>
-    @endif
-
-    @if ($invoice->notes)
-        <div class="mt-8 pt-4 border-t border-slate-100 text-sm text-slate-500">{{ $invoice->notes }}</div>
-    @endif
-
-    @if ($template && $template->notesFor(app()->getLocale()))
-        <div class="mt-2 text-sm text-slate-400">{{ $template->notesFor(app()->getLocale()) }}</div>
-    @endif
+    @include('documents.print.body', ['doc' => $doc, 'company' => $invoice->company, 'template' => $template])
 </div>
 
 <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">

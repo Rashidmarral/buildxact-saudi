@@ -88,7 +88,9 @@ class BillController extends Controller
     {
         $bill->load('items', 'supplier', 'billPayments', 'attachments');
 
-        return view('user.bills.show', compact('bill'));
+        $template = $bill->company->defaultTemplateFor('bill');
+
+        return view('user.bills.show', compact('bill', 'template'));
     }
 
     public function post(Bill $bill, LedgerPostingService $ledger)

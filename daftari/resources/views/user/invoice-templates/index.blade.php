@@ -8,6 +8,8 @@
         'invoice' => __('Invoices'),
         'quotation' => __('Quotations'),
         'proforma' => __('Proforma invoices'),
+        'bill' => __('Bills'),
+        'purchase_order' => __('Purchase orders'),
         'receipt_voucher' => __('Receipt vouchers'),
         'payment_voucher' => __('Payment vouchers'),
     ];
@@ -81,7 +83,7 @@
             </div>
 
             <div class="grid md:grid-cols-2 gap-6">
-                <form method="POST" action="{{ route('app.invoice-templates.update', $selected) }}" class="space-y-4">
+                <form method="POST" action="{{ route('app.invoice-templates.update', $selected) }}" enctype="multipart/form-data" class="space-y-4" x-data="{ layout: '{{ $selected->layout }}' }">
                     @csrf @method('PUT')
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -108,10 +110,12 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500">{{ __('Layout') }}</label>
-                            <select name="layout" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            <select name="layout" x-model="layout" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                                 <option value="boxed" @selected($selected->layout === 'boxed')>{{ __('Boxed totals') }}</option>
                                 <option value="bordered" @selected($selected->layout === 'bordered')>{{ __('Accent border') }}</option>
                                 <option value="minimal" @selected($selected->layout === 'minimal')>{{ __('Minimal') }}</option>
+                                <option value="bilingual_classic" @selected($selected->layout === 'bilingual_classic')>{{ __('Bilingual Classic') }}</option>
+                                <option value="custom_letterhead" @selected($selected->layout === 'custom_letterhead')>{{ __('Custom Letterhead') }}</option>
                             </select>
                         </div>
                     </div>
@@ -119,6 +123,14 @@
                         <input type="checkbox" name="show_logo" value="1" @checked($selected->show_logo) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                         {{ __('Show company logo') }}
                     </label>
+                    <div x-show="layout === 'custom_letterhead'" x-cloak>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Letterhead image') }}</label>
+                        @if ($selected->letterhead_path)
+                            <img src="{{ Storage::url($selected->letterhead_path) }}" alt="{{ __('Letterhead') }}" class="mt-2 mb-2 h-16 rounded border border-slate-100 object-contain">
+                        @endif
+                        <input type="file" name="letterhead" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Upload a wide banner image — it replaces the logo/company-name header entirely on this layout.') }}</p>
+                    </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500">{{ __('Footer note (English)') }}</label>
                         <textarea name="notes_en" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ $selected->notes_en }}</textarea>

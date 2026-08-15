@@ -86,7 +86,9 @@ class PurchaseOrderController extends Controller
     {
         $purchaseOrder->load('items', 'supplier', 'convertedBill', 'attachments');
 
-        return view('user.purchase-orders.show', ['order' => $purchaseOrder]);
+        $template = $purchaseOrder->company->defaultTemplateFor('purchase_order');
+
+        return view('user.purchase-orders.show', ['order' => $purchaseOrder, 'template' => $template]);
     }
 
     public function approve(PurchaseOrder $purchaseOrder)

@@ -55,6 +55,20 @@ class InvoiceTemplatePresets
                 'layout' => 'boxed',
                 'size' => 'A4',
             ],
+            'bilingual_classic' => [
+                'name' => 'Bilingual Classic',
+                'name_ar' => 'كلاسيكي ثنائي اللغة',
+                'accent_color' => '#c9a227',
+                'layout' => 'bilingual_classic',
+                'size' => 'A4',
+            ],
+            'custom_letterhead' => [
+                'name' => 'Custom Letterhead',
+                'name_ar' => 'ترويسة مخصصة',
+                'accent_color' => '#1d4ed8',
+                'layout' => 'custom_letterhead',
+                'size' => 'A4',
+            ],
         ];
     }
 

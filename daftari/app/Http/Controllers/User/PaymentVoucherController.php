@@ -93,7 +93,9 @@ class PaymentVoucherController extends Controller
     {
         $paymentVoucher->load('bankAccount', 'expense', 'bill', 'client', 'supplier', 'counterAccount');
 
-        return view('user.payment-vouchers.show', ['voucher' => $paymentVoucher]);
+        $template = $paymentVoucher->company->defaultTemplateFor('payment_voucher');
+
+        return view('user.payment-vouchers.show', ['voucher' => $paymentVoucher, 'template' => $template]);
     }
 
     public function void(PaymentVoucher $paymentVoucher, LedgerPostingService $ledger)

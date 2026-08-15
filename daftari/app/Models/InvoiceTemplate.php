@@ -11,7 +11,7 @@ class InvoiceTemplate extends Model
 
     protected $fillable = [
         'company_id', 'name', 'name_ar', 'document_type', 'accent_color',
-        'layout', 'show_logo', 'notes_en', 'notes_ar', 'is_default',
+        'layout', 'show_logo', 'letterhead_path', 'notes_en', 'notes_ar', 'is_default',
     ];
 
     protected function casts(): array
