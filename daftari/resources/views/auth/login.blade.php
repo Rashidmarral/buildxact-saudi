@@ -16,7 +16,10 @@
         <input type="email" name="email" value="{{ old('email') }}" required autofocus class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
-        <label class="block text-sm font-medium text-slate-700">{{ __('Password') }}</label>
+        <div class="flex items-center justify-between">
+            <label class="block text-sm font-medium text-slate-700">{{ __('Password') }}</label>
+            <a href="{{ route('password.request') }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Forgot password?') }}</a>
+        </div>
         <input type="password" name="password" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <label class="flex items-center gap-2 text-sm text-slate-600">

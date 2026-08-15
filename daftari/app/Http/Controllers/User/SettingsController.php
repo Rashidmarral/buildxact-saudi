@@ -7,8 +7,10 @@ use App\Models\BankAccount;
 use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class SettingsController extends Controller
 {
@@ -34,6 +36,11 @@ class SettingsController extends Controller
             'alternative_seller_id' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:100'],
+            'building_number' => ['nullable', 'string', 'max:20'],
+            'street_name' => ['nullable', 'string', 'max:255'],
+            'district' => ['nullable', 'string', 'max:100'],
+            'postal_code' => ['nullable', 'string', 'max:20'],
+            'additional_number' => ['nullable', 'string', 'max:20'],
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'invoice_prefix' => ['required', 'string', 'max:10'],
@@ -65,5 +72,23 @@ class SettingsController extends Controller
         $company->update($data);
 
         return back()->with('status', __('Settings saved.'));
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        $user = Auth::user();
+
+        if (! Hash::check($request->string('current_password'), $user->password)) {
+            return back()->withErrors(['current_password' => __('The current password is incorrect.')]);
+        }
+
+        $user->update(['password' => Hash::make($request->string('password'))]);
+
+        return back()->with('status', __('Password updated.'));
     }
 }

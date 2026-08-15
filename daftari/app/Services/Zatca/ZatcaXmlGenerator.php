@@ -53,15 +53,21 @@ class ZatcaXmlGenerator
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
             'name' => $company->name,
             'vat_number' => $company->vat_number,
-            'street' => $company->address,
+            'street' => $company->street_name ?: $company->address,
+            'building_number' => $company->building_number,
+            'district' => $company->district,
             'city' => $company->city,
+            'postal_code' => $company->postal_code,
         ]));
 
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
             'name' => $client->name,
             'vat_number' => $client->vat_number,
             'street' => $client->street_name,
+            'building_number' => $client->building_number,
+            'district' => $client->district,
             'city' => $client->city,
+            'postal_code' => $client->postal_code,
         ]));
 
         $taxTotal = $doc->createElement('cac:TaxTotal');
@@ -126,13 +132,24 @@ class ZatcaXmlGenerator
         $this->append($doc, $legalEntity, 'cbc:RegistrationName', $data['name'] ?: '');
         $party->appendChild($legalEntity);
 
-        if (! empty($data['street']) || ! empty($data['city'])) {
+        $hasAddress = ! empty($data['street']) || ! empty($data['city']) || ! empty($data['building_number']) || ! empty($data['district']) || ! empty($data['postal_code']);
+
+        if ($hasAddress) {
             $address = $doc->createElement('cac:PostalAddress');
+            if (! empty($data['building_number'])) {
+                $this->append($doc, $address, 'cbc:BuildingNumber', $data['building_number']);
+            }
             if (! empty($data['street'])) {
                 $this->append($doc, $address, 'cbc:StreetName', $data['street']);
             }
+            if (! empty($data['district'])) {
+                $this->append($doc, $address, 'cbc:CitySubdivisionName', $data['district']);
+            }
             if (! empty($data['city'])) {
                 $this->append($doc, $address, 'cbc:CityName', $data['city']);
+            }
+            if (! empty($data['postal_code'])) {
+                $this->append($doc, $address, 'cbc:PostalZone', $data['postal_code']);
             }
             $country = $doc->createElement('cac:Country');
             $this->append($doc, $country, 'cbc:IdentificationCode', 'SA');

@@ -28,7 +28,7 @@ class ZatcaCryptoService
         $commonName = $options['common_name'] ?? $company->name;
         $country = 'SA';
         $businessCategory = $options['business_category'] ?? __('General');
-        $addressLocation = $options['location'] ?? ($company->city ?: 'Riyadh');
+        $addressLocation = $options['location'] ?? (trim(($company->street_name ?: $company->address).' '.$company->city) ?: 'Riyadh');
 
         // Invoice type flag: 4 booleans (Standard, Simplified, future, future),
         // matching ZATCA's documented "1000" = supports both tax + simplified.

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password as PasswordBroker;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
@@ -117,5 +118,77 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('home');
+    }
+
+    public function showForgotPassword()
+    {
+        return view('auth.forgot-password');
+    }
+
+    public function sendResetLink(Request $request)
+    {
+        $request->validate(['email' => ['required', 'email']]);
+
+        $resetUrl = null;
+
+        $status = PasswordBroker::sendResetLink(
+            $request->only('email'),
+            function ($user, $token) use (&$resetUrl) {
+                $resetUrl = route('password.reset', ['token' => $token, 'email' => $user->email]);
+            }
+        );
+
+        if ($status !== PasswordBroker::RESET_LINK_SENT) {
+            // Don't reveal whether the email exists — always show the same
+            // generic confirmation, matching standard password-reset practice.
+            return back()->with('status', __('If an account exists for that email, a password reset link has been sent.'));
+        }
+
+        // No real mail transport is configured out of the box (MAIL_MAILER
+        // defaults to "log"), so in local/testing — or whenever mail isn't
+        // actually going anywhere — surface the real link directly instead
+        // of silently stranding the user, the same convenience already used
+        // for team invite passwords.
+        if (app()->environment(['local', 'testing']) || config('mail.default') === 'log') {
+            return back()->with('status', __('If an account exists for that email, a password reset link has been sent.'))
+                ->with('dev_reset_url', $resetUrl);
+        }
+
+        return back()->with('status', __('If an account exists for that email, a password reset link has been sent.'));
+    }
+
+    public function showResetPassword(Request $request, string $token)
+    {
+        return view('auth.reset-password', [
+            'token' => $token,
+            'email' => $request->query('email', ''),
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $data = $request->validate([
+            'token' => ['required'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        $status = PasswordBroker::reset(
+            $data,
+            function ($user, $password) {
+                $user->forceFill(['password' => Hash::make($password)])->setRememberToken(Str::random(60));
+                $user->save();
+            }
+        );
+
+        if ($status !== PasswordBroker::PASSWORD_RESET) {
+            return back()->withErrors(['email' => __(match ($status) {
+                PasswordBroker::INVALID_TOKEN => 'This password reset link is invalid or has expired.',
+                PasswordBroker::INVALID_USER => 'We could not find an account for that email.',
+                default => 'Unable to reset the password. Please request a new link.',
+            })])->onlyInput('email');
+        }
+
+        return redirect()->route('login')->with('status', __('Your password has been reset. You can now log in.'));
     }
 }

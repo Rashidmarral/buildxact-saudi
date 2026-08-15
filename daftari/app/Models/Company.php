@@ -9,6 +9,7 @@ class Company extends Model
 {
     protected $fillable = [
         'name', 'name_ar', 'slug', 'vat_number', 'cr_number', 'address', 'city',
+        'building_number', 'street_name', 'district', 'postal_code', 'additional_number',
         'phone', 'email', 'logo_path', 'stamp_path', 'invoice_prefix', 'next_invoice_number',
         'credit_note_prefix', 'next_credit_note_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
@@ -330,5 +331,77 @@ class Company extends Model
     public function zatcaSecretFor(string $environment): ?string
     {
         return $environment === 'production' ? $this->zatca_production_secret : $this->zatca_compliance_secret;
+    }
+
+    /**
+     * Everything ZATCA Phase 2 onboarding needs from the company profile
+     * before a CSR is worth generating — checked up front so a rejected
+     * OTP/CSR at the Fatoora Portal (or a technically-valid-but-useless CSR)
+     * doesn't surprise the user several steps in.
+     *
+     * @return array<int, array{key: string, label: string, ok: bool, hint: string}>
+     */
+    public function zatcaReadinessChecklist(): array
+    {
+        $vat = (string) $this->vat_number;
+        $vatValid = (bool) preg_match('/^3\d{13}3$/', $vat);
+
+        return [
+            [
+                'key' => 'vat_number',
+                'label' => __('VAT registration number'),
+                'ok' => $vatValid,
+                'hint' => $vat === ''
+                    ? __('Add your 15-digit VAT number in Settings.')
+                    : __('Saudi VAT numbers are 15 digits, starting and ending with 3 (e.g. 300012345600003).'),
+            ],
+            [
+                'key' => 'cr_number',
+                'label' => __('Commercial registration (CR) number'),
+                'ok' => filled($this->cr_number),
+                'hint' => __('Add your CR number in Settings.'),
+            ],
+            [
+                'key' => 'name',
+                'label' => __('Legal company name'),
+                'ok' => filled($this->name),
+                'hint' => __('Add your registered company name in Settings.'),
+            ],
+            [
+                'key' => 'street_name',
+                'label' => __('Street name'),
+                'ok' => filled($this->street_name ?: $this->address),
+                'hint' => __('Add your street name in Settings → Address.'),
+            ],
+            [
+                'key' => 'building_number',
+                'label' => __('Building number'),
+                'ok' => filled($this->building_number),
+                'hint' => __('Add your 4-digit National Address building number in Settings → Address.'),
+            ],
+            [
+                'key' => 'district',
+                'label' => __('District'),
+                'ok' => filled($this->district),
+                'hint' => __('Add your district (neighborhood) in Settings → Address.'),
+            ],
+            [
+                'key' => 'city',
+                'label' => __('City'),
+                'ok' => filled($this->city),
+                'hint' => __('Add your city in Settings → Address.'),
+            ],
+            [
+                'key' => 'postal_code',
+                'label' => __('Postal code'),
+                'ok' => filled($this->postal_code),
+                'hint' => __('Add your 5-digit postal code in Settings → Address.'),
+            ],
+        ];
+    }
+
+    public function isZatcaReady(): bool
+    {
+        return collect($this->zatcaReadinessChecklist())->every(fn (array $check) => $check['ok']);
     }
 }

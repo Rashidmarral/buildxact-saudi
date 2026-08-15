@@ -93,6 +93,7 @@
         <div class="sm:col-span-2">
             <label class="block text-sm font-medium text-slate-700">{{ __('Address') }}</label>
             <input type="text" name="address" value="{{ old('address', $company->address) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <p class="text-xs text-slate-400 mt-1">{{ __('Free-text address shown on printed documents. Fill in the National Address fields below for ZATCA compliance.') }}</p>
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Default branch') }}</label>
@@ -115,6 +116,32 @@
         </div>
     </div>
 
+    <h3 class="font-semibold text-slate-900 pt-2">{{ __('National Address (required for ZATCA)') }}</h3>
+    <p class="text-xs text-slate-500 -mt-3">{{ __('The structured Saudi National Address ZATCA requires on every tax invoice — separate from the free-text address above.') }}</p>
+    <div class="grid sm:grid-cols-2 gap-5">
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Building number') }}</label>
+            <input type="text" name="building_number" maxlength="20" value="{{ old('building_number', $company->building_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Street name') }}</label>
+            <input type="text" name="street_name" value="{{ old('street_name', $company->street_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('District') }}</label>
+            <input type="text" name="district" value="{{ old('district', $company->district) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Postal code') }}</label>
+            <input type="text" name="postal_code" maxlength="20" value="{{ old('postal_code', $company->postal_code) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Additional number') }}</label>
+            <input type="text" name="additional_number" maxlength="20" value="{{ old('additional_number', $company->additional_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <p class="text-xs text-slate-400 mt-1">{{ __('The 4-digit unique number completing your National Address.') }}</p>
+        </div>
+    </div>
+
     <h3 class="font-semibold text-slate-900 pt-2">{{ __('Number formatting') }}</h3>
     <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Negative numbers') }}</label>
@@ -127,6 +154,28 @@
 
     <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save settings') }}</button>
 </form>
+
+<div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6">
+    <h3 class="font-semibold text-slate-900">{{ __('Change password') }}</h3>
+    <p class="text-sm text-slate-500 mt-1">{{ __('Update the password you use to log in to your account.') }}</p>
+    <form method="POST" action="{{ route('app.settings.password') }}" class="mt-4 space-y-4 max-w-md">
+        @csrf
+        @method('PUT')
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Current password') }}</label>
+            <input type="password" name="current_password" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('New password') }}</label>
+            <input type="password" name="password" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Confirm new password') }}</label>
+            <input type="password" name="password_confirmation" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Update password') }}</button>
+    </form>
+</div>
 
 <div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between">
     <div>

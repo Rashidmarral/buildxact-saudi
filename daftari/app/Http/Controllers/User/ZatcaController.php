@@ -40,6 +40,7 @@ class ZatcaController extends Controller
             'stats' => $stats,
             'pendingCount' => $pendingCount,
             'environments' => ZatcaApiClient::BASE_URLS,
+            'readiness' => $company->zatcaReadinessChecklist(),
         ]);
     }
 
@@ -81,7 +82,17 @@ class ZatcaController extends Controller
     {
         $company = Auth::user()->company;
 
-        $result = $crypto->generateCsr($company);
+        if (! $company->isZatcaReady()) {
+            return back()->with('error', __('Your company profile is missing information ZATCA requires (VAT number, CR number, or National Address). Complete the readiness checklist below, then generate the CSR.'));
+        }
+
+        try {
+            $result = $crypto->generateCsr($company);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->with('error', __('Could not generate the CSR: :error. This is almost always a server-side OpenSSL configuration issue, not your data — most commonly PHP cannot locate its openssl.cnf file (very common on Windows/XAMPP), or the OpenSSL build on this server does not support the secp256k1 curve ZATCA requires. Check the openssl section of php.ini (or set the OPENSSL_CONF environment variable to a valid openssl.cnf path) and try again.', ['error' => $e->getMessage()]));
+        }
 
         $company->update([
             'zatca_csr' => $result['csr'],

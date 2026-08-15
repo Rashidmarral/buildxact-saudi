@@ -8,6 +8,7 @@
     $steps = ['not_started', 'csr_generated', 'compliance_pending', 'compliance_verified', 'onboarded'];
     $stepIndex = array_search($status, $steps, true);
     $stepIndex = $stepIndex === false ? 0 : $stepIndex;
+    $isReady = collect($readiness)->every(fn ($check) => $check['ok']);
 @endphp
 
 <div class="flex items-center justify-between mb-6">
@@ -47,6 +48,42 @@
 
 <div class="grid lg:grid-cols-3 gap-6">
     <div class="lg:col-span-2 space-y-6">
+        @if ($stepIndex < 1)
+            <div class="bg-white rounded-xl border {{ $isReady ? 'border-emerald-100' : 'border-amber-200' }} p-6">
+                <div class="flex items-center justify-between mb-1">
+                    <h3 class="font-semibold text-slate-900">{{ __('Before you start: readiness check') }}</h3>
+                    @if ($isReady)
+                        <span class="text-xs font-semibold text-emerald-600">✓ {{ __('Ready') }}</span>
+                    @else
+                        <span class="text-xs font-semibold text-amber-600">{{ __('Action needed') }}</span>
+                    @endif
+                </div>
+                <p class="text-xs text-slate-500 mb-4">{{ __('ZATCA requires this information on every tax invoice. Fix anything marked below in Settings before generating a CSR — an incomplete profile is the most common reason CSR generation or Fatoora Portal submission fails.') }}</p>
+                <ul class="space-y-2">
+                    @foreach ($readiness as $check)
+                        <li class="flex items-start gap-2 text-sm">
+                            <span class="mt-0.5 shrink-0 {{ $check['ok'] ? 'text-emerald-600' : 'text-amber-600' }}">
+                                @if ($check['ok'])
+                                    @include('partials.icon', ['name' => 'check-circle', 'class' => 'h-4 w-4'])
+                                @else
+                                    @include('partials.icon', ['name' => 'clock', 'class' => 'h-4 w-4'])
+                                @endif
+                            </span>
+                            <span>
+                                <span class="font-medium {{ $check['ok'] ? 'text-slate-700' : 'text-slate-800' }}">{{ $check['label'] }}</span>
+                                @unless ($check['ok'])
+                                    <span class="block text-xs text-slate-500">{{ $check['hint'] }}</span>
+                                @endunless
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+                @unless ($isReady)
+                    <a href="{{ route('app.settings.index') }}" class="mt-4 inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Go to Settings') }}</a>
+                @endunless
+            </div>
+        @endif
+
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <h3 class="font-semibold text-slate-900 mb-1">{{ __('Onboarding steps') }}</h3>
             <p class="text-xs text-slate-500 mb-4">{{ __('Each ZATCA environment (Developer, Simulation, Production) has its own credentials. Switching environments resets this checklist.') }}</p>
@@ -64,7 +101,10 @@
                     @else
                         <form method="POST" action="{{ route('app.zatca.csr') }}" class="mt-3">
                             @csrf
-                            <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Generate CSR') }}</button>
+                            <button type="submit" {{ $isReady ? '' : 'disabled' }} class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed">{{ __('Generate CSR') }}</button>
+                            @unless ($isReady)
+                                <span class="text-xs text-amber-600 ms-2">{{ __('Complete the readiness check above first.') }}</span>
+                            @endunless
                         </form>
                     @endif
                 </div>
