@@ -7,26 +7,26 @@
     <meta name="description" content="{{ __('Daftari is a subscription accounting and VAT e-invoicing platform built for Saudi businesses — invoices, expenses, VAT reports, and ZATCA-ready QR codes.') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-white text-slate-800 antialiased">
-    <header class="border-b border-slate-100">
-        <div class="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-            <a href="{{ route('home') }}" class="flex items-center gap-2 font-bold text-xl text-brand-800">
-                <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">د</span>
+<body class="bg-white text-slate-800 antialiased" x-data="{ mobileOpen: false }">
+    <header class="sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-md">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <a href="{{ route('home') }}" class="flex items-center gap-2 text-xl font-bold text-brand-800">
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-glow">د</span>
                 Daftari
             </a>
-            <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-                <a href="{{ route('features') }}" class="hover:text-brand-700">{{ __('Features') }}</a>
-                <a href="{{ route('pricing') }}" class="hover:text-brand-700">{{ __('Pricing') }}</a>
-                <a href="{{ route('compliance') }}" class="hover:text-brand-700">{{ __('Compliance') }}</a>
-                <a href="{{ route('about') }}" class="hover:text-brand-700">{{ __('About') }}</a>
-                <a href="{{ route('contact') }}" class="hover:text-brand-700">{{ __('Contact') }}</a>
-                <div class="relative group">
-                    <button type="button" class="flex items-center gap-1 hover:text-brand-700">
+            <nav class="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+                <a href="{{ route('features') }}" class="transition-colors hover:text-brand-700">{{ __('Features') }}</a>
+                <a href="{{ route('pricing') }}" class="transition-colors hover:text-brand-700">{{ __('Pricing') }}</a>
+                <a href="{{ route('compliance') }}" class="transition-colors hover:text-brand-700">{{ __('Compliance') }}</a>
+                <a href="{{ route('about') }}" class="transition-colors hover:text-brand-700">{{ __('About') }}</a>
+                <a href="{{ route('contact') }}" class="transition-colors hover:text-brand-700">{{ __('Contact') }}</a>
+                <div class="group relative">
+                    <button type="button" class="flex items-center gap-1 transition-colors hover:text-brand-700">
                         {{ __('Free Tools & Templates') }}
-                        <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                        <svg class="h-3 w-3 transition-transform group-hover:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
                     </button>
-                    <div class="invisible opacity-0 group-hover:visible group-hover:opacity-100 transition absolute start-0 top-full pt-2 w-56 z-20">
-                        <div class="rounded-xl border border-slate-100 bg-white shadow-lg py-2">
+                    <div class="invisible absolute start-0 top-full z-20 w-56 pt-2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                        <div class="animate-scale-in rounded-xl border border-slate-100 bg-white py-2 shadow-card-hover">
                             <a href="{{ route('tools.index') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">{{ __('All accounting tools') }}</a>
                             <a href="{{ route('tools.vat') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">{{ __('VAT calculator') }}</a>
                             <a href="{{ route('tools.zakat') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">{{ __('Zakat calculator') }}</a>
@@ -39,34 +39,58 @@
                     </div>
                 </div>
             </nav>
-            <div class="flex items-center gap-3">
-                <a href="{{ route('locale.switch', app()->getLocale() === 'ar' ? 'en' : 'ar') }}" class="text-sm text-slate-500 hover:text-brand-700">
+            <div class="hidden items-center gap-3 md:flex">
+                <a href="{{ route('locale.switch', app()->getLocale() === 'ar' ? 'en' : 'ar') }}" class="text-sm text-slate-500 transition-colors hover:text-brand-700">
                     {{ app()->getLocale() === 'ar' ? 'EN' : 'العربية' }}
                 </a>
                 @auth
-                    <a href="{{ auth()->user()->isSuperAdmin() ? route('admin.dashboard') : route('app.dashboard') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Go to Dashboard') }}</a>
+                    <a href="{{ auth()->user()->isSuperAdmin() ? route('admin.dashboard') : route('app.dashboard') }}" class="btn-shine rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-card">{{ __('Go to Dashboard') }}</a>
                 @else
-                    <a href="{{ route('login') }}" class="text-sm font-medium text-slate-600 hover:text-brand-700">{{ __('Log in') }}</a>
-                    <a href="{{ route('register') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Start free trial') }}</a>
+                    <a href="{{ route('login') }}" class="text-sm font-medium text-slate-600 transition-colors hover:text-brand-700">{{ __('Log in') }}</a>
+                    <a href="{{ route('register') }}" class="btn-shine rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-card">{{ __('Start free trial') }}</a>
                 @endauth
             </div>
+            <button type="button" @click="mobileOpen = !mobileOpen" class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:hidden">
+                <svg x-show="!mobileOpen" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <svg x-show="mobileOpen" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="display:none"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+        </div>
+
+        <div x-show="mobileOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="border-t border-slate-100 bg-white px-6 py-4 md:hidden" style="display:none">
+            <nav class="flex flex-col gap-1 text-sm font-medium text-slate-600">
+                <a href="{{ route('features') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Features') }}</a>
+                <a href="{{ route('pricing') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Pricing') }}</a>
+                <a href="{{ route('compliance') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Compliance') }}</a>
+                <a href="{{ route('about') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('About') }}</a>
+                <a href="{{ route('contact') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Contact') }}</a>
+                <a href="{{ route('tools.index') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Free Tools & Templates') }}</a>
+                <a href="{{ route('glossary') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Glossary') }}</a>
+                <div class="my-2 border-t border-slate-100"></div>
+                <a href="{{ route('locale.switch', app()->getLocale() === 'ar' ? 'en' : 'ar') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ app()->getLocale() === 'ar' ? 'English' : 'العربية' }}</a>
+                @auth
+                    <a href="{{ auth()->user()->isSuperAdmin() ? route('admin.dashboard') : route('app.dashboard') }}" class="mt-2 rounded-lg bg-brand-600 px-3 py-2.5 text-center font-semibold text-white">{{ __('Go to Dashboard') }}</a>
+                @else
+                    <a href="{{ route('login') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Log in') }}</a>
+                    <a href="{{ route('register') }}" class="mt-2 rounded-lg bg-brand-600 px-3 py-2.5 text-center font-semibold text-white">{{ __('Start free trial') }}</a>
+                @endauth
+            </nav>
         </div>
     </header>
 
     <main>
         @if (session('status'))
             <div class="mx-auto max-w-7xl px-6 pt-4">
-                <div class="rounded-lg bg-brand-50 border border-brand-200 text-brand-800 px-4 py-3 text-sm">{{ session('status') }}</div>
+                <div class="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">{{ session('status') }}</div>
             </div>
         @endif
         @yield('content')
     </main>
 
     <footer class="mt-24 border-t border-slate-100 bg-slate-50">
-        <div class="mx-auto max-w-7xl px-6 py-12 grid grid-cols-2 md:grid-cols-5 gap-8 text-sm">
+        <div class="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-12 text-sm md:grid-cols-5">
             <div class="col-span-2 md:col-span-1">
-                <div class="flex items-center gap-2 font-bold text-lg text-brand-800">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-sm">د</span>
+                <div class="flex items-center gap-2 text-lg font-bold text-brand-800">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm text-white">د</span>
                     Daftari
                 </div>
                 <p class="mt-3 text-slate-500">{{ __('Subscription accounting & VAT e-invoicing for Saudi businesses.') }}</p>

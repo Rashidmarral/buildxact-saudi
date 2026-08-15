@@ -1,3 +1,161 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    }
+
+    /* Modern baseline for every text input, select and textarea in the app —
+       applied globally so the hundreds of existing forms upgrade at once. */
+    input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']),
+    select,
+    textarea {
+        @apply px-3.5 py-2.5 text-sm text-slate-900 shadow-soft transition-all duration-200 ease-smooth placeholder:text-slate-400;
+    }
+
+    input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):hover,
+    select:hover,
+    textarea:hover {
+        @apply border-slate-300;
+    }
+
+    input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):focus,
+    select:focus,
+    textarea:focus {
+        @apply shadow-glow outline-none;
+    }
+
+    input:disabled,
+    select:disabled,
+    textarea:disabled {
+        @apply cursor-not-allowed bg-slate-50 text-slate-400 shadow-none;
+    }
+
+    select {
+        @apply appearance-none bg-no-repeat pe-10;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2394a3b8'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+        background-position: right 0.75rem center;
+        background-size: 1.1em;
+    }
+
+    [dir='rtl'] select {
+        background-position: left 0.75rem center;
+    }
+
+    input[type='checkbox'],
+    input[type='radio'] {
+        @apply text-brand-600 transition-all duration-150 focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-0;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply rounded-full bg-slate-300;
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-slate-400;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-thumb {
+        @apply bg-white/10;
+        background-clip: content-box;
+    }
+}
+
+@layer components {
+    /* Scroll-reveal, driven by the x-reveal Alpine directive */
+    .reveal-init {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .reveal-in {
+        animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .card-hover {
+        @apply transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-card-hover;
+    }
+
+    .btn-shine {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-shine::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, transparent 20%, rgb(255 255 255 / 0.25) 35%, transparent 50%);
+        background-size: 200% 100%;
+        background-position: 200% 0;
+        transition: background-position 0.6s ease;
+    }
+
+    .btn-shine:hover::after {
+        background-position: -20% 0;
+    }
+
+    .bg-grid {
+        background-image: linear-gradient(rgb(15 23 42 / 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgb(15 23 42 / 0.04) 1px, transparent 1px);
+        background-size: 32px 32px;
+    }
+
+    .text-gradient {
+        @apply bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-500 bg-clip-text text-transparent;
+    }
+
+    /* Modern lift/shadow treatment for the app's existing primary (brand-600) and
+       secondary (bordered) buttons — scoped to real <a>/<button> elements only,
+       so avatars, badges and static chips using the same colors stay untouched. */
+    a.bg-brand-600,
+    button.bg-brand-600,
+    a[class*='hover:bg-brand-700'],
+    button[class*='hover:bg-brand-700'],
+    a[class*='hover:border-slate-300'],
+    button[class*='hover:border-slate-300'] {
+        @apply shadow-soft transition-all duration-200 ease-smooth;
+    }
+
+    a.bg-brand-600:hover,
+    button.bg-brand-600:hover,
+    a[class*='hover:bg-brand-700']:hover,
+    button[class*='hover:bg-brand-700']:hover {
+        @apply -translate-y-0.5 shadow-card;
+    }
+
+    a[class*='hover:border-slate-300']:hover,
+    button[class*='hover:border-slate-300']:hover {
+        @apply -translate-y-0.5 shadow-soft;
+    }
+
+    a.bg-brand-600:active,
+    button.bg-brand-600:active {
+        @apply translate-y-0 shadow-soft;
+    }
+
+    /* Give the existing white "card" containers used throughout the app a soft
+       elevated shadow instead of a flat border-only look. */
+    [class*='rounded-xl'][class*='border-slate-100'],
+    [class*='rounded-2xl'][class*='border-slate-100'] {
+        @apply shadow-card;
+    }
+}
