@@ -19,33 +19,7 @@
          bank + totals footer, notes list, stamp. --}}
     <div class="border-2 rounded-lg p-1 mb-6 h-3" style="border-color: {{ $accent }}"></div>
 
-    <div class="flex items-start justify-between gap-6">
-        <div class="text-sm leading-relaxed text-slate-700">
-            <h1 class="text-base font-bold text-slate-900">{{ $company->name }}</h1>
-            @if ($company->address)<p>{{ $company->address }}</p>@endif
-            @if ($company->city)<p>{{ $company->city }}</p>@endif
-            <p>{{ __('Kingdom of Saudi Arabia') }}</p>
-            @if ($company->email)<p>{{ $company->email }}</p>@endif
-            @if ($company->phone)<p>{{ $company->phone }}</p>@endif
-            @if ($company->vat_number)<p>{{ __('VAT number') }} {{ $company->vat_number }}</p>@endif
-            @if ($company->cr_number)<p>{{ __('CR Number') }} {{ $company->cr_number }}</p>@endif
-        </div>
-
-        @if ($showLogo && $company->logo_path)
-            <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-24 w-24 shrink-0 rounded-full object-cover">
-        @endif
-
-        <div class="text-sm leading-relaxed text-slate-700 text-end" dir="rtl">
-            @if ($company->name_ar)<h1 class="text-base font-bold text-slate-900">{{ $company->name_ar }}</h1>@endif
-            @if ($company->address)<p>{{ $company->address }}</p>@endif
-            @if ($company->city)<p>{{ $company->city }}</p>@endif
-            <p>المملكة العربية السعودية</p>
-            @if ($company->email)<p>{{ $company->email }}</p>@endif
-            @if ($company->phone)<p>{{ $company->phone }}</p>@endif
-            @if ($company->vat_number)<p>رقم التسجيل الضريبي {{ $company->vat_number }}</p>@endif
-            @if ($company->cr_number)<p>رقم السجل التجاري {{ $company->cr_number }}</p>@endif
-        </div>
-    </div>
+    @include('documents.print.bilingual-header', ['company' => $company, 'showLogo' => $showLogo])
 
     <div class="mt-8 pb-4 border-b-2 border-slate-800 text-center">
         <h2 class="text-3xl font-bold text-slate-900"><span dir="rtl">{{ $doc['type_label_ar'] }}</span> &nbsp; {{ $doc['type_label'] }}</h2>
@@ -63,6 +37,13 @@
                 <td class="px-3 py-2 text-center text-slate-600">{{ $doc['party']->vat_number ?: '—' }}</td>
                 <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم التسجيل الضريبي</td>
             </tr>
+            @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
+                <tr class="border-b border-slate-300">
+                    <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Address') }}</td>
+                    <td class="px-3 py-2 text-center text-slate-600">{{ $doc['party']->fullAddress() }}</td>
+                    <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">العنوان</td>
+                </tr>
+            @endif
             <tr class="border-b border-slate-300">
                 <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Number') }}</td>
                 <td class="px-3 py-2 text-center text-slate-600">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ $doc['date']->format('Y-m-d') }}</td>
@@ -167,14 +148,11 @@
          already issue. --}}
     @if ($template && $template->letterhead_path)
         <img src="{{ Storage::url($template->letterhead_path) }}" alt="{{ $company->name }}" class="w-full object-contain">
-    @elseif ($showLogo && $company->logo_path)
-        <div class="flex items-center gap-3">
-            <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-16 w-16 rounded-lg object-cover">
-            <div>
-                <h1 class="text-xl font-bold text-slate-900">{{ $company->name }}</h1>
-                @if ($company->vat_number)<p class="text-xs text-slate-500">{{ __('VAT') }}: {{ $company->vat_number }}</p>@endif
-            </div>
-        </div>
+    @else
+        {{-- No letterhead image uploaded yet — fall back to the same
+             data-driven bilingual header (English left, Arabic right,
+             logo centered) rather than requiring an upload. --}}
+        @include('documents.print.bilingual-header', ['company' => $company, 'showLogo' => $showLogo])
     @endif
 
     <h2 class="mt-4 text-center text-base font-bold uppercase tracking-wide text-slate-900">
@@ -201,6 +179,12 @@
                 <tr>
                     <td class="py-1 font-semibold text-slate-600">{{ __('Ref No') }}</td>
                     <td class="py-1 text-slate-800">{{ $doc['ref_no'] }}</td>
+                </tr>
+            @endif
+            @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
+                <tr>
+                    <td class="py-1 font-semibold text-slate-600">{{ __('Address') }}</td>
+                    <td class="py-1 text-slate-800" colspan="3">{{ $doc['party']->fullAddress() }}</td>
                 </tr>
             @endif
         </tbody>
@@ -306,6 +290,7 @@
             <h3 class="text-xs font-semibold uppercase text-slate-400">{{ $doc['party_label'] }}</h3>
             <p class="mt-1 font-medium text-slate-800">{{ $doc['party']->name }}</p>
             @if ($doc['party']->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
+            @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<p class="text-sm text-slate-500">{{ $doc['party']->fullAddress() }}</p>@endif
             @if (!empty($doc['party']->email))<p class="text-sm text-slate-500">{{ $doc['party']->email }}</p>@endif
         </div>
         <div class="text-end">

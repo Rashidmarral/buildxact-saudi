@@ -13,23 +13,10 @@
 
 @if ($layout === 'custom_letterhead' && $template?->letterhead_path)
     <img src="{{ Storage::url($template->letterhead_path) }}" alt="{{ $company->name }}" class="w-full object-contain mb-6">
-@elseif ($layout === 'bilingual_classic')
+@elseif ($layout === 'bilingual_classic' || $layout === 'custom_letterhead')
     <div class="border-2 rounded-lg mb-6 h-3" style="border-color: {{ $accent }}"></div>
-    <div class="flex items-center justify-between gap-6 pb-4 border-b-2 border-slate-800">
-        <div class="text-sm leading-relaxed text-slate-700">
-            <h1 class="text-base font-bold text-slate-900">{{ $company->name }}</h1>
-            @if ($company->vat_number)<p>{{ __('VAT number') }} {{ $company->vat_number }}</p>@endif
-        </div>
-        @if ($showLogo && $company->logo_path)
-            <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-16 w-16 shrink-0 rounded-full object-cover">
-        @endif
-        @if ($company->name_ar)
-            <div class="text-sm leading-relaxed text-slate-700 text-end" dir="rtl">
-                <h1 class="text-base font-bold text-slate-900">{{ $company->name_ar }}</h1>
-                @if ($company->vat_number)<p>رقم التسجيل الضريبي {{ $company->vat_number }}</p>@endif
-            </div>
-        @endif
-    </div>
+    @include('documents.print.bilingual-header', ['company' => $company, 'showLogo' => $showLogo])
+    <div class="border-b-2 border-slate-800 mt-4"></div>
 @else
     <div class="flex items-center justify-between pb-4 border-b {{ $layout === 'bordered' ? 'border-2' : 'border-slate-100' }}" @if ($layout === 'bordered') style="border-color: {{ $accent }}" @endif>
         <div class="flex items-center gap-3">
