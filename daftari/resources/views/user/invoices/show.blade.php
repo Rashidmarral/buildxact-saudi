@@ -35,6 +35,12 @@
             <a href="{{ route('app.invoices.xml', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download XML') }}</a>
         @endif
         <a href="{{ route('app.invoices.pdf', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
+        @if ($invoice->client->email)
+            <form method="POST" action="{{ route('app.invoices.email', $invoice) }}">
+                @csrf
+                <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Email to client') }}</button>
+            </form>
+        @endif
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>

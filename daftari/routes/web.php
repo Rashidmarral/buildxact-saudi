@@ -105,6 +105,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::delete('invoices/{invoice}/attachments/{attachment}', [InvoiceController::class, 'destroyAttachment'])->name('invoices.attachments.destroy');
         Route::get('invoices/{invoice}/xml', [InvoiceController::class, 'downloadXml'])->name('invoices.xml');
         Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
+        Route::post('invoices/{invoice}/email', [InvoiceController::class, 'emailInvoice'])->name('invoices.email');
 
         Route::get('credit-notes/eligible-invoices', [CreditNoteController::class, 'eligibleInvoices'])->name('credit-notes.eligible-invoices');
         Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);
@@ -121,6 +122,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');
         Route::post('quotations/{quotation}/attachments', [QuotationController::class, 'storeAttachment'])->name('quotations.attachments.store');
         Route::delete('quotations/{quotation}/attachments/{attachment}', [QuotationController::class, 'destroyAttachment'])->name('quotations.attachments.destroy');
+        Route::get('quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
+        Route::post('quotations/{quotation}/email', [QuotationController::class, 'emailQuotation'])->name('quotations.email');
     });
 
     Route::middleware('permission:expenses')->group(function () {

@@ -35,6 +35,13 @@
         @if ($quotation->status === 'converted' && $quotation->convertedInvoice)
             <a href="{{ route('app.invoices.show', $quotation->convertedInvoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('View invoice') }}</a>
         @endif
+        <a href="{{ route('app.quotations.pdf', $quotation) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
+        @if ($quotation->client->email)
+            <form method="POST" action="{{ route('app.quotations.email', $quotation) }}">
+                @csrf
+                <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Email to client') }}</button>
+            </form>
+        @endif
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>

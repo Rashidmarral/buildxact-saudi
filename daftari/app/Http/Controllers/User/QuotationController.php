@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Mail\QuotationMail;
 use App\Models\Attachment;
 use App\Models\BankAccount;
 use App\Models\Client;
@@ -11,9 +12,11 @@ use App\Models\Item;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Salesperson;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -110,6 +113,52 @@ class QuotationController extends Controller
         $template = $quotation->company->defaultTemplateFor($quotation->type);
 
         return view('user.quotations.show', compact('quotation', 'template'));
+    }
+
+    public function downloadPdf(Quotation $quotation)
+    {
+        return $this->buildPdf($quotation)->download($quotation->quotation_number.'.pdf');
+    }
+
+    public function emailQuotation(Quotation $quotation)
+    {
+        $recipient = $quotation->client->email;
+
+        if (! $recipient) {
+            return back()->withErrors(['quotation' => __('This client has no email address on file. Add one on the client record first.')]);
+        }
+
+        $pdfBinary = $this->buildPdf($quotation)->output();
+
+        Mail::to($recipient)->send(new QuotationMail($quotation, $pdfBinary));
+
+        return back()->with('status', __('Quotation emailed to :email.', ['email' => $recipient]));
+    }
+
+    private function buildPdf(Quotation $quotation)
+    {
+        $quotation->loadMissing('items', 'client');
+
+        $doc = [
+            'type_label' => $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
+            'number' => $quotation->quotation_number,
+            'date_label' => __('Issued'),
+            'date' => $quotation->issue_date,
+            'party_label' => __('To'),
+            'party' => $quotation->client,
+            'lines' => $quotation->items,
+            'subtotal' => $quotation->subtotal,
+            'discount_total' => $quotation->discount_total,
+            'vat_total' => $quotation->vat_total,
+            'total' => $quotation->total,
+            'notes' => $quotation->notes,
+        ];
+
+        return Pdf::loadView('documents.print.pdf', [
+            'doc' => $doc,
+            'company' => $quotation->company,
+            'zatcaCleared' => false,
+        ]);
     }
 
     public function edit(Quotation $quotation)

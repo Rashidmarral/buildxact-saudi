@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SyncInvoiceToZatca;
+use App\Mail\InvoiceMail;
 use App\Models\Attachment;
 use App\Models\BankAccount;
 use App\Models\Client;
@@ -19,6 +20,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -105,7 +107,27 @@ class InvoiceController extends Controller
 
     public function downloadPdf(Invoice $invoice)
     {
-        $invoice->load('items', 'client');
+        return $this->buildPdf($invoice)->download($invoice->invoice_number.'.pdf');
+    }
+
+    public function emailInvoice(Invoice $invoice, Request $request)
+    {
+        $recipient = $invoice->client->email;
+
+        if (! $recipient) {
+            return back()->withErrors(['invoice' => __('This client has no email address on file. Add one on the client record first.')]);
+        }
+
+        $pdfBinary = $this->buildPdf($invoice)->output();
+
+        Mail::to($recipient)->send(new InvoiceMail($invoice, $pdfBinary));
+
+        return back()->with('status', __('Invoice emailed to :email.', ['email' => $recipient]));
+    }
+
+    private function buildPdf(Invoice $invoice)
+    {
+        $invoice->loadMissing('items', 'client');
 
         $doc = [
             'type_label' => __('Tax Invoice'),
@@ -131,13 +153,11 @@ class InvoiceController extends Controller
             'notes' => $invoice->notes,
         ];
 
-        $pdf = Pdf::loadView('documents.print.pdf', [
+        return Pdf::loadView('documents.print.pdf', [
             'doc' => $doc,
             'company' => $invoice->company,
             'zatcaCleared' => $invoice->isZatcaLocked(),
         ]);
-
-        return $pdf->download($invoice->invoice_number.'.pdf');
     }
 
     public function downloadXml(Invoice $invoice)
