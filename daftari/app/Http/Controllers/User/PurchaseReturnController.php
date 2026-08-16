@@ -7,6 +7,7 @@ use App\Models\Bill;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -147,8 +148,42 @@ class PurchaseReturnController extends Controller
     public function show(PurchaseReturn $purchaseReturn)
     {
         $purchaseReturn->load('items', 'supplier', 'bill');
+        $template = $purchaseReturn->company->defaultTemplateFor('bill');
 
-        return view('user.purchase-returns.show', compact('purchaseReturn'));
+        return view('user.purchase-returns.show', compact('purchaseReturn', 'template'));
+    }
+
+    public function downloadPdf(PurchaseReturn $purchaseReturn, ChromiumPdfRenderer $renderer)
+    {
+        $purchaseReturn->loadMissing('items', 'supplier', 'bill');
+
+        $doc = [
+            'type_label' => __('Purchase Return'),
+            'type_label_ar' => 'مرتجع مشتريات',
+            'number' => $purchaseReturn->return_number,
+            'date_label' => __('Issued'),
+            'date' => $purchaseReturn->issue_date,
+            'ref_no' => $purchaseReturn->bill->bill_number,
+            'party_label' => __('Return to'),
+            'party_label_ar' => 'المورد',
+            'party' => $purchaseReturn->supplier,
+            'lines' => $purchaseReturn->items,
+            'subtotal' => $purchaseReturn->subtotal,
+            'vat_total' => $purchaseReturn->vat_total,
+            'total' => $purchaseReturn->total,
+            'notes' => $purchaseReturn->reason,
+        ];
+
+        $pdf = $renderer->renderDocument('documents.print.standalone', [
+            'doc' => $doc,
+            'company' => $purchaseReturn->company,
+            'template' => $purchaseReturn->company->defaultTemplateFor('bill'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$purchaseReturn->return_number.'.pdf"',
+        ]);
     }
 
     public function void(PurchaseReturn $purchaseReturn, LedgerPostingService $ledger)

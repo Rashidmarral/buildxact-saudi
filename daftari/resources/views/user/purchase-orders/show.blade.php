@@ -30,6 +30,7 @@
         @if ($order->status === 'converted' && $order->convertedBill)
             <a href="{{ route('app.bills.show', $order->convertedBill) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('View bill') }}</a>
         @endif
+        <a href="{{ route('app.purchase-orders.pdf', $order) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>

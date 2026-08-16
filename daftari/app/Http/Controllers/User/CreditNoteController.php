@@ -8,7 +8,7 @@ use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\Invoice;
 use App\Services\Accounting\LedgerPostingService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -153,20 +153,24 @@ class CreditNoteController extends Controller
     public function show(CreditNote $creditNote)
     {
         $creditNote->load('items', 'client', 'invoice');
+        $template = $creditNote->company->defaultTemplateFor('invoice');
 
-        return view('user.credit-notes.show', compact('creditNote'));
+        return view('user.credit-notes.show', compact('creditNote', 'template'));
     }
 
-    public function downloadPdf(CreditNote $creditNote)
+    public function downloadPdf(CreditNote $creditNote, ChromiumPdfRenderer $renderer)
     {
-        $creditNote->load('items', 'client');
+        $creditNote->load('items', 'client', 'invoice');
 
         $doc = [
             'type_label' => __('Credit Note'),
+            'type_label_ar' => 'إشعار دائن',
             'number' => $creditNote->credit_note_number,
             'date_label' => __('Issued'),
             'date' => $creditNote->issue_date,
+            'ref_no' => $creditNote->invoice->invoice_number,
             'party_label' => __('Credit to'),
+            'party_label_ar' => 'العميل',
             'party' => $creditNote->client,
             'qr_code' => $creditNote->qr_code,
             'lines' => $creditNote->items,
@@ -176,13 +180,16 @@ class CreditNoteController extends Controller
             'notes' => $creditNote->reason,
         ];
 
-        $pdf = Pdf::loadView('documents.print.pdf', [
+        $pdf = $renderer->renderDocument('documents.print.standalone', [
             'doc' => $doc,
             'company' => $creditNote->company,
-            'zatcaCleared' => $creditNote->isZatcaSynced(),
+            'template' => $creditNote->company->defaultTemplateFor('invoice'),
         ]);
 
-        return $pdf->download($creditNote->credit_note_number.'.pdf');
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$creditNote->credit_note_number.'.pdf"',
+        ]);
     }
 
     public function downloadXml(CreditNote $creditNote)

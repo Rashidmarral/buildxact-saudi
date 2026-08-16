@@ -25,6 +25,7 @@
         @if ($bill->status === 'posted' && $bill->remainingReturnableTotal() > 0.01)
             <a href="{{ route('app.purchase-returns.create') }}?bill_id={{ $bill->id }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Issue purchase return') }}</a>
         @endif
+        <a href="{{ route('app.bills.pdf', $bill) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>

@@ -16,7 +16,7 @@ use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\Warehouse;
 use App\Services\Accounting\LedgerPostingService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -105,12 +105,17 @@ class InvoiceController extends Controller
         return view('user.invoices.show', compact('invoice', 'template'));
     }
 
-    public function downloadPdf(Invoice $invoice)
+    public function downloadPdf(Invoice $invoice, ChromiumPdfRenderer $renderer)
     {
-        return $this->buildPdf($invoice)->download($invoice->invoice_number.'.pdf');
+        $pdf = $renderer->renderDocument('documents.print.standalone', $this->pdfData($invoice));
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$invoice->invoice_number.'.pdf"',
+        ]);
     }
 
-    public function emailInvoice(Invoice $invoice, Request $request)
+    public function emailInvoice(Invoice $invoice, Request $request, ChromiumPdfRenderer $renderer)
     {
         $recipient = $invoice->client->email;
 
@@ -118,23 +123,30 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => __('This client has no email address on file. Add one on the client record first.')]);
         }
 
-        $pdfBinary = $this->buildPdf($invoice)->output();
+        $pdfBinary = $renderer->renderDocument('documents.print.standalone', $this->pdfData($invoice));
 
         Mail::to($recipient)->send(new InvoiceMail($invoice, $pdfBinary));
 
         return back()->with('status', __('Invoice emailed to :email.', ['email' => $recipient]));
     }
 
-    private function buildPdf(Invoice $invoice)
+    private function pdfData(Invoice $invoice): array
     {
-        $invoice->loadMissing('items', 'client');
+        $invoice->loadMissing('items', 'client', 'bankAccount');
+
+        $bankAccount = $invoice->bankAccount ?? $invoice->company->defaultBankAccount();
 
         $doc = [
             'type_label' => __('Tax Invoice'),
+            'type_label_ar' => 'فاتورة ضريبية',
             'number' => $invoice->invoice_number,
             'date_label' => __('Issued'),
             'date' => $invoice->issue_date,
+            'date2_label' => __('Due'),
+            'date2_label_ar' => 'الاستحقاق',
+            'date2' => $invoice->due_date,
             'party_label' => __('Bill to'),
+            'party_label_ar' => 'العميل',
             'party' => $invoice->client,
             'qr_code' => $invoice->qr_code,
             'lines' => $invoice->items,
@@ -150,14 +162,16 @@ class InvoiceController extends Controller
                 ['label' => __('Paid'), 'value' => $invoice->amount_paid],
                 ['label' => __('Balance due'), 'value' => $invoice->balanceDue()],
             ])),
+            'bank_account' => $bankAccount,
+            'salesperson' => $invoice->salesperson,
             'notes' => $invoice->notes,
         ];
 
-        return Pdf::loadView('documents.print.pdf', [
+        return [
             'doc' => $doc,
             'company' => $invoice->company,
-            'zatcaCleared' => $invoice->isZatcaLocked(),
-        ]);
+            'template' => $invoice->company->defaultTemplateFor('invoice'),
+        ];
     }
 
     public function downloadXml(Invoice $invoice)

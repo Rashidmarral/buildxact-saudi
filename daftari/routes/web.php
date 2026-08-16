@@ -175,8 +175,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
+        Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->name('receipt-vouchers.pdf');
         Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
+        Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->name('payment-vouchers.pdf');
         Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
     });
 
@@ -190,6 +192,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
         Route::post('bills/{bill}/attachments', [BillController::class, 'storeAttachment'])->name('bills.attachments.store');
         Route::delete('bills/{bill}/attachments/{attachment}', [BillController::class, 'destroyAttachment'])->name('bills.attachments.destroy');
+        Route::get('bills/{bill}/pdf', [BillController::class, 'downloadPdf'])->name('bills.pdf');
 
         Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
@@ -197,12 +200,14 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
         Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
         Route::delete('purchase-orders/{purchaseOrder}/attachments/{attachment}', [PurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
+        Route::get('purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
 
         Route::resource('customs-declarations', CustomsDeclarationController::class)->only(['index', 'store', 'destroy']);
 
         Route::get('purchase-returns/eligible-bills', [PurchaseReturnController::class, 'eligibleBills'])->name('purchase-returns.eligible-bills');
         Route::resource('purchase-returns', PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('purchase-returns/{purchaseReturn}/void', [PurchaseReturnController::class, 'void'])->name('purchase-returns.void');
+        Route::get('purchase-returns/{purchaseReturn}/pdf', [PurchaseReturnController::class, 'downloadPdf'])->name('purchase-returns.pdf');
     });
 
     Route::middleware('permission:inventory')->group(function () {

@@ -10,6 +10,7 @@ use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,23 @@ class PaymentVoucherController extends Controller
         $vouchers = PaymentVoucher::with('bankAccount', 'client', 'supplier')->latest('date')->latest('id')->paginate(20);
 
         return view('user.payment-vouchers.index', compact('vouchers'));
+    }
+
+    public function downloadPdf(PaymentVoucher $paymentVoucher, ChromiumPdfRenderer $renderer)
+    {
+        $paymentVoucher->loadMissing('bankAccount', 'bill', 'expense', 'counterAccount');
+
+        $pdf = $renderer->renderDocument('documents.print.voucher-standalone', [
+            'voucher' => $paymentVoucher,
+            'type' => 'payment',
+            'company' => $paymentVoucher->company,
+            'template' => $paymentVoucher->company->defaultTemplateFor('payment_voucher'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$paymentVoucher->voucher_number.'.pdf"',
+        ]);
     }
 
     public function create()

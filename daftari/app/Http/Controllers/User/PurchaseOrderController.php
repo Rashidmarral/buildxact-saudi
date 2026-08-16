@@ -9,6 +9,7 @@ use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -89,6 +90,42 @@ class PurchaseOrderController extends Controller
         $template = $purchaseOrder->company->defaultTemplateFor('purchase_order');
 
         return view('user.purchase-orders.show', ['order' => $purchaseOrder, 'template' => $template]);
+    }
+
+    public function downloadPdf(PurchaseOrder $purchaseOrder, ChromiumPdfRenderer $renderer)
+    {
+        $purchaseOrder->loadMissing('items', 'supplier');
+
+        $doc = [
+            'type_label' => __('Purchase Order'),
+            'type_label_ar' => 'أمر شراء',
+            'number' => $purchaseOrder->po_number,
+            'date_label' => __('Order date'),
+            'date' => $purchaseOrder->order_date,
+            'date2_label' => __('Expected'),
+            'date2_label_ar' => 'تاريخ التوريد المتوقع',
+            'date2' => $purchaseOrder->expected_date,
+            'party_label' => __('Supplier'),
+            'party_label_ar' => 'المورد',
+            'party' => $purchaseOrder->supplier,
+            'lines' => $purchaseOrder->items,
+            'subtotal' => $purchaseOrder->subtotal,
+            'discount_total' => $purchaseOrder->discount_total,
+            'vat_total' => $purchaseOrder->vat_total,
+            'total' => $purchaseOrder->total,
+            'notes' => $purchaseOrder->notes,
+        ];
+
+        $pdf = $renderer->renderDocument('documents.print.standalone', [
+            'doc' => $doc,
+            'company' => $purchaseOrder->company,
+            'template' => $purchaseOrder->company->defaultTemplateFor('purchase_order'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$purchaseOrder->po_number.'.pdf"',
+        ]);
     }
 
     public function approve(PurchaseOrder $purchaseOrder)

@@ -14,10 +14,10 @@
 
     <div class="flex min-h-screen">
         {{-- Mobile backdrop --}}
-        <div x-show="mobileNavOpen" x-transition:enter="transition-opacity ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden" style="display: none;"></div>
+        <div x-show="mobileNavOpen" x-transition:enter="transition-opacity ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden print:hidden" style="display: none;"></div>
 
         <aside
-            class="fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-slate-950 to-slate-900 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0"
+            class="fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-slate-950 to-slate-900 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0 print:hidden"
             :class="mobileNavOpen ? 'translate-x-0' : (document.dir === 'rtl' ? 'translate-x-full' : '-translate-x-full')"
         >
             <div class="flex items-center justify-between gap-2 border-b border-white/5 px-6 py-5">
@@ -138,8 +138,8 @@
             </div>
         </aside>
 
-        <div class="flex min-w-0 flex-1 flex-col lg:ps-72">
-            <header class="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-6">
+        <div class="flex min-w-0 flex-1 flex-col lg:ps-72 print:ps-0">
+            <header class="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-6 print:hidden">
                 <div class="flex items-center gap-3">
                     <button type="button" @click="mobileNavOpen = true" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
                         @include('partials.icon', ['name' => 'menu', 'class' => 'h-5 w-5'])
@@ -190,7 +190,7 @@
             </header>
 
             @if ($sub && $sub->isTrial())
-                <div class="flex items-center justify-between bg-gradient-to-r from-amber-50 to-amber-50/60 border-b border-amber-200 px-6 py-2 text-sm text-amber-800">
+                <div class="flex items-center justify-between bg-gradient-to-r from-amber-50 to-amber-50/60 border-b border-amber-200 px-6 py-2 text-sm text-amber-800 print:hidden">
                     <span class="flex items-center gap-2">
                         @include('partials.icon', ['name' => 'sparkle', 'class' => 'h-4 w-4'])
                         {{ __('Free trial — :days days left.', ['days' => max(0, now()->diffInDays($sub->current_period_end, false))]) }}
@@ -199,15 +199,15 @@
                 </div>
             @endif
 
-            <main class="flex-1 px-4 py-6 sm:px-6 sm:py-8">
+            <main class="flex-1 px-4 py-6 sm:px-6 sm:py-8 print:p-0">
                 @if (session('status'))
-                    <div class="mb-6 animate-fade-up rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800 shadow-soft">{{ session('status') }}</div>
+                    <div class="mb-6 animate-fade-up rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800 shadow-soft print:hidden">{{ session('status') }}</div>
                 @endif
                 @if (session('error'))
-                    <div class="mb-6 animate-fade-up rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-soft">{{ session('error') }}</div>
+                    <div class="mb-6 animate-fade-up rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-soft print:hidden">{{ session('error') }}</div>
                 @endif
                 @if ($errors->any())
-                    <div class="mb-6 animate-fade-up rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-soft">
+                    <div class="mb-6 animate-fade-up rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-soft print:hidden">
                         <ul class="list-disc ps-4 space-y-1">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>

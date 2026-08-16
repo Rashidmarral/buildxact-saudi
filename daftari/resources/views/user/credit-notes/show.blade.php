@@ -33,68 +33,27 @@
     </div>
 </div>
 
+@php
+    $doc = [
+        'type_label' => __('Credit Note'),
+        'type_label_ar' => 'إشعار دائن',
+        'number' => $creditNote->credit_note_number,
+        'date_label' => __('Issued'),
+        'date' => $creditNote->issue_date,
+        'ref_no' => $creditNote->invoice->invoice_number,
+        'party_label' => __('Credit to'),
+        'party_label_ar' => 'العميل',
+        'party' => $creditNote->client,
+        'qr_code' => $creditNote->qr_code,
+        'lines' => $creditNote->items,
+        'subtotal' => $creditNote->subtotal,
+        'vat_total' => $creditNote->vat_total,
+        'total' => $creditNote->total,
+        'notes' => $creditNote->reason,
+    ];
+@endphp
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
-    <div class="flex justify-between items-start">
-        <div class="flex items-center gap-3">
-            @if ($creditNote->company->logo_path)
-                <img src="{{ Storage::url($creditNote->company->logo_path) }}" alt="{{ $creditNote->company->name }}" class="h-12 w-12 rounded-lg object-cover border border-slate-100">
-            @endif
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900">{{ $creditNote->company->name }}</h1>
-                @if ($creditNote->company->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $creditNote->company->vat_number }}</p>@endif
-            </div>
-        </div>
-        <div class="text-end">
-            <h2 class="text-xl font-bold text-slate-900">{{ __('Credit Note') }}</h2>
-            <p class="text-sm text-slate-500">{{ $creditNote->credit_note_number }}</p>
-            <p class="text-sm text-slate-500">{{ __('Issued') }}: {{ $creditNote->issue_date->format('Y-m-d') }}</p>
-            <p class="text-sm text-slate-500">{{ __('Against invoice') }}: <a href="{{ route('app.invoices.show', $creditNote->invoice) }}" class="text-brand-700 hover:underline">{{ $creditNote->invoice->invoice_number }}</a></p>
-        </div>
-    </div>
-
-    <div class="mt-8 grid grid-cols-2 gap-8">
-        <div>
-            <h3 class="text-xs font-semibold uppercase text-slate-400">{{ __('Credit to') }}</h3>
-            <p class="mt-1 font-medium text-slate-800">{{ $creditNote->client->name }}</p>
-            @if ($creditNote->client->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $creditNote->client->vat_number }}</p>@endif
-            @if ($creditNote->reason)<p class="text-sm text-slate-500 mt-2">{{ __('Reason') }}: {{ $creditNote->reason }}</p>@endif
-        </div>
-        <div class="text-end">
-            @if ($creditNote->qr_code)
-                <img src="data:image/png;base64,{{ $creditNote->qr_code }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-28 w-28" onerror="this.style.display='none'">
-            @endif
-        </div>
-    </div>
-
-    <table class="w-full text-sm mt-8">
-        <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-200">
-                <th class="py-2">{{ __('Description') }}</th>
-                <th class="py-2 text-end">{{ __('Qty') }}</th>
-                <th class="py-2 text-end">{{ __('Unit price') }}</th>
-                <th class="py-2 text-end">{{ __('VAT') }}</th>
-                <th class="py-2 text-end">{{ __('Total') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($creditNote->items as $item)
-                <tr class="border-b border-slate-50">
-                    <td class="py-2">{{ $item->description }}</td>
-                    <td class="py-2 text-end">{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($item->unit_price, 2) }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($item->vat_amount, 2) }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($item->line_total, 2) }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    <div class="mt-6 flex justify-end">
-        <div class="w-full max-w-xs space-y-2 text-sm">
-            <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span>SAR {{ number_format($creditNote->subtotal, 2) }}</span></div>
-            <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span>SAR {{ number_format($creditNote->vat_total, 2) }}</span></div>
-            <div class="flex justify-between font-bold text-slate-900 text-base border-t border-slate-100 pt-2"><span>{{ __('Total credit') }}</span><span>SAR {{ number_format($creditNote->total, 2) }}</span></div>
-        </div>
-    </div>
+    <p class="text-sm text-slate-500 mb-4 print:hidden">{{ __('Against invoice') }}: <a href="{{ route('app.invoices.show', $creditNote->invoice) }}" class="text-brand-700 hover:underline">{{ $creditNote->invoice->invoice_number }}</a></p>
+    @include('documents.print.body', ['doc' => $doc, 'company' => $creditNote->company, 'template' => $template])
 </div>
 @endsection

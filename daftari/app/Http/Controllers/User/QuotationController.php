@@ -12,7 +12,7 @@ use App\Models\Item;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Salesperson;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -115,12 +115,17 @@ class QuotationController extends Controller
         return view('user.quotations.show', compact('quotation', 'template'));
     }
 
-    public function downloadPdf(Quotation $quotation)
+    public function downloadPdf(Quotation $quotation, ChromiumPdfRenderer $renderer)
     {
-        return $this->buildPdf($quotation)->download($quotation->quotation_number.'.pdf');
+        $pdf = $renderer->renderDocument('documents.print.standalone', $this->pdfData($quotation));
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$quotation->quotation_number.'.pdf"',
+        ]);
     }
 
-    public function emailQuotation(Quotation $quotation)
+    public function emailQuotation(Quotation $quotation, ChromiumPdfRenderer $renderer)
     {
         $recipient = $quotation->client->email;
 
@@ -128,37 +133,46 @@ class QuotationController extends Controller
             return back()->withErrors(['quotation' => __('This client has no email address on file. Add one on the client record first.')]);
         }
 
-        $pdfBinary = $this->buildPdf($quotation)->output();
+        $pdfBinary = $renderer->renderDocument('documents.print.standalone', $this->pdfData($quotation));
 
         Mail::to($recipient)->send(new QuotationMail($quotation, $pdfBinary));
 
         return back()->with('status', __('Quotation emailed to :email.', ['email' => $recipient]));
     }
 
-    private function buildPdf(Quotation $quotation)
+    private function pdfData(Quotation $quotation): array
     {
-        $quotation->loadMissing('items', 'client');
+        $quotation->loadMissing('items', 'client', 'bankAccount');
+
+        $bankAccount = $quotation->bankAccount ?? $quotation->company->defaultBankAccount();
 
         $doc = [
             'type_label' => $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
+            'type_label_ar' => $quotation->type === 'proforma' ? 'فاتورة أولية' : 'عرض سعر',
             'number' => $quotation->quotation_number,
             'date_label' => __('Issued'),
             'date' => $quotation->issue_date,
+            'date2_label' => __('Valid until'),
+            'date2_label_ar' => 'صالح حتى',
+            'date2' => $quotation->expiry_date,
             'party_label' => __('To'),
+            'party_label_ar' => 'العميل',
             'party' => $quotation->client,
             'lines' => $quotation->items,
             'subtotal' => $quotation->subtotal,
             'discount_total' => $quotation->discount_total,
             'vat_total' => $quotation->vat_total,
             'total' => $quotation->total,
+            'bank_account' => $bankAccount,
+            'salesperson' => $quotation->salesperson,
             'notes' => $quotation->notes,
         ];
 
-        return Pdf::loadView('documents.print.pdf', [
+        return [
             'doc' => $doc,
             'company' => $quotation->company,
-            'zatcaCleared' => false,
-        ]);
+            'template' => $quotation->company->defaultTemplateFor($quotation->type),
+        ];
     }
 
     public function edit(Quotation $quotation)

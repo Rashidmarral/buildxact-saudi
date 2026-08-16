@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\ReceiptVoucher;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,23 @@ use Illuminate\Validation\Rule;
 
 class ReceiptVoucherController extends Controller
 {
+    public function downloadPdf(ReceiptVoucher $receiptVoucher, ChromiumPdfRenderer $renderer)
+    {
+        $receiptVoucher->loadMissing('bankAccount', 'invoice', 'counterAccount');
+
+        $pdf = $renderer->renderDocument('documents.print.voucher-standalone', [
+            'voucher' => $receiptVoucher,
+            'type' => 'receipt',
+            'company' => $receiptVoucher->company,
+            'template' => $receiptVoucher->company->defaultTemplateFor('receipt_voucher'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$receiptVoucher->voucher_number.'.pdf"',
+        ]);
+    }
+
     public function index()
     {
         $vouchers = ReceiptVoucher::with('bankAccount', 'client', 'supplier')->latest('date')->latest('id')->paginate(20);

@@ -9,6 +9,7 @@ use App\Models\BillItem;
 use App\Models\Item;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\ChromiumPdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -91,6 +92,47 @@ class BillController extends Controller
         $template = $bill->company->defaultTemplateFor('bill');
 
         return view('user.bills.show', compact('bill', 'template'));
+    }
+
+    public function downloadPdf(Bill $bill, ChromiumPdfRenderer $renderer)
+    {
+        $bill->loadMissing('items', 'supplier');
+
+        $doc = [
+            'type_label' => __('Bill'),
+            'type_label_ar' => 'فاتورة مشتريات',
+            'number' => $bill->bill_number,
+            'date_label' => __('Bill date'),
+            'date' => $bill->bill_date,
+            'date2_label' => __('Due date'),
+            'date2_label_ar' => 'الاستحقاق',
+            'date2' => $bill->due_date,
+            'ref_no' => $bill->supplier_reference,
+            'party_label' => __('Supplier'),
+            'party_label_ar' => 'المورد',
+            'party' => $bill->supplier,
+            'lines' => $bill->items,
+            'subtotal' => $bill->subtotal,
+            'discount_total' => $bill->discount_total,
+            'vat_total' => $bill->vat_total,
+            'total' => $bill->total,
+            'extra_rows' => [
+                ['label' => __('Paid'), 'value' => $bill->amount_paid],
+                ['label' => __('Balance due'), 'value' => $bill->balanceDue()],
+            ],
+            'notes' => $bill->notes,
+        ];
+
+        $pdf = $renderer->renderDocument('documents.print.standalone', [
+            'doc' => $doc,
+            'company' => $bill->company,
+            'template' => $bill->company->defaultTemplateFor('bill'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$bill->bill_number.'.pdf"',
+        ]);
     }
 
     public function post(Bill $bill, LedgerPostingService $ledger)

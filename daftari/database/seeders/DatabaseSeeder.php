@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PlanSeeder::class,
             AdminSeeder::class,
+            RealCompanySeeder::class,
         ]);
 
         if (app()->environment(['local', 'testing']) || env('SEED_DEMO', false)) {
