@@ -2,6 +2,7 @@
 
 namespace App\Services\Zatca;
 
+use App\Models\CreditNote;
 use App\Models\Invoice;
 use DOMDocument;
 use Illuminate\Support\Str;
@@ -88,6 +89,124 @@ class ZatcaXmlGenerator
             $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
             $qty->setAttribute('unitCode', $item->item?->unit_code ?: 'PCE');
+            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $item->quantity * $item->unit_price);
+
+            $lineTax = $doc->createElement('cac:TaxTotal');
+            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', $item->vat_amount);
+            $line->appendChild($lineTax);
+
+            $itemEl = $doc->createElement('cac:Item');
+            $this->append($doc, $itemEl, 'cbc:Name', $item->description);
+            $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
+            $this->append($doc, $taxCategory, 'cbc:ID', 'S');
+            $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $item->vat_rate, 2, '.', ''));
+            $itemEl->appendChild($taxCategory);
+            $line->appendChild($itemEl);
+
+            $price = $doc->createElement('cac:Price');
+            $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price);
+            $line->appendChild($price);
+
+            $root->appendChild($line);
+        }
+
+        return $doc->saveXML();
+    }
+
+    /**
+     * Credit notes use the same UBL Invoice-2 schema as tax invoices — they
+     * are differentiated only by InvoiceTypeCode 381 and by carrying a
+     * BillingReference back to the invoice they correct, plus a KSA-10
+     * InstructionNote reason. They are never issued standalone: they must
+     * continue the same Previous Invoice Hash chain as regular invoices.
+     */
+    public function generateForCreditNote(CreditNote $creditNote, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid): string
+    {
+        $doc = new DOMDocument('1.0', 'UTF-8');
+        $doc->formatOutput = false;
+
+        $root = $doc->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        $doc->appendChild($root);
+
+        $company = $creditNote->company;
+        $client = $creditNote->client;
+        $invoice = $creditNote->invoice;
+
+        $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
+        $this->append($doc, $root, 'cbc:ID', $creditNote->credit_note_number);
+        $this->append($doc, $root, 'cbc:UUID', $uuid);
+        $this->append($doc, $root, 'cbc:IssueDate', $creditNote->issue_date->format('Y-m-d'));
+        $this->append($doc, $root, 'cbc:IssueTime', $creditNote->created_at?->format('H:i:s') ?? now()->format('H:i:s'));
+
+        $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', '381');
+        $typeCode->setAttribute('name', $invoiceTypeName);
+
+        $this->append($doc, $root, 'cbc:DocumentCurrencyCode', $creditNote->currency ?: 'SAR');
+        $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
+
+        $this->append($doc, $root, 'cbc:InstructionNote', $creditNote->reason ?: 'Sales return / correction');
+
+        if ($previousInvoiceHash) {
+            $pih = $doc->createElement('cac:AdditionalDocumentReference');
+            $this->append($doc, $pih, 'cbc:ID', 'PIH');
+            $attachment = $doc->createElement('cac:Attachment');
+            $binary = $doc->createElement('cbc:EmbeddedDocumentBinaryObject', $previousInvoiceHash);
+            $binary->setAttribute('mimeCode', 'text/plain');
+            $attachment->appendChild($binary);
+            $pih->appendChild($attachment);
+            $root->appendChild($pih);
+        }
+
+        $originalLog = $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first();
+
+        $billingReference = $doc->createElement('cac:BillingReference');
+        $docRef = $doc->createElement('cac:InvoiceDocumentReference');
+        $this->append($doc, $docRef, 'cbc:ID', $invoice->invoice_number);
+        if ($originalLog?->request_uuid) {
+            $this->append($doc, $docRef, 'cbc:UUID', (string) $originalLog->request_uuid);
+        }
+        $billingReference->appendChild($docRef);
+        $root->appendChild($billingReference);
+
+        $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
+            'name' => $company->name,
+            'vat_number' => $company->vat_number,
+            'street' => $company->street_name ?: $company->address,
+            'building_number' => $company->building_number,
+            'district' => $company->district,
+            'city' => $company->city,
+            'postal_code' => $company->postal_code,
+        ]));
+
+        $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
+            'name' => $client->name,
+            'vat_number' => $client->vat_number,
+            'street' => $client->street_name,
+            'building_number' => $client->building_number,
+            'district' => $client->district,
+            'city' => $client->city,
+            'postal_code' => $client->postal_code,
+        ]));
+
+        $taxTotal = $doc->createElement('cac:TaxTotal');
+        $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $creditNote->vat_total, 2, '.', ''))
+            ->setAttribute('currencyID', 'SAR');
+        $root->appendChild($taxTotal);
+
+        $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $creditNote->subtotal);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $creditNote->subtotal);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $creditNote->total);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $creditNote->total);
+        $root->appendChild($monetaryTotal);
+
+        foreach ($creditNote->items as $index => $item) {
+            $line = $doc->createElement('cac:InvoiceLine');
+            $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
+            $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
+            $qty->setAttribute('unitCode', $item->invoiceItem?->item?->unit_code ?: 'PCE');
             $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $item->quantity * $item->unit_price);
 
             $lineTax = $doc->createElement('cac:TaxTotal');

@@ -98,6 +98,17 @@ class Invoice extends Model
         return round((float) $this->total - $this->creditedTotal(), 2);
     }
 
+    /**
+     * True once ZATCA has cleared (B2B) or reported (B2C) this invoice —
+     * at that point the document is part of an immutable tax record and
+     * ZATCA no longer allows edits. The only compliant way to correct a
+     * locked invoice is a Credit Note referencing it.
+     */
+    public function isZatcaLocked(): bool
+    {
+        return $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->exists();
+    }
+
     public function recalculateTotals(): void
     {
         $items = $this->items;

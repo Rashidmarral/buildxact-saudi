@@ -7,6 +7,12 @@
     <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-slate-900">{{ $invoice->invoice_number }}</h2>
         @include('user.invoices.partials.status-badge', ['status' => $invoice->status])
+        @if ($invoice->isZatcaLocked())
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                @include('partials.icon', ['name' => 'shield', 'class' => 'h-3.5 w-3.5'])
+                {{ __('ZATCA cleared — locked') }}
+            </span>
+        @endif
     </div>
     <div class="flex items-center gap-3">
         @if ($invoice->status === 'draft')
@@ -19,12 +25,16 @@
         @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid', 'overdue']) && $invoice->remainingCreditableTotal() > 0.01)
             <a href="{{ route('app.credit-notes.create') }}?invoice_id={{ $invoice->id }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Issue credit note') }}</a>
         @endif
-        @if (! in_array($invoice->status, ['draft', 'cancelled']))
+        @if (! in_array($invoice->status, ['draft', 'cancelled']) && ! $invoice->isZatcaLocked())
             <form method="POST" action="{{ route('app.invoices.cancel', $invoice) }}" onsubmit="return confirm('{{ __('Cancel this invoice?') }}')">
                 @csrf
                 <button type="submit" class="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:border-red-300">{{ __('Cancel invoice') }}</button>
             </form>
         @endif
+        @if ($invoice->isZatcaLocked())
+            <a href="{{ route('app.invoices.xml', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download XML') }}</a>
+        @endif
+        <a href="{{ route('app.invoices.pdf', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>

@@ -63,7 +63,7 @@
                     </div>
                 </details>
 
-                @php($purchasesActive = request()->routeIs('app.bills.*') || request()->routeIs('app.purchase-orders.*') || request()->routeIs('app.customs-declarations.*') || request()->routeIs('app.suppliers.*') || request()->routeIs('app.expenses.*') || request()->routeIs('app.expense-categories.*'))
+                @php($purchasesActive = request()->routeIs('app.bills.*') || request()->routeIs('app.purchase-orders.*') || request()->routeIs('app.customs-declarations.*') || request()->routeIs('app.purchase-returns.*') || request()->routeIs('app.suppliers.*') || request()->routeIs('app.expenses.*') || request()->routeIs('app.expense-categories.*'))
                 <details class="group" @if($purchasesActive) open @endif>
                     <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $purchasesActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
                         <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'purchases', 'class' => 'h-[18px] w-[18px]'])</span>
@@ -74,6 +74,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.bills.index', 'label' => __('Bills')])
                         @include('partials.nav-subitem', ['route' => 'app.purchase-orders.index', 'label' => __('Purchase orders')])
                         @include('partials.nav-subitem', ['route' => 'app.customs-declarations.index', 'label' => __('Customs Declarations')])
+                        @include('partials.nav-subitem', ['route' => 'app.purchase-returns.index', 'label' => __('Purchase returns')])
                         @include('partials.nav-subitem', ['route' => 'app.suppliers.index', 'label' => __('Suppliers')])
                         @include('partials.nav-subitem', ['route' => 'app.expenses.index', 'label' => __('Expenses')])
                     </div>

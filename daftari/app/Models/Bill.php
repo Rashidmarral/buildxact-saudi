@@ -57,6 +57,21 @@ class Bill extends Model
         return $this->morphMany(Attachment::class, 'attachable');
     }
 
+    public function purchaseReturns(): HasMany
+    {
+        return $this->hasMany(PurchaseReturn::class);
+    }
+
+    public function returnedTotal(): float
+    {
+        return (float) $this->purchaseReturns()->where('status', 'issued')->sum('total');
+    }
+
+    public function remainingReturnableTotal(): float
+    {
+        return round((float) $this->total - $this->returnedTotal(), 2);
+    }
+
     public function recalculateTotals(): void
     {
         $items = $this->items;

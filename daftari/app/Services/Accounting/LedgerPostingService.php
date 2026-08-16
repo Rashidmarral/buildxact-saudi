@@ -15,6 +15,7 @@ use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
 use App\Models\PaymentVoucher;
+use App\Models\PurchaseReturn;
 use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
 use Illuminate\Support\Facades\Auth;
@@ -282,6 +283,32 @@ class LedgerPostingService
             ['account_id' => $ap->id, 'debit' => $payment->amount],
             ['account_id' => $cashOrBank->id, 'credit' => $payment->amount],
         ]);
+    }
+
+    /**
+     * Mirrors postCreditNote() for the purchase side: reduces what we owe
+     * the supplier and reverses the previously recorded expense + input
+     * VAT. Purely internal bookkeeping — not a ZATCA-regulated document,
+     * since ZATCA only regulates what a business issues as the seller.
+     */
+    public function postPurchaseReturn(PurchaseReturn $purchaseReturn): ?JournalEntry
+    {
+        $company = $purchaseReturn->company;
+        $ap = $this->account($company, 'ACCOUNTS_PAYABLE');
+        $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
+        $vatInput = $this->account($company, 'VAT_INPUT');
+
+        if (! $ap || ! $expenseAccount || ! $vatInput) {
+            return null;
+        }
+
+        $lines = [
+            ['account_id' => $ap->id, 'debit' => $purchaseReturn->total, 'memo' => $purchaseReturn->return_number],
+            ['account_id' => $expenseAccount->id, 'credit' => $purchaseReturn->subtotal],
+            ['account_id' => $vatInput->id, 'credit' => $purchaseReturn->vat_total],
+        ];
+
+        return $this->post($company, 'purchase_return', $purchaseReturn->id, __('Purchase return :number', ['number' => $purchaseReturn->return_number]), $purchaseReturn->issue_date, $lines);
     }
 
     public function postPaymentVoucher(PaymentVoucher $voucher): ?JournalEntry

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
 use App\Services\Zatca\ZatcaCryptoService;
@@ -23,7 +24,12 @@ class ZatcaController extends Controller
         $logs = ZatcaInvoiceLog::with('invoice')
             ->where('company_id', $company->id)
             ->latest('id')
-            ->paginate(15);
+            ->paginate(15, ['*'], 'invoice_page');
+
+        $creditNoteLogs = ZatcaCreditNoteLog::with('creditNote')
+            ->where('company_id', $company->id)
+            ->latest('id')
+            ->paginate(15, ['*'], 'credit_note_page');
 
         $stats = [
             'cleared' => ZatcaInvoiceLog::where('company_id', $company->id)->where('status', 'cleared')->count(),
@@ -32,13 +38,17 @@ class ZatcaController extends Controller
             'queued' => ZatcaInvoiceLog::where('company_id', $company->id)->where('status', 'queued')->count(),
         ];
 
-        $pendingCount = app(ZatcaSyncService::class)->pendingInvoices($company)->count();
+        $sync = app(ZatcaSyncService::class);
+        $pendingCount = $sync->pendingInvoices($company)->count();
+        $pendingCreditNoteCount = $sync->pendingCreditNotes($company)->count();
 
         return view('user.zatca.dashboard', [
             'company' => $company,
             'logs' => $logs,
+            'creditNoteLogs' => $creditNoteLogs,
             'stats' => $stats,
             'pendingCount' => $pendingCount,
+            'pendingCreditNoteCount' => $pendingCreditNoteCount,
             'environments' => ZatcaApiClient::BASE_URLS,
             'readiness' => $company->zatcaReadinessChecklist(),
         ]);
@@ -258,9 +268,10 @@ class ZatcaController extends Controller
         }
 
         $invoices = $sync->pendingInvoices($company);
+        $creditNotes = $sync->pendingCreditNotes($company);
 
-        if ($invoices->isEmpty()) {
-            return back()->with('status', __('No pending invoices to sync.'));
+        if ($invoices->isEmpty() && $creditNotes->isEmpty()) {
+            return back()->with('status', __('No pending invoices or credit notes to sync.'));
         }
 
         $cleared = 0;
@@ -275,6 +286,15 @@ class ZatcaController extends Controller
             }
         }
 
-        return back()->with('status', __(':cleared invoice(s) synced, :failed failed. See the log below.', ['cleared' => $cleared, 'failed' => $failed]));
+        foreach ($creditNotes as $creditNote) {
+            $log = $sync->submitCreditNote($creditNote);
+            if (in_array($log->status, ['cleared', 'reported'], true)) {
+                $cleared++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return back()->with('status', __(':cleared document(s) synced, :failed failed. See the log below.', ['cleared' => $cleared, 'failed' => $failed]));
     }
 }

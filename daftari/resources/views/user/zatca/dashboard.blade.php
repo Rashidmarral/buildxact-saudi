@@ -42,7 +42,7 @@
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Pending sync') }}</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1">{{ $pendingCount }}</p>
+        <p class="text-2xl font-bold text-slate-900 mt-1">{{ $pendingCount + $pendingCreditNoteCount }}</p>
     </div>
 </div>
 
@@ -168,10 +168,10 @@
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-slate-900">{{ __('Sync log') }}</h3>
+                <h3 class="font-semibold text-slate-900">{{ __('Invoice sync log') }}</h3>
                 <form method="POST" action="{{ route('app.zatca.sync') }}">
                     @csrf
-                    <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Sync now') }} ({{ $pendingCount }})</button>
+                    <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Sync now') }} ({{ $pendingCount + $pendingCreditNoteCount }})</button>
                 </form>
             </div>
             <div class="overflow-x-auto">
@@ -210,6 +210,47 @@
                 </table>
             </div>
             <div class="mt-4">{{ $logs->links() }}</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-100 p-6">
+            <h3 class="font-semibold text-slate-900 mb-4">{{ __('Credit note sync log') }}</h3>
+            <p class="text-xs text-slate-500 mb-4">{{ __('Credit notes are submitted through the same clearance/reporting flow as invoices (InvoiceTypeCode 381), cryptographically linked to the invoice they correct.') }}</p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-slate-500 border-b border-slate-100">
+                            <th class="py-2">{{ __('Credit note') }}</th>
+                            <th class="py-2">{{ __('Type') }}</th>
+                            <th class="py-2">{{ __('Environment') }}</th>
+                            <th class="py-2">{{ __('Status') }}</th>
+                            <th class="py-2">{{ __('Submitted') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($creditNoteLogs as $log)
+                            <tr class="border-b border-slate-50 last:border-0">
+                                <td class="py-2">{{ $log->creditNote?->credit_note_number }}</td>
+                                <td class="py-2">{{ $log->invoice_type === 'b2b' ? __('B2B') : __('B2C') }}</td>
+                                <td class="py-2">{{ ucfirst($log->environment) }}</td>
+                                <td class="py-2">
+                                    @php
+                                        $badge = match ($log->status) {
+                                            'cleared', 'reported' => 'bg-emerald-50 text-emerald-700',
+                                            'failed' => 'bg-red-50 text-red-700',
+                                            default => 'bg-slate-100 text-slate-600',
+                                        };
+                                    @endphp
+                                    <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge }}" title="{{ $log->error_message }}">{{ ucfirst($log->status) }}</span>
+                                </td>
+                                <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4">{{ $creditNoteLogs->links() }}</div>
         </div>
     </div>
 

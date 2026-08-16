@@ -7,6 +7,7 @@ use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\Invoice;
 use App\Services\Accounting\LedgerPostingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -149,6 +150,48 @@ class CreditNoteController extends Controller
         $creditNote->load('items', 'client', 'invoice');
 
         return view('user.credit-notes.show', compact('creditNote'));
+    }
+
+    public function downloadPdf(CreditNote $creditNote)
+    {
+        $creditNote->load('items', 'client');
+
+        $doc = [
+            'type_label' => __('Credit Note'),
+            'number' => $creditNote->credit_note_number,
+            'date_label' => __('Issued'),
+            'date' => $creditNote->issue_date,
+            'party_label' => __('Credit to'),
+            'party' => $creditNote->client,
+            'qr_code' => $creditNote->qr_code,
+            'lines' => $creditNote->items,
+            'subtotal' => $creditNote->subtotal,
+            'vat_total' => $creditNote->vat_total,
+            'total' => $creditNote->total,
+            'notes' => $creditNote->reason,
+        ];
+
+        $pdf = Pdf::loadView('documents.print.pdf', [
+            'doc' => $doc,
+            'company' => $creditNote->company,
+            'zatcaCleared' => $creditNote->isZatcaSynced(),
+        ]);
+
+        return $pdf->download($creditNote->credit_note_number.'.pdf');
+    }
+
+    public function downloadXml(CreditNote $creditNote)
+    {
+        $log = $creditNote->zatcaCreditNoteLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first();
+
+        if (! $log || ! $log->xml_payload) {
+            return back()->withErrors(['credit_note' => __('This credit note has not been cleared or reported to ZATCA yet — there is no signed XML to download.')]);
+        }
+
+        return response($log->xml_payload, 200, [
+            'Content-Type' => 'application/xml',
+            'Content-Disposition' => 'attachment; filename="'.$creditNote->credit_note_number.'.xml"',
+        ]);
     }
 
     public function void(CreditNote $creditNote, LedgerPostingService $ledger)

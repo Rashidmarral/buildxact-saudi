@@ -12,6 +12,7 @@ class Company extends Model
         'building_number', 'street_name', 'district', 'postal_code', 'additional_number',
         'phone', 'email', 'logo_path', 'stamp_path', 'invoice_prefix', 'next_invoice_number',
         'credit_note_prefix', 'next_credit_note_number',
+        'purchase_return_prefix', 'next_purchase_return_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
@@ -35,6 +36,8 @@ class Company extends Model
         'next_invoice_number' => 1,
         'credit_note_prefix' => 'CN',
         'next_credit_note_number' => 1,
+        'purchase_return_prefix' => 'PR',
+        'next_purchase_return_number' => 1,
         'quotation_prefix' => 'QTN',
         'next_quotation_number' => 1,
         'proforma_prefix' => 'PRO',
@@ -139,6 +142,14 @@ class Company extends Model
     {
         $number = $this->credit_note_prefix.'-'.str_pad((string) $this->next_credit_note_number, 5, '0', STR_PAD_LEFT);
         $this->increment('next_credit_note_number');
+
+        return $number;
+    }
+
+    public function nextPurchaseReturnNumber(): string
+    {
+        $number = $this->purchase_return_prefix.'-'.str_pad((string) $this->next_purchase_return_number, 5, '0', STR_PAD_LEFT);
+        $this->increment('next_purchase_return_number');
 
         return $number;
     }

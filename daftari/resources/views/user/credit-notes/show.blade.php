@@ -11,6 +11,12 @@
         @else
             <span class="inline-block rounded-full bg-brand-50 text-brand-700 text-xs font-medium px-2.5 py-1">{{ __('Issued') }}</span>
         @endif
+        @if ($creditNote->isZatcaSynced())
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                @include('partials.icon', ['name' => 'shield', 'class' => 'h-3.5 w-3.5'])
+                {{ __('ZATCA synced') }}
+            </span>
+        @endif
     </div>
     <div class="flex items-center gap-3">
         @if ($creditNote->status === 'issued')
@@ -19,6 +25,10 @@
                 <button type="submit" class="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:border-red-300">{{ __('Void') }}</button>
             </form>
         @endif
+        @if ($creditNote->isZatcaSynced())
+            <a href="{{ route('app.credit-notes.xml', $creditNote) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download XML') }}</a>
+        @endif
+        <a href="{{ route('app.credit-notes.pdf', $creditNote) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>

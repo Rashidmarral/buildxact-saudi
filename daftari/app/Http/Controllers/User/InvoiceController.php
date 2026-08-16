@@ -15,6 +15,7 @@ use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\Warehouse;
 use App\Services\Accounting\LedgerPostingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -102,8 +103,64 @@ class InvoiceController extends Controller
         return view('user.invoices.show', compact('invoice', 'template'));
     }
 
+    public function downloadPdf(Invoice $invoice)
+    {
+        $invoice->load('items', 'client');
+
+        $doc = [
+            'type_label' => __('Tax Invoice'),
+            'number' => $invoice->invoice_number,
+            'date_label' => __('Issued'),
+            'date' => $invoice->issue_date,
+            'party_label' => __('Bill to'),
+            'party' => $invoice->client,
+            'qr_code' => $invoice->qr_code,
+            'lines' => $invoice->items,
+            'subtotal' => $invoice->subtotal,
+            'discount_total' => $invoice->discount_total,
+            'vat_total' => $invoice->vat_total,
+            'total' => $invoice->total,
+            'extra_rows' => array_values(array_filter([
+                $invoice->retention_amount > 0 ? [
+                    'label' => __('Retention held').' ('.rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.').'%)',
+                    'value' => $invoice->retention_amount,
+                ] : null,
+                ['label' => __('Paid'), 'value' => $invoice->amount_paid],
+                ['label' => __('Balance due'), 'value' => $invoice->balanceDue()],
+            ])),
+            'notes' => $invoice->notes,
+        ];
+
+        $pdf = Pdf::loadView('documents.print.pdf', [
+            'doc' => $doc,
+            'company' => $invoice->company,
+            'zatcaCleared' => $invoice->isZatcaLocked(),
+        ]);
+
+        return $pdf->download($invoice->invoice_number.'.pdf');
+    }
+
+    public function downloadXml(Invoice $invoice)
+    {
+        $log = $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first();
+
+        if (! $log || ! $log->xml_payload) {
+            return back()->withErrors(['invoice' => __('This invoice has not been cleared or reported to ZATCA yet — there is no signed XML to download.')]);
+        }
+
+        return response($log->xml_payload, 200, [
+            'Content-Type' => 'application/xml',
+            'Content-Disposition' => 'attachment; filename="'.$invoice->invoice_number.'.xml"',
+        ]);
+    }
+
     public function edit(Invoice $invoice)
     {
+        if ($invoice->isZatcaLocked()) {
+            return redirect()->route('app.invoices.show', $invoice)
+                ->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be edited. Issue a credit note to correct it instead.')]);
+        }
+
         $invoice->load('items');
 
         return view('user.invoices.form', [
@@ -119,6 +176,11 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice)
     {
+        if ($invoice->isZatcaLocked()) {
+            return redirect()->route('app.invoices.show', $invoice)
+                ->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be edited. Issue a credit note to correct it instead.')]);
+        }
+
         $data = $this->validated($request);
 
         DB::transaction(function () use ($invoice, $data) {
@@ -150,6 +212,10 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice)
     {
+        if ($invoice->isZatcaLocked()) {
+            return back()->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and cannot be deleted. Issue a credit note to correct it instead.')]);
+        }
+
         $invoice->delete();
 
         return redirect()->route('app.invoices.index')->with('status', __('Invoice deleted.'));
@@ -166,6 +232,10 @@ class InvoiceController extends Controller
     {
         if (in_array($invoice->status, ['draft', 'cancelled'], true)) {
             return back()->withErrors(['invoice' => __('This invoice cannot be cancelled.')]);
+        }
+
+        if ($invoice->isZatcaLocked()) {
+            return back()->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and cannot be cancelled directly — issue a credit note instead, which correctly notifies ZATCA of the adjustment.')]);
         }
 
         DB::transaction(function () use ($invoice) {

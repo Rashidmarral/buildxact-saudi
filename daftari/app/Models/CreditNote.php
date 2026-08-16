@@ -50,6 +50,16 @@ class CreditNote extends Model
         return $this->hasMany(CreditNoteItem::class);
     }
 
+    public function zatcaCreditNoteLogs(): HasMany
+    {
+        return $this->hasMany(ZatcaCreditNoteLog::class);
+    }
+
+    public function isZatcaSynced(): bool
+    {
+        return $this->zatcaCreditNoteLogs()->whereIn('status', ['cleared', 'reported'])->exists();
+    }
+
     public function recalculateTotals(): void
     {
         $items = $this->items;
