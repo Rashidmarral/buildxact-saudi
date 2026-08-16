@@ -216,6 +216,10 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and cannot be deleted. Issue a credit note to correct it instead.')]);
         }
 
+        if ($invoice->status !== 'draft') {
+            return back()->withErrors(['invoice' => __('Only draft invoices can be deleted. Cancel this invoice instead to keep an audit trail.')]);
+        }
+
         $invoice->delete();
 
         return redirect()->route('app.invoices.index')->with('status', __('Invoice deleted.'));

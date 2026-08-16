@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SyncCreditNoteToZatca;
 use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\Invoice;
@@ -141,6 +142,10 @@ class CreditNoteController extends Controller
         });
 
         app(LedgerPostingService::class)->postCreditNote($creditNote);
+
+        if ($creditNote->company->zatca_sync_frequency === 'instant') {
+            SyncCreditNoteToZatca::dispatch($creditNote->id);
+        }
 
         return redirect()->route('app.credit-notes.show', $creditNote)->with('status', __('Credit note issued.'));
     }
