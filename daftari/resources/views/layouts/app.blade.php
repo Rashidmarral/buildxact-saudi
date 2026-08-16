@@ -144,6 +144,9 @@
                     <button type="button" @click="mobileNavOpen = true" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
                         @include('partials.icon', ['name' => 'menu', 'class' => 'h-5 w-5'])
                     </button>
+                    @if ($company?->logo_path)
+                        <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="hidden h-8 w-8 rounded-md object-cover border border-slate-200 sm:block">
+                    @endif
                     <h1 class="text-base font-semibold text-slate-900 sm:text-lg">@yield('title')</h1>
                 </div>
                 <div class="flex items-center gap-2 sm:gap-4">

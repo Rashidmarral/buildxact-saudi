@@ -232,6 +232,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update')->middleware('permission:settings');
     Route::get('settings', [SettingsController::class, 'index'])->name('settings.index')->middleware('permission:settings');
     Route::put('settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::post('settings/documents', [SettingsController::class, 'storeDocument'])->name('settings.documents.store')->middleware('permission:settings');
+    Route::delete('settings/documents/{attachment}', [SettingsController::class, 'destroyDocument'])->name('settings.documents.destroy')->middleware('permission:settings');
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');

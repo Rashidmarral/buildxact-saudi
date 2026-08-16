@@ -13,6 +13,7 @@
         <div class="mt-1 flex items-center gap-4">
             @if ($company->logo_path)
                 <img src="{{ Storage::url($company->logo_path) }}" alt="{{ __('Company logo') }}" class="h-14 w-14 rounded-lg object-cover border border-slate-200">
+                <a href="{{ Storage::url($company->logo_path) }}" target="_blank" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('View') }}</a>
             @else
                 <div class="h-14 w-14 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-xs">{{ __('No logo') }}</div>
             @endif
@@ -25,6 +26,7 @@
         <div class="mt-1 flex items-center gap-4">
             @if ($company->stamp_path)
                 <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-14 w-14 rounded-lg object-cover border border-slate-200">
+                <a href="{{ Storage::url($company->stamp_path) }}" target="_blank" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('View') }}</a>
             @else
                 <div class="h-14 w-14 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-xs">{{ __('No stamp') }}</div>
             @endif
@@ -154,6 +156,72 @@
 
     <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save settings') }}</button>
 </form>
+
+<div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6">
+    <h3 class="font-semibold text-slate-900">{{ __('Company documents') }}</h3>
+    <p class="text-sm text-slate-500 mt-1">{{ __('Keep copies of your commercial registration, VAT certificate, and other compliance documents on file — useful for your own records and when applying for ZATCA onboarding.') }}</p>
+
+    @if ($documents->isNotEmpty())
+        <ul class="mt-4 divide-y divide-slate-50">
+            @foreach ($documents as $document)
+                <li class="flex items-center justify-between py-3 text-sm">
+                    <div class="flex items-center gap-3">
+                        @include('partials.icon', ['name' => 'clipboard', 'class' => 'h-5 w-5 text-slate-400 shrink-0'])
+                        <div>
+                            <p class="font-medium text-slate-800">{{ __(\App\Http\Controllers\User\SettingsController::DOCUMENT_TYPES[$document->document_type] ?? $document->document_type) }}</p>
+                            <p class="text-xs text-slate-400">
+                                {{ $document->original_name }} &middot; {{ $document->humanSize() }}
+                                @if ($document->expiry_date)
+                                    &middot;
+                                    <span class="{{ $document->isExpired() ? 'text-red-600 font-semibold' : ($document->isExpiringSoon() ? 'text-amber-600 font-semibold' : '') }}">
+                                        {{ __('Expires') }}: {{ $document->expiry_date->format('Y-m-d') }}
+                                        @if ($document->isExpired())
+                                            ({{ __('expired') }})
+                                        @elseif ($document->isExpiringSoon())
+                                            ({{ __('expiring soon') }})
+                                        @endif
+                                    </span>
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <a href="{{ Storage::url($document->path) }}" target="_blank" class="text-brand-700 hover:underline font-medium">{{ __('View') }}</a>
+                        <form method="POST" action="{{ route('app.settings.documents.destroy', $document) }}" onsubmit="return confirm('{{ __('Remove this document?') }}')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:underline font-medium">{{ __('Remove') }}</button>
+                        </form>
+                    </div>
+                </li>
+            @endforeach
+        </ul>
+    @else
+        <p class="mt-4 text-sm text-slate-400">{{ __('No documents uploaded yet.') }}</p>
+    @endif
+
+    <form method="POST" action="{{ route('app.settings.documents.store') }}" enctype="multipart/form-data" class="mt-5 pt-5 border-t border-slate-100 grid sm:grid-cols-3 gap-3 items-end">
+        @csrf
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Document type') }}</label>
+            <select name="document_type" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                @foreach (\App\Http\Controllers\User\SettingsController::DOCUMENT_TYPES as $value => $label)
+                    <option value="{{ $value }}">{{ __($label) }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Expiry date (optional)') }}</label>
+            <input type="date" name="expiry_date" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('File (PDF or image)') }}</label>
+            <input type="file" name="file" accept=".pdf,image/*" required class="mt-1 w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-600 hover:file:bg-slate-200">
+        </div>
+        <div class="sm:col-span-3">
+            <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Upload document') }}</button>
+        </div>
+    </form>
+</div>
 
 <div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6">
     <h3 class="font-semibold text-slate-900">{{ __('Change password') }}</h3>

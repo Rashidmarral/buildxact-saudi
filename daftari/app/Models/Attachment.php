@@ -13,12 +13,29 @@ class Attachment extends Model
 
     protected $fillable = [
         'company_id', 'attachable_type', 'attachable_id', 'uploaded_by',
-        'original_name', 'path', 'size', 'mime_type',
+        'original_name', 'path', 'size', 'mime_type', 'document_type', 'expiry_date',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'expiry_date' => 'date',
+        ];
+    }
 
     public function attachable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function isExpiringSoon(): bool
+    {
+        return $this->expiry_date && $this->expiry_date->isFuture() && $this->expiry_date->diffInDays(now()) <= 30;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expiry_date && $this->expiry_date->isPast();
     }
 
     public function uploader(): BelongsTo

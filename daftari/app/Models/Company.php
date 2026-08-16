@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Company extends Model
 {
@@ -327,6 +328,11 @@ class Company extends Model
             ->get();
 
         return $candidates->firstWhere('document_type', $documentType) ?? $candidates->firstWhere('document_type', 'all');
+    }
+
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable')->whereNotNull('document_type')->latest('id');
     }
 
     public function isZatcaOnboarded(): bool
