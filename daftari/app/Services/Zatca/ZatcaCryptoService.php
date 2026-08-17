@@ -93,6 +93,7 @@ prompt = no
 
 [ v3_req ]
 basicConstraints = CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment
 certificateTemplateName = ASN1:UTF8String:ZATCA-Code-Signing
 subjectAltName = dirName:alt_names
 
