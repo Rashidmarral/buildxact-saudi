@@ -292,7 +292,7 @@ class ZatcaSyncService
             return [$unsignedXml, null];
         }
 
-        $signedXml = $this->signer->sign($company, $unsignedXml, $invoiceHash, $certificateBase64, $qrTlv);
+        $signedXml = $this->signer->sign($company, $unsignedXml, $invoiceHash, $certificateBase64, $qrTlv, $signature);
 
         $qrPng = ZatcaQrGenerator::generatePhase2(
             $company->name,

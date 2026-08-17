@@ -74,17 +74,20 @@ class ZatcaXadesSigner
      * @param  string  $unsignedXml  Output of ZatcaXmlGenerator::generate()/generateForCreditNote().
      * @param  string  $invoiceHashBase64  ZatcaXadesSigner::contentHash() of that same $unsignedXml.
      * @param  string  $certificateBase64  The company's CSID/production certificate (binarySecurityToken).
-     * @param  string  $qrBase64  The Phase 2 9-tag QR payload (ZatcaQrGenerator::generatePhase2()).
+     * @param  string  $qrBase64  The Phase 2 9-tag QR payload (ZatcaQrGenerator::generatePhase2()) — built
+     *                            from the *same* $digitalSignature passed here, not recomputed independently.
+     * @param  string  $digitalSignature  ZatcaCryptoService::signInvoiceHash() of $invoiceHashBase64 — the
+     *                                    caller's own, already-computed value, reused verbatim as this
+     *                                    block's ds:SignatureValue. ECDSA signing is non-deterministic (a
+     *                                    fresh random nonce every call), so calling signInvoiceHash() again
+     *                                    in here instead of reusing the caller's result would embed a
+     *                                    signature that's individually valid but disagrees with the one
+     *                                    already baked into $qrBase64's tag 7 — exactly the
+     *                                    "signature value does not match with qr" rejection ZATCA returns.
      * @return string The final, signed, QR-embedded invoice XML — base64-encode this to submit to ZATCA.
      */
-    public function sign(Company $company, string $unsignedXml, string $invoiceHashBase64, string $certificateBase64, string $qrBase64): string
+    public function sign(Company $company, string $unsignedXml, string $invoiceHashBase64, string $certificateBase64, string $qrBase64, string $digitalSignature): string
     {
-        $digitalSignature = $this->crypto->signInvoiceHash($company, $invoiceHashBase64);
-
-        if (! $digitalSignature) {
-            throw new RuntimeException('Cannot sign the invoice: company has no ZATCA private key yet.');
-        }
-
         $certificateValue = base64_encode($this->certificates->rawCertificate($certificateBase64));
         $certificateHash = $this->certificates->certificateHash($certificateBase64);
         $issuerName = $this->certificates->issuerName($certificateBase64);

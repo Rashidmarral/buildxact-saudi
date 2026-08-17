@@ -161,14 +161,10 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:DocumentCurrencyCode', $creditNote->currency ?: 'SAR');
         $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
 
-        $this->append($doc, $root, 'cbc:InstructionNote', $creditNote->reason ?: 'Sales return / correction');
-
-        $root->appendChild($this->icvReference($doc, $icv));
-
-        if ($previousInvoiceHash) {
-            $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
-        }
-
+        // UBL's InvoiceType sequence places cac:BillingReference before
+        // cac:AdditionalDocumentReference (which ICV/PIH use) — emitting
+        // it afterward, as this previously did, violates element order
+        // once any AdditionalDocumentReference is present.
         $originalLog = $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first();
 
         $billingReference = $doc->createElement('cac:BillingReference');
@@ -179,6 +175,12 @@ class ZatcaXmlGenerator
         }
         $billingReference->appendChild($docRef);
         $root->appendChild($billingReference);
+
+        $root->appendChild($this->icvReference($doc, $icv));
+
+        if ($previousInvoiceHash) {
+            $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
+        }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
             'name' => $company->name,
@@ -206,8 +208,15 @@ class ZatcaXmlGenerator
         $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', $creditNote->issue_date->format('Y-m-d'));
         $root->appendChild($delivery);
 
+        // KSA-10 "Reason for issuing a Credit/Debit Note" (BR-KSA-17) is
+        // cbc:InstructionNote nested under cac:PaymentMeans — a sibling of
+        // PaymentMeansCode, per UBL's PaymentMeansType — not a top-level
+        // Invoice-document child. Placing it at the document root (as this
+        // previously did) is itself an XSD schema violation, on top of the
+        // reason not actually being recognised where ZATCA expects it.
         $paymentMeans = $doc->createElement('cac:PaymentMeans');
         $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
+        $this->append($doc, $paymentMeans, 'cbc:InstructionNote', $creditNote->reason ?: 'Sales return / correction');
         $root->appendChild($paymentMeans);
 
         $this->appendDualTaxTotal($doc, $root, (float) $creditNote->vat_total, $creditNote->items, fn ($item) => $item->quantity * $item->unit_price);
@@ -291,8 +300,22 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:DocumentCurrencyCode', 'SAR');
         $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
 
+        // UBL's InvoiceType sequence places cac:BillingReference before
+        // cac:AdditionalDocumentReference (ICV/PIH use the latter) —
+        // omitting BillingReference entirely is fine (it's optional), but
+        // once any AdditionalDocumentReference has been emitted, the
+        // sequence position for BillingReference has already passed and
+        // can't be emitted after it without violating element order.
+        //
+        // BR-KSA-56: a billing reference is mandatory for credit (381) and
+        // debit (383) notes — the compliance sample doesn't correct a real
+        // document, so this just needs to be present and well-formed.
         if ($documentTypeCode !== '388') {
-            $this->append($doc, $root, 'cbc:InstructionNote', 'ZATCA compliance sample');
+            $billingReference = $doc->createElement('cac:BillingReference');
+            $docRef = $doc->createElement('cac:InvoiceDocumentReference');
+            $this->append($doc, $docRef, 'cbc:ID', 'COMPLIANCE-SAMPLE-SOURCE');
+            $billingReference->appendChild($docRef);
+            $root->appendChild($billingReference);
         }
 
         $root->appendChild($this->icvReference($doc, $icv));
@@ -331,6 +354,12 @@ class ZatcaXmlGenerator
 
         $paymentMeans = $doc->createElement('cac:PaymentMeans');
         $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
+        if ($documentTypeCode !== '388') {
+            // KSA-10 (BR-KSA-17): the reason for issuing a credit/debit
+            // note — nested under cac:PaymentMeans per UBL's
+            // PaymentMeansType, not a top-level Invoice-document child.
+            $this->append($doc, $paymentMeans, 'cbc:InstructionNote', 'ZATCA compliance sample');
+        }
         $root->appendChild($paymentMeans);
 
         $sampleItem = (object) ['vat_rate' => 15.0, 'vat_amount' => 0.60];
