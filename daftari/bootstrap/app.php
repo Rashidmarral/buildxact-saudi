@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\PdfRenderingException;
 use App\Http\Middleware\EnsureCompanyActive;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
@@ -26,5 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (PdfRenderingException $e, $request) {
+            report($e);
+
+            return back()->withErrors(['pdf' => $e->getMessage()]);
+        });
     })->create();

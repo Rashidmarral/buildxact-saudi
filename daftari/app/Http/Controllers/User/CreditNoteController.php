@@ -173,6 +173,7 @@ class CreditNoteController extends Controller
             'party_label_ar' => 'العميل',
             'party' => $creditNote->client,
             'qr_code' => $creditNote->qr_code,
+            'zatca_status' => $creditNote->zatcaCreditNoteLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
             'lines' => $creditNote->items,
             'subtotal' => $creditNote->subtotal,
             'vat_total' => $creditNote->vat_total,

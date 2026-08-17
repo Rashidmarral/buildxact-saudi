@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\PdfRenderingException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 /**
  * Renders a Blade view to PDF through a real Chromium engine (via
@@ -63,14 +63,30 @@ class ChromiumPdfRenderer
             ]))->path(base_path())->run([
                 'node', 'scripts/render-pdf.mjs', $htmlPath, $pdfPath,
             ]);
-
-            if (! $result->successful() || ! file_exists($pdfPath)) {
-                throw new RuntimeException('Chromium PDF render failed: '.$result->errorOutput());
-            }
-
-            return file_get_contents($pdfPath);
+        } catch (\Throwable $e) {
+            // Process::run() itself throws (rather than returning a failed
+            // result) when the 'node' executable can't be found at all —
+            // the most common cause on a fresh XAMPP/Windows setup that
+            // never had Node.js installed.
+            throw new PdfRenderingException(
+                'Could not start the PDF renderer — is Node.js installed and on your PATH? '.$e->getMessage(),
+                previous: $e,
+            );
         } finally {
             @unlink($htmlPath);
+        }
+
+        if (! $result->successful() || ! file_exists($pdfPath)) {
+            @unlink($pdfPath);
+
+            throw new PdfRenderingException(
+                'PDF rendering failed — this almost always means the one-time Node.js setup hasn\'t been completed yet: install Node.js from nodejs.org, then from the project root run "npm install" followed by "npx playwright install --with-deps chromium". Underlying error: '.$result->errorOutput()
+            );
+        }
+
+        try {
+            return file_get_contents($pdfPath);
+        } finally {
             @unlink($pdfPath);
         }
     }

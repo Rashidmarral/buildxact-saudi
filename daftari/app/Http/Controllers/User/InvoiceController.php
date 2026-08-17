@@ -149,6 +149,7 @@ class InvoiceController extends Controller
             'party_label_ar' => 'العميل',
             'party' => $invoice->client,
             'qr_code' => $invoice->qr_code,
+            'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
             'lines' => $invoice->items,
             'subtotal' => $invoice->subtotal,
             'discount_total' => $invoice->discount_total,

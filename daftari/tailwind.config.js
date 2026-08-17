@@ -12,7 +12,15 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                // Figtree was declared here but never actually loaded
+                // anywhere (no <link>/@font-face), so every page has been
+                // silently falling back to the OS default font the whole
+                // time. Cairo is loaded via Google Fonts in every layout
+                // and the PDF print template, and — unlike Figtree —
+                // actually supports Arabic, matching this app's bilingual
+                // content instead of leaving Arabic text to an inconsistent
+                // system fallback.
+                sans: ['Cairo', ...defaultTheme.fontFamily.sans],
             },
             colors: {
                 brand: {

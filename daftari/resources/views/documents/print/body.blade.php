@@ -67,6 +67,11 @@
     @if (!empty($doc['qr_code']))
         <div class="mt-4 flex justify-end">
             <div class="text-end">
+                @if (!empty($doc['zatca_status']))
+                    <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                        {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                    </p>
+                @endif
                 <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-24 w-24" onerror="this.style.display='none'">
                 <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
             </div>
@@ -207,6 +212,11 @@
     @if (!empty($doc['qr_code']))
         <div class="mt-4 flex justify-end">
             <div class="text-end">
+                @if (!empty($doc['zatca_status']))
+                    <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                        {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                    </p>
+                @endif
                 <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-24 w-24" onerror="this.style.display='none'">
                 <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
             </div>
@@ -318,6 +328,11 @@
         </div>
         <div class="text-end">
             @if (!empty($doc['qr_code']))
+                @if (!empty($doc['zatca_status']))
+                    <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                        {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                    </p>
+                @endif
                 <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-28 w-28" onerror="this.style.display='none'">
                 <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
             @endif
