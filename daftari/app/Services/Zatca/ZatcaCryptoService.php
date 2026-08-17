@@ -14,6 +14,18 @@ use RuntimeException;
 class ZatcaCryptoService
 {
     /**
+     * ZATCA validates the CSR's certificateTemplateName against the
+     * environment the OTP was issued for — sending the production name
+     * ("ZATCA-Code-Signing") while onboarding against simulation (or vice
+     * versa) is rejected outright as an invalid CSR.
+     */
+    private const CERT_TEMPLATE_NAMES = [
+        'developer' => 'TSTZATCA-Code-Signing',
+        'simulation' => 'PREZATCA-Code-Signing',
+        'production' => 'ZATCA-Code-Signing',
+    ];
+
+    /**
      * Generates an EC secp256k1 private key and a CSR carrying the
      * ZATCA-specific subject fields (organization identity, VAT number,
      * EGS serial, invoice type flags) required by the compliance endpoint.
@@ -29,9 +41,10 @@ class ZatcaCryptoService
         $country = 'SA';
         $businessCategory = $options['business_category'] ?? __('General');
         $addressLocation = $options['location'] ?? (trim(($company->street_name ?: $company->address).' '.$company->city) ?: 'Riyadh');
+        $certificateTemplateName = self::CERT_TEMPLATE_NAMES[$company->zatca_environment] ?? self::CERT_TEMPLATE_NAMES['developer'];
 
         // Invoice type flag: 4 booleans (Standard, Simplified, future, future),
-        // matching ZATCA's documented "1000" = supports both tax + simplified.
+        // "1100" = supports both tax (standard) and simplified invoices.
         $invoiceType = $options['invoice_type'] ?? '1100';
 
         $key = openssl_pkey_new([
@@ -45,19 +58,19 @@ class ZatcaCryptoService
 
         openssl_pkey_export($key, $privateKeyPem);
 
-        $configPath = $this->writeCsrConfig($egsSerial, $organizationUnit, $invoiceType, $addressLocation, $businessCategory);
+        $configPath = $this->writeCsrConfig($egsSerial, $organizationUnit, $invoiceType, $addressLocation, $businessCategory, $certificateTemplateName);
 
         try {
             $dn = [
-                'countryName' => $country,
-                'organizationName' => $organizationName,
-                'organizationalUnitName' => $organizationUnit,
                 'commonName' => $commonName,
+                'organizationalUnitName' => $organizationUnit,
+                'organizationName' => $organizationName,
+                'countryName' => $country,
             ];
 
             $csr = openssl_csr_new($dn, $key, [
                 'digest_alg' => 'sha256',
-                'req_extensions' => 'v3_req',
+                'req_extensions' => 'req_ext',
                 'config' => $configPath,
             ]);
 
@@ -76,25 +89,24 @@ class ZatcaCryptoService
         ];
     }
 
-    private function writeCsrConfig(string $egsSerial, string $vatNumber, string $invoiceType, string $location, string $businessCategory): string
+    private function writeCsrConfig(string $egsSerial, string $vatNumber, string $invoiceType, string $location, string $businessCategory, string $certificateTemplateName): string
     {
         $config = <<<CNF
-oid_section = OIDS
+oid_section = OIDs
 
-[ OIDS ]
+[ OIDs ]
 certificateTemplateName = 1.3.6.1.4.1.311.20.2
 
 [ req ]
+default_bits = 2048
 distinguished_name = req_distinguished_name
-req_extensions = v3_req
+req_extensions = req_ext
 prompt = no
 
 [ req_distinguished_name ]
 
-[ v3_req ]
-basicConstraints = CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment
-certificateTemplateName = ASN1:UTF8String:ZATCA-Code-Signing
+[ req_ext ]
+certificateTemplateName = ASN1:PRINTABLESTRING:{$certificateTemplateName}
 subjectAltName = dirName:alt_names
 
 [ alt_names ]
