@@ -25,7 +25,7 @@ class ZatcaCryptoService
         $egsSerial = $options['egs_serial'] ?? ('1-Daftari|2-1.0.0|3-'.$company->id);
         $organizationName = $options['organization_name'] ?? $company->name;
         $organizationUnit = $company->vat_number ?: '000000000000000';
-        $commonName = $options['common_name'] ?? $company->name;
+        $commonName = $options['common_name'] ?? ($company->vat_number ?: $company->name);
         $country = 'SA';
         $businessCategory = $options['business_category'] ?? __('General');
         $addressLocation = $options['location'] ?? (trim(($company->street_name ?: $company->address).' '.$company->city) ?: 'Riyadh');
