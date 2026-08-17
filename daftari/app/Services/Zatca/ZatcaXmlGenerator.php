@@ -82,6 +82,7 @@ class ZatcaXmlGenerator
         $taxTotal = $doc->createElement('cac:TaxTotal');
         $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $invoice->vat_total, 2, '.', ''))
             ->setAttribute('currencyID', 'SAR');
+        $this->appendTaxSubtotals($doc, $taxTotal, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
         $root->appendChild($taxTotal);
 
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
@@ -110,8 +111,11 @@ class ZatcaXmlGenerator
             $itemEl = $doc->createElement('cac:Item');
             $this->append($doc, $itemEl, 'cbc:Name', $item->description);
             $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
-            $this->append($doc, $taxCategory, 'cbc:ID', 'S');
+            $this->append($doc, $taxCategory, 'cbc:ID', (float) $item->vat_rate > 0 ? 'S' : 'Z');
             $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $item->vat_rate, 2, '.', ''));
+            $lineTaxScheme = $doc->createElement('cac:TaxScheme');
+            $this->append($doc, $lineTaxScheme, 'cbc:ID', 'VAT');
+            $taxCategory->appendChild($lineTaxScheme);
             $itemEl->appendChild($taxCategory);
             $line->appendChild($itemEl);
 
@@ -211,6 +215,7 @@ class ZatcaXmlGenerator
         $taxTotal = $doc->createElement('cac:TaxTotal');
         $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $creditNote->vat_total, 2, '.', ''))
             ->setAttribute('currencyID', 'SAR');
+        $this->appendTaxSubtotals($doc, $taxTotal, $creditNote->items, fn ($item) => $item->quantity * $item->unit_price);
         $root->appendChild($taxTotal);
 
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
@@ -236,8 +241,11 @@ class ZatcaXmlGenerator
             $itemEl = $doc->createElement('cac:Item');
             $this->append($doc, $itemEl, 'cbc:Name', $item->description);
             $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
-            $this->append($doc, $taxCategory, 'cbc:ID', 'S');
+            $this->append($doc, $taxCategory, 'cbc:ID', (float) $item->vat_rate > 0 ? 'S' : 'Z');
             $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $item->vat_rate, 2, '.', ''));
+            $lineTaxScheme = $doc->createElement('cac:TaxScheme');
+            $this->append($doc, $lineTaxScheme, 'cbc:ID', 'VAT');
+            $taxCategory->appendChild($lineTaxScheme);
             $itemEl->appendChild($taxCategory);
             $line->appendChild($itemEl);
 
@@ -311,6 +319,39 @@ class ZatcaXmlGenerator
         $wrapper->appendChild($party);
 
         return $wrapper;
+    }
+
+    /**
+     * BG-23 "VAT breakdown" — BR-KSA-EN16931-08 requires the document-level
+     * TaxTotal (BG-22) to carry one TaxSubtotal per distinct VAT rate/
+     * category, each with its own taxable base and tax amount, rather than
+     * only a single grand total.
+     */
+    private function appendTaxSubtotals(DOMDocument $doc, \DOMElement $taxTotal, iterable $items, \Closure $netAmount): void
+    {
+        $groups = [];
+
+        foreach ($items as $item) {
+            $rate = number_format((float) $item->vat_rate, 2, '.', '');
+            $groups[$rate]['taxable'] = ($groups[$rate]['taxable'] ?? 0) + $netAmount($item);
+            $groups[$rate]['tax'] = ($groups[$rate]['tax'] ?? 0) + (float) $item->vat_amount;
+        }
+
+        foreach ($groups as $rate => $group) {
+            $subtotal = $doc->createElement('cac:TaxSubtotal');
+            $this->appendAmount($doc, $subtotal, 'cbc:TaxableAmount', (float) $group['taxable']);
+            $this->appendAmount($doc, $subtotal, 'cbc:TaxAmount', (float) $group['tax']);
+
+            $category = $doc->createElement('cac:TaxCategory');
+            $this->append($doc, $category, 'cbc:ID', (float) $rate > 0 ? 'S' : 'Z');
+            $this->append($doc, $category, 'cbc:Percent', $rate);
+            $scheme = $doc->createElement('cac:TaxScheme');
+            $this->append($doc, $scheme, 'cbc:ID', 'VAT');
+            $category->appendChild($scheme);
+            $subtotal->appendChild($category);
+
+            $taxTotal->appendChild($subtotal);
+        }
     }
 
     private function append(DOMDocument $doc, \DOMElement $parent, string $tag, string $value): \DOMElement

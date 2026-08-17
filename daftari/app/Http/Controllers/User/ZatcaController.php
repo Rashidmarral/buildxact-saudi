@@ -12,7 +12,6 @@ use App\Services\Zatca\ZatcaXmlGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Throwable;
 
 class ZatcaController extends Controller
@@ -132,7 +131,7 @@ class ZatcaController extends Controller
         if (! $response->successful()) {
             return back()->with('error', __('ZATCA rejected the OTP/CSR (HTTP :code): :body', [
                 'code' => $response->status(),
-                'body' => Str::limit($response->body(), 300),
+                'body' => $response->body(),
             ]));
         }
 
@@ -183,7 +182,7 @@ class ZatcaController extends Controller
         if (! $response->successful()) {
             return back()->with('error', __('Compliance check failed (HTTP :code): :body', [
                 'code' => $response->status(),
-                'body' => Str::limit($response->body(), 300),
+                'body' => $response->body(),
             ]));
         }
 
@@ -224,7 +223,7 @@ class ZatcaController extends Controller
 
             return back()->with('error', __('Could not issue the production CSID (HTTP :code): :body', [
                 'code' => $response->status(),
-                'body' => Str::limit($response->body(), 300),
+                'body' => $response->body(),
             ]));
         }
 
