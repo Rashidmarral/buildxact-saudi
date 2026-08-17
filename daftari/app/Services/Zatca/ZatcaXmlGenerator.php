@@ -54,6 +54,8 @@ class ZatcaXmlGenerator
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
             'name' => $company->name,
             'vat_number' => $company->vat_number,
+            'id_scheme' => 'CRN',
+            'id_value' => $company->cr_number,
             'street' => $company->street_name ?: $company->address,
             'building_number' => $company->building_number,
             'district' => $company->district,
@@ -173,6 +175,8 @@ class ZatcaXmlGenerator
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
             'name' => $company->name,
             'vat_number' => $company->vat_number,
+            'id_scheme' => 'CRN',
+            'id_value' => $company->cr_number,
             'street' => $company->street_name ?: $company->address,
             'building_number' => $company->building_number,
             'district' => $company->district,
@@ -241,15 +245,17 @@ class ZatcaXmlGenerator
         $wrapper = $doc->createElement($wrapperTag);
         $party = $doc->createElement('cac:Party');
 
-        if (! empty($data['vat_number'])) {
-            $taxScheme = $doc->createElement('cac:PartyTaxScheme');
-            $this->append($doc, $taxScheme, 'cbc:CompanyID', $data['vat_number']);
-            $party->appendChild($taxScheme);
+        // UBL PartyType element order matters: PartyIdentification, then
+        // PostalAddress, then PartyTaxScheme, then PartyLegalEntity — ZATCA's
+        // validator (BR-KSA-08) rejects the seller party without a
+        // PartyIdentification carrying a recognised scheme (CRN, MOM, MLS,
+        // SAG, OTH, 700) and alphanumeric-only ID.
+        if (! empty($data['id_value']) && ! empty($data['id_scheme'])) {
+            $identification = $doc->createElement('cac:PartyIdentification');
+            $id = $this->append($doc, $identification, 'cbc:ID', preg_replace('/[^A-Za-z0-9]/', '', (string) $data['id_value']));
+            $id->setAttribute('schemeID', $data['id_scheme']);
+            $party->appendChild($identification);
         }
-
-        $legalEntity = $doc->createElement('cac:PartyLegalEntity');
-        $this->append($doc, $legalEntity, 'cbc:RegistrationName', $data['name'] ?: '');
-        $party->appendChild($legalEntity);
 
         $hasAddress = ! empty($data['street']) || ! empty($data['city']) || ! empty($data['building_number']) || ! empty($data['district']) || ! empty($data['postal_code']);
 
@@ -275,6 +281,16 @@ class ZatcaXmlGenerator
             $address->appendChild($country);
             $party->appendChild($address);
         }
+
+        if (! empty($data['vat_number'])) {
+            $taxScheme = $doc->createElement('cac:PartyTaxScheme');
+            $this->append($doc, $taxScheme, 'cbc:CompanyID', $data['vat_number']);
+            $party->appendChild($taxScheme);
+        }
+
+        $legalEntity = $doc->createElement('cac:PartyLegalEntity');
+        $this->append($doc, $legalEntity, 'cbc:RegistrationName', $data['name'] ?: '');
+        $party->appendChild($legalEntity);
 
         $wrapper->appendChild($party);
 
