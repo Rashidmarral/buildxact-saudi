@@ -216,7 +216,18 @@ class ZatcaController extends Controller
     {
         $company = Auth::user()->company;
 
-        if ($company->zatca_onboarding_status !== 'compliance_verified') {
+        // Normally gated on 'compliance_verified', but also allow retrying
+        // from 'onboarded' with no zatca_production_csid yet — a state
+        // reachable by any company that ran its compliance check before
+        // this step existed, when onboarding used to (incorrectly) jump
+        // straight to 'onboarded' from the compliance CSID alone. Without
+        // this, those companies would be permanently stuck: the status
+        // flag already says 'onboarded' so nothing offers this step again,
+        // but no production CSID was actually ever issued.
+        $eligible = $company->zatca_onboarding_status === 'compliance_verified'
+            || ($company->zatca_onboarding_status === 'onboarded' && ! $company->zatca_production_csid);
+
+        if (! $eligible) {
             return back()->with('error', __('Complete the compliance checks first.'));
         }
 

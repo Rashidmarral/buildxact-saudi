@@ -335,9 +335,19 @@ class Company extends Model
         return $this->morphMany(Attachment::class, 'attachable')->whereNotNull('document_type')->latest('id');
     }
 
+    /**
+     * True only once ZATCA has actually issued a production CSID — not
+     * just when the status flag says 'onboarded'. Onboarding used to
+     * (incorrectly) set that flag straight after the compliance CSID
+     * step for non-production environments, before any production
+     * credential existed; checking the credential itself here means any
+     * company still carrying that stale status self-heals back to "not
+     * onboarded" instead of silently claiming a connection that was
+     * never established.
+     */
     public function isZatcaOnboarded(): bool
     {
-        return $this->zatca_onboarding_status === 'onboarded';
+        return $this->zatca_onboarding_status === 'onboarded' && (bool) $this->zatca_production_csid;
     }
 
     /**
