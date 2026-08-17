@@ -73,6 +73,12 @@ class ZatcaXmlGenerator
             'postal_code' => $client->postal_code,
         ]));
 
+        // KSA-5 "supply date" — ZATCA requires standard tax invoices to
+        // state the actual delivery/supply date (BR-KSA-15).
+        $delivery = $doc->createElement('cac:Delivery');
+        $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', $invoice->issue_date->format('Y-m-d'));
+        $root->appendChild($delivery);
+
         $taxTotal = $doc->createElement('cac:TaxTotal');
         $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $invoice->vat_total, 2, '.', ''))
             ->setAttribute('currencyID', 'SAR');
@@ -91,10 +97,14 @@ class ZatcaXmlGenerator
             $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
             $qty->setAttribute('unitCode', $item->item?->unit_code ?: 'PCE');
-            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $item->quantity * $item->unit_price);
+            $lineNet = $item->quantity * $item->unit_price;
+            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet);
 
+            // KSA-11 (line VAT amount) and KSA-12 (line amount with VAT,
+            // i.e. net + VAT) — BR-KSA-51 requires both on every line.
             $lineTax = $doc->createElement('cac:TaxTotal');
-            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', $item->vat_amount);
+            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $item->vat_amount);
+            $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', $lineNet + (float) $item->vat_amount);
             $line->appendChild($lineTax);
 
             $itemEl = $doc->createElement('cac:Item');
@@ -194,6 +204,10 @@ class ZatcaXmlGenerator
             'postal_code' => $client->postal_code,
         ]));
 
+        $delivery = $doc->createElement('cac:Delivery');
+        $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', $creditNote->issue_date->format('Y-m-d'));
+        $root->appendChild($delivery);
+
         $taxTotal = $doc->createElement('cac:TaxTotal');
         $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $creditNote->vat_total, 2, '.', ''))
             ->setAttribute('currencyID', 'SAR');
@@ -211,10 +225,12 @@ class ZatcaXmlGenerator
             $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
             $qty->setAttribute('unitCode', $item->invoiceItem?->item?->unit_code ?: 'PCE');
-            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $item->quantity * $item->unit_price);
+            $lineNet = $item->quantity * $item->unit_price;
+            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet);
 
             $lineTax = $doc->createElement('cac:TaxTotal');
-            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', $item->vat_amount);
+            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $item->vat_amount);
+            $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', $lineNet + (float) $item->vat_amount);
             $line->appendChild($lineTax);
 
             $itemEl = $doc->createElement('cac:Item');
