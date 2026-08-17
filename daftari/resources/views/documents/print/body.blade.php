@@ -29,7 +29,12 @@
         <tbody>
             <tr class="border-b border-slate-300">
                 <td class="w-1/6 px-3 py-2 font-semibold text-slate-700">{{ $doc['party_label'] }}</td>
-                <td class="px-3 py-2 text-center font-medium text-slate-800">{{ $doc['party']->name }}</td>
+                <td class="px-3 py-2 text-center font-medium text-slate-800">
+                    {{ $doc['party']->name }}
+                    @if (!empty($doc['party']->name_ar))
+                        <span dir="rtl" class="block text-slate-600">{{ $doc['party']->name_ar }}</span>
+                    @endif
+                </td>
                 <td class="w-1/6 px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">{{ $doc['party_label_ar'] }}</td>
             </tr>
             <tr class="border-b border-slate-300">
@@ -58,6 +63,15 @@
             @endif
         </tbody>
     </table>
+
+    @if (!empty($doc['qr_code']))
+        <div class="mt-4 flex justify-end">
+            <div class="text-end">
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-24 w-24" onerror="this.style.display='none'">
+                <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
+            </div>
+        </div>
+    @endif
 
     <table class="w-full text-sm mt-6">
         <thead>
@@ -189,6 +203,15 @@
             @endif
         </tbody>
     </table>
+
+    @if (!empty($doc['qr_code']))
+        <div class="mt-4 flex justify-end">
+            <div class="text-end">
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-24 w-24" onerror="this.style.display='none'">
+                <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
+            </div>
+        </div>
+    @endif
 
     <table class="w-full text-sm mt-5 border border-slate-300">
         <thead>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\FileServeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
@@ -54,6 +55,7 @@ Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit');
 Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
+Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('filepath', '.*')->name('files.show');
 
 Route::get('/glossary', [ToolsController::class, 'glossary'])->name('glossary');
 Route::prefix('tools')->name('tools.')->group(function () {

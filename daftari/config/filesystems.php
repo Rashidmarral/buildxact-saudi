@@ -33,6 +33,13 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
+            // Every bare Storage::url() call in this app's views resolves
+            // against this disk (it's 'filesystems.default'), even though
+            // the files themselves are uploaded to the 'public' disk below
+            // — so it needs the same FileServeController URL, otherwise
+            // those calls fall back to Laravel's hardcoded "/storage/..."
+            // convention rather than the actual files route.
+            'url' => env('APP_URL').'/files',
             'serve' => true,
             'throw' => false,
             'report' => false,
@@ -41,7 +48,11 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            // Served through App\Http\Controllers\FileServeController (the
+            // /files/{filepath} route) instead of the storage:link symlink
+            // + web-server static serving — sidesteps the Windows/XAMPP
+            // symlink-permission and Apache FollowSymLinks 403 issues.
+            'url' => env('APP_URL').'/files',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

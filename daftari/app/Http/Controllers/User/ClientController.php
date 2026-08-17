@@ -4,6 +4,9 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Rules\SaudiCrNumber;
+use App\Rules\SaudiPhoneNumber;
+use App\Rules\SaudiVatNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -111,14 +114,14 @@ class ClientController extends Controller
             'name_ar' => ['nullable', 'string', 'max:255'],
             'contact_name' => ['nullable', 'string', 'max:255'],
             'is_vat_registered' => ['nullable', 'boolean'],
-            'vat_number' => ['nullable', 'string', 'max:32'],
-            'cr_number' => ['nullable', 'string', 'max:32'],
+            'vat_number' => ['nullable', 'string', new SaudiVatNumber],
+            'cr_number' => ['nullable', 'string', new SaudiCrNumber],
             'additional_id_type' => ['nullable', 'in:national_id,iqama,passport,gcc_id'],
             'additional_id_number' => ['nullable', 'string', 'max:50'],
             'initial_balance' => ['nullable', 'numeric'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'mobile' => ['nullable', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', new SaudiPhoneNumber],
+            'mobile' => ['nullable', 'string', new SaudiPhoneNumber],
             'street_name' => ['nullable', 'string', 'max:255'],
             'building_number' => ['nullable', 'string', 'max:20'],
             'district' => ['nullable', 'string', 'max:255'],

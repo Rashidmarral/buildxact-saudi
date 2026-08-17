@@ -7,6 +7,9 @@ use App\Models\Attachment;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\Company;
+use App\Rules\SaudiCrNumber;
+use App\Rules\SaudiPhoneNumber;
+use App\Rules\SaudiVatNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -51,8 +54,8 @@ class SettingsController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
-            'vat_number' => ['nullable', 'string', 'max:32'],
-            'cr_number' => ['nullable', 'string', 'max:32'],
+            'vat_number' => ['nullable', 'string', new SaudiVatNumber],
+            'cr_number' => ['nullable', 'string', new SaudiCrNumber],
             'alternative_seller_id_type' => ['nullable', 'in:commercial_registration,momra_license,mhrsd_license,passport_number,gcc_id,other_id'],
             'alternative_seller_id' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:255'],
@@ -62,7 +65,7 @@ class SettingsController extends Controller
             'district' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'additional_number' => ['nullable', 'string', 'max:20'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', new SaudiPhoneNumber],
             'email' => ['nullable', 'email', 'max:255'],
             'invoice_prefix' => ['required', 'string', 'max:10'],
             'primary_customer_type' => ['required', 'in:b2b,b2c,mixed'],
