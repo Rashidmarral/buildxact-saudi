@@ -301,6 +301,7 @@
                         <input type="checkbox" name="zatca_sync_b2c" value="1" @checked($company->zatca_sync_b2c) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                         {{ __('Sync B2C (simplified, reporting) invoices') }}
                     </label>
+                    <p class="text-xs text-amber-600">{{ __('These also decide which invoice types your CSR declares to ZATCA — only turn on what you actually issue. Declaring a type you don\'t need still requires passing its compliance checks, and changing either setting resets onboarding (a new CSR needs a new OTP from the Fatoora Portal).') }}</p>
                 </div>
                 <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save sync settings') }}</button>
             </form>

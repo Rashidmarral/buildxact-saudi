@@ -43,9 +43,15 @@ class ZatcaCryptoService
         $addressLocation = $options['location'] ?? (trim(($company->street_name ?: $company->address).' '.$company->city) ?: 'Riyadh');
         $certificateTemplateName = self::CERT_TEMPLATE_NAMES[$company->zatca_environment] ?? self::CERT_TEMPLATE_NAMES['developer'];
 
-        // Invoice type flag: 4 booleans (Standard, Simplified, future, future),
-        // "1100" = supports both tax (standard) and simplified invoices.
-        $invoiceType = $options['invoice_type'] ?? '1100';
+        // Invoice type flag: 4 booleans (Standard, Simplified, future,
+        // future). Declaring a capability this company won't actually use
+        // isn't free — ZATCA requires proving compliance for every
+        // declared type (standard AND simplified each need their own
+        // invoice/credit-note/debit-note compliance samples) before it
+        // will issue a production CSID, so this follows the company's own
+        // zatca_sync_b2b/zatca_sync_b2c settings rather than always
+        // claiming both.
+        $invoiceType = $options['invoice_type'] ?? (($company->zatca_sync_b2b ? '1' : '0').($company->zatca_sync_b2c ? '1' : '0').'00');
 
         $key = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,

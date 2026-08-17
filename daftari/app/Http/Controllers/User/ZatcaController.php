@@ -69,9 +69,24 @@ class ZatcaController extends Controller
         $data['zatca_sync_b2b'] = $request->boolean('zatca_sync_b2b');
         $data['zatca_sync_b2c'] = $request->boolean('zatca_sync_b2c');
 
-        if ($data['zatca_environment'] !== $company->zatca_environment) {
-            // Each ZATCA environment has its own CSID pair — switching
-            // means the previous onboarding no longer applies.
+        if (! $data['zatca_sync_b2b'] && ! $data['zatca_sync_b2c']) {
+            return back()->with('error', __('Enable at least one of Standard (B2B) or Simplified (B2C) invoicing.'));
+        }
+
+        // These two flags double as the invoice-type capability declared
+        // to ZATCA in the CSR itself (via ZatcaCryptoService::generateCsr()):
+        // declaring a capability that's actually off here creates
+        // compliance-check requirements (and, per ZATCA's Simulation
+        // environment, real validation trouble) for an invoice type the
+        // company was never going to submit anyway. Reset onboarding on
+        // change for the same reason environment changes do — the
+        // previously issued CSR/CSID no longer matches what should be
+        // declared.
+        $capabilityChanged = $data['zatca_environment'] !== $company->zatca_environment
+            || $data['zatca_sync_b2b'] !== (bool) $company->zatca_sync_b2b
+            || $data['zatca_sync_b2c'] !== (bool) $company->zatca_sync_b2c;
+
+        if ($capabilityChanged) {
             $data['zatca_onboarding_status'] = 'not_started';
             $data['zatca_csr'] = null;
             $data['zatca_private_key'] = null;
@@ -158,18 +173,24 @@ class ZatcaController extends Controller
         }
 
         // ZATCA won't issue a production CSID until the EGS has proven it
-        // can generate all 6 required document type/profile combinations
-        // — tax invoice, credit note, and debit note, each in both the
-        // standard (B2B) and simplified (B2C) profile — not just whichever
-        // one type a company's own invoices happen to be. Confirmed via a
-        // live "Missing-ComplianceSteps" rejection naming exactly these 6.
+        // can generate every document type/profile combination the CSR
+        // itself declared support for (ZatcaCryptoService::generateCsr())
+        // — tax invoice, credit note, and debit note, in the standard
+        // (B2B) profile if zatca_sync_b2b, the simplified (B2C) profile
+        // if zatca_sync_b2c, or both. Confirmed via a live
+        // "Missing-ComplianceSteps" rejection naming exactly the
+        // combinations for whichever profiles were declared.
         $combinations = [
-            ['code' => '388', 'name' => '0100000', 'label' => __('Standard tax invoice')],
-            ['code' => '381', 'name' => '0100000', 'label' => __('Standard credit note')],
-            ['code' => '383', 'name' => '0100000', 'label' => __('Standard debit note')],
-            ['code' => '388', 'name' => '0200000', 'label' => __('Simplified tax invoice')],
-            ['code' => '381', 'name' => '0200000', 'label' => __('Simplified credit note')],
-            ['code' => '383', 'name' => '0200000', 'label' => __('Simplified debit note')],
+            ...($company->zatca_sync_b2b ? [
+                ['code' => '388', 'name' => '0100000', 'label' => __('Standard tax invoice')],
+                ['code' => '381', 'name' => '0100000', 'label' => __('Standard credit note')],
+                ['code' => '383', 'name' => '0100000', 'label' => __('Standard debit note')],
+            ] : []),
+            ...($company->zatca_sync_b2c ? [
+                ['code' => '388', 'name' => '0200000', 'label' => __('Simplified tax invoice')],
+                ['code' => '381', 'name' => '0200000', 'label' => __('Simplified credit note')],
+                ['code' => '383', 'name' => '0200000', 'label' => __('Simplified debit note')],
+            ] : []),
         ];
 
         $previousHash = $crypto->genesisHash();
