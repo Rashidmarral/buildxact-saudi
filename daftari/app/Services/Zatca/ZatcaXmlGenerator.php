@@ -278,7 +278,15 @@ class ZatcaXmlGenerator
      * step too), and reusing one real invoice for all 6 would only work
      * for whichever single combination it happens to already be.
      */
-    public function generateComplianceSample(\App\Models\Company $company, string $documentTypeCode, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv): string
+    /**
+     * $issuedAt must be the exact same instant the caller later passes to
+     * ZatcaSyncService::buildSignedPayload() as its $issueDate — ZATCA
+     * checks the QR code's own timestamp (KSA-25) against this document's
+     * IssueDate/IssueTime, and a caller using separate now() calls for
+     * each risks drift (canonicalization + signing both take real time)
+     * that fails that check.
+     */
+    public function generateComplianceSample(\App\Models\Company $company, string $documentTypeCode, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv, \DateTimeInterface $issuedAt): string
     {
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = false;
@@ -291,8 +299,8 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
         $this->append($doc, $root, 'cbc:ID', 'COMPLIANCE-'.$icv);
         $this->append($doc, $root, 'cbc:UUID', $uuid);
-        $this->append($doc, $root, 'cbc:IssueDate', now()->format('Y-m-d'));
-        $this->append($doc, $root, 'cbc:IssueTime', now()->format('H:i:s'));
+        $this->append($doc, $root, 'cbc:IssueDate', $issuedAt->format('Y-m-d'));
+        $this->append($doc, $root, 'cbc:IssueTime', $issuedAt->format('H:i:s'));
 
         $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', $documentTypeCode);
         $typeCode->setAttribute('name', $invoiceTypeName);
@@ -349,7 +357,7 @@ class ZatcaXmlGenerator
         ]));
 
         $delivery = $doc->createElement('cac:Delivery');
-        $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', now()->format('Y-m-d'));
+        $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', $issuedAt->format('Y-m-d'));
         $root->appendChild($delivery);
 
         $paymentMeans = $doc->createElement('cac:PaymentMeans');

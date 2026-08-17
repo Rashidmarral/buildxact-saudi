@@ -13,6 +13,7 @@ use App\Services\Zatca\ZatcaXmlGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Throwable;
 
 class ZatcaController extends Controller
@@ -176,7 +177,13 @@ class ZatcaController extends Controller
 
         foreach ($combinations as $icv => $combo) {
             $uuid = $xml->newUuid();
-            $unsignedXml = $xml->generateComplianceSample($company, $combo['code'], $combo['name'], $previousHash, $uuid, $icv + 1);
+            // One shared instant for both the XML's IssueDate/IssueTime and
+            // the QR code's own timestamp (KSA-25) — computing them from
+            // separate now() calls risks drift (canonicalization + signing
+            // both take real time), which fails ZATCA's consistency check
+            // between the two.
+            $issuedAt = now();
+            $unsignedXml = $xml->generateComplianceSample($company, $combo['code'], $combo['name'], $previousHash, $uuid, $icv + 1, $issuedAt);
             $hash = $signer->contentHash($unsignedXml);
 
             // ZATCA's compliance endpoint validates the same fully signed
@@ -185,7 +192,7 @@ class ZatcaController extends Controller
             // signing certificate for this step.
             [$xmlString] = $sync->buildSignedPayload(
                 $company, $unsignedXml, $hash, $company->zatca_compliance_csid,
-                now(), 4.60, 0.60,
+                $issuedAt, 4.60, 0.60,
             );
 
             try {
@@ -201,7 +208,12 @@ class ZatcaController extends Controller
                 return back()->with('error', __('Could not reach ZATCA: :error', ['error' => $e->getMessage()]));
             }
 
-            if (! $response->successful()) {
+            // A prior successful run already satisfied this exact
+            // combination — ZATCA remembers that and refuses to accept it
+            // again, but that's not a failure, it's already done.
+            $alreadyCompliant = ! $response->successful() && Str::contains($response->body(), 'Submitted before');
+
+            if (! $response->successful() && ! $alreadyCompliant) {
                 $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
             }
 
