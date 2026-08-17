@@ -307,8 +307,17 @@ class ZatcaXmlGenerator
         }
 
         if (! empty($data['vat_number'])) {
+            // UBL's PartyTaxSchemeType ends its sequence with a mandatory
+            // (not optional) cac:TaxScheme — omitting it, as we previously
+            // did, is itself an XSD violation, and since it sits inside
+            // the same AccountingSupplierParty subtree as the seller's
+            // CompanyID, this was also the real cause of the "missing
+            // seller VAT number" (BR-KSA-39) error reported alongside it.
             $taxScheme = $doc->createElement('cac:PartyTaxScheme');
             $this->append($doc, $taxScheme, 'cbc:CompanyID', $data['vat_number']);
+            $scheme = $doc->createElement('cac:TaxScheme');
+            $this->append($doc, $scheme, 'cbc:ID', 'VAT');
+            $taxScheme->appendChild($scheme);
             $party->appendChild($taxScheme);
         }
 
