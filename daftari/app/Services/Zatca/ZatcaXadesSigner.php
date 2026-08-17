@@ -94,9 +94,6 @@ class ZatcaXadesSigner
         $serialNumber = $this->certificates->serialNumber($certificateBase64);
         $signingTimestamp = gmdate('Y-m-d\TH:i:s\Z');
 
-        $signedPropertiesXml = $this->buildSignedPropertiesXml($signingTimestamp, $certificateHash, $issuerName, $serialNumber);
-        $signedPropertiesHash = base64_encode(hash('sha256', $signedPropertiesXml, false));
-
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->preserveWhiteSpace = false;
         $doc->loadXML($unsignedXml);
@@ -104,18 +101,26 @@ class ZatcaXadesSigner
         $root = $doc->documentElement;
         $this->declareSignatureNamespaces($root);
 
-        $ublExtensions = $this->buildUblExtensions(
-            $doc,
-            $invoiceHashBase64,
-            $signedPropertiesHash,
-            $digitalSignature,
-            $certificateValue,
-            $signingTimestamp,
-            $certificateHash,
-            $issuerName,
-            $serialNumber,
+        // ds:Object/QualifyingProperties/SignedProperties has to be built
+        // and actually attached into the real document tree — inheriting
+        // the ext:/sig:/ds:/xades: namespace declarations just placed on
+        // $root — *before* computing its digest below. Hashing a
+        // separately-built standalone copy (as this used to do) produces
+        // a different digest than what canonicalizing the real embedded
+        // node yields, because the standalone copy has no ancestor to
+        // inherit those namespaces from and so serializes differently.
+        // This was silently wrong for every submission; ZATCA's
+        // "invalid signed properties hashing" error only surfaced when
+        // it turned out ZATCA validates it much more strictly for
+        // simplified/B2C documents than standard/B2B ones.
+        [$ublExtensions, $signature, $signedProperties, $object] = $this->buildUblExtensionsSkeleton(
+            $doc, $certificateValue, $signingTimestamp, $certificateHash, $issuerName, $serialNumber,
         );
         $root->insertBefore($ublExtensions, $root->firstChild);
+
+        $signedPropertiesHash = base64_encode(hash('sha256', $signedProperties->C14N(), true));
+
+        $this->attachSignatureCore($doc, $signature, $object, $invoiceHashBase64, $signedPropertiesHash, $digitalSignature, $certificateValue);
 
         $insertionPoint = $this->lastAdditionalDocumentReference($root) ?? $root->firstChild;
 
@@ -128,59 +133,23 @@ class ZatcaXadesSigner
         return $doc->saveXML();
     }
 
-    private function buildSignedPropertiesXml(string $signingTimestamp, string $certificateHash, string $issuerName, string $serialNumber): string
-    {
-        $doc = new DOMDocument('1.0', 'UTF-8');
-
-        $signedProperties = $doc->createElementNS(self::NS_XADES, 'xades:SignedProperties');
-        $signedProperties->setAttribute('Id', 'xadesSignedProperties');
-        $doc->appendChild($signedProperties);
-
-        $signedSignatureProperties = $doc->createElementNS(self::NS_XADES, 'xades:SignedSignatureProperties');
-        $signedProperties->appendChild($signedSignatureProperties);
-
-        $signingTime = $doc->createElementNS(self::NS_XADES, 'xades:SigningTime', $signingTimestamp);
-        $signedSignatureProperties->appendChild($signingTime);
-
-        $signingCertificate = $doc->createElementNS(self::NS_XADES, 'xades:SigningCertificate');
-        $signedSignatureProperties->appendChild($signingCertificate);
-
-        $cert = $doc->createElementNS(self::NS_XADES, 'xades:Cert');
-        $signingCertificate->appendChild($cert);
-
-        $certDigest = $doc->createElementNS(self::NS_XADES, 'xades:CertDigest');
-        $cert->appendChild($certDigest);
-
-        $digestMethod = $doc->createElementNS(self::NS_DS, 'ds:DigestMethod');
-        $digestMethod->setAttribute('Algorithm', 'http://www.w3.org/2001/04/xmlenc#sha256');
-        $certDigest->appendChild($digestMethod);
-
-        $digestValue = $doc->createElementNS(self::NS_DS, 'ds:DigestValue', $certificateHash);
-        $certDigest->appendChild($digestValue);
-
-        $issuerSerial = $doc->createElementNS(self::NS_XADES, 'xades:IssuerSerial');
-        $cert->appendChild($issuerSerial);
-
-        $x509IssuerName = $doc->createElementNS(self::NS_DS, 'ds:X509IssuerName', htmlspecialchars($issuerName, ENT_XML1 | ENT_QUOTES, 'UTF-8'));
-        $issuerSerial->appendChild($x509IssuerName);
-
-        $x509SerialNumber = $doc->createElementNS(self::NS_DS, 'ds:X509SerialNumber', $serialNumber);
-        $issuerSerial->appendChild($x509SerialNumber);
-
-        return $doc->saveXML($signedProperties);
-    }
-
-    private function buildUblExtensions(
+    /**
+     * Builds ext:UBLExtensions down through an (as yet incomplete)
+     * ds:Signature carrying only its ds:Object/QualifyingProperties/
+     * SignedProperties child — SignedInfo/SignatureValue/KeyInfo are
+     * added afterward, once the caller has attached this into the real
+     * tree and hashed the now-in-context SignedProperties node.
+     *
+     * @return array{0: DOMElement, 1: DOMElement, 2: DOMElement, 3: DOMElement} [ublExtensions, signature, signedProperties, object]
+     */
+    private function buildUblExtensionsSkeleton(
         DOMDocument $doc,
-        string $invoiceHash,
-        string $signedPropertiesHash,
-        string $digitalSignature,
         string $certificateValue,
         string $signingTimestamp,
         string $certificateHash,
         string $issuerName,
         string $serialNumber,
-    ): DOMElement {
+    ): array {
         $ublExtensions = $doc->createElementNS(self::NS_EXT, 'ext:UBLExtensions');
         $ublExtension = $doc->createElementNS(self::NS_EXT, 'ext:UBLExtension');
         $ublExtensions->appendChild($ublExtension);
@@ -209,8 +178,25 @@ class ZatcaXadesSigner
         $signature->setAttribute('Id', 'signature');
         $signatureInformation->appendChild($signature);
 
+        $object = $doc->createElementNS(self::NS_DS, 'ds:Object');
+        $signature->appendChild($object);
+
+        [$qualifyingProperties, $signedProperties] = $this->buildQualifyingProperties($doc, $signingTimestamp, $certificateHash, $issuerName, $serialNumber);
+        $object->appendChild($qualifyingProperties);
+
+        return [$ublExtensions, $signature, $signedProperties, $object];
+    }
+
+    /**
+     * Builds ds:SignedInfo/SignatureValue/KeyInfo and inserts them as the
+     * first children of $signature, ahead of the already-attached
+     * ds:Object — restoring ds:Signature's required child order
+     * (SignedInfo, SignatureValue, KeyInfo, Object) despite Object having
+     * been built and attached first (it had to be, to hash it in place).
+     */
+    private function attachSignatureCore(DOMDocument $doc, DOMElement $signature, DOMElement $object, string $invoiceHash, string $signedPropertiesHash, string $digitalSignature, string $certificateValue): void
+    {
         $signedInfo = $doc->createElementNS(self::NS_DS, 'ds:SignedInfo');
-        $signature->appendChild($signedInfo);
 
         $canonicalizationMethod = $doc->createElementNS(self::NS_DS, 'ds:CanonicalizationMethod');
         $canonicalizationMethod->setAttribute('Algorithm', 'http://www.w3.org/2006/12/xml-c14n11');
@@ -224,23 +210,16 @@ class ZatcaXadesSigner
         $signedInfo->appendChild($this->buildSignedPropertiesReference($doc, $signedPropertiesHash));
 
         $signatureValue = $doc->createElementNS(self::NS_DS, 'ds:SignatureValue', $digitalSignature);
-        $signature->appendChild($signatureValue);
 
         $keyInfo = $doc->createElementNS(self::NS_DS, 'ds:KeyInfo');
-        $signature->appendChild($keyInfo);
-
         $x509Data = $doc->createElementNS(self::NS_DS, 'ds:X509Data');
         $keyInfo->appendChild($x509Data);
-
         $x509Certificate = $doc->createElementNS(self::NS_DS, 'ds:X509Certificate', $certificateValue);
         $x509Data->appendChild($x509Certificate);
 
-        $object = $doc->createElementNS(self::NS_DS, 'ds:Object');
-        $signature->appendChild($object);
-
-        $object->appendChild($this->buildQualifyingProperties($doc, $signingTimestamp, $certificateHash, $issuerName, $serialNumber));
-
-        return $ublExtensions;
+        $signature->insertBefore($signedInfo, $object);
+        $signature->insertBefore($signatureValue, $object);
+        $signature->insertBefore($keyInfo, $object);
     }
 
     private function buildInvoiceContentReference(DOMDocument $doc, string $invoiceHash): DOMElement
@@ -295,7 +274,10 @@ class ZatcaXadesSigner
         return $reference;
     }
 
-    private function buildQualifyingProperties(DOMDocument $doc, string $signingTimestamp, string $certificateHash, string $issuerName, string $serialNumber): DOMElement
+    /**
+     * @return array{0: DOMElement, 1: DOMElement} [qualifyingProperties, signedProperties]
+     */
+    private function buildQualifyingProperties(DOMDocument $doc, string $signingTimestamp, string $certificateHash, string $issuerName, string $serialNumber): array
     {
         $qualifyingProperties = $doc->createElementNS(self::NS_XADES, 'xades:QualifyingProperties');
         $qualifyingProperties->setAttribute('Target', 'signature');
@@ -335,7 +317,7 @@ class ZatcaXadesSigner
         $x509SerialNumber = $doc->createElementNS(self::NS_DS, 'ds:X509SerialNumber', $serialNumber);
         $issuerSerial->appendChild($x509SerialNumber);
 
-        return $qualifyingProperties;
+        return [$qualifyingProperties, $signedProperties];
     }
 
     private function buildQrReference(DOMDocument $doc, string $qrBase64): DOMElement
