@@ -199,7 +199,10 @@
                                             default => 'bg-slate-100 text-slate-600',
                                         };
                                     @endphp
-                                    <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge }}" title="{{ $log->error_message }}">{{ ucfirst($log->status) }}</span>
+                                    <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge }}">{{ ucfirst($log->status) }}</span>
+                                    @if ($log->status === 'failed' && $log->error_message)
+                                        <p class="mt-1 max-w-md text-xs text-red-600 break-words">{{ $log->error_message }}</p>
+                                    @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
                             </tr>
@@ -240,7 +243,10 @@
                                             default => 'bg-slate-100 text-slate-600',
                                         };
                                     @endphp
-                                    <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge }}" title="{{ $log->error_message }}">{{ ucfirst($log->status) }}</span>
+                                    <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge }}">{{ ucfirst($log->status) }}</span>
+                                    @if ($log->status === 'failed' && $log->error_message)
+                                        <p class="mt-1 max-w-md text-xs text-red-600 break-words">{{ $log->error_message }}</p>
+                                    @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
                             </tr>
