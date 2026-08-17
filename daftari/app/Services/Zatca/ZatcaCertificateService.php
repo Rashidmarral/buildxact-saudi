@@ -15,11 +15,37 @@ use RuntimeException;
  */
 class ZatcaCertificateService
 {
+    /**
+     * ZATCA's binarySecurityToken (the value we store as the compliance/
+     * production CSID) is, in practice, base64-encoded *twice*: decoding
+     * it once yields another base64 string — the "real" base64(DER) form
+     * every other method here works with — not the raw DER bytes
+     * themselves. This detects which form we were actually given (by
+     * checking whether the once-decoded value parses as a certificate)
+     * rather than assuming, so a CSID that ever arrives single-encoded
+     * still works instead of throwing.
+     */
+    private function singlyEncoded(string $certificateBase64): string
+    {
+        $certificateBase64 = trim($certificateBase64);
+        $candidate = base64_decode($certificateBase64, true);
+
+        if ($candidate !== false && (new X509)->loadX509($this->wrap($candidate)) !== false) {
+            return $candidate;
+        }
+
+        return $certificateBase64;
+    }
+
+    private function wrap(string $body): string
+    {
+        return "-----BEGIN CERTIFICATE-----\r\n".trim($body)."\r\n-----END CERTIFICATE-----";
+    }
+
     private function load(string $certificateBase64): array
     {
         $x509 = new X509;
-        $pem = $this->toPem($certificateBase64);
-        $parsed = $x509->loadX509($pem);
+        $parsed = $x509->loadX509($this->wrap($this->singlyEncoded($certificateBase64)));
 
         if ($parsed === false) {
             throw new RuntimeException('Unable to parse the ZATCA-issued certificate.');
@@ -28,31 +54,27 @@ class ZatcaCertificateService
         return [$x509, $parsed];
     }
 
-    private function toPem(string $certificateBase64): string
-    {
-        return "-----BEGIN CERTIFICATE-----\r\n".trim($certificateBase64)."\r\n-----END CERTIFICATE-----";
-    }
-
     /**
-     * Raw DER certificate bytes (base64-decoded) — embedded verbatim as
-     * ds:X509Certificate in the invoice's UBLExtensions.
+     * Raw DER certificate bytes — embedded verbatim (re-encoded to
+     * base64) as ds:X509Certificate in the invoice's UBLExtensions.
      */
     public function rawCertificate(string $certificateBase64): string
     {
-        return base64_decode($certificateBase64);
+        return base64_decode($this->singlyEncoded($certificateBase64));
     }
 
     /**
-     * SHA-256 digest of the raw certificate, matching the reference
-     * implementation's convention: the hex digest string is itself
-     * base64-encoded (not the raw digest bytes) — this is what ZATCA's
-     * validator expects for CertDigest/DigestValue here specifically,
-     * distinct from the plain base64(raw-bytes) convention used for the
-     * main invoice hash.
+     * SHA-256 digest of the certificate, matching the reference
+     * implementation's convention: it hashes the singly-encoded
+     * base64(DER) *string* (not the raw DER bytes), and the hex digest
+     * string is itself base64-encoded (not the raw digest bytes) — this
+     * is what ZATCA's validator expects for CertDigest/DigestValue here
+     * specifically, distinct from the plain base64(raw-bytes) convention
+     * used for the main invoice hash.
      */
     public function certificateHash(string $certificateBase64): string
     {
-        return base64_encode(hash('sha256', $this->rawCertificate($certificateBase64), false));
+        return base64_encode(hash('sha256', $this->singlyEncoded($certificateBase64), false));
     }
 
     /**
