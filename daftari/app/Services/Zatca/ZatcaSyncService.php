@@ -30,6 +30,19 @@ class ZatcaSyncService
     }
 
     /**
+     * KSA's mandatory Invoice Counter Value (ICV) — a company-wide,
+     * ever-incrementing sequence across every document (invoice or credit
+     * note) ever submitted to ZATCA, distinct from the invoice's own
+     * business-facing number and from the PIH hash chain.
+     */
+    public function nextIcv(Company $company): int
+    {
+        return ZatcaInvoiceLog::where('company_id', $company->id)->count()
+            + ZatcaCreditNoteLog::where('company_id', $company->id)->count()
+            + 1;
+    }
+
+    /**
      * Invoices this company's current sync settings say should go to
      * ZATCA but have no successful (cleared/reported) log entry yet.
      */
@@ -81,7 +94,7 @@ class ZatcaSyncService
 
         $uuid = $this->xml->newUuid();
         $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-        $xmlString = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid);
+        $xmlString = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
         $invoiceHash = $this->crypto->hashInvoiceXml($xmlString);
 
         $log = ZatcaInvoiceLog::create([
@@ -152,7 +165,7 @@ class ZatcaSyncService
 
         $uuid = $this->xml->newUuid();
         $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-        $xmlString = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid);
+        $xmlString = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
         $invoiceHash = $this->crypto->hashInvoiceXml($xmlString);
 
         $log = ZatcaCreditNoteLog::create([

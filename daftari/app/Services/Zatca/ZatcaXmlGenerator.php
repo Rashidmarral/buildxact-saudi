@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  */
 class ZatcaXmlGenerator
 {
-    public function generate(Invoice $invoice, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid): string
+    public function generate(Invoice $invoice, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1): string
     {
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = false;
@@ -40,15 +40,10 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:DocumentCurrencyCode', $invoice->currency ?: 'SAR');
         $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
 
+        $root->appendChild($this->icvReference($doc, $icv));
+
         if ($previousInvoiceHash) {
-            $pih = $doc->createElement('cac:AdditionalDocumentReference');
-            $this->append($doc, $pih, 'cbc:ID', 'PIH');
-            $attachment = $doc->createElement('cac:Attachment');
-            $binary = $doc->createElement('cbc:EmbeddedDocumentBinaryObject', $previousInvoiceHash);
-            $binary->setAttribute('mimeCode', 'text/plain');
-            $attachment->appendChild($binary);
-            $pih->appendChild($attachment);
-            $root->appendChild($pih);
+            $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
@@ -79,11 +74,15 @@ class ZatcaXmlGenerator
         $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', $invoice->issue_date->format('Y-m-d'));
         $root->appendChild($delivery);
 
-        $taxTotal = $doc->createElement('cac:TaxTotal');
-        $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $invoice->vat_total, 2, '.', ''))
-            ->setAttribute('currencyID', 'SAR');
-        $this->appendTaxSubtotals($doc, $taxTotal, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
-        $root->appendChild($taxTotal);
+        $paymentMeans = $doc->createElement('cac:PaymentMeans');
+        $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
+        $root->appendChild($paymentMeans);
+
+        if ((float) $invoice->discount_total > 0) {
+            $root->appendChild($this->documentAllowanceCharge($doc, (float) $invoice->discount_total, $invoice->items));
+        }
+
+        $this->appendDualTaxTotal($doc, $root, (float) $invoice->vat_total, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
 
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal);
@@ -136,7 +135,7 @@ class ZatcaXmlGenerator
      * InstructionNote reason. They are never issued standalone: they must
      * continue the same Previous Invoice Hash chain as regular invoices.
      */
-    public function generateForCreditNote(CreditNote $creditNote, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid): string
+    public function generateForCreditNote(CreditNote $creditNote, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1): string
     {
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = false;
@@ -164,15 +163,10 @@ class ZatcaXmlGenerator
 
         $this->append($doc, $root, 'cbc:InstructionNote', $creditNote->reason ?: 'Sales return / correction');
 
+        $root->appendChild($this->icvReference($doc, $icv));
+
         if ($previousInvoiceHash) {
-            $pih = $doc->createElement('cac:AdditionalDocumentReference');
-            $this->append($doc, $pih, 'cbc:ID', 'PIH');
-            $attachment = $doc->createElement('cac:Attachment');
-            $binary = $doc->createElement('cbc:EmbeddedDocumentBinaryObject', $previousInvoiceHash);
-            $binary->setAttribute('mimeCode', 'text/plain');
-            $attachment->appendChild($binary);
-            $pih->appendChild($attachment);
-            $root->appendChild($pih);
+            $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
         }
 
         $originalLog = $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first();
@@ -212,11 +206,11 @@ class ZatcaXmlGenerator
         $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', $creditNote->issue_date->format('Y-m-d'));
         $root->appendChild($delivery);
 
-        $taxTotal = $doc->createElement('cac:TaxTotal');
-        $this->append($doc, $taxTotal, 'cbc:TaxAmount', number_format((float) $creditNote->vat_total, 2, '.', ''))
-            ->setAttribute('currencyID', 'SAR');
-        $this->appendTaxSubtotals($doc, $taxTotal, $creditNote->items, fn ($item) => $item->quantity * $item->unit_price);
-        $root->appendChild($taxTotal);
+        $paymentMeans = $doc->createElement('cac:PaymentMeans');
+        $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
+        $root->appendChild($paymentMeans);
+
+        $this->appendDualTaxTotal($doc, $root, (float) $creditNote->vat_total, $creditNote->items, fn ($item) => $item->quantity * $item->unit_price);
 
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $creditNote->subtotal);
@@ -322,15 +316,24 @@ class ZatcaXmlGenerator
     }
 
     /**
-     * BG-23 "VAT breakdown" — BR-KSA-EN16931-08 requires the document-level
-     * TaxTotal (BG-22) to carry one TaxSubtotal per distinct VAT rate/
-     * category, each with its own taxable base and tax amount, rather than
-     * only a single grand total.
+     * ZATCA's dual-currency EN16931 profile requires exactly two document
+     * level cac:TaxTotal (BG-22) elements even though DocumentCurrencyCode
+     * and TaxCurrencyCode are both always SAR here: one bare (TaxAmount
+     * only — BR-KSA-EN16931-09) and one carrying the BG-23 VAT breakdown
+     * as cac:TaxSubtotal, one per distinct VAT rate/category
+     * (BR-KSA-EN16931-08). Confirmed against a working reference ZATCA
+     * integration — both rules fire unless both TaxTotal elements exist.
      */
-    private function appendTaxSubtotals(DOMDocument $doc, \DOMElement $taxTotal, iterable $items, \Closure $netAmount): void
+    private function appendDualTaxTotal(DOMDocument $doc, \DOMElement $root, float $vatTotal, iterable $items, \Closure $netAmount): void
     {
-        $groups = [];
+        $bare = $doc->createElement('cac:TaxTotal');
+        $this->appendAmount($doc, $bare, 'cbc:TaxAmount', $vatTotal);
+        $root->appendChild($bare);
 
+        $withBreakdown = $doc->createElement('cac:TaxTotal');
+        $this->appendAmount($doc, $withBreakdown, 'cbc:TaxAmount', $vatTotal);
+
+        $groups = [];
         foreach ($items as $item) {
             $rate = number_format((float) $item->vat_rate, 2, '.', '');
             $groups[$rate]['taxable'] = ($groups[$rate]['taxable'] ?? 0) + $netAmount($item);
@@ -350,8 +353,70 @@ class ZatcaXmlGenerator
             $category->appendChild($scheme);
             $subtotal->appendChild($category);
 
-            $taxTotal->appendChild($subtotal);
+            $withBreakdown->appendChild($subtotal);
         }
+
+        $root->appendChild($withBreakdown);
+    }
+
+    /**
+     * KSA's mandatory Invoice Counter Value — a company-wide, ever
+     * incrementing sequence across every document (invoice or credit note)
+     * ever submitted, distinct from the invoice's own business-facing
+     * number and from the PIH hash chain.
+     */
+    private function icvReference(DOMDocument $doc, int $icv): \DOMElement
+    {
+        $ref = $doc->createElement('cac:AdditionalDocumentReference');
+        $this->append($doc, $ref, 'cbc:ID', 'ICV');
+        $this->append($doc, $ref, 'cbc:UUID', (string) $icv);
+
+        return $ref;
+    }
+
+    private function pihReference(DOMDocument $doc, string $previousInvoiceHash): \DOMElement
+    {
+        $pih = $doc->createElement('cac:AdditionalDocumentReference');
+        $this->append($doc, $pih, 'cbc:ID', 'PIH');
+        $attachment = $doc->createElement('cac:Attachment');
+        $binary = $doc->createElement('cbc:EmbeddedDocumentBinaryObject', $previousInvoiceHash);
+        $binary->setAttribute('mimeCode', 'text/plain');
+        $attachment->appendChild($binary);
+        $pih->appendChild($attachment);
+
+        return $pih;
+    }
+
+    /**
+     * A single document-level discount, expressed as the UBL
+     * cac:AllowanceCharge ZATCA expects to back up LegalMonetaryTotal's
+     * AllowanceTotalAmount (BR-CO-11: their sum must match). Our invoices
+     * only track one header-level discount rather than a per-line one, so
+     * this uses the dominant VAT rate among the invoice's lines as the
+     * category/percentage context.
+     */
+    private function documentAllowanceCharge(DOMDocument $doc, float $discountTotal, iterable $items): \DOMElement
+    {
+        $rate = 0.0;
+        foreach ($items as $item) {
+            $rate = (float) $item->vat_rate;
+            break;
+        }
+
+        $allowance = $doc->createElement('cac:AllowanceCharge');
+        $this->append($doc, $allowance, 'cbc:ChargeIndicator', 'false');
+        $this->append($doc, $allowance, 'cbc:AllowanceChargeReason', 'discount');
+        $this->appendAmount($doc, $allowance, 'cbc:Amount', $discountTotal);
+
+        $category = $doc->createElement('cac:TaxCategory');
+        $this->append($doc, $category, 'cbc:ID', $rate > 0 ? 'S' : 'Z');
+        $this->append($doc, $category, 'cbc:Percent', number_format($rate, 2, '.', ''));
+        $scheme = $doc->createElement('cac:TaxScheme');
+        $this->append($doc, $scheme, 'cbc:ID', 'VAT');
+        $category->appendChild($scheme);
+        $allowance->appendChild($category);
+
+        return $allowance;
     }
 
     private function append(DOMDocument $doc, \DOMElement $parent, string $tag, string $value): \DOMElement

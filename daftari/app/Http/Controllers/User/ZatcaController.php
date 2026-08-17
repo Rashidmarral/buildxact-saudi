@@ -163,7 +163,7 @@ class ZatcaController extends Controller
 
         $uuid = $xml->newUuid();
         $genesisHash = $crypto->genesisHash();
-        $xmlString = $xml->generate($invoice, $sync->isB2b($invoice) ? '0100000' : '0200000', $genesisHash, $uuid);
+        $xmlString = $xml->generate($invoice, $sync->isB2b($invoice) ? '0100000' : '0200000', $genesisHash, $uuid, $sync->nextIcv($company));
         $hash = $crypto->hashInvoiceXml($xmlString);
 
         try {
