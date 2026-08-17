@@ -123,15 +123,6 @@ CNF;
         return $path;
     }
 
-    /**
-     * SHA-256 hash of the canonical invoice XML, base64-encoded — the
-     * "current invoice hash" ZATCA requires in the QR/cryptographic stamp
-     * and as the "PIH" (previous invoice hash) input for the next invoice.
-     */
-    public function hashInvoiceXml(string $canonicalXml): string
-    {
-        return base64_encode(hash('sha256', $canonicalXml, true));
-    }
 
     /**
      * Signs the invoice hash with the company's own EC private key (the

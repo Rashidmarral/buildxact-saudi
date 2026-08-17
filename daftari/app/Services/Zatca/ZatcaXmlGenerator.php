@@ -278,12 +278,18 @@ class ZatcaXmlGenerator
         $hasAddress = ! empty($data['street']) || ! empty($data['city']) || ! empty($data['building_number']) || ! empty($data['district']) || ! empty($data['postal_code']);
 
         if ($hasAddress) {
+            // UBL's PostalAddressType requires StreetName before
+            // BuildingName/BuildingNumber — ZATCA's XSD validation rejects
+            // the reverse order outright (and, since a schema violation
+            // aborts deeper validation, was also the real cause behind
+            // otherwise-inexplicable "missing ICV"/"missing seller VAT"
+            // business-rule errors reported alongside it).
             $address = $doc->createElement('cac:PostalAddress');
-            if (! empty($data['building_number'])) {
-                $this->append($doc, $address, 'cbc:BuildingNumber', $data['building_number']);
-            }
             if (! empty($data['street'])) {
                 $this->append($doc, $address, 'cbc:StreetName', $data['street']);
+            }
+            if (! empty($data['building_number'])) {
+                $this->append($doc, $address, 'cbc:BuildingNumber', $data['building_number']);
             }
             if (! empty($data['district'])) {
                 $this->append($doc, $address, 'cbc:CitySubdivisionName', $data['district']);

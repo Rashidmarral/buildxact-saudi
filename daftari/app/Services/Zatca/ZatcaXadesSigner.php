@@ -42,8 +42,37 @@ class ZatcaXadesSigner
     ) {}
 
     /**
+     * The "invoice hash" ZATCA actually validates against once this XML is
+     * signed — used for the PIH chain, QR tag 6, the API's invoiceHash
+     * field, and as the XAdES ds:Reference digest passed into sign().
+     *
+     * This is *not* simply a hash of $unsignedXml. Our signature's
+     * CanonicalizationMethod is inclusive C14N (c14n11, not exclusive
+     * c14n), so once ext:/sig:/ds:/xades: namespaces are declared on the
+     * document root for signing, they stay "in scope" for C14N purposes
+     * on every descendant even after the elements that use them
+     * (UBLExtensions/Signature/the QR reference) are excluded by the
+     * ds:Reference's XPath transforms — that's how ZATCA recomputes this
+     * hash from the final signed document it receives. So the hash must
+     * be computed the same way: after those namespaces are declared on
+     * root, before the signature elements themselves are added. Confirmed
+     * empirically: hashing $unsignedXml as-is (no namespace pre-
+     * declaration) produces a different digest than ZATCA's own
+     * recomputation, which is what was causing "invalid-invoice-hash"
+     * rejections.
+     */
+    public function contentHash(string $unsignedXml): string
+    {
+        $doc = new DOMDocument('1.0', 'UTF-8');
+        $doc->loadXML($unsignedXml);
+        $this->declareSignatureNamespaces($doc->documentElement);
+
+        return base64_encode(hash('sha256', $doc->C14N(), true));
+    }
+
+    /**
      * @param  string  $unsignedXml  Output of ZatcaXmlGenerator::generate()/generateForCreditNote().
-     * @param  string  $invoiceHashBase64  ZatcaCryptoService::hashInvoiceXml() of that same $unsignedXml.
+     * @param  string  $invoiceHashBase64  ZatcaXadesSigner::contentHash() of that same $unsignedXml.
      * @param  string  $certificateBase64  The company's CSID/production certificate (binarySecurityToken).
      * @param  string  $qrBase64  The Phase 2 9-tag QR payload (ZatcaQrGenerator::generatePhase2()).
      * @return string The final, signed, QR-embedded invoice XML — base64-encode this to submit to ZATCA.

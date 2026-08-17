@@ -8,6 +8,7 @@ use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
 use App\Services\Zatca\ZatcaCryptoService;
 use App\Services\Zatca\ZatcaSyncService;
+use App\Services\Zatca\ZatcaXadesSigner;
 use App\Services\Zatca\ZatcaXmlGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -147,7 +148,7 @@ class ZatcaController extends Controller
         return back()->with('status', __('Compliance CSID issued. Run the compliance checks next.'));
     }
 
-    public function runComplianceCheck(ZatcaSyncService $sync, ZatcaCryptoService $crypto, ZatcaXmlGenerator $xml, ZatcaApiClient $api): RedirectResponse
+    public function runComplianceCheck(ZatcaSyncService $sync, ZatcaCryptoService $crypto, ZatcaXmlGenerator $xml, ZatcaApiClient $api, ZatcaXadesSigner $signer): RedirectResponse
     {
         $company = Auth::user()->company;
 
@@ -164,7 +165,7 @@ class ZatcaController extends Controller
         $uuid = $xml->newUuid();
         $genesisHash = $crypto->genesisHash();
         $unsignedXml = $xml->generate($invoice, $sync->isB2b($invoice) ? '0100000' : '0200000', $genesisHash, $uuid, $sync->nextIcv($company));
-        $hash = $crypto->hashInvoiceXml($unsignedXml);
+        $hash = $signer->contentHash($unsignedXml);
 
         // ZATCA's compliance endpoint validates the same fully signed XML
         // (XAdES + embedded QR) that production submissions use, not a
