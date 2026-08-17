@@ -200,17 +200,16 @@ class ZatcaController extends Controller
             ]));
         }
 
-        if ($company->zatca_environment === 'production') {
-            $company->update(['zatca_onboarding_status' => 'compliance_verified']);
+        // The compliance CSID is only valid for this compliance-check call
+        // itself — every environment (developer/simulation/production
+        // alike) still needs the production CSID exchange next before
+        // actual clearance/reporting submissions will be accepted; ZATCA
+        // rejects those with a plain 401 otherwise. Confirmed against the
+        // reference module's own onboarding flow, which requests the
+        // production CSID unconditionally regardless of environment.
+        $company->update(['zatca_onboarding_status' => 'compliance_verified']);
 
-            return back()->with('status', __('Compliance checks passed. You can now request the production CSID.'));
-        }
-
-        // Developer/simulation environments don't require a separate
-        // production CSID — the compliance CSID is the active credential.
-        $company->update(['zatca_onboarding_status' => 'onboarded', 'zatca_linked_at' => now()]);
-
-        return back()->with('status', __('This company is now onboarded with ZATCA for the :env environment.', ['env' => $company->zatca_environment]));
+        return back()->with('status', __('Compliance checks passed. You can now request the production CSID.'));
     }
 
     public function issueProductionCsid(ZatcaApiClient $api): RedirectResponse

@@ -340,14 +340,22 @@ class Company extends Model
         return $this->zatca_onboarding_status === 'onboarded';
     }
 
-    public function zatcaCsidFor(string $environment): ?string
+    /**
+     * The credential actual clearance/reporting submissions must
+     * authenticate with. Despite the name, ZATCA requires this
+     * production-CSID exchange in every environment (developer,
+     * simulation, and production alike) — the compliance CSID from
+     * onboarding step 2 is only valid for the compliance-check call
+     * itself and is rejected (401) if used for clearance/reporting.
+     */
+    public function zatcaCsidFor(): ?string
     {
-        return $environment === 'production' ? $this->zatca_production_csid : $this->zatca_compliance_csid;
+        return $this->zatca_production_csid;
     }
 
-    public function zatcaSecretFor(string $environment): ?string
+    public function zatcaSecretFor(): ?string
     {
-        return $environment === 'production' ? $this->zatca_production_secret : $this->zatca_compliance_secret;
+        return $this->zatca_production_secret;
     }
 
     /**

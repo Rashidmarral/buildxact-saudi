@@ -140,22 +140,23 @@
                     @endif
                 </div>
 
-                {{-- Step 4: production CSID (production env only) --}}
-                @if ($company->zatca_environment === 'production')
-                    <div class="border border-slate-100 rounded-lg p-4 {{ $stepIndex < 3 ? 'opacity-50' : '' }}">
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm font-semibold text-slate-800">4. {{ __('Issue production CSID') }}</p>
-                            @if ($status === 'onboarded')<span class="text-xs text-emerald-600 font-semibold">✓ {{ __('Done') }}</span>@endif
-                        </div>
-                        <p class="text-xs text-slate-500 mt-1">{{ __('Exchanges the verified compliance CSID for the long-lived production certificate used to clear/report live invoices.') }}</p>
-                        @if ($status !== 'onboarded')
-                            <form method="POST" action="{{ route('app.zatca.production-csid') }}" class="mt-3">
-                                @csrf
-                                <button type="submit" {{ $stepIndex < 3 ? 'disabled' : '' }} class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">{{ __('Issue production CSID') }}</button>
-                            </form>
-                        @endif
+                {{-- Step 4: production CSID — required in every environment, not
+                     just live production. The compliance CSID from step 2/3 is
+                     only valid for the compliance-check call itself; ZATCA
+                     rejects clearance/reporting submissions made with it. --}}
+                <div class="border border-slate-100 rounded-lg p-4 {{ $stepIndex < 3 ? 'opacity-50' : '' }}">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-semibold text-slate-800">4. {{ __('Issue production CSID') }}</p>
+                        @if ($status === 'onboarded')<span class="text-xs text-emerald-600 font-semibold">✓ {{ __('Done') }}</span>@endif
                     </div>
-                @endif
+                    <p class="text-xs text-slate-500 mt-1">{{ __('Exchanges the verified compliance CSID for the long-lived certificate ZATCA requires for actual clearance/reporting submissions in this environment.') }}</p>
+                    @if ($status !== 'onboarded')
+                        <form method="POST" action="{{ route('app.zatca.production-csid') }}" class="mt-3">
+                            @csrf
+                            <button type="submit" {{ $stepIndex < 3 ? 'disabled' : '' }} class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">{{ __('Issue production CSID') }}</button>
+                        </form>
+                    @endif
+                </div>
             </div>
 
             @if ($status !== 'not_started')

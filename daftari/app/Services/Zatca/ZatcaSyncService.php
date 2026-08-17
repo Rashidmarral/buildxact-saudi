@@ -92,8 +92,8 @@ class ZatcaSyncService
         $environment = $company->zatca_environment;
         $isB2b = $this->isB2b($invoice);
 
-        $csid = $company->zatcaCsidFor($environment);
-        $secret = $company->zatcaSecretFor($environment);
+        $csid = $company->zatcaCsidFor();
+        $secret = $company->zatcaSecretFor();
 
         $uuid = $this->xml->newUuid();
         $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
@@ -176,8 +176,8 @@ class ZatcaSyncService
         $environment = $company->zatca_environment;
         $isB2b = $this->isB2bCreditNote($creditNote);
 
-        $csid = $company->zatcaCsidFor($environment);
-        $secret = $company->zatcaSecretFor($environment);
+        $csid = $company->zatcaCsidFor();
+        $secret = $company->zatcaSecretFor();
 
         $uuid = $this->xml->newUuid();
         $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
