@@ -253,6 +253,127 @@ class ZatcaXmlGenerator
         return $doc->saveXML();
     }
 
+    /**
+     * Before issuing a production CSID, ZATCA requires proof the EGS can
+     * generate every one of 6 document type/profile combinations — tax
+     * invoice (388), credit note (381), and debit note (383), each in
+     * both standard/B2B (0100000) and simplified/B2C (0200000) profiles —
+     * not just the one real invoice type a company happens to have sent
+     * so far. Rejects with "Missing-ComplianceSteps" naming exactly which
+     * combinations are still outstanding otherwise.
+     *
+     * Uses the company's real seller identity (so BR-KSA-08/39 etc. still
+     * hold) with a synthetic buyer/line — there is no real "sales debit
+     * note" feature in Daftari (nor any requirement for one; ZATCA's own
+     * reference implementations use fixed sample data for this exact
+     * step too), and reusing one real invoice for all 6 would only work
+     * for whichever single combination it happens to already be.
+     */
+    public function generateComplianceSample(\App\Models\Company $company, string $documentTypeCode, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv): string
+    {
+        $doc = new DOMDocument('1.0', 'UTF-8');
+        $doc->formatOutput = false;
+
+        $root = $doc->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        $doc->appendChild($root);
+
+        $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
+        $this->append($doc, $root, 'cbc:ID', 'COMPLIANCE-'.$icv);
+        $this->append($doc, $root, 'cbc:UUID', $uuid);
+        $this->append($doc, $root, 'cbc:IssueDate', now()->format('Y-m-d'));
+        $this->append($doc, $root, 'cbc:IssueTime', now()->format('H:i:s'));
+
+        $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', $documentTypeCode);
+        $typeCode->setAttribute('name', $invoiceTypeName);
+
+        $this->append($doc, $root, 'cbc:DocumentCurrencyCode', 'SAR');
+        $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
+
+        if ($documentTypeCode !== '388') {
+            $this->append($doc, $root, 'cbc:InstructionNote', 'ZATCA compliance sample');
+        }
+
+        $root->appendChild($this->icvReference($doc, $icv));
+
+        if ($previousInvoiceHash) {
+            $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
+        }
+
+        $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
+            'name' => $company->name,
+            'vat_number' => $company->vat_number,
+            'id_scheme' => 'CRN',
+            'id_value' => $company->cr_number,
+            'street' => $company->street_name ?: $company->address,
+            'building_number' => $company->building_number,
+            'district' => $company->district,
+            'city' => $company->city,
+            'postal_code' => $company->postal_code,
+        ]));
+
+        $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
+            'name' => 'ZATCA Compliance Test Buyer',
+            'vat_number' => '300000000000003',
+            'id_scheme' => 'CRN',
+            'id_value' => '1000000000',
+            'street' => 'King Fahd Road',
+            'building_number' => '1111',
+            'district' => 'Al Olaya',
+            'city' => 'Riyadh',
+            'postal_code' => '12222',
+        ]));
+
+        $delivery = $doc->createElement('cac:Delivery');
+        $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', now()->format('Y-m-d'));
+        $root->appendChild($delivery);
+
+        $paymentMeans = $doc->createElement('cac:PaymentMeans');
+        $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
+        $root->appendChild($paymentMeans);
+
+        $sampleItem = (object) ['vat_rate' => 15.0, 'vat_amount' => 0.60];
+        $this->appendDualTaxTotal($doc, $root, 0.60, [$sampleItem], fn () => 4.00);
+
+        $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', 4.00);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', 4.00);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', 4.60);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', 4.60);
+        $root->appendChild($monetaryTotal);
+
+        $line = $doc->createElement('cac:InvoiceLine');
+        $this->append($doc, $line, 'cbc:ID', '1');
+        $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', '2.00');
+        $qty->setAttribute('unitCode', 'PCE');
+        $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', 4.00);
+
+        $lineTax = $doc->createElement('cac:TaxTotal');
+        $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', 0.60);
+        $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', 4.60);
+        $line->appendChild($lineTax);
+
+        $itemEl = $doc->createElement('cac:Item');
+        $this->append($doc, $itemEl, 'cbc:Name', 'Compliance Test Item');
+        $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
+        $this->append($doc, $taxCategory, 'cbc:ID', 'S');
+        $this->append($doc, $taxCategory, 'cbc:Percent', '15.00');
+        $lineTaxScheme = $doc->createElement('cac:TaxScheme');
+        $this->append($doc, $lineTaxScheme, 'cbc:ID', 'VAT');
+        $taxCategory->appendChild($lineTaxScheme);
+        $itemEl->appendChild($taxCategory);
+        $line->appendChild($itemEl);
+
+        $price = $doc->createElement('cac:Price');
+        $this->appendAmount($doc, $price, 'cbc:PriceAmount', 2.00);
+        $line->appendChild($price);
+
+        $root->appendChild($line);
+
+        return $doc->saveXML();
+    }
+
     public function newUuid(): string
     {
         return (string) Str::uuid();

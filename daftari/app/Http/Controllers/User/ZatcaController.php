@@ -156,47 +156,62 @@ class ZatcaController extends Controller
             return back()->with('error', __('Issue a compliance CSID first.'));
         }
 
-        $invoice = $company->invoices()->whereNotIn('status', ['draft'])->latest('id')->first();
+        // ZATCA won't issue a production CSID until the EGS has proven it
+        // can generate all 6 required document type/profile combinations
+        // — tax invoice, credit note, and debit note, each in both the
+        // standard (B2B) and simplified (B2C) profile — not just whichever
+        // one type a company's own invoices happen to be. Confirmed via a
+        // live "Missing-ComplianceSteps" rejection naming exactly these 6.
+        $combinations = [
+            ['code' => '388', 'name' => '0100000', 'label' => __('Standard tax invoice')],
+            ['code' => '381', 'name' => '0100000', 'label' => __('Standard credit note')],
+            ['code' => '383', 'name' => '0100000', 'label' => __('Standard debit note')],
+            ['code' => '388', 'name' => '0200000', 'label' => __('Simplified tax invoice')],
+            ['code' => '381', 'name' => '0200000', 'label' => __('Simplified credit note')],
+            ['code' => '383', 'name' => '0200000', 'label' => __('Simplified debit note')],
+        ];
 
-        if (! $invoice) {
-            return back()->with('error', __('Create and send at least one invoice before running compliance checks.'));
-        }
+        $previousHash = $crypto->genesisHash();
+        $failures = [];
 
-        $uuid = $xml->newUuid();
-        $genesisHash = $crypto->genesisHash();
-        $unsignedXml = $xml->generate($invoice, $sync->isB2b($invoice) ? '0100000' : '0200000', $genesisHash, $uuid, $sync->nextIcv($company));
-        $hash = $signer->contentHash($unsignedXml);
+        foreach ($combinations as $icv => $combo) {
+            $uuid = $xml->newUuid();
+            $unsignedXml = $xml->generateComplianceSample($company, $combo['code'], $combo['name'], $previousHash, $uuid, $icv + 1);
+            $hash = $signer->contentHash($unsignedXml);
 
-        // ZATCA's compliance endpoint validates the same fully signed XML
-        // (XAdES + embedded QR) that production submissions use, not a
-        // plain document — the compliance CSID doubles as the signing
-        // certificate for this step.
-        [$xmlString, $qrPng] = $sync->buildSignedPayload(
-            $company, $unsignedXml, $hash, $company->zatca_compliance_csid,
-            $invoice->issue_date, (float) $invoice->total, (float) $invoice->vat_total,
-        );
-
-        if ($qrPng) {
-            $invoice->update(['qr_code' => $qrPng]);
-        }
-
-        try {
-            $response = $api->checkComplianceInvoice(
-                $company->zatca_environment,
-                $company->zatca_compliance_csid,
-                $company->zatca_compliance_secret,
-                base64_encode($xmlString),
-                $hash,
-                $uuid
+            // ZATCA's compliance endpoint validates the same fully signed
+            // XML (XAdES + embedded QR) that production submissions use,
+            // not a plain document — the compliance CSID doubles as the
+            // signing certificate for this step.
+            [$xmlString] = $sync->buildSignedPayload(
+                $company, $unsignedXml, $hash, $company->zatca_compliance_csid,
+                now(), 4.60, 0.60,
             );
-        } catch (Throwable $e) {
-            return back()->with('error', __('Could not reach ZATCA: :error', ['error' => $e->getMessage()]));
+
+            try {
+                $response = $api->checkComplianceInvoice(
+                    $company->zatca_environment,
+                    $company->zatca_compliance_csid,
+                    $company->zatca_compliance_secret,
+                    base64_encode($xmlString),
+                    $hash,
+                    $uuid
+                );
+            } catch (Throwable $e) {
+                return back()->with('error', __('Could not reach ZATCA: :error', ['error' => $e->getMessage()]));
+            }
+
+            if (! $response->successful()) {
+                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
+            }
+
+            $previousHash = $hash;
         }
 
-        if (! $response->successful()) {
-            return back()->with('error', __('Compliance check failed (HTTP :code): :body', [
-                'code' => $response->status(),
-                'body' => $response->body(),
+        if ($failures) {
+            return back()->with('error', __('Compliance check failed for :count of 6 required document types: :errors', [
+                'count' => count($failures),
+                'errors' => implode(' | ', $failures),
             ]));
         }
 
