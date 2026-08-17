@@ -12,9 +12,10 @@ use Illuminate\Support\Str;
 
 /**
  * Orchestrates one invoice's trip through ZATCA Phase 2: build the UBL XML,
- * hash it (chained to the company's previous invoice hash), submit it to
- * the correct endpoint for its type (clearance for standard/B2B, reporting
- * for simplified/B2C), and record the outcome in zatca_invoice_logs.
+ * hash it (chained to the company's previous invoice hash), sign it
+ * (XAdES + QR embedding), submit it to the correct endpoint for its type
+ * (clearance for standard/B2B, reporting for simplified/B2C), and record
+ * the outcome in zatca_invoice_logs.
  */
 class ZatcaSyncService
 {
@@ -22,6 +23,8 @@ class ZatcaSyncService
         private readonly ZatcaCryptoService $crypto,
         private readonly ZatcaXmlGenerator $xml,
         private readonly ZatcaApiClient $api,
+        private readonly ZatcaCertificateService $certificates,
+        private readonly ZatcaXadesSigner $signer,
     ) {}
 
     public function isB2b(Invoice $invoice): bool
@@ -94,8 +97,18 @@ class ZatcaSyncService
 
         $uuid = $this->xml->newUuid();
         $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-        $xmlString = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
-        $invoiceHash = $this->crypto->hashInvoiceXml($xmlString);
+        $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+        $invoiceHash = $this->crypto->hashInvoiceXml($unsignedXml);
+
+        $xmlString = $unsignedXml;
+        $qrPng = null;
+
+        if ($csid && $secret && $company->isZatcaOnboarded()) {
+            [$xmlString, $qrPng] = $this->buildSignedPayload(
+                $company, $unsignedXml, $invoiceHash, $csid,
+                $invoice->issue_date, (float) $invoice->total, (float) $invoice->vat_total,
+            );
+        }
 
         $log = ZatcaInvoiceLog::create([
             'company_id' => $company->id,
@@ -120,6 +133,10 @@ class ZatcaSyncService
             return $log;
         }
 
+        if ($qrPng) {
+            $invoice->update(['qr_code' => $qrPng]);
+        }
+
         $xmlBase64 = base64_encode($xmlString);
 
         try {
@@ -136,7 +153,6 @@ class ZatcaSyncService
                     'cleared_at' => now(),
                 ]);
                 $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
-                $this->upgradeQr($invoice, $log->fresh());
             } else {
                 $log->update([
                     'status' => 'failed',
@@ -165,8 +181,18 @@ class ZatcaSyncService
 
         $uuid = $this->xml->newUuid();
         $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-        $xmlString = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
-        $invoiceHash = $this->crypto->hashInvoiceXml($xmlString);
+        $unsignedXml = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+        $invoiceHash = $this->crypto->hashInvoiceXml($unsignedXml);
+
+        $xmlString = $unsignedXml;
+        $qrPng = null;
+
+        if ($csid && $secret && $company->isZatcaOnboarded()) {
+            [$xmlString, $qrPng] = $this->buildSignedPayload(
+                $company, $unsignedXml, $invoiceHash, $csid,
+                $creditNote->issue_date, (float) $creditNote->total, (float) $creditNote->vat_total,
+            );
+        }
 
         $log = ZatcaCreditNoteLog::create([
             'company_id' => $company->id,
@@ -191,6 +217,10 @@ class ZatcaSyncService
             return $log;
         }
 
+        if ($qrPng) {
+            $creditNote->update(['qr_code' => $qrPng]);
+        }
+
         $xmlBase64 = base64_encode($xmlString);
 
         try {
@@ -207,7 +237,6 @@ class ZatcaSyncService
                     'cleared_at' => now(),
                 ]);
                 $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
-                $this->upgradeCreditNoteQr($creditNote, $log->fresh());
             } else {
                 $log->update([
                     'status' => 'failed',
@@ -226,72 +255,57 @@ class ZatcaSyncService
     }
 
     /**
-     * Upgrades an invoice's QR from the Phase 1 5-tag style to the real
-     * Phase 2 9-tag style once it has actually been cleared/reported.
-     * Tags 6-8 are computed for real from the company's own ZATCA key
-     * material; tag 9 is ZATCA's own cryptographic_stamp, passed through
-     * exactly as received — never fabricated. Silently leaves the Phase 1
-     * QR in place if any required component isn't available yet.
+     * Builds the fully signed XML (XAdES UBLExtensions + cac:Signature +
+     * embedded QR) that actually gets submitted to ZATCA, and the QR PNG
+     * shown in the UI — both built proactively from the company's own key
+     * material and CSID certificate, not from a clearance response. QR
+     * tag 9 ("certificate signature") is a property of the certificate
+     * itself, not of any individual invoice, so — unlike the old
+     * approach — nothing here depends on the submission having happened
+     * yet or having succeeded.
+     *
+     * @return array{0: string, 1: ?string} [signedXml, qrPngBase64]
      */
-    private function upgradeQr(Invoice $invoice, ZatcaInvoiceLog $log): void
+    public function buildSignedPayload(Company $company, string $unsignedXml, string $invoiceHash, string $certificateBase64, \DateTimeInterface $issueDate, float $total, float $vatTotal): array
     {
-        if (! $log->cryptographic_stamp || ! $log->invoice_hash) {
-            return;
+        $signature = $this->crypto->signInvoiceHash($company, $invoiceHash);
+        $publicKey = $this->certificates->publicKeyBytes($certificateBase64);
+        $certificateSignature = $this->certificates->certificateSignature($certificateBase64);
+
+        if (! $signature) {
+            return [$unsignedXml, null];
         }
 
-        $company = $invoice->company;
-        $signature = $this->crypto->signInvoiceHash($company, $log->invoice_hash);
-        $publicKey = $this->crypto->publicKeyBytes($company);
-
-        if (! $signature || ! $publicKey) {
-            return;
-        }
-
-        $qr = ZatcaQrGenerator::generatePhase2(
+        $qrTlv = ZatcaQrGenerator::buildTlvPayloadPhase2(
             $company->name,
             (string) $company->vat_number,
-            $invoice->issue_date,
-            (float) $invoice->total,
-            (float) $invoice->vat_total,
-            $log->invoice_hash,
+            $issueDate,
+            $total,
+            $vatTotal,
+            $invoiceHash,
             $signature,
-            $publicKey,
-            $log->cryptographic_stamp
+            base64_encode($publicKey),
+            $certificateSignature,
         );
 
-        if ($qr) {
-            $invoice->update(['qr_code' => $qr]);
-        }
-    }
-
-    private function upgradeCreditNoteQr(CreditNote $creditNote, ZatcaCreditNoteLog $log): void
-    {
-        if (! $log->cryptographic_stamp || ! $log->invoice_hash) {
-            return;
+        if (! $qrTlv) {
+            return [$unsignedXml, null];
         }
 
-        $company = $creditNote->company;
-        $signature = $this->crypto->signInvoiceHash($company, $log->invoice_hash);
-        $publicKey = $this->crypto->publicKeyBytes($company);
+        $signedXml = $this->signer->sign($company, $unsignedXml, $invoiceHash, $certificateBase64, $qrTlv);
 
-        if (! $signature || ! $publicKey) {
-            return;
-        }
-
-        $qr = ZatcaQrGenerator::generatePhase2(
+        $qrPng = ZatcaQrGenerator::generatePhase2(
             $company->name,
             (string) $company->vat_number,
-            $creditNote->issue_date,
-            (float) $creditNote->total,
-            (float) $creditNote->vat_total,
-            $log->invoice_hash,
+            $issueDate,
+            $total,
+            $vatTotal,
+            $invoiceHash,
             $signature,
-            $publicKey,
-            $log->cryptographic_stamp
+            base64_encode($publicKey),
+            $certificateSignature,
         );
 
-        if ($qr) {
-            $creditNote->update(['qr_code' => $qr]);
-        }
+        return [$signedXml, $qrPng];
     }
 }

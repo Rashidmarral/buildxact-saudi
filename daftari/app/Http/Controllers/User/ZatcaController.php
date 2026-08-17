@@ -163,8 +163,21 @@ class ZatcaController extends Controller
 
         $uuid = $xml->newUuid();
         $genesisHash = $crypto->genesisHash();
-        $xmlString = $xml->generate($invoice, $sync->isB2b($invoice) ? '0100000' : '0200000', $genesisHash, $uuid, $sync->nextIcv($company));
-        $hash = $crypto->hashInvoiceXml($xmlString);
+        $unsignedXml = $xml->generate($invoice, $sync->isB2b($invoice) ? '0100000' : '0200000', $genesisHash, $uuid, $sync->nextIcv($company));
+        $hash = $crypto->hashInvoiceXml($unsignedXml);
+
+        // ZATCA's compliance endpoint validates the same fully signed XML
+        // (XAdES + embedded QR) that production submissions use, not a
+        // plain document — the compliance CSID doubles as the signing
+        // certificate for this step.
+        [$xmlString, $qrPng] = $sync->buildSignedPayload(
+            $company, $unsignedXml, $hash, $company->zatca_compliance_csid,
+            $invoice->issue_date, (float) $invoice->total, (float) $invoice->vat_total,
+        );
+
+        if ($qrPng) {
+            $invoice->update(['qr_code' => $qrPng]);
+        }
 
         try {
             $response = $api->checkComplianceInvoice(

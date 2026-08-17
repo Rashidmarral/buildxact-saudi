@@ -135,8 +135,14 @@ CNF;
 
     /**
      * Signs the invoice hash with the company's own EC private key (the
-     * same key used for its ZATCA CSID/CSR) — tag 7 of the Phase 2 QR.
-     * Returns null until the company has generated a CSR/key pair.
+     * same key used for its ZATCA CSID/CSR) — tag 7 of the Phase 2 QR,
+     * and also the source of the invoice's XAdES ds:SignatureValue (ZATCA's
+     * Phase 2 signing profile uses this same simplified signature for
+     * both, rather than a full enveloped-XMLDSig signature over the
+     * canonicalized SignedInfo block). Signs the invoice hash's base64
+     * *text* as the message — not the decoded raw hash bytes — per
+     * ZATCA's documented signing behaviour. Returns null until the
+     * company has generated a CSR/key pair.
      */
     public function signInvoiceHash(Company $company, string $invoiceHashBase64): ?string
     {
@@ -150,7 +156,7 @@ CNF;
         }
 
         $signature = null;
-        if (! openssl_sign(base64_decode($invoiceHashBase64), $signature, $key, OPENSSL_ALGO_SHA256)) {
+        if (! openssl_sign($invoiceHashBase64, $signature, $key, OPENSSL_ALGO_SHA256)) {
             return null;
         }
 
