@@ -9,7 +9,7 @@ use App\Models\Invoice;
 use App\Models\ReceiptVoucher;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +17,11 @@ use Illuminate\Validation\Rule;
 
 class ReceiptVoucherController extends Controller
 {
-    public function downloadPdf(ReceiptVoucher $receiptVoucher, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(ReceiptVoucher $receiptVoucher, MpdfRenderer $renderer)
     {
         $receiptVoucher->loadMissing('bankAccount', 'invoice', 'counterAccount');
 
-        $pdf = $renderer->renderDocument('documents.print.voucher-standalone', [
+        $pdf = $renderer->render('documents.print.voucher-pdf', [
             'voucher' => $receiptVoucher,
             'type' => 'receipt',
             'company' => $receiptVoucher->company,

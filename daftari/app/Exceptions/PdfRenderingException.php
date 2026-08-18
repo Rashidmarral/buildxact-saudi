@@ -5,11 +5,9 @@ namespace App\Exceptions;
 use RuntimeException;
 
 /**
- * Thrown when ChromiumPdfRenderer's underlying `node scripts/render-pdf.mjs`
- * process fails — almost always a missing local setup step (Node.js not
- * installed, `npm install` not run, or Playwright's Chromium binary never
- * downloaded) rather than an application bug. Handled globally in
- * bootstrap/app.php so every controller that generates a PDF/print view
- * gets the same friendly, actionable redirect instead of a raw stack trace.
+ * Thrown when MpdfRenderer fails to produce a PDF (e.g. a corrupt embedded
+ * image or unrecoverable font issue). Handled globally in bootstrap/app.php
+ * so every PDF-generating controller gets the same friendly error instead
+ * of a raw 500.
  */
 class PdfRenderingException extends RuntimeException {}

@@ -9,7 +9,7 @@ use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -92,7 +92,7 @@ class PurchaseOrderController extends Controller
         return view('user.purchase-orders.show', ['order' => $purchaseOrder, 'template' => $template]);
     }
 
-    public function downloadPdf(PurchaseOrder $purchaseOrder, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(PurchaseOrder $purchaseOrder, MpdfRenderer $renderer)
     {
         $purchaseOrder->loadMissing('items', 'supplier');
 
@@ -116,7 +116,7 @@ class PurchaseOrderController extends Controller
             'notes' => $purchaseOrder->notes,
         ];
 
-        $pdf = $renderer->renderDocument('documents.print.standalone', [
+        $pdf = $renderer->render('documents.print.pdf', [
             'doc' => $doc,
             'company' => $purchaseOrder->company,
             'template' => $purchaseOrder->company->defaultTemplateFor('purchase_order'),

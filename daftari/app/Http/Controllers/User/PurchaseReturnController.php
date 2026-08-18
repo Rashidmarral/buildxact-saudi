@@ -7,7 +7,7 @@ use App\Models\Bill;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Services\Accounting\LedgerPostingService;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -153,7 +153,7 @@ class PurchaseReturnController extends Controller
         return view('user.purchase-returns.show', compact('purchaseReturn', 'template'));
     }
 
-    public function downloadPdf(PurchaseReturn $purchaseReturn, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(PurchaseReturn $purchaseReturn, MpdfRenderer $renderer)
     {
         $purchaseReturn->loadMissing('items', 'supplier', 'bill');
 
@@ -174,7 +174,7 @@ class PurchaseReturnController extends Controller
             'notes' => $purchaseReturn->reason,
         ];
 
-        $pdf = $renderer->renderDocument('documents.print.standalone', [
+        $pdf = $renderer->render('documents.print.pdf', [
             'doc' => $doc,
             'company' => $purchaseReturn->company,
             'template' => $purchaseReturn->company->defaultTemplateFor('bill'),

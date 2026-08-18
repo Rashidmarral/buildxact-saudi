@@ -9,7 +9,7 @@ use App\Models\BillItem;
 use App\Models\Item;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -94,7 +94,7 @@ class BillController extends Controller
         return view('user.bills.show', compact('bill', 'template'));
     }
 
-    public function downloadPdf(Bill $bill, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(Bill $bill, MpdfRenderer $renderer)
     {
         $bill->loadMissing('items', 'supplier');
 
@@ -123,7 +123,7 @@ class BillController extends Controller
             'notes' => $bill->notes,
         ];
 
-        $pdf = $renderer->renderDocument('documents.print.standalone', [
+        $pdf = $renderer->render('documents.print.pdf', [
             'doc' => $doc,
             'company' => $bill->company,
             'template' => $bill->company->defaultTemplateFor('bill'),

@@ -10,7 +10,7 @@ use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,11 +25,11 @@ class PaymentVoucherController extends Controller
         return view('user.payment-vouchers.index', compact('vouchers'));
     }
 
-    public function downloadPdf(PaymentVoucher $paymentVoucher, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(PaymentVoucher $paymentVoucher, MpdfRenderer $renderer)
     {
         $paymentVoucher->loadMissing('bankAccount', 'bill', 'expense', 'counterAccount');
 
-        $pdf = $renderer->renderDocument('documents.print.voucher-standalone', [
+        $pdf = $renderer->render('documents.print.voucher-pdf', [
             'voucher' => $paymentVoucher,
             'type' => 'payment',
             'company' => $paymentVoucher->company,

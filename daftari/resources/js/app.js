@@ -69,3 +69,156 @@ Alpine.start();
         });
     }).observe(document.documentElement, { childList: true, subtree: true });
 })();
+
+// Real-time validation for Saudi VAT/CR/phone fields — mirrors the
+// server-side rules in App\Rules\SaudiVatNumber / SaudiCrNumber /
+// SaudiPhoneNumber, but enforced as the user types (max length + format)
+// instead of only after submit. Applied globally by field `name`, the same
+// pattern as the password eye-icon above, so no individual form needs to
+// opt in.
+(function () {
+    const isAr = document.documentElement.lang === 'ar';
+    const t = (en, ar) => (isAr ? ar : en);
+
+    const RULES = [
+        {
+            selector: 'input[name="vat_number"], input[name="party_vat_number"]',
+            maxLength: 15,
+            inputMode: 'numeric',
+            sanitize: (v) => v.replace(/\D/g, '').slice(0, 15),
+            check(digits) {
+                if (digits.length === 0) return null;
+                if (digits.length > 0 && digits[0] !== '3') {
+                    return { valid: false, message: t('VAT number must start with 3.', 'يجب أن يبدأ الرقم الضريبي بالرقم 3.') };
+                }
+                if (digits.length < 15) {
+                    return { pending: true, message: t(`${digits.length}/15 digits`, `${digits.length}/15 أرقام`) };
+                }
+                if (digits[14] !== '3') {
+                    return { valid: false, message: t('VAT number must end with 3.', 'يجب أن ينتهي الرقم الضريبي بالرقم 3.') };
+                }
+
+                return { valid: true, message: t('Valid VAT number format', 'صيغة الرقم الضريبي صحيحة') };
+            },
+        },
+        {
+            selector: 'input[name="cr_number"]',
+            maxLength: 10,
+            inputMode: 'numeric',
+            sanitize: (v) => v.replace(/\D/g, '').slice(0, 10),
+            check(digits) {
+                if (digits.length === 0) return null;
+                if (digits.length < 10) {
+                    return { pending: true, message: t(`${digits.length}/10 digits`, `${digits.length}/10 أرقام`) };
+                }
+
+                return { valid: true, message: t('Valid CR number format', 'صيغة رقم السجل التجاري صحيحة') };
+            },
+        },
+        {
+            selector: 'input[name="phone"], input[name="party_phone"], input[name="bank_phone"]',
+            maxLength: 15,
+            inputMode: 'tel',
+            sanitize: (v) => v.replace(/[^\d+]/g, '').slice(0, 15),
+            check(raw) {
+                if (raw.length === 0) return null;
+
+                let digits = raw.replace(/\D/g, '');
+                if (digits.startsWith('00966')) digits = digits.slice(5);
+                else if (digits.startsWith('966')) digits = digits.slice(3);
+                else if (digits.startsWith('0')) digits = digits.slice(1);
+
+                if (digits.length < 9) {
+                    return { pending: true, message: t(`${digits.length}/9 digits`, `${digits.length}/9 أرقام`) };
+                }
+                if (!/^[1-9]\d{8}$/.test(digits)) {
+                    return { valid: false, message: t('Enter a valid Saudi phone number, e.g. 05XXXXXXXX.', 'أدخل رقم هاتف سعودي صحيح، مثال: 05XXXXXXXX.') };
+                }
+
+                return { valid: true, message: t('Valid phone number', 'رقم الهاتف صحيح') };
+            },
+        },
+    ];
+
+    function hint(input) {
+        if (input._saudiHint) return input._saudiHint;
+
+        const p = document.createElement('p');
+        p.className = 'text-xs mt-1';
+        input.insertAdjacentElement('afterend', p);
+        input._saudiHint = p;
+
+        return p;
+    }
+
+    function applyState(input, result) {
+        const p = hint(input);
+        input.classList.remove('border-red-400', 'focus:border-red-500', 'focus:ring-red-500', 'border-emerald-400');
+
+        if (! result) {
+            p.textContent = '';
+            p.className = 'text-xs mt-1';
+
+            return;
+        }
+
+        if (result.pending) {
+            p.textContent = result.message;
+            p.className = 'text-xs mt-1 text-slate-400';
+
+            return;
+        }
+
+        if (result.valid) {
+            p.textContent = result.message;
+            p.className = 'text-xs mt-1 text-emerald-600';
+            input.classList.add('border-emerald-400');
+
+            return;
+        }
+
+        p.textContent = result.message;
+        p.className = 'text-xs mt-1 text-red-600';
+        input.classList.add('border-red-400', 'focus:border-red-500', 'focus:ring-red-500');
+    }
+
+    function wire(input, rule) {
+        if (input.dataset.saudiWired) return;
+        input.dataset.saudiWired = '1';
+        input.setAttribute('maxlength', String(rule.maxLength));
+        input.setAttribute('inputmode', rule.inputMode);
+
+        const run = () => {
+            const clean = rule.sanitize(input.value);
+            if (clean !== input.value) {
+                input.value = clean;
+            }
+            applyState(input, rule.check(clean));
+        };
+
+        input.addEventListener('input', run);
+        input.addEventListener('blur', run);
+
+        if (input.value) run();
+    }
+
+    function scanAll(root) {
+        RULES.forEach((rule) => {
+            root.querySelectorAll(rule.selector).forEach((input) => wire(input, rule));
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => scanAll(document));
+
+    new MutationObserver((mutations) => {
+        mutations.forEach((m) => {
+            m.addedNodes.forEach((node) => {
+                if (node.nodeType !== 1) return;
+                RULES.forEach((rule) => {
+                    if (node.matches?.(rule.selector)) wire(node, rule);
+                });
+                scanAll(node);
+            });
+        });
+    }).observe(document.documentElement, { childList: true, subtree: true });
+})();

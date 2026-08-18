@@ -8,7 +8,7 @@ use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\Invoice;
 use App\Services\Accounting\LedgerPostingService;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -158,7 +158,7 @@ class CreditNoteController extends Controller
         return view('user.credit-notes.show', compact('creditNote', 'template'));
     }
 
-    public function downloadPdf(CreditNote $creditNote, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(CreditNote $creditNote, MpdfRenderer $renderer)
     {
         $creditNote->load('items', 'client', 'invoice');
 
@@ -181,7 +181,7 @@ class CreditNoteController extends Controller
             'notes' => $creditNote->reason,
         ];
 
-        $pdf = $renderer->renderDocument('documents.print.standalone', [
+        $pdf = $renderer->render('documents.print.pdf', [
             'doc' => $doc,
             'company' => $creditNote->company,
             'template' => $creditNote->company->defaultTemplateFor('invoice'),

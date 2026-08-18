@@ -12,7 +12,7 @@ use App\Models\Item;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Salesperson;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -115,9 +115,9 @@ class QuotationController extends Controller
         return view('user.quotations.show', compact('quotation', 'template'));
     }
 
-    public function downloadPdf(Quotation $quotation, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(Quotation $quotation, MpdfRenderer $renderer)
     {
-        $pdf = $renderer->renderDocument('documents.print.standalone', $this->pdfData($quotation));
+        $pdf = $renderer->render('documents.print.pdf', $this->pdfData($quotation));
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -125,7 +125,7 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function emailQuotation(Quotation $quotation, ChromiumPdfRenderer $renderer)
+    public function emailQuotation(Quotation $quotation, MpdfRenderer $renderer)
     {
         $recipient = $quotation->client->email;
 
@@ -133,7 +133,7 @@ class QuotationController extends Controller
             return back()->withErrors(['quotation' => __('This client has no email address on file. Add one on the client record first.')]);
         }
 
-        $pdfBinary = $renderer->renderDocument('documents.print.standalone', $this->pdfData($quotation));
+        $pdfBinary = $renderer->render('documents.print.pdf', $this->pdfData($quotation));
 
         Mail::to($recipient)->send(new QuotationMail($quotation, $pdfBinary));
 

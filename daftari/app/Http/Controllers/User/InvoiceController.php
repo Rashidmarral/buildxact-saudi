@@ -16,7 +16,7 @@ use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\Warehouse;
 use App\Services\Accounting\LedgerPostingService;
-use App\Services\ChromiumPdfRenderer;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -105,9 +105,9 @@ class InvoiceController extends Controller
         return view('user.invoices.show', compact('invoice', 'template'));
     }
 
-    public function downloadPdf(Invoice $invoice, ChromiumPdfRenderer $renderer)
+    public function downloadPdf(Invoice $invoice, MpdfRenderer $renderer)
     {
-        $pdf = $renderer->renderDocument('documents.print.standalone', $this->pdfData($invoice));
+        $pdf = $renderer->render('documents.print.pdf', $this->pdfData($invoice));
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -115,7 +115,7 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function emailInvoice(Invoice $invoice, Request $request, ChromiumPdfRenderer $renderer)
+    public function emailInvoice(Invoice $invoice, Request $request, MpdfRenderer $renderer)
     {
         $recipient = $invoice->client->email;
 
@@ -123,7 +123,7 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => __('This client has no email address on file. Add one on the client record first.')]);
         }
 
-        $pdfBinary = $renderer->renderDocument('documents.print.standalone', $this->pdfData($invoice));
+        $pdfBinary = $renderer->render('documents.print.pdf', $this->pdfData($invoice));
 
         Mail::to($recipient)->send(new InvoiceMail($invoice, $pdfBinary));
 
