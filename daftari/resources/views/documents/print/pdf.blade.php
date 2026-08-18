@@ -30,7 +30,7 @@
     .muted { color: #64748b; font-size: 9pt; }
     .text-end { text-align: right; }
     .text-center { text-align: center; }
-    .ar { direction: rtl; text-align: right; font-family: naskh; }
+    .ar { direction: rtl; text-align: right; }
     .zatca-badge { background-color: #d1fae5; color: #047857; font-size: 8pt; font-weight: bold; padding: 3px 10px; margin-bottom: 4px; }
     .qr-img { width: 85px; height: 85px; }
     .footer-note { margin-top: 18px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 8px; }

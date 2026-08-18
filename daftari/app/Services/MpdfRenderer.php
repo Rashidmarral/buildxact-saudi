@@ -74,13 +74,6 @@ class MpdfRenderer
             'margin_top' => 12,
             'margin_bottom' => 15,
             'default_font' => 'cairo',
-            // mPDF only joins Arabic letters into their contextual
-            // (initial/medial/final) glyph forms when its OpenType Layout
-            // engine is explicitly turned on — it's opt-in, not automatic,
-            // regardless of the font. Without this every Arabic string
-            // renders as isolated, disconnected letters.
-            'useOTL' => 0xFF,
-            'useKashida' => 75,
             'fontDir' => array_merge($fontDirs, [resource_path('fonts')]),
             'fontdata' => $fontData + [
                 'cairo' => [
@@ -88,20 +81,22 @@ class MpdfRenderer
                     'B' => 'Cairo-Bold.ttf',
                     'I' => 'Cairo-Regular.ttf',
                     'BI' => 'Cairo-Bold.ttf',
-                ],
-                // Cairo is a geometric sans-serif — its Arabic letterforms
-                // connect correctly (verified: the font has proper init/
-                // medi/fina GSUB tables and mPDF applies them) but with
-                // deliberately thin connecting strokes, which reads as
-                // "disconnected" at a glance next to a traditional Arabic
-                // typeface. Templates set this specifically for Arabic
-                // text runs (see the .ar CSS class) so Arabic prints in a
-                // typeface built for it, while Cairo keeps the Latin side.
-                'naskh' => [
-                    'R' => 'NotoNaskhArabic-Regular.ttf',
-                    'B' => 'NotoNaskhArabic-Bold.ttf',
-                    'I' => 'NotoNaskhArabic-Regular.ttf',
-                    'BI' => 'NotoNaskhArabic-Bold.ttf',
+                    // useOTL/useKashida are NOT valid top-level Mpdf
+                    // constructor options in this mPDF version (8.3.1) —
+                    // they only exist as per-font keys inside fontdata,
+                    // exactly like mPDF's own bundled fonts declare them
+                    // (see vendor/mpdf/mpdf/src/Config/FontVariables.php).
+                    // Setting them at the top level, as an earlier version
+                    // of this file did, is silently ignored: no exception,
+                    // no effect — Arabic contextual joining (init/medi/fina
+                    // glyph substitution) never actually ran despite every
+                    // rasterized preview looking fine (the raster path
+                    // tolerates it; some real-world PDF viewers, and the
+                    // embedded font's own encoding, don't — this is why
+                    // copy/pasted text came out correct while the on-page
+                    // glyphs still looked like isolated letters).
+                    'useOTL' => 0xFF,
+                    'useKashida' => 75,
                 ],
             ],
             'tempDir' => $tempDir,
