@@ -30,7 +30,7 @@
     .muted { color: #64748b; font-size: 9pt; }
     .text-end { text-align: right; }
     .text-center { text-align: center; }
-    .ar { direction: rtl; text-align: right; }
+    .ar { direction: rtl; text-align: right; font-family: naskh; }
     .zatca-badge { background-color: #d1fae5; color: #047857; font-size: 8pt; font-weight: bold; padding: 3px 10px; margin-bottom: 4px; }
     .qr-img { width: 85px; height: 85px; }
     .footer-note { margin-top: 18px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 8px; }
@@ -116,7 +116,7 @@
     @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 112])
 
     <div class="footer-note">
-        {{ $company->name }}@if ($company->name_ar) — {{ $company->name_ar }}@endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }} &nbsp;·&nbsp; {{ $doc['number'] }}
+        {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }} &nbsp;·&nbsp; {{ $doc['number'] }}
     </div>
 
 @elseif ($layout === 'custom_letterhead')
@@ -128,7 +128,7 @@
 
     <table style="margin-top: 12px;">
         <tr><td style="text-align: center; font-size: 12pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5pt;">
-            {{ strtoupper($doc['type_label']) }} <span style="font-weight: normal;">/ ({{ $doc['type_label_ar'] ?? '' }})</span>
+            {{ strtoupper($doc['type_label']) }} <span class="ar" style="font-weight: normal;">/ ({{ $doc['type_label_ar'] ?? '' }})</span>
         </td></tr>
     </table>
 

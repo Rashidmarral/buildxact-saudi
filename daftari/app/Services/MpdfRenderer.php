@@ -89,6 +89,20 @@ class MpdfRenderer
                     'I' => 'Cairo-Regular.ttf',
                     'BI' => 'Cairo-Bold.ttf',
                 ],
+                // Cairo is a geometric sans-serif — its Arabic letterforms
+                // connect correctly (verified: the font has proper init/
+                // medi/fina GSUB tables and mPDF applies them) but with
+                // deliberately thin connecting strokes, which reads as
+                // "disconnected" at a glance next to a traditional Arabic
+                // typeface. Templates set this specifically for Arabic
+                // text runs (see the .ar CSS class) so Arabic prints in a
+                // typeface built for it, while Cairo keeps the Latin side.
+                'naskh' => [
+                    'R' => 'NotoNaskhArabic-Regular.ttf',
+                    'B' => 'NotoNaskhArabic-Bold.ttf',
+                    'I' => 'NotoNaskhArabic-Regular.ttf',
+                    'BI' => 'NotoNaskhArabic-Bold.ttf',
+                ],
             ],
             'tempDir' => $tempDir,
         ]);
