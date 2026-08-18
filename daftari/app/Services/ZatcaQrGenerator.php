@@ -85,12 +85,24 @@ class ZatcaQrGenerator
             return null;
         }
 
+        // The 9-tag Phase 2 payload is dense — roughly 350-400 raw bytes,
+        // ~470-540 base64 characters once the hash/signature/public-key/
+        // cert-signature tags are added — which pushes the QR to a high
+        // version (many small modules) even before considering error
+        // correction. At 'Low' (7% recovery) and a small render size, a
+        // phone camera scanning it off a screen (rather than print — full
+        // of the moire/glare/motion-blur that comes with photographing a
+        // display) has real trouble with a run of that many small modules,
+        // producing exactly the kind of localized decode corruption this
+        // was reported with. 'Quartile' (25% recovery) plus a larger
+        // render trades a bit of file size for a QR that actually survives
+        // a real-world camera scan.
         $result = Builder::create()
             ->data($payload)
             ->encoding(new Encoding('UTF-8'))
-            ->errorCorrectionLevel(ErrorCorrectionLevel::Low)
-            ->size(240)
-            ->margin(4)
+            ->errorCorrectionLevel(ErrorCorrectionLevel::Quartile)
+            ->size(400)
+            ->margin(6)
             ->build();
 
         return base64_encode($result->getString());
