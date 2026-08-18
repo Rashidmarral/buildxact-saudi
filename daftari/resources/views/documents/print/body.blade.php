@@ -72,7 +72,7 @@
                         {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
                     </p>
                 @endif
-                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-24 w-24" onerror="this.style.display='none'">
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
                 <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
             </div>
         </div>
@@ -217,7 +217,7 @@
                         {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
                     </p>
                 @endif
-                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-24 w-24" onerror="this.style.display='none'">
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
                 <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
             </div>
         </div>
@@ -333,7 +333,7 @@
                         {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
                     </p>
                 @endif
-                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-28 w-28" onerror="this.style.display='none'">
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
                 <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
             @endif
         </div>

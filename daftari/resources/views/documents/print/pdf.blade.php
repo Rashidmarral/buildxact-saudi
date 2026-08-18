@@ -32,7 +32,14 @@
     .text-center { text-align: center; }
     .ar { direction: rtl; text-align: right; }
     .zatca-badge { background-color: #d1fae5; color: #047857; font-size: 8pt; font-weight: bold; padding: 3px 10px; margin-bottom: 4px; }
-    .qr-img { width: 85px; height: 85px; }
+    /* The Phase 2 QR is a dense 9-tag payload (~450-500 base64 chars,
+       version ~25+ even at Quartile EC) — printed too small, its modules
+       shrink below what a phone camera can resolve and every scan comes
+       back corrupted, even though the underlying data is correct. 85px
+       (~22mm at 96dpi) was sized for the old 5-tag Phase 1 QR; Phase 2
+       needs meaningfully more physical area for the same module count to
+       stay scannable. */
+    .qr-img { width: 160px; height: 160px; }
     .footer-note { margin-top: 18px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 8px; }
     .stamp-img { width: 90px; height: 90px; }
     .notes-block { margin-top: 14px; font-size: 9pt; }
@@ -257,7 +264,7 @@
                     @if (!empty($doc['zatca_status']))
                         <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}</div><br>
                     @endif
-                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" style="width: 100px; height: 100px;" alt="">
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" style="width: 160px; height: 160px;" alt="">
                     <div class="muted">{{ __('Scan to verify invoice details') }}</div>
                 @endif
             </td>
