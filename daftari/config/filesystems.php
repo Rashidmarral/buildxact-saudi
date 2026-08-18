@@ -52,7 +52,11 @@ return [
             // /files/{filepath} route) instead of the storage:link symlink
             // + web-server static serving — sidesteps the Windows/XAMPP
             // symlink-permission and Apache FollowSymLinks 403 issues.
-            'url' => env('APP_URL').'/files',
+            // rtrim guards against a trailing slash on APP_URL (very easy
+            // to end up with, e.g. "http://127.0.0.1:8000/") producing a
+            // double slash before "files" — which 404s, since that isn't
+            // the literal path the /files/{filepath} route matches.
+            'url' => rtrim(env('APP_URL', ''), '/').'/files',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

@@ -28,6 +28,18 @@ class MpdfRenderer
 
             $html = view($view, $data + ['embed' => $this->embedHelper()])->render();
 
+            // mPDF parses HTML/CSS internally with PCRE regexes. Our
+            // documents embed the logo/stamp/QR as base64 data URIs
+            // directly in the markup, which easily pushes a single
+            // WriteHTML() call past PHP's default 1,000,000-step
+            // pcre.backtrack_limit — mPDF then throws instead of
+            // rendering. Raising both limits here (scoped to this
+            // request; ini_set doesn't persist) is mPDF's own documented
+            // fix for this, rather than trying to keep embedded images
+            // artificially small.
+            ini_set('pcre.backtrack_limit', '10000000');
+            ini_set('pcre.recursion_limit', '10000000');
+
             $mpdf->WriteHTML($html);
 
             return $mpdf->Output('', 'S');
