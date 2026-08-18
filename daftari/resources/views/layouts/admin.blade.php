@@ -44,7 +44,9 @@
             </div>
         </aside>
 
-        <div class="flex min-w-0 flex-1 flex-col lg:ps-72">
+        {{-- No lg:ps-72 here: the sidebar goes lg:static above, so flexbox
+             already reserves its w-72 width in this row. --}}
+        <div class="flex min-w-0 flex-1 flex-col">
             <header class="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-6">
                 <div class="flex items-center gap-3">
                     <button type="button" @click="mobileNavOpen = true" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">

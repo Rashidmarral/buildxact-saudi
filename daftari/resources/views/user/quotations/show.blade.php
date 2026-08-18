@@ -14,6 +14,9 @@
                 @csrf
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Mark as issued') }}</button>
             </form>
+        @endif
+        {{-- Editable any time it hasn't been converted into a real invoice yet — not just while still a draft. --}}
+        @if ($quotation->status !== 'converted')
             <a href="{{ route('app.quotations.edit', $quotation) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
         @endif
         @if (in_array($quotation->status, ['draft', 'issued']))

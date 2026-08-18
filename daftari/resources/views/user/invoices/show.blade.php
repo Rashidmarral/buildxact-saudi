@@ -20,6 +20,9 @@
                 @csrf
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Mark as sent') }}</button>
             </form>
+        @endif
+        {{-- Editable any time it isn't yet part of an immutable ZATCA tax record, not just while still a draft. --}}
+        @if ($invoice->status !== 'cancelled' && ! $invoice->isZatcaLocked())
             <a href="{{ route('app.invoices.edit', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
         @endif
         @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid', 'overdue']) && $invoice->remainingCreditableTotal() > 0.01)
