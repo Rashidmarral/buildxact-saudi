@@ -44,7 +44,7 @@ class ZatcaQrGenerator
         $tags = [
             1 => $sellerName,
             2 => $vatNumber,
-            3 => $issuedAt->format(DATE_ATOM),
+            3 => $issuedAt->format('Y-m-d\TH:i:s'),
             4 => number_format($invoiceTotal, 2, '.', ''),
             5 => number_format($vatTotal, 2, '.', ''),
         ];
@@ -110,7 +110,7 @@ class ZatcaQrGenerator
         $tags = [
             1 => $sellerName,
             2 => $vatNumber,
-            3 => $issuedAt->format(DATE_ATOM),
+            3 => $issuedAt->format('Y-m-d\TH:i:s'),
             4 => number_format($invoiceTotal, 2, '.', ''),
             5 => number_format($vatTotal, 2, '.', ''),
             6 => base64_decode($invoiceHashBase64),

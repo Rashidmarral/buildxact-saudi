@@ -137,29 +137,26 @@ class ZatcaCertificateService
     }
 
     /**
-     * The certificate's public key, raw uncompressed SEC1 point bytes
-     * (0x04||X||Y) — QR tag 8. Reading it from the certificate itself
-     * (rather than re-deriving from our stored private key) is the more
-     * robust source of truth, though the two should always agree since
-     * ZATCA issues the certificate for the exact public key in our CSR.
+     * The certificate's public key — QR tag 8 — as the full DER-encoded
+     * SubjectPublicKeyInfo structure (algorithm identifier + the 0x04||X||Y
+     * point), not just the bare 65-byte point. Confirmed against a working
+     * reference implementation: sending only the raw point here (this
+     * method's previous behaviour) produces a QR that a real ZATCA-aware
+     * scanner rejects as "not compatible" even though every other tag is
+     * correct, since it isn't the format ZATCA's validator expects.
      */
     public function publicKeyBytes(string $certificateBase64): string
     {
         [$x509] = $this->load($certificateBase64);
 
         $publicKeyPem = (string) $x509->getPublicKey();
-        $key = openssl_pkey_get_public($publicKeyPem);
+        $body = str_replace(["-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----", "\r", "\n"], '', $publicKeyPem);
+        $der = base64_decode($body, true);
 
-        if ($key === false) {
+        if ($der === false || $der === '') {
             throw new RuntimeException('Unable to read the public key from the ZATCA-issued certificate.');
         }
 
-        $details = openssl_pkey_get_details($key);
-
-        if (empty($details['ec']['x']) || empty($details['ec']['y'])) {
-            throw new RuntimeException('Certificate public key is not an EC key.');
-        }
-
-        return "\x04".$details['ec']['x'].$details['ec']['y'];
+        return $der;
     }
 }
