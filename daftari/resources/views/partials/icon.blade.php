@@ -32,6 +32,9 @@
         'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
         'check-circle' => '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/>',
         'clipboard' => '<rect x="6" y="4" width="12" height="17" rx="1.5"/><rect x="9" y="2.5" width="6" height="3" rx="1"/><path d="M9 11h6M9 15h6"/>',
+        'alert' => '<path d="M12 3l9.5 17H2.5L12 3z"/><path d="M12 10v4"/><path d="M12 17.2v.01"/>',
+        'activity' => '<path d="M3 12h4l2.5-7L14 19l2.5-7H21"/>',
+        'log-in' => '<path d="M15 21h4a2 2 0 002-2V5a2 2 0 00-2-2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/>',
     ];
     $d = $paths[$name] ?? $paths['dashboard'];
 @endphp

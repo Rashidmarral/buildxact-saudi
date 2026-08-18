@@ -30,6 +30,43 @@
     @endforeach
 </div>
 
+@if ($failedZatcaCompanies->isNotEmpty() || $failedPayments->isNotEmpty())
+    <div class="mt-6 rounded-2xl border border-red-100 bg-red-50/40 p-6 shadow-card">
+        <div class="flex items-center gap-2">
+            @include('partials.icon', ['name' => 'alert', 'class' => 'h-5 w-5 text-red-600'])
+            <h2 class="font-semibold text-slate-900">{{ __('Needs attention') }}</h2>
+        </div>
+        <div class="mt-4 grid gap-5 md:grid-cols-2">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('Failed ZATCA syncs (last 30 days)') }}</p>
+                <div class="mt-2 space-y-1">
+                    @forelse ($failedZatcaCompanies as $row)
+                        <a href="{{ $row->company ? route('admin.companies.show', $row->company) : '#' }}" class="flex items-center justify-between rounded-lg px-2 py-2 text-sm transition-colors hover:bg-white">
+                            <span class="truncate font-medium text-slate-700">{{ $row->company?->name ?? __('Unknown company') }}</span>
+                            <span class="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">{{ __(':count failed', ['count' => $row->failed_count]) }}</span>
+                        </a>
+                    @empty
+                        <p class="px-2 text-sm text-slate-400">{{ __('None.') }}</p>
+                    @endforelse
+                </div>
+            </div>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('Failed payments') }}</p>
+                <div class="mt-2 space-y-1">
+                    @forelse ($failedPayments as $payment)
+                        <a href="{{ $payment->company ? route('admin.companies.show', $payment->company) : '#' }}" class="flex items-center justify-between rounded-lg px-2 py-2 text-sm transition-colors hover:bg-white">
+                            <span class="truncate font-medium text-slate-700">{{ $payment->company?->name ?? __('Unknown company') }}</span>
+                            <span class="shrink-0 text-xs font-semibold text-red-700">SAR {{ number_format($payment->amount, 2) }}</span>
+                        </a>
+                    @empty
+                        <p class="px-2 text-sm text-slate-400">{{ __('None.') }}</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
 <div class="mt-6 grid gap-5 lg:grid-cols-3">
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card lg:col-span-2">
         <div class="flex items-center justify-between">
@@ -121,6 +158,14 @@
             <a href="{{ route('admin.admins.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
                 @include('partials.icon', ['name' => 'shield', 'class' => 'h-5 w-5 text-brand-600'])
                 {{ __('Admin users') }}
+            </a>
+            <a href="{{ route('admin.activity.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                @include('partials.icon', ['name' => 'activity', 'class' => 'h-5 w-5 text-brand-600'])
+                {{ __('Activity log') }}
+            </a>
+            <a href="{{ route('admin.settings.edit') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                @include('partials.icon', ['name' => 'settings', 'class' => 'h-5 w-5 text-brand-600'])
+                {{ __('Platform settings') }}
             </a>
         </div>
     </div>

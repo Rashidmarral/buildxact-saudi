@@ -32,6 +32,8 @@
                 @include('partials.nav-item', ['route' => 'admin.plans.index', 'label' => __('Plans'), 'icon' => 'plans'])
                 @include('partials.nav-item', ['route' => 'admin.payments.index', 'label' => __('Payments'), 'icon' => 'billing'])
                 @include('partials.nav-item', ['route' => 'admin.admins.index', 'label' => __('Admin Users'), 'icon' => 'shield'])
+                @include('partials.nav-item', ['route' => 'admin.activity.index', 'label' => __('Activity log'), 'icon' => 'activity'])
+                @include('partials.nav-item', ['route' => 'admin.settings.edit', 'label' => __('Platform settings'), 'icon' => 'settings'])
             </nav>
             <div class="border-t border-white/5 p-3">
                 <form method="POST" action="{{ route('logout') }}">

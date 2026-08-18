@@ -196,6 +196,19 @@
                 </div>
             </header>
 
+            @if (session('impersonator_id'))
+                <div class="flex items-center justify-between bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-2 text-sm text-white print:hidden">
+                    <span class="flex items-center gap-2">
+                        @include('partials.icon', ['name' => 'log-in', 'class' => 'h-4 w-4'])
+                        {{ __('You are viewing Daftari as :company (support mode).', ['company' => $company?->name]) }}
+                    </span>
+                    <form method="POST" action="{{ route('stop-impersonating') }}">
+                        @csrf
+                        <button type="submit" class="font-semibold underline decoration-white/60 underline-offset-2 hover:decoration-white">{{ __('Return to admin') }}</button>
+                    </form>
+                </div>
+            @endif
+
             @if ($sub && $sub->isTrial())
                 <div class="flex items-center justify-between bg-gradient-to-r from-amber-50 to-amber-50/60 border-b border-amber-200 px-6 py-2 text-sm text-amber-800 print:hidden">
                     <span class="flex items-center gap-2">

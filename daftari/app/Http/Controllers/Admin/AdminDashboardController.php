@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\ZatcaInvoiceLog;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
@@ -77,9 +79,31 @@ class AdminDashboardController extends Controller
             ->take(8)
             ->get();
 
+        // "Needs attention": companies whose ZATCA sync has failed at least
+        // once in the last 30 days, and any payment that failed to collect
+        // — surfaced so support can catch a stuck company before the
+        // customer has to report it themselves.
+        $failedZatcaCompanies = ZatcaInvoiceLog::withoutGlobalScopes()
+            ->where('status', 'failed')
+            ->where('submitted_at', '>=', now()->subDays(30))
+            ->select('company_id', DB::raw('COUNT(*) as failed_count'), DB::raw('MAX(submitted_at) as last_failed_at'))
+            ->groupBy('company_id')
+            ->orderByDesc('last_failed_at')
+            ->take(8)
+            ->get()
+            ->load('company');
+
+        $failedPayments = Payment::withoutGlobalScopes()
+            ->where('status', 'failed')
+            ->with('company')
+            ->latest('paid_at')
+            ->take(8)
+            ->get();
+
         return view('admin.dashboard', compact(
             'stats', 'recentCompanies', 'signupsTrend', 'revenueTrend',
-            'planDistribution', 'trialsEndingSoon', 'recentPayments'
+            'planDistribution', 'trialsEndingSoon', 'recentPayments',
+            'failedZatcaCompanies', 'failedPayments'
         ));
     }
 }

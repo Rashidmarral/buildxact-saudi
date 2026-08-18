@@ -1,12 +1,15 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\FileServeController;
+use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
@@ -86,6 +89,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::post('/stop-impersonating', [ImpersonationController::class, 'stop'])->middleware('auth')->name('stop-impersonating');
 
 // User panel
 Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->group(function () {
@@ -277,12 +281,20 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin'])
     Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
     Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
     Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
+    Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
+    Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
 
     Route::resource('plans', PlanController::class)->except(['show']);
 
     Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
 
     Route::get('admins', [AdminUserController::class, 'index'])->name('admins.index');
     Route::post('admins', [AdminUserController::class, 'store'])->name('admins.store');
     Route::delete('admins/{user}', [AdminUserController::class, 'destroy'])->name('admins.destroy');
+
+    Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');
+
+    Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
+    Route::post('settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
 });

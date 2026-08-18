@@ -8,6 +8,7 @@ use App\Models\AccountMapping;
 use App\Models\Company;
 use App\Models\Plan;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -76,7 +77,7 @@ class AuthController extends Controller
             $company = Company::create([
                 'name' => $data['company_name'],
                 'slug' => $slug,
-                'trial_ends_at' => now()->addDays((int) config('daftari.trial_days')),
+                'trial_ends_at' => now()->addDays((int) Setting::get('trial_days', config('daftari.trial_days'))),
                 'currency' => config('daftari.default_currency'),
             ]);
 

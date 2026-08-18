@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\PdfRenderingException;
+use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureCompanyActive;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
             SetLocale::class,
+            CheckMaintenanceMode::class,
         ]);
 
         $middleware->alias([
