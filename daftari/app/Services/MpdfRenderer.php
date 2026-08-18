@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\PdfRenderingException;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Mpdf\Mpdf;
 
@@ -46,6 +47,13 @@ class MpdfRenderer
         $defaultFontConfig = (new \Mpdf\Config\FontVariables())->getDefaults();
         $fontData = $defaultFontConfig['fontdata'];
 
+        // mPDF writes working files into tempDir and fails outright if it
+        // doesn't exist. Git doesn't track empty directories, so a fresh
+        // clone/unzip never has this folder — create it defensively here
+        // instead of relying on it having been created some other way.
+        $tempDir = storage_path('app/mpdf-tmp');
+        File::ensureDirectoryExists($tempDir);
+
         return new Mpdf([
             'mode' => 'utf-8',
             'format' => 'A4',
@@ -63,7 +71,7 @@ class MpdfRenderer
                     'BI' => 'Cairo-Bold.ttf',
                 ],
             ],
-            'tempDir' => storage_path('app/mpdf-tmp'),
+            'tempDir' => $tempDir,
         ]);
     }
 

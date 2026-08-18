@@ -161,30 +161,6 @@ CNF;
     }
 
     /**
-     * Raw EC public key point bytes (uncompressed SEC1 form: 0x04||X||Y)
-     * derived from the company's stored private key — tag 8 of the Phase 2
-     * QR. Returns null until the company has generated a CSR/key pair.
-     */
-    public function publicKeyBytes(Company $company): ?string
-    {
-        if (! $company->zatca_private_key) {
-            return null;
-        }
-
-        $key = openssl_pkey_get_private($company->zatca_private_key);
-        if ($key === false) {
-            return null;
-        }
-
-        $details = openssl_pkey_get_details($key);
-        if (empty($details['ec']['x']) || empty($details['ec']['y'])) {
-            return null;
-        }
-
-        return base64_encode("\x04".$details['ec']['x'].$details['ec']['y']);
-    }
-
-    /**
      * The very first invoice in a company's chain hashes an empty string
      * per ZATCA's documented base-case, exactly like a genesis block.
      */
