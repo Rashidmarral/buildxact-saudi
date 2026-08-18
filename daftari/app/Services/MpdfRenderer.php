@@ -74,6 +74,13 @@ class MpdfRenderer
             'margin_top' => 12,
             'margin_bottom' => 15,
             'default_font' => 'cairo',
+            // mPDF only joins Arabic letters into their contextual
+            // (initial/medial/final) glyph forms when its OpenType Layout
+            // engine is explicitly turned on — it's opt-in, not automatic,
+            // regardless of the font. Without this every Arabic string
+            // renders as isolated, disconnected letters.
+            'useOTL' => 0xFF,
+            'useKashida' => 75,
             'fontDir' => array_merge($fontDirs, [resource_path('fonts')]),
             'fontdata' => $fontData + [
                 'cairo' => [
