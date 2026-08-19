@@ -119,30 +119,38 @@ class ZatcaQrGenerator
         string $publicKeyBase64,
         string $certificateSignatureRaw
     ): ?string {
-        // Tags 1-7 are UTF-8 text; tags 8-9 are raw binary DER. Tags 6
-        // (invoice hash) and 7 (signature) are ZATCA-documented as the
-        // *base64 text itself* — left un-decoded, unlike tag 8 (public
-        // key), which is genuinely raw DER bytes decoded from base64.
-        // Tag 9 was already raw (it's never base64 to begin with — see
-        // ZatcaCertificateService::certificateSignature()).
+        // User-verified against a real ZATCA-issued certificate with the
+        // QrKsaReader app (confirmed "compatible with Phase 2" twice on
+        // freshly-synced invoices): tags 6, 7, and 8 all stay as their
+        // base64 *text* — none of the three are decoded to raw bytes
+        // before being written into the TLV. Tag 9 was already raw to
+        // begin with (see ZatcaCertificateService::certificateSignature()),
+        // so it's unaffected either way.
         $tags = [
             1 => $sellerName,
             2 => $vatNumber,
-            3 => $issuedAt->format('Y-m-d\TH:i:s'),
+            3 => $issuedAt->format('Y-m-d\TH:i:s\Z'),
             4 => number_format($invoiceTotal, 2, '.', ''),
             5 => number_format($vatTotal, 2, '.', ''),
             6 => $invoiceHashBase64,
             7 => $signatureBase64,
-            8 => base64_decode($publicKeyBase64),
+            8 => $publicKeyBase64,
             9 => $certificateSignatureRaw,
         ];
 
         $binary = '';
         foreach ($tags as $tag => $value) {
-            if (strlen($value) > 255) {
+            // mb_strlen(..., '8bit') is functionally identical to strlen()
+            // here (PHP strings are already byte arrays — strlen() always
+            // counted bytes, never characters) but kept explicit per the
+            // user's verified version.
+            $length = mb_strlen($value, '8bit');
+
+            if ($length > 255) {
                 return null;
             }
-            $binary .= chr($tag).chr(strlen($value)).$value;
+
+            $binary .= chr($tag).chr($length).$value;
         }
 
         return base64_encode($binary);
