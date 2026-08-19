@@ -39,9 +39,9 @@
        (~22mm at 96dpi) was sized for the old 5-tag Phase 1 QR; Phase 2
        needs meaningfully more physical area for the same module count to
        stay scannable. */
-    .qr-img { width: 160px; height: 160px; }
+    .qr-img { width: 180px; height: 180px; }
     .footer-note { margin-top: 18px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 8px; }
-    .stamp-img { width: 90px; height: 90px; }
+    .stamp-img { width: 130px; height: 130px; }
     .notes-block { margin-top: 14px; font-size: 9pt; }
 </style>
 </head>
@@ -86,8 +86,6 @@
         </tr>
     </table>
 
-    @include('documents.print.pdf-qr-block', ['doc' => $doc])
-
     <table style="margin-top: 14px;">
         <thead>
             <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt;">
@@ -120,7 +118,7 @@
 
     @include('documents.print.pdf-bank-totals', ['doc' => $doc, 'bankAccounts' => $bankAccounts])
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 112])
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 140])
 
     <div class="footer-note">
         {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }} &nbsp;·&nbsp; {{ $doc['number'] }}
@@ -161,8 +159,6 @@
             <tr><td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ __('Address') }}</td><td style="padding: 3px 0;" colspan="3">{{ $doc['party']->fullAddress() }}</td></tr>
         @endif
     </table>
-
-    @include('documents.print.pdf-qr-block', ['doc' => $doc])
 
     <table style="margin-top: 12px; border: 0.5pt solid #cbd5e1;">
         <thead>
@@ -222,7 +218,7 @@
         </div>
     @endif
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 96])
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 130])
 
     <div class="footer-note">{{ __('Page 1 of 1') }}</div>
 
@@ -260,12 +256,8 @@
                 @if (!empty($doc['party']->email))<div class="muted">{{ $doc['party']->email }}</div>@endif
             </td>
             <td style="width: 50%; vertical-align: top; text-align: right;">
-                @if (!empty($doc['qr_code']))
-                    @if (!empty($doc['zatca_status']))
-                        <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}</div><br>
-                    @endif
-                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" style="width: 160px; height: 160px;" alt="">
-                    <div class="muted">{{ __('Scan to verify invoice details') }}</div>
+                @if (!empty($doc['zatca_status']))
+                    <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}</div>
                 @endif
             </td>
         </tr>
@@ -322,7 +314,7 @@
         </div>
     @endif
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 90])
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 120])
 @endif
 
 </body>

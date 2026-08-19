@@ -64,20 +64,6 @@
         </tbody>
     </table>
 
-    @if (!empty($doc['qr_code']))
-        <div class="mt-4 flex justify-end">
-            <div class="text-end">
-                @if (!empty($doc['zatca_status']))
-                    <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                        {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
-                    </p>
-                @endif
-                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
-                <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
-            </div>
-        </div>
-    @endif
-
     <table class="w-full text-sm mt-6">
         <thead>
             <tr class="text-left text-slate-600 border-b-2 border-slate-800">
@@ -149,9 +135,22 @@
         <div class="mt-2 text-sm text-slate-500 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
     @endif
 
-    @if ($company->stamp_path)
-        <div class="mt-8 flex justify-end">
-            <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-28 w-28 object-contain">
+    @if (!empty($doc['qr_code']) || $company->stamp_path)
+        <div class="mt-8 flex items-end justify-end gap-8">
+            @if (!empty($doc['qr_code']))
+                <div class="text-center">
+                    @if (!empty($doc['zatca_status']))
+                        <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                        </p>
+                    @endif
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
+                    <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
+                </div>
+            @endif
+            @if ($company->stamp_path)
+                <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-36 w-36 object-contain">
+            @endif
         </div>
     @endif
 
@@ -208,20 +207,6 @@
             @endif
         </tbody>
     </table>
-
-    @if (!empty($doc['qr_code']))
-        <div class="mt-4 flex justify-end">
-            <div class="text-end">
-                @if (!empty($doc['zatca_status']))
-                    <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                        {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
-                    </p>
-                @endif
-                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
-                <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
-            </div>
-        </div>
-    @endif
 
     <table class="w-full text-sm mt-5 border border-slate-300">
         <thead>
@@ -286,9 +271,22 @@
         <div class="mt-2 text-sm text-slate-500 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
     @endif
 
-    @if ($company->stamp_path)
-        <div class="mt-8 flex justify-end">
-            <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-24 w-24 object-contain">
+    @if (!empty($doc['qr_code']) || $company->stamp_path)
+        <div class="mt-8 flex items-end justify-end gap-8">
+            @if (!empty($doc['qr_code']))
+                <div class="text-center">
+                    @if (!empty($doc['zatca_status']))
+                        <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                        </p>
+                    @endif
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
+                    <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
+                </div>
+            @endif
+            @if ($company->stamp_path)
+                <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-32 w-32 object-contain">
+            @endif
         </div>
     @endif
 

@@ -95,5 +95,89 @@ class RealCompanySeeder extends Seeder
         if (! $company->default_bank_account_id) {
             $company->update(['default_bank_account_id' => $bankAccount->id]);
         }
+
+        $this->seedZubaidiMaintenance();
+    }
+
+    /**
+     * Second real company: an Abdulmajeed Al-Zubaidi sole-proprietorship
+     * establishment (مؤسسة) in Makkah. CR/VAT/National Address confirmed
+     * against the company's actual government-issued documents (CR
+     * certificate, VAT registration, National Address proof, SNB IBAN
+     * letter) — same treatment as Dynamic Core above: real data, seeded
+     * unconditionally, idempotent on re-run.
+     */
+    private function seedZubaidiMaintenance(): void
+    {
+        $company = Company::updateOrCreate(
+            ['vat_number' => '310464560600003'],
+            [
+                'name' => 'Abdulmajeed Abdullah Al-Zubaidi Est. for Maintenance',
+                'name_ar' => 'مؤسسة عبدالمجيد عبدالله بن عبيد الزبيدي للصيانة',
+                'slug' => 'zubaidi-maintenance',
+                'cr_number' => '4031233603',
+                'address' => 'Building 8562, Muhammad Lutfi Jameah St, Al Buhayrat Dist., Makkah 24211',
+                'city' => 'Makkah',
+                'building_number' => '8562',
+                'street_name' => 'Muhammad Lutfi Jameah',
+                'district' => 'Al Buhayrat',
+                'postal_code' => '24211',
+                'additional_number' => '4565',
+                'currency' => 'SAR',
+                'locale' => 'ar',
+                'status' => 'active',
+                'trial_ends_at' => now()->addYear(),
+            ]
+        );
+
+        Role::seedSystemRoles($company->id);
+        Account::seedSystemAccounts($company->id);
+        AccountMapping::seedDefaults($company->id);
+
+        User::firstOrCreate(
+            ['email' => 'owner@zubaidimaintenance.sa'],
+            [
+                'company_id' => $company->id,
+                'name' => 'Abdulmajeed Al-Zubaidi',
+                'password' => Hash::make('ZubaidiEst@2026'),
+                'role' => 'owner',
+                'status' => 'active',
+            ]
+        );
+
+        $existingSubscription = $company->activeSubscription();
+        $enterprisePlan = Plan::where('slug', 'enterprise')->first();
+
+        if ($enterprisePlan && (! $existingSubscription || $existingSubscription->plan_id !== $enterprisePlan->id)) {
+            if ($existingSubscription) {
+                $existingSubscription->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+            }
+
+            Subscription::create([
+                'company_id' => $company->id,
+                'plan_id' => $enterprisePlan->id,
+                'status' => 'active',
+                'billing_cycle' => 'yearly',
+                'current_period_start' => now(),
+                'current_period_end' => now()->addYear(),
+            ]);
+        }
+
+        $bankAccount = BankAccount::updateOrCreate(
+            ['company_id' => $company->id, 'iban' => 'SA2610000001400005458106'],
+            [
+                'name' => 'SNB — Operating Account',
+                'bank_name' => 'Saudi National Bank (SNB)',
+                'account_holder_name' => 'مؤسسة عبدالمجيد عبدالله بن عبيد الزبيدي للصيانة',
+                'account_number' => '01400005458106',
+                'type' => 'bank',
+                'currency' => 'SAR',
+                'is_active' => true,
+            ]
+        );
+
+        if (! $company->default_bank_account_id) {
+            $company->update(['default_bank_account_id' => $bankAccount->id]);
+        }
     }
 }

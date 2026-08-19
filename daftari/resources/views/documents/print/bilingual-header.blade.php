@@ -18,7 +18,7 @@
     </div>
 
     @if (($showLogo ?? true) && $company->logo_path)
-        <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-24 w-24 shrink-0 rounded-full object-cover">
+        <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-28 w-28 shrink-0 rounded-full object-cover">
     @endif
 
     <div class="text-sm leading-relaxed text-slate-700 text-end" dir="rtl">

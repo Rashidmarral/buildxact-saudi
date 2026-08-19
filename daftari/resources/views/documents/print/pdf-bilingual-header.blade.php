@@ -18,7 +18,7 @@
         </td>
         <td style="width: 24%; vertical-align: top; text-align: center;">
             @if (($showLogo ?? true) && $logoData)
-                <img src="{{ $logoData }}" style="width: 70px; height: 70px;" alt="">
+                <img src="{{ $logoData }}" style="width: 92px; height: 92px;" alt="">
             @endif
         </td>
         <td class="ar" style="width: 38%; vertical-align: top; font-size: 9.5pt; line-height: 1.5;">
