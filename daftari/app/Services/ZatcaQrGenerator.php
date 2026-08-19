@@ -119,14 +119,20 @@ class ZatcaQrGenerator
         string $publicKeyBase64,
         string $certificateSignatureRaw
     ): ?string {
+        // Tags 1-7 are UTF-8 text; tags 8-9 are raw binary DER. Tags 6
+        // (invoice hash) and 7 (signature) are ZATCA-documented as the
+        // *base64 text itself* — left un-decoded, unlike tag 8 (public
+        // key), which is genuinely raw DER bytes decoded from base64.
+        // Tag 9 was already raw (it's never base64 to begin with — see
+        // ZatcaCertificateService::certificateSignature()).
         $tags = [
             1 => $sellerName,
             2 => $vatNumber,
             3 => $issuedAt->format('Y-m-d\TH:i:s'),
             4 => number_format($invoiceTotal, 2, '.', ''),
             5 => number_format($vatTotal, 2, '.', ''),
-            6 => base64_decode($invoiceHashBase64),
-            7 => base64_decode($signatureBase64),
+            6 => $invoiceHashBase64,
+            7 => $signatureBase64,
             8 => base64_decode($publicKeyBase64),
             9 => $certificateSignatureRaw,
         ];
