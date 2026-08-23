@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Setting;
+use App\Support\PlatformBranding;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Runtime overrides for platform config that a super admin needs to change
- * without a deploy — trial length, the support contact shown to users, and
- * maintenance mode. Each falls back to config/daftari.php (or a sane
- * default) until a Setting row exists, so a fresh install behaves exactly
- * as before this page existed.
+ * without a deploy — trial length, the support contact shown to users,
+ * maintenance mode, and Daftari's own public branding/legal identity
+ * (shown on the marketing site footer and SaaS receipts). Each falls back
+ * to config/daftari.php (or a sane default) until a Setting row exists, so
+ * a fresh install behaves exactly as before this page existed.
  */
 class PlatformSettingsController extends Controller
 {
@@ -25,7 +28,10 @@ class PlatformSettingsController extends Controller
             'maintenance_message' => Setting::get('maintenance_message', ''),
         ];
 
-        return view('admin.settings.edit', compact('settings'));
+        return view('admin.settings.edit', [
+            'settings' => $settings,
+            'branding' => PlatformBranding::all(),
+        ]);
     }
 
     public function update(Request $request)
@@ -45,5 +51,37 @@ class PlatformSettingsController extends Controller
         AuditLog::record('settings.update', null, __('Updated platform settings'));
 
         return back()->with('status', __('Settings saved.'));
+    }
+
+    public function updateBranding(Request $request)
+    {
+        $data = $request->validate([
+            'platform_name' => ['required', 'string', 'max:255'],
+            'platform_name_ar' => ['nullable', 'string', 'max:255'],
+            'platform_vat_number' => ['nullable', 'string', 'max:20'],
+            'platform_cr_number' => ['nullable', 'string', 'max:20'],
+            'platform_address' => ['nullable', 'string', 'max:255'],
+            'platform_phone' => ['nullable', 'string', 'max:30'],
+            'platform_email' => ['nullable', 'email', 'max:255'],
+            'logo' => ['nullable', 'image', 'max:2048'],
+        ]);
+
+        unset($data['logo']);
+
+        foreach ($data as $key => $value) {
+            Setting::set($key, $value ?? '');
+        }
+
+        if ($request->hasFile('logo')) {
+            $existing = Setting::get('platform_logo_path');
+            if ($existing) {
+                Storage::disk('public')->delete($existing);
+            }
+            Setting::set('platform_logo_path', $request->file('logo')->store('platform', 'public'));
+        }
+
+        AuditLog::record('settings.update_branding', null, __('Updated platform branding'));
+
+        return back()->with('status', __('Branding saved.'));
     }
 }

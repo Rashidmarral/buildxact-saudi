@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Models\PlatformDocument;
 use Illuminate\Http\Request;
 
 class HomeController extends Controller
@@ -33,6 +34,13 @@ class HomeController extends Controller
     public function compliance()
     {
         return view('site.compliance');
+    }
+
+    public function certificates()
+    {
+        $documents = PlatformDocument::orderBy('sort_order')->orderBy('id')->get();
+
+        return view('site.certificates', compact('documents'));
     }
 
     public function contact()

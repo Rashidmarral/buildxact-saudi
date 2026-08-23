@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\FileServeController;
@@ -57,6 +58,7 @@ Route::get('/features', [HomeController::class, 'features'])->name('features');
 Route::get('/pricing', [HomeController::class, 'pricing'])->name('pricing');
 Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/compliance', [HomeController::class, 'compliance'])->name('compliance');
+Route::get('/certificates', [HomeController::class, 'certificates'])->name('certificates');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit');
 Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
@@ -317,5 +319,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
 
         Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
         Route::post('settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
+        Route::post('settings/branding', [PlatformSettingsController::class, 'updateBranding'])->name('settings.branding');
+
+        Route::resource('certificates', PlatformDocumentController::class)->only(['index', 'store', 'destroy']);
     });
 });

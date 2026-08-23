@@ -43,6 +43,7 @@
                 @if (auth()->user()->isSuperAdmin())
                     @include('partials.nav-item', ['route' => 'admin.admins.index', 'label' => __('Admin Users'), 'icon' => 'shield'])
                     @include('partials.nav-item', ['route' => 'admin.admin-roles.index', 'label' => __('Admin Roles'), 'icon' => 'shield'])
+                    @include('partials.nav-item', ['route' => 'admin.certificates.index', 'label' => __('Certificates'), 'icon' => 'templates'])
                     @include('partials.nav-item', ['route' => 'admin.settings.edit', 'label' => __('Platform settings'), 'icon' => 'settings'])
                 @endif
             </nav>

@@ -2,12 +2,11 @@
     Daftari's own subscription billing receipt — issued by the platform to
     a company for a plan payment, not a company-branded document like the
     invoice/quotation/bill templates. Always the same simple layout;
-    Daftari's own legal/VAT details (config('daftari.billing')) are shown
-    only when the operator running this instance has configured them —
-    never fabricated.
+    Daftari's own legal/VAT details (App\Support\PlatformBranding, editable
+    by a super admin) are shown only once configured — never fabricated.
 --}}
 @php
-    $billing = config('daftari.billing');
+    $billing = \App\Support\PlatformBranding::all();
 @endphp
 <!DOCTYPE html>
 <html>
@@ -22,6 +21,7 @@
     .title { font-size: 20pt; font-weight: bold; color: #0f172a; }
     .paid-badge { background-color: #d1fae5; color: #047857; font-size: 9pt; font-weight: bold; padding: 4px 12px; }
     .footer-note { margin-top: 24px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 8px; }
+    .logo { height: 40px; margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -29,10 +29,14 @@
 <table style="margin-bottom: 20px;">
     <tr>
         <td>
-            <div class="title">{{ $billing['company_name'] }}</div>
+            @if ($billing['logo_path'])
+                <img class="logo" src="{{ Storage::url($billing['logo_path']) }}" alt="{{ $billing['name'] }}">
+            @endif
+            <div class="title">{{ $billing['name'] }}</div>
             @if ($billing['address'])<div class="muted">{{ $billing['address'] }}</div>@endif
             @if ($billing['vat_number'])<div class="muted">{{ __('VAT number') }}: {{ $billing['vat_number'] }}</div>@endif
             @if ($billing['cr_number'])<div class="muted">{{ __('CR Number') }}: {{ $billing['cr_number'] }}</div>@endif
+            @if ($billing['phone'])<div class="muted">{{ $billing['phone'] }}</div>@endif
             @if ($billing['email'])<div class="muted">{{ $billing['email'] }}</div>@endif
         </td>
         <td class="text-end">

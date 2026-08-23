@@ -10,12 +10,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
+@php($__branding = \App\Support\PlatformBranding::all())
 <body class="bg-white text-slate-800 antialiased" x-data="{ mobileOpen: false }">
     <header class="sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
             <a href="{{ route('home') }}" class="flex items-center gap-2 text-xl font-bold text-brand-800">
-                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-glow">د</span>
-                Daftari
+                @if ($__branding['logo_path'])
+                    <img src="{{ Storage::url($__branding['logo_path']) }}" alt="{{ $__branding['name'] }}" class="h-9 w-9 rounded-xl object-cover shadow-glow">
+                @else
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-glow">د</span>
+                @endif
+                {{ $__branding['name'] }}
             </a>
             <nav class="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
                 <a href="{{ route('features') }}" class="transition-colors hover:text-brand-700">{{ __('Features') }}</a>
@@ -37,6 +42,7 @@
                             <a href="{{ route('tools.invoice-generator') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">{{ __('Free invoice generator') }}</a>
                             <div class="my-1 border-t border-slate-100"></div>
                             <a href="{{ route('compliance') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">{{ __('Compliance') }}</a>
+                            <a href="{{ route('certificates') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">{{ __('Certificates') }}</a>
                             <a href="{{ route('glossary') }}" class="block px-4 py-2 text-sm hover:bg-slate-50">{{ __('Glossary') }}</a>
                         </div>
                     </div>
@@ -67,6 +73,7 @@
                 <a href="{{ route('about') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('About') }}</a>
                 <a href="{{ route('contact') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Contact') }}</a>
                 <a href="{{ route('tools.index') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Free Tools & Templates') }}</a>
+                <a href="{{ route('certificates') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Certificates') }}</a>
                 <a href="{{ route('glossary') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Glossary') }}</a>
                 <div class="my-2 border-t border-slate-100"></div>
                 <a href="{{ route('locale.switch', app()->getLocale() === 'ar' ? 'en' : 'ar') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ app()->getLocale() === 'ar' ? 'English' : 'العربية' }}</a>
@@ -93,10 +100,27 @@
         <div class="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-12 text-sm md:grid-cols-5">
             <div class="col-span-2 md:col-span-1">
                 <div class="flex items-center gap-2 text-lg font-bold text-brand-800">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm text-white">د</span>
-                    Daftari
+                    @if ($__branding['logo_path'])
+                        <img src="{{ Storage::url($__branding['logo_path']) }}" alt="{{ $__branding['name'] }}" class="h-7 w-7 rounded-lg object-cover">
+                    @else
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm text-white">د</span>
+                    @endif
+                    {{ $__branding['name'] }}
                 </div>
                 <p class="mt-3 text-slate-500">{{ __('Subscription accounting & VAT e-invoicing for Saudi businesses.') }}</p>
+                @if ($__branding['vat_number'] || $__branding['cr_number'] || $__branding['address'])
+                    <ul class="mt-3 space-y-1 text-xs text-slate-400">
+                        @if ($__branding['vat_number'])
+                            <li>{{ __('VAT No.') }} {{ $__branding['vat_number'] }}</li>
+                        @endif
+                        @if ($__branding['cr_number'])
+                            <li>{{ __('CR No.') }} {{ $__branding['cr_number'] }}</li>
+                        @endif
+                        @if ($__branding['address'])
+                            <li>{{ $__branding['address'] }}</li>
+                        @endif
+                    </ul>
+                @endif
             </div>
             <div>
                 <h4 class="font-semibold text-slate-700">{{ __('Product') }}</h4>
@@ -119,6 +143,7 @@
                 <h4 class="font-semibold text-slate-700">{{ __('Resources') }}</h4>
                 <ul class="mt-3 space-y-2 text-slate-500">
                     <li><a href="{{ route('compliance') }}" class="hover:text-brand-700">{{ __('Compliance') }}</a></li>
+                    <li><a href="{{ route('certificates') }}" class="hover:text-brand-700">{{ __('Certificates') }}</a></li>
                     <li><a href="{{ route('glossary') }}" class="hover:text-brand-700">{{ __('Glossary') }}</a></li>
                 </ul>
             </div>
@@ -133,7 +158,7 @@
             </div>
         </div>
         <div class="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
-            &copy; {{ now()->year }} Daftari. {{ __('All rights reserved.') }}
+            &copy; {{ now()->year }} {{ $__branding['name'] }}. {{ __('All rights reserved.') }}
         </div>
     </footer>
 </body>
