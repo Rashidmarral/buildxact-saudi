@@ -98,6 +98,7 @@
                         <th class="px-6 py-3 font-medium">{{ __('Plan') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Amount') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -107,6 +108,11 @@
                             <td class="px-6 py-3">{{ $payment->plan->name ?? '—' }}</td>
                             <td class="px-6 py-3">SAR {{ number_format($payment->amount, 2) }}</td>
                             <td class="px-6 py-3">{{ ucfirst($payment->status) }}</td>
+                            <td class="px-6 py-3 text-right">
+                                @if ($payment->status === 'paid')
+                                    <a href="{{ route('app.billing.receipt', $payment) }}" class="text-brand-700 hover:underline">{{ __('Download receipt') }}</a>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

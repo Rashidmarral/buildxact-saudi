@@ -11,3 +11,5 @@ Artisan::command('inspire', function () {
 Schedule::command('zatca:sync-invoices --frequency=hourly')->hourly();
 Schedule::command('zatca:sync-invoices --frequency=daily')->daily();
 Schedule::command('zatca:sync-invoices --frequency=weekly')->weekly();
+
+Schedule::command('invoices:send-overdue-reminders')->dailyAt('08:00');

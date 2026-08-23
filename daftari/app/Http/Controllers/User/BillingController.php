@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -83,5 +85,23 @@ class BillingController extends Controller
         });
 
         return redirect()->route('app.billing.index')->with('status', __('Subscription updated.'));
+    }
+
+    public function downloadReceipt(Payment $payment, MpdfRenderer $renderer)
+    {
+        abort_unless($payment->company_id === Auth::user()->company_id, 404);
+        abort_unless($payment->status === 'paid', 404);
+
+        $payment->loadMissing('plan', 'company');
+
+        $pdf = $renderer->render('documents.print.saas-receipt', [
+            'payment' => $payment,
+            'company' => $payment->company,
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="receipt-'.$payment->id.'.pdf"',
+        ]);
     }
 }

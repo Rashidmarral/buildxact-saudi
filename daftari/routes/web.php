@@ -236,6 +236,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::middleware('role:owner')->group(function () {
         Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
         Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+        Route::get('billing/payments/{payment}/receipt', [BillingController::class, 'downloadReceipt'])->name('billing.receipt');
         Route::get('activity', [UserActivityLogController::class, 'index'])->name('activity.index');
     });
 

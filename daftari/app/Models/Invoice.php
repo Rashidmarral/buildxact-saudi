@@ -17,6 +17,7 @@ class Invoice extends Model
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'project_id', 'created_by', 'invoice_number', 'type',
         'status', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'retention_rate', 'retention_amount',
         'vat_total', 'total', 'amount_paid', 'currency', 'notes', 'qr_code', 'bank_account_id', 'warehouse_id', 'stock_deducted',
+        'last_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -25,7 +26,16 @@ class Invoice extends Model
             'issue_date' => 'date',
             'due_date' => 'date',
             'stock_deducted' => 'boolean',
+            'last_reminder_sent_at' => 'datetime',
         ];
+    }
+
+    public function isOverdue(): bool
+    {
+        return in_array($this->status, ['sent', 'partially_paid'], true)
+            && $this->due_date
+            && $this->due_date->isPast()
+            && $this->balanceDue() > 0.0;
     }
 
     public function client(): BelongsTo
