@@ -402,7 +402,9 @@ class Company extends Model
      */
     public function isZatcaOnboarded(): bool
     {
-        return $this->zatca_onboarding_status === 'onboarded' && (bool) $this->zatca_production_csid;
+        return $this->zatca_onboarding_status === 'onboarded'
+            && (bool) $this->zatca_production_csid
+            && $this->hasFeature('zatca_phase2');
     }
 
     /**

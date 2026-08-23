@@ -146,6 +146,7 @@
             'has_purchase_orders' => __('Purchase orders'),
             'has_debit_notes' => __('Debit notes (purchase returns)'),
             'has_roles_permissions' => __('Custom roles & permissions'),
+            'has_zatca_phase2' => __('ZATCA Phase 2 integration'),
         ];
     @endphp
     <div class="grid md:grid-cols-3 gap-6">

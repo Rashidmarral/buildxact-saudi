@@ -27,7 +27,12 @@ class ZatcaSyncInvoices extends Command
 
         $companies = Company::where('zatca_onboarding_status', 'onboarded')
             ->where('zatca_sync_frequency', $frequency)
-            ->get();
+            ->get()
+            // A company that downgraded off the Phase 2 feature stays
+            // marked 'onboarded' (its ZATCA credentials are still valid),
+            // but isZatcaOnboarded() now returns false for it — skip here
+            // rather than loop it into repeated "failed" log entries.
+            ->filter(fn (Company $company) => $company->isZatcaOnboarded());
 
         if ($companies->isEmpty()) {
             $this->info("No onboarded companies on the '{$frequency}' sync frequency.");

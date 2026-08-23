@@ -14,6 +14,7 @@
         'has_purchase_orders' => __('Purchase orders'),
         'has_debit_notes' => __('Debit notes (purchase returns)'),
         'has_roles_permissions' => __('Custom roles & permissions'),
+        'has_zatca_phase2' => __('ZATCA Phase 2 integration (real-time clearance & reporting)'),
     ];
 @endphp
 <form method="POST" action="{{ $plan->exists ? route('admin.plans.update', $plan) : route('admin.plans.store') }}" class="max-w-3xl space-y-6">

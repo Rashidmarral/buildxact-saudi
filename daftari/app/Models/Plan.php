@@ -14,7 +14,7 @@ class Plan extends Model
         'max_invoice_templates', 'max_warehouses', 'max_bank_accounts', 'max_branches',
         'has_recurring_invoices', 'has_quotations', 'has_stamps', 'has_financial_statements',
         'has_vat_return_report', 'has_cost_centers', 'has_purchase_orders', 'has_debit_notes',
-        'has_roles_permissions',
+        'has_roles_permissions', 'has_zatca_phase2',
         'features', 'is_active', 'sort_order',
     ];
 
@@ -36,6 +36,7 @@ class Plan extends Model
             'has_purchase_orders' => 'boolean',
             'has_debit_notes' => 'boolean',
             'has_roles_permissions' => 'boolean',
+            'has_zatca_phase2' => 'boolean',
         ];
     }
 
@@ -54,6 +55,7 @@ class Plan extends Model
         'purchase_orders' => 'has_purchase_orders',
         'debit_notes' => 'has_debit_notes',
         'roles_permissions' => 'has_roles_permissions',
+        'zatca_phase2' => 'has_zatca_phase2',
     ];
 
     public function hasFeature(string $key): bool

@@ -90,7 +90,7 @@
             [__('Invoices per month'), fn ($p) => $limitCell($p->max_invoices_per_month)],
             [__('VAT-compliant invoicing'), fn () => $check],
             [__('ZATCA Phase 1 QR code on every invoice'), fn () => $check],
-            [__('ZATCA Phase 2 integration (real-time clearance & reporting)'), fn () => $check],
+            [__('ZATCA Phase 2 integration (real-time clearance & reporting)'), fn ($p) => $boolCell($p->has_zatca_phase2)],
             [__('Credit notes'), fn () => $check],
             [__('Invoice templates'), fn ($p) => $limitCell($p->max_invoice_templates)],
             [__('Recurring invoices'), fn ($p) => $boolCell($p->has_recurring_invoices)],

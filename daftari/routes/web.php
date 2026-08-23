@@ -280,7 +280,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::post('{invoiceTemplate}/make-default', [InvoiceTemplateController::class, 'makeDefault'])->name('make-default');
     });
 
-    Route::middleware('permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
+    Route::middleware(['permission:zatca', 'feature:zatca_phase2'])->prefix('zatca')->name('zatca.')->group(function () {
         Route::get('/', [ZatcaController::class, 'dashboard'])->name('dashboard');
         Route::put('settings', [ZatcaController::class, 'updateSettings'])->name('settings.update');
         Route::post('csr', [ZatcaController::class, 'generateCsr'])->name('csr');

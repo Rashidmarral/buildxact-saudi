@@ -42,6 +42,7 @@ class PlanSeeder extends Seeder
                 'has_purchase_orders' => false,
                 'has_debit_notes' => false,
                 'has_roles_permissions' => false,
+                'has_zatca_phase2' => false,
                 'features' => [
                     'VAT-compliant invoicing with ZATCA QR codes',
                     'Up to 30 invoices / month',
@@ -75,9 +76,11 @@ class PlanSeeder extends Seeder
                 'has_purchase_orders' => true,
                 'has_debit_notes' => true,
                 'has_roles_permissions' => false,
+                'has_zatca_phase2' => true,
                 'features' => [
                     'Everything in Invoicing',
                     'Unlimited invoices',
+                    'ZATCA Phase 2 real-time integration',
                     'Recurring invoices & quotations',
                     'Purchase orders & debit notes',
                     'Financial statements & VAT return report',
@@ -112,6 +115,7 @@ class PlanSeeder extends Seeder
                 'has_purchase_orders' => true,
                 'has_debit_notes' => true,
                 'has_roles_permissions' => true,
+                'has_zatca_phase2' => true,
                 'features' => [
                     'Everything in Essential',
                     'Unlimited users, branches & warehouses',
