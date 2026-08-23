@@ -45,6 +45,10 @@ class ClientController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->company->hasReachedPlanLimit('customers')) {
+            return back()->withErrors(['plan_limit' => __('You have reached your plan\'s customer limit. Upgrade your plan to add more customers.')])->withInput();
+        }
+
         $data = $this->validated($request);
         $contacts = $data['contacts'] ?? [];
         unset($data['contacts']);

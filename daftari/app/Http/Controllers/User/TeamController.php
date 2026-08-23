@@ -23,6 +23,10 @@ class TeamController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->company->hasReachedPlanLimit('users')) {
+            return back()->withErrors(['plan_limit' => __('You have reached your plan\'s team member limit. Upgrade your plan to add more users.')]);
+        }
+
         $companyId = Auth::user()->company_id;
 
         $data = $request->validate([

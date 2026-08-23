@@ -131,6 +131,35 @@ class Company extends Model
             ->first();
     }
 
+    /**
+     * Whether creating one more of $type would exceed the company's active
+     * plan limit. A company with no active subscription, or a plan with no
+     * limit set for $type (null = unlimited), is never blocked.
+     */
+    public function hasReachedPlanLimit(string $type): bool
+    {
+        $subscription = $this->activeSubscription();
+
+        if (! $subscription) {
+            return false;
+        }
+
+        $plan = $subscription->plan;
+
+        [$limit, $used] = match ($type) {
+            'invoices' => [
+                $plan->max_invoices_per_month,
+                $this->invoices()->where('created_at', '>=', $subscription->current_period_start ?? $this->created_at)->count(),
+            ],
+            'customers' => [$plan->max_customers, $this->clients()->count()],
+            'suppliers' => [$plan->max_suppliers, $this->suppliers()->count()],
+            'users' => [$plan->max_users, $this->users()->count()],
+            default => [null, 0],
+        };
+
+        return $limit !== null && $used >= $limit;
+    }
+
     public function nextInvoiceNumber(): string
     {
         $number = $this->invoice_prefix.'-'.str_pad((string) $this->next_invoice_number, 5, '0', STR_PAD_LEFT);

@@ -59,6 +59,10 @@ class SupplierController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->company->hasReachedPlanLimit('suppliers')) {
+            return back()->withErrors(['plan_limit' => __('You have reached your plan\'s supplier limit. Upgrade your plan to add more suppliers.')])->withInput();
+        }
+
         Supplier::create($this->validated($request));
 
         return redirect()->route('app.suppliers.index')->with('status', __('Supplier saved.'));

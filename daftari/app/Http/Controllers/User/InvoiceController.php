@@ -56,6 +56,10 @@ class InvoiceController extends Controller
 
     public function store(Request $request, LedgerPostingService $ledger)
     {
+        if (Auth::user()->company->hasReachedPlanLimit('invoices')) {
+            return back()->withErrors(['plan_limit' => __('You have reached your plan\'s monthly invoice limit. Upgrade your plan to create more invoices this billing period.')])->withInput();
+        }
+
         $data = $this->validated($request);
         $sendImmediately = $request->boolean('send_immediately');
 
