@@ -49,6 +49,11 @@ class User extends Authenticatable
         return $this->role === 'super_admin';
     }
 
+    public function isAdminStaff(): bool
+    {
+        return $this->role === 'admin_staff';
+    }
+
     public function isOwner(): bool
     {
         return $this->role === 'owner';
@@ -71,5 +76,28 @@ class User extends Authenticatable
         }
 
         return $this->roles->contains(fn (Role $role) => $role->hasPermission($key));
+    }
+
+    public function adminRoles(): BelongsToMany
+    {
+        return $this->belongsToMany(AdminRole::class, 'admin_role_user');
+    }
+
+    /**
+     * Platform-level permission check for the admin panel. super_admin
+     * always bypasses; admin_staff users need the key granted through one
+     * of their assigned AdminRoles. Never true for company users.
+     */
+    public function hasAdminPermission(string $key): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->isAdminStaff()) {
+            return false;
+        }
+
+        return $this->adminRoles->contains(fn (AdminRole $role) => $role->hasPermission($key));
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\PaymentController;
@@ -276,27 +277,42 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
 });
 
 // Platform admin panel
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,admin_staff'])->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
-    Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
-    Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
-    Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
-    Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
-    Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
+    Route::middleware('admin.permission:companies')->group(function () {
+        Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
+        Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+        Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
+        Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
+        Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
+        Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
+    });
 
-    Route::resource('plans', PlanController::class)->except(['show']);
+    Route::middleware('admin.permission:plans')->group(function () {
+        Route::resource('plans', PlanController::class)->except(['show']);
+    });
 
-    Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
-    Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
+    Route::middleware('admin.permission:payments')->group(function () {
+        Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
+    });
 
-    Route::get('admins', [AdminUserController::class, 'index'])->name('admins.index');
-    Route::post('admins', [AdminUserController::class, 'store'])->name('admins.store');
-    Route::delete('admins/{user}', [AdminUserController::class, 'destroy'])->name('admins.destroy');
+    Route::middleware('admin.permission:activity')->group(function () {
+        Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');
+    });
 
-    Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');
+    // Managing other admin accounts, admin roles, and platform-wide
+    // settings stays super_admin only — never delegable, so a granular
+    // admin role can never be used to escalate itself or another account.
+    Route::middleware('role:super_admin')->group(function () {
+        Route::get('admins', [AdminUserController::class, 'index'])->name('admins.index');
+        Route::post('admins', [AdminUserController::class, 'store'])->name('admins.store');
+        Route::delete('admins/{user}', [AdminUserController::class, 'destroy'])->name('admins.destroy');
 
-    Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
-    Route::post('settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
+        Route::resource('admin-roles', AdminRoleController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
+        Route::post('settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
+    });
 });

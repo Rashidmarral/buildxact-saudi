@@ -2,6 +2,7 @@
 
 use App\Exceptions\PdfRenderingException;
 use App\Http\Middleware\CheckMaintenanceMode;
+use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureCompanyActive;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureRole::class,
             'company.active' => EnsureCompanyActive::class,
             'permission' => EnsurePermission::class,
+            'admin.permission' => EnsureAdminPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -143,30 +143,42 @@
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card lg:col-span-1">
         <h2 class="font-semibold text-slate-900">{{ __('Quick actions') }}</h2>
         <div class="mt-4 grid grid-cols-2 gap-3">
-            <a href="{{ route('admin.plans.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
-                @include('partials.icon', ['name' => 'plans', 'class' => 'h-5 w-5 text-brand-600'])
-                {{ __('Manage plans') }}
-            </a>
-            <a href="{{ route('admin.companies.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
-                @include('partials.icon', ['name' => 'building', 'class' => 'h-5 w-5 text-brand-600'])
-                {{ __('View companies') }}
-            </a>
-            <a href="{{ route('admin.payments.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
-                @include('partials.icon', ['name' => 'billing', 'class' => 'h-5 w-5 text-brand-600'])
-                {{ __('Payment ledger') }}
-            </a>
-            <a href="{{ route('admin.admins.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
-                @include('partials.icon', ['name' => 'shield', 'class' => 'h-5 w-5 text-brand-600'])
-                {{ __('Admin users') }}
-            </a>
-            <a href="{{ route('admin.activity.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
-                @include('partials.icon', ['name' => 'activity', 'class' => 'h-5 w-5 text-brand-600'])
-                {{ __('Activity log') }}
-            </a>
-            <a href="{{ route('admin.settings.edit') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
-                @include('partials.icon', ['name' => 'settings', 'class' => 'h-5 w-5 text-brand-600'])
-                {{ __('Platform settings') }}
-            </a>
+            @if (auth()->user()->hasAdminPermission('plans'))
+                <a href="{{ route('admin.plans.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                    @include('partials.icon', ['name' => 'plans', 'class' => 'h-5 w-5 text-brand-600'])
+                    {{ __('Manage plans') }}
+                </a>
+            @endif
+            @if (auth()->user()->hasAdminPermission('companies'))
+                <a href="{{ route('admin.companies.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                    @include('partials.icon', ['name' => 'building', 'class' => 'h-5 w-5 text-brand-600'])
+                    {{ __('View companies') }}
+                </a>
+            @endif
+            @if (auth()->user()->hasAdminPermission('payments'))
+                <a href="{{ route('admin.payments.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                    @include('partials.icon', ['name' => 'billing', 'class' => 'h-5 w-5 text-brand-600'])
+                    {{ __('Payment ledger') }}
+                </a>
+            @endif
+            @if (auth()->user()->isSuperAdmin())
+                <a href="{{ route('admin.admins.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                    @include('partials.icon', ['name' => 'shield', 'class' => 'h-5 w-5 text-brand-600'])
+                    {{ __('Admin users') }}
+                </a>
+            @endif
+            @if (auth()->user()->hasAdminPermission('activity'))
+                <a href="{{ route('admin.activity.index') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                    @include('partials.icon', ['name' => 'activity', 'class' => 'h-5 w-5 text-brand-600'])
+                    {{ __('Activity log') }}
+                </a>
+            @endif
+            @if (auth()->user()->isSuperAdmin())
+                <a href="{{ route('admin.settings.edit') }}" class="card-hover flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-4 text-center text-xs font-medium text-slate-600">
+                    @include('partials.icon', ['name' => 'settings', 'class' => 'h-5 w-5 text-brand-600'])
+                    {{ __('Platform settings') }}
+                </a>
+            @endif
         </div>
     </div>
 </div>

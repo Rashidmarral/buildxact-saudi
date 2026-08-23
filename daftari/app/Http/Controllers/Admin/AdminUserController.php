@@ -3,19 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminRole;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class AdminUserController extends Controller
 {
     public function index()
     {
-        $admins = User::withoutGlobalScopes()->where('role', 'super_admin')->orderBy('name')->get();
+        $admins = User::withoutGlobalScopes()
+            ->whereIn('role', ['super_admin', 'admin_staff'])
+            ->with('adminRoles')
+            ->orderBy('name')
+            ->get();
 
-        return view('admin.admins.index', compact('admins'));
+        $adminRoles = AdminRole::orderBy('name')->get();
+
+        return view('admin.admins.index', compact('admins', 'adminRoles'));
     }
 
     public function store(Request $request)
@@ -24,23 +32,30 @@ class AdminUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
+            'admin_type' => ['required', 'in:super_admin,admin_staff'],
+            'admin_role_ids' => ['nullable', 'array'],
+            'admin_role_ids.*' => [Rule::exists('admin_roles', 'id')],
         ]);
 
-        User::create([
+        $admin = User::create([
             'company_id' => null,
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'role' => 'super_admin',
+            'role' => $data['admin_type'],
             'status' => 'active',
         ]);
+
+        if ($data['admin_type'] === 'admin_staff') {
+            $admin->adminRoles()->sync($data['admin_role_ids'] ?? []);
+        }
 
         return back()->with('status', __('Admin added.'));
     }
 
     public function destroy(User $user)
     {
-        if ($user->role !== 'super_admin') {
+        if (! in_array($user->role, ['super_admin', 'admin_staff'], true)) {
             abort(404);
         }
 

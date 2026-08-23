@@ -47,7 +47,7 @@ class AuthController extends Controller
             return back()->withErrors(['email' => __('This account is not active.')]);
         }
 
-        if ($user->isSuperAdmin()) {
+        if ($user->isSuperAdmin() || $user->isAdminStaff()) {
             return redirect()->intended(route('admin.dashboard'));
         }
 
