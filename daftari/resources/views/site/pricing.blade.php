@@ -17,14 +17,18 @@
     @foreach ($plans as $plan)
         @php
             $yearlyMonthlyEquivalent = $plan->price_yearly > 0 ? $plan->price_yearly / 12 : 0;
+            $yearlyMonthlyOriginal = $plan->price_yearly_original > 0 ? $plan->price_yearly_original / 12 : 0;
         @endphp
-        <div class="rounded-2xl border {{ $loop->index === 1 ? 'border-brand-500 shadow-lg ring-1 ring-brand-500' : 'border border-slate-200' }} bg-white p-8 flex flex-col">
+        <div class="rounded-2xl border {{ $loop->index === 1 ? 'border-brand-500 shadow-lg ring-1 ring-brand-500' : 'border border-slate-200' }} bg-white p-8 flex flex-col relative">
             @if ($loop->index === 1)
-                <span class="self-start mb-3 rounded-full bg-brand-600 text-white text-xs font-semibold px-3 py-1">{{ __('Most popular') }}</span>
+                <span class="self-start mb-3 rounded-full bg-brand-600 text-white text-xs font-semibold px-3 py-1">{{ __('Best value') }}</span>
             @endif
             <h3 class="text-xl font-bold text-slate-900">{{ app()->getLocale() === 'ar' && $plan->name_ar ? $plan->name_ar : $plan->name }}</h3>
 
-            <div class="mt-4 price-display" data-monthly="{{ number_format($plan->price_monthly, 0) }}" data-yearly-equivalent="{{ number_format($yearlyMonthlyEquivalent, 0) }}">
+            <div class="mt-4 price-display" data-monthly="{{ number_format($plan->price_monthly, 0) }}" data-monthly-original="{{ number_format($plan->price_monthly_original, 0) }}" data-yearly-equivalent="{{ number_format($yearlyMonthlyEquivalent, 0) }}" data-yearly-equivalent-original="{{ number_format($yearlyMonthlyOriginal, 0) }}">
+                @if ($plan->price_monthly_original > $plan->price_monthly)
+                    <span class="text-slate-400 line-through text-lg price-original">SAR {{ number_format($plan->price_monthly_original, 0) }}</span>
+                @endif
                 <span class="text-3xl font-extrabold text-slate-900 price-amount">SAR {{ number_format($plan->price_monthly, 0) }}</span>
                 <span class="text-slate-500 text-sm">/{{ __('month') }}</span>
             </div>
@@ -62,7 +66,10 @@
         });
         displays.forEach(el => {
             const amount = cycle === 'yearly' ? el.dataset.yearlyEquivalent : el.dataset.monthly;
+            const original = cycle === 'yearly' ? el.dataset.yearlyEquivalentOriginal : el.dataset.monthlyOriginal;
             el.querySelector('.price-amount').textContent = 'SAR ' + amount;
+            const originalEl = el.querySelector('.price-original');
+            if (originalEl) originalEl.textContent = 'SAR ' + original;
         });
         subs.forEach(el => { el.style.display = cycle === 'yearly' ? 'none' : ''; });
     }
@@ -71,6 +78,56 @@
     setActive('monthly');
 })();
 </script>
+
+@php
+    $check = '<span class="text-brand-600">✓</span>';
+    $cross = '<span class="text-slate-300">—</span>';
+    $limitCell = fn ($limit) => $limit ? $limit : __('Unlimited');
+    $boolCell = fn ($has) => $has ? $check : $cross;
+
+    $sections = [
+        [__('Invoicing & VAT'), [
+            [__('Invoices per month'), fn ($p) => $limitCell($p->max_invoices_per_month)],
+            [__('VAT-compliant invoicing'), fn () => $check],
+            [__('ZATCA Phase 1 QR code on every invoice'), fn () => $check],
+            [__('ZATCA Phase 2 integration (real-time clearance & reporting)'), fn () => $check],
+            [__('Credit notes'), fn () => $check],
+            [__('Invoice templates'), fn ($p) => $limitCell($p->max_invoice_templates)],
+            [__('Recurring invoices'), fn ($p) => $boolCell($p->has_recurring_invoices)],
+            [__('Quotations & proforma invoices'), fn ($p) => $boolCell($p->has_quotations)],
+            [__('Company stamp on documents'), fn ($p) => $boolCell($p->has_stamps)],
+        ]],
+        [__('Customers & sales'), [
+            [__('Customers'), fn ($p) => $limitCell($p->max_customers)],
+            [__('Salespersons'), fn () => $check],
+            [__('Projects'), fn () => $check],
+        ]],
+        [__('Purchases & inventory'), [
+            [__('Suppliers'), fn ($p) => $limitCell($p->max_suppliers)],
+            [__('Bills & expenses'), fn () => $check],
+            [__('Purchase orders'), fn ($p) => $boolCell($p->has_purchase_orders)],
+            [__('Debit notes (purchase returns)'), fn ($p) => $boolCell($p->has_debit_notes)],
+            [__('Customs declarations'), fn () => $check],
+            [__('Items, units & warehouses'), fn ($p) => $limitCell($p->max_warehouses)],
+            [__('Stock adjustments & valuation reports'), fn () => $check],
+        ]],
+        [__('Accounting & reports'), [
+            [__('Chart of accounts & journals'), fn () => $check],
+            [__('Sales, expense & cash flow reports'), fn () => $check],
+            [__('Trial balance & account statements'), fn () => $check],
+            [__('Financial statements (balance sheet & income statement)'), fn ($p) => $boolCell($p->has_financial_statements)],
+            [__('VAT return report'), fn ($p) => $boolCell($p->has_vat_return_report)],
+            [__('Cost centers'), fn ($p) => $boolCell($p->has_cost_centers)],
+        ]],
+        [__('Team & customization'), [
+            [__('Team members'), fn ($p) => $limitCell($p->max_users)],
+            [__('Branches'), fn ($p) => $limitCell($p->max_branches)],
+            [__('Bank & cash accounts'), fn ($p) => $limitCell($p->max_bank_accounts)],
+            [__('Custom roles & permissions'), fn ($p) => $boolCell($p->has_roles_permissions)],
+            [__('Company audit log'), fn () => $check],
+        ]],
+    ];
+@endphp
 
 <section class="mx-auto max-w-6xl px-6 pb-16">
     <h2 class="text-2xl font-bold text-slate-900 text-center mb-8">{{ __("What's included in each plan?") }}</h2>
@@ -85,37 +142,22 @@
                 </tr>
             </thead>
             <tbody>
-                <tr class="bg-slate-50"><td colspan="{{ $plans->count() + 1 }}" class="px-4 py-2 font-semibold text-slate-500 text-xs uppercase">{{ __('E-invoicing & VAT') }}</td></tr>
-                <tr class="border-b border-slate-50">
-                    <td class="px-4 py-3">{{ __('VAT-compliant invoicing') }}</td>
-                    @foreach ($plans as $plan)<td class="px-4 py-3 text-center text-brand-600">✓</td>@endforeach
-                </tr>
-                <tr class="border-b border-slate-50">
-                    <td class="px-4 py-3">{{ __('ZATCA-style QR code on every invoice') }}</td>
-                    @foreach ($plans as $plan)<td class="px-4 py-3 text-center text-brand-600">✓</td>@endforeach
-                </tr>
-                <tr class="border-b border-slate-50">
-                    <td class="px-4 py-3">{{ __('Invoices per month') }}</td>
-                    @foreach ($plans as $plan)<td class="px-4 py-3 text-center">{{ $plan->max_invoices_per_month ?: __('Unlimited') }}</td>@endforeach
-                </tr>
-                <tr class="border-b border-slate-50">
-                    <td class="px-4 py-3">{{ __('VAT return report') }}</td>
-                    @foreach ($plans as $plan)<td class="px-4 py-3 text-center text-brand-600">✓</td>@endforeach
-                </tr>
-                <tr class="bg-slate-50"><td colspan="{{ $plans->count() + 1 }}" class="px-4 py-2 font-semibold text-slate-500 text-xs uppercase">{{ __('Expenses & team') }}</td></tr>
-                <tr class="border-b border-slate-50">
-                    <td class="px-4 py-3">{{ __('Expense tracking & categories') }}</td>
-                    @foreach ($plans as $plan)<td class="px-4 py-3 text-center text-brand-600">✓</td>@endforeach
-                </tr>
-                <tr class="border-b border-slate-50">
-                    <td class="px-4 py-3">{{ __('Team members') }}</td>
-                    @foreach ($plans as $plan)<td class="px-4 py-3 text-center">{{ $plan->max_users ?: __('Unlimited') }}</td>@endforeach
-                </tr>
+                @foreach ($sections as [$sectionLabel, $rows])
+                    <tr class="bg-slate-50"><td colspan="{{ $plans->count() + 1 }}" class="px-4 py-2 font-semibold text-slate-500 text-xs uppercase">{{ $sectionLabel }}</td></tr>
+                    @foreach ($rows as [$rowLabel, $cellFor])
+                        <tr class="border-b border-slate-50">
+                            <td class="px-4 py-3">{{ $rowLabel }}</td>
+                            @foreach ($plans as $plan)
+                                <td class="px-4 py-3 text-center">{!! $cellFor($plan) !!}</td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                @endforeach
             </tbody>
         </table>
     </div>
     <p class="mt-4 text-xs text-slate-400 text-center">
-        {{ __('Account reconciliation, purchase orders, multi-currency, cost centers, and branches are on our roadmap — see the Features page for details.') }}
+        {{ __('Every feature listed here is fully built and available on the plan shown — nothing on this page is a roadmap item.') }}
         <a href="{{ route('features') }}" class="text-brand-700 hover:underline">{{ __('Explore all features') }} →</a>
     </p>
 </section>
