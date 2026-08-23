@@ -52,8 +52,14 @@ class InvoiceTemplateController extends Controller
             'document_type' => ['required', Rule::in(self::TYPES)],
         ]);
 
-        $preset = InvoiceTemplatePresets::find($data['preset']);
         $company = Auth::user()->company;
+
+        if ($company->hasReachedPlanLimit('invoice_templates')) {
+            return redirect()->route('app.invoice-templates.index')
+                ->withErrors(['plan_limit' => __('You have reached your plan\'s invoice template limit. Upgrade your plan to add more templates.')]);
+        }
+
+        $preset = InvoiceTemplatePresets::find($data['preset']);
         $isFirst = $company->invoiceTemplates()->count() === 0;
 
         $template = $company->invoiceTemplates()->create([
@@ -76,7 +82,14 @@ class InvoiceTemplateController extends Controller
             'document_type' => ['required', Rule::in(self::TYPES)],
         ]);
 
-        $template = Auth::user()->company->invoiceTemplates()->create($data + [
+        $company = Auth::user()->company;
+
+        if ($company->hasReachedPlanLimit('invoice_templates')) {
+            return redirect()->route('app.invoice-templates.index')
+                ->withErrors(['plan_limit' => __('You have reached your plan\'s invoice template limit. Upgrade your plan to add more templates.')]);
+        }
+
+        $template = $company->invoiceTemplates()->create($data + [
             'accent_color' => '#0f766e',
             'layout' => 'minimal',
         ]);

@@ -21,6 +21,10 @@ class WarehouseController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->company->hasReachedPlanLimit('warehouses')) {
+            return back()->withErrors(['plan_limit' => __('You have reached your plan\'s warehouse limit. Upgrade your plan to add more warehouses.')])->withInput();
+        }
+
         $data = $this->validated($request);
         $isDefault = $request->boolean('is_default');
         unset($data['is_default']);

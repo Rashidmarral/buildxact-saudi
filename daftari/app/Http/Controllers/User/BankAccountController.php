@@ -8,6 +8,7 @@ use App\Models\BankTransfer;
 use App\Models\PaymentVoucher;
 use App\Models\ReceiptVoucher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class BankAccountController extends Controller
 {
@@ -25,6 +26,10 @@ class BankAccountController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->company->hasReachedPlanLimit('bank_accounts')) {
+            return back()->withErrors(['plan_limit' => __('You have reached your plan\'s bank/cash account limit. Upgrade your plan to add more accounts.')])->withInput();
+        }
+
         BankAccount::create($this->validated($request) + ['is_active' => $request->boolean('is_active', true)]);
 
         return redirect()->route('app.bank-accounts.index')->with('status', __('Bank account added.'));

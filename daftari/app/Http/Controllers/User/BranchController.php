@@ -23,6 +23,10 @@ class BranchController extends Controller
 
     public function store(Request $request)
     {
+        if (Auth::user()->company->hasReachedPlanLimit('branches')) {
+            return back()->withErrors(['plan_limit' => __('You have reached your plan\'s branch limit. Upgrade your plan to add more branches.')])->withInput();
+        }
+
         $data = $this->validated($request);
         $branch = Branch::create($data);
 

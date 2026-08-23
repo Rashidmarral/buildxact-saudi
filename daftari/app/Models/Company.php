@@ -154,6 +154,10 @@ class Company extends Model
             'customers' => [$plan->max_customers, $this->clients()->count()],
             'suppliers' => [$plan->max_suppliers, $this->suppliers()->count()],
             'users' => [$plan->max_users, $this->users()->count()],
+            'invoice_templates' => [$plan->max_invoice_templates, $this->invoiceTemplates()->count()],
+            'warehouses' => [$plan->max_warehouses, $this->warehouses()->count()],
+            'bank_accounts' => [$plan->max_bank_accounts, $this->bankAccounts()->count()],
+            'branches' => [$plan->max_branches, $this->branches()->count()],
             default => [null, 0],
         };
 
@@ -212,6 +216,11 @@ class Company extends Model
     public function bankAccounts(): HasMany
     {
         return $this->hasMany(BankAccount::class);
+    }
+
+    public function warehouses(): HasMany
+    {
+        return $this->hasMany(Warehouse::class);
     }
 
     public function defaultBankAccount(): ?BankAccount
