@@ -40,7 +40,7 @@
         <h2 class="text-2xl font-bold text-slate-900 text-center mb-8">{{ __('Frequently asked questions') }}</h2>
         <div class="space-y-6">
             @foreach ([
-                [__('Is Daftari compliant with ZATCA e-invoicing requirements?'), __('Every tax invoice you issue in Daftari includes standards-based VAT calculation and a scannable Phase-1-style QR code out of the box. Full Phase 2 integration (real-time clearance with ZATCA\'s API) is on our roadmap — see our Features page for current status.')],
+                [__('Is Daftari compliant with ZATCA e-invoicing requirements?'), __('Yes. Every tax invoice includes standards-based VAT calculation and a scannable QR code out of the box, and full Phase 2 integration — XML generation, XAdES digital signing, and real-time clearance/reporting with ZATCA\'s API — is built in. Connect your ZATCA credentials from the ZATCA section of your dashboard to turn it on.')],
                 [__('Is Phase 2 mandatory for my business right now?'), __('ZATCA rolls Phase 2 out in waves by revenue threshold, so it depends on your business. Check the official ZATCA announcements for your specific wave and deadline.')],
                 [__('Do I need accounting experience to use Daftari?'), __('No. Daftari is built so a business owner can issue a compliant invoice, log an expense, and read their VAT position without prior bookkeeping experience.')],
                 [__('Is my data secure?'), __('Every company\'s data is isolated from every other company at the database level, passwords are hashed, and all traffic should run over HTTPS in production.')],
