@@ -40,6 +40,10 @@ class CompanyController extends Controller
                 'customers' => ['used' => $company->clients()->count(), 'limit' => $subscription->plan->max_customers],
                 'suppliers' => ['used' => $company->suppliers()->count(), 'limit' => $subscription->plan->max_suppliers],
                 'users' => ['used' => $company->users()->count(), 'limit' => $subscription->plan->max_users],
+                'invoice_templates' => ['used' => $company->invoiceTemplates()->count(), 'limit' => $subscription->plan->max_invoice_templates],
+                'warehouses' => ['used' => $company->warehouses()->count(), 'limit' => $subscription->plan->max_warehouses],
+                'bank_accounts' => ['used' => $company->bankAccounts()->count(), 'limit' => $subscription->plan->max_bank_accounts],
+                'branches' => ['used' => $company->branches()->count(), 'limit' => $subscription->plan->max_branches],
             ];
         }
 

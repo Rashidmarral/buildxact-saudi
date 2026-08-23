@@ -63,7 +63,7 @@
         <h3 class="font-semibold text-slate-900 mb-4">{{ __('Usage this period') }}</h3>
         @if ($usage)
             <dl class="space-y-2 text-sm">
-                @foreach ([__('Invoices') => 'invoices', __('Customers') => 'customers', __('Suppliers') => 'suppliers', __('Users') => 'users'] as $label => $key)
+                @foreach ([__('Invoices') => 'invoices', __('Customers') => 'customers', __('Suppliers') => 'suppliers', __('Users') => 'users', __('Invoice templates') => 'invoice_templates', __('Warehouses') => 'warehouses', __('Bank & cash accounts') => 'bank_accounts', __('Branches') => 'branches'] as $label => $key)
                     <div class="flex justify-between">
                         <dt class="text-slate-500">{{ $label }}</dt>
                         <dd class="font-medium">{{ $usage[$key]['used'] }} / {{ $usage[$key]['limit'] ?? '∞' }}</dd>
