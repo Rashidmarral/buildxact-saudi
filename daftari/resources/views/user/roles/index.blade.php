@@ -5,7 +5,11 @@
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <p class="text-sm text-slate-500">{{ __('Control what members can do through system and custom roles.') }}</p>
-    <a href="{{ route('app.roles.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Create custom role') }}</a>
+    @if (auth()->user()->company->hasFeature('roles_permissions'))
+        <a href="{{ route('app.roles.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Create custom role') }}</a>
+    @else
+        <span class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm font-medium text-amber-700">{{ __('Custom roles: upgrade your plan') }}</span>
+    @endif
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100">

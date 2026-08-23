@@ -20,11 +20,21 @@ class RoleController extends Controller
 
     public function create()
     {
+        if (! Auth::user()->company->hasFeature('roles_permissions')) {
+            return redirect()->route('app.roles.index')
+                ->withErrors(['plan_limit' => __('Custom roles aren\'t included in your current plan. Upgrade your plan to create custom roles.')]);
+        }
+
         return view('user.roles.form', ['role' => new Role, 'catalog' => Permissions::catalog()]);
     }
 
     public function store(Request $request)
     {
+        if (! Auth::user()->company->hasFeature('roles_permissions')) {
+            return redirect()->route('app.roles.index')
+                ->withErrors(['plan_limit' => __('Custom roles aren\'t included in your current plan. Upgrade your plan to create custom roles.')]);
+        }
+
         $data = $this->validated($request);
         $data['slug'] = Str::slug($data['name']).'-'.Str::lower(Str::random(6));
         $data['company_id'] = Auth::user()->company_id;

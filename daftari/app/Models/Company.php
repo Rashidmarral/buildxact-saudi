@@ -164,6 +164,23 @@ class Company extends Model
         return $limit !== null && $used >= $limit;
     }
 
+    /**
+     * Whether the company's active plan includes a given feature (see
+     * Plan::FEATURE_KEYS). A company with no active subscription is never
+     * blocked here, matching hasReachedPlanLimit()'s "never blocked
+     * without a subscription" behavior.
+     */
+    public function hasFeature(string $key): bool
+    {
+        $subscription = $this->activeSubscription();
+
+        if (! $subscription) {
+            return true;
+        }
+
+        return $subscription->plan->hasFeature($key);
+    }
+
     public function nextInvoiceNumber(): string
     {
         $number = $this->invoice_prefix.'-'.str_pad((string) $this->next_invoice_number, 5, '0', STR_PAD_LEFT);

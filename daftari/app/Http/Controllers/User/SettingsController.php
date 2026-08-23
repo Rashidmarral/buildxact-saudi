@@ -86,7 +86,7 @@ class SettingsController extends Controller
             $data['logo_path'] = $request->file('logo')->store('logos', 'public');
         }
 
-        if ($request->hasFile('stamp')) {
+        if ($request->hasFile('stamp') && $company->hasFeature('stamps')) {
             if ($company->stamp_path) {
                 Storage::disk('public')->delete($company->stamp_path);
             }

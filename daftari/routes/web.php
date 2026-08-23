@@ -126,7 +126,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::get('credit-notes/{creditNote}/pdf', [CreditNoteController::class, 'downloadPdf'])->name('credit-notes.pdf');
     });
 
-    Route::middleware('permission:quotations')->group(function () {
+    Route::middleware(['permission:quotations', 'feature:quotations'])->group(function () {
         Route::resource('quotations', QuotationController::class);
         Route::post('quotations/{quotation}/send', [QuotationController::class, 'send'])->name('quotations.send');
         Route::post('quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
@@ -145,13 +145,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     });
 
     Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {
-        Route::get('vat', [ReportController::class, 'vat'])->name('vat');
+        Route::get('vat', [ReportController::class, 'vat'])->name('vat')->middleware('feature:vat_return_report');
         Route::get('sales', [ReportController::class, 'sales'])->name('sales');
-        Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement');
+        Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement')->middleware('feature:financial_statements');
         Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
         Route::get('cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
         Route::get('trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
-        Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet');
+        Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
     });
 
@@ -172,7 +172,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         });
         Route::get('ledger', [JournalController::class, 'ledger'])->name('ledger.index');
 
-        Route::prefix('cost-centers')->name('cost-centers.')->group(function () {
+        Route::middleware('feature:cost_centers')->prefix('cost-centers')->name('cost-centers.')->group(function () {
             Route::get('/', [CostCenterController::class, 'index'])->name('index');
             Route::post('/', [CostCenterController::class, 'store'])->name('store');
             Route::put('{costCenter}', [CostCenterController::class, 'update'])->name('update');
@@ -206,20 +206,24 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::delete('bills/{bill}/attachments/{attachment}', [BillController::class, 'destroyAttachment'])->name('bills.attachments.destroy');
         Route::get('bills/{bill}/pdf', [BillController::class, 'downloadPdf'])->name('bills.pdf');
 
-        Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
-        Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
-        Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
-        Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
-        Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
-        Route::delete('purchase-orders/{purchaseOrder}/attachments/{attachment}', [PurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
-        Route::get('purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
+        Route::middleware('feature:purchase_orders')->group(function () {
+            Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
+            Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+            Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
+            Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
+            Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
+            Route::delete('purchase-orders/{purchaseOrder}/attachments/{attachment}', [PurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
+            Route::get('purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
+        });
 
         Route::resource('customs-declarations', CustomsDeclarationController::class)->only(['index', 'store', 'destroy']);
 
-        Route::get('purchase-returns/eligible-bills', [PurchaseReturnController::class, 'eligibleBills'])->name('purchase-returns.eligible-bills');
-        Route::resource('purchase-returns', PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
-        Route::post('purchase-returns/{purchaseReturn}/void', [PurchaseReturnController::class, 'void'])->name('purchase-returns.void');
-        Route::get('purchase-returns/{purchaseReturn}/pdf', [PurchaseReturnController::class, 'downloadPdf'])->name('purchase-returns.pdf');
+        Route::middleware('feature:debit_notes')->group(function () {
+            Route::get('purchase-returns/eligible-bills', [PurchaseReturnController::class, 'eligibleBills'])->name('purchase-returns.eligible-bills');
+            Route::resource('purchase-returns', PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
+            Route::post('purchase-returns/{purchaseReturn}/void', [PurchaseReturnController::class, 'void'])->name('purchase-returns.void');
+            Route::get('purchase-returns/{purchaseReturn}/pdf', [PurchaseReturnController::class, 'downloadPdf'])->name('purchase-returns.pdf');
+        });
     });
 
     Route::middleware('permission:inventory')->group(function () {

@@ -30,7 +30,11 @@
             @else
                 <div class="h-14 w-14 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-xs">{{ __('No stamp') }}</div>
             @endif
-            <input type="file" name="stamp" accept="image/*" class="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-600 hover:file:bg-slate-200">
+            @if ($company->hasFeature('stamps'))
+                <input type="file" name="stamp" accept="image/*" class="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-600 hover:file:bg-slate-200">
+            @else
+                <span class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700">{{ __('Not included in your current plan') }}</span>
+            @endif
         </div>
         <p class="mt-1 text-xs text-slate-400">{{ __('Shown on bills and purchase orders when uploaded.') }}</p>
     </div>
