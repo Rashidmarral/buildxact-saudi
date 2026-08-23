@@ -52,6 +52,10 @@
                     'customers' => __('Customers'),
                     'suppliers' => __('Suppliers'),
                     'users' => __('Users'),
+                    'invoice_templates' => __('Invoice templates'),
+                    'warehouses' => __('Warehouses'),
+                    'bank_accounts' => __('Bank & cash accounts'),
+                    'branches' => __('Branches'),
                 ] as $key => $label)
                     @php
                         $u = $usage[$key];
@@ -121,21 +125,56 @@
     </div>
     <div class="mt-4">{{ $payments->links() }}</div>
 @elseif ($tab === 'plans')
+    @php
+        $limitRows = [
+            'max_users' => __('Team members'),
+            'max_invoices_per_month' => __('Invoices per month'),
+            'max_customers' => __('Customers'),
+            'max_suppliers' => __('Suppliers'),
+            'max_invoice_templates' => __('Invoice templates'),
+            'max_warehouses' => __('Warehouses'),
+            'max_bank_accounts' => __('Bank & cash accounts'),
+            'max_branches' => __('Branches'),
+        ];
+        $featureRows = [
+            'has_recurring_invoices' => __('Recurring invoices'),
+            'has_quotations' => __('Quotations & proforma invoices'),
+            'has_stamps' => __('Company stamp on documents'),
+            'has_financial_statements' => __('Financial statements'),
+            'has_vat_return_report' => __('VAT return report'),
+            'has_cost_centers' => __('Cost centers'),
+            'has_purchase_orders' => __('Purchase orders'),
+            'has_debit_notes' => __('Debit notes (purchase returns)'),
+            'has_roles_permissions' => __('Custom roles & permissions'),
+        ];
+    @endphp
     <div class="grid md:grid-cols-3 gap-6">
         @foreach ($plans as $plan)
             <div class="bg-white rounded-xl border {{ $subscription && $subscription->plan_id === $plan->id ? 'border-brand-500 ring-1 ring-brand-500' : 'border-slate-100' }} p-6">
-                <h3 class="font-bold text-slate-900">{{ $plan->name }}</h3>
-                <p class="mt-2 text-2xl font-extrabold text-slate-900">SAR {{ number_format($plan->price_monthly, 0) }}<span class="text-sm font-normal text-slate-500">/{{ __('month') }}</span></p>
+                <h3 class="font-bold text-slate-900">{{ app()->getLocale() === 'ar' && $plan->name_ar ? $plan->name_ar : $plan->name }}</h3>
+                @if ($plan->price_monthly_original > $plan->price_monthly)
+                    <p class="mt-2 text-sm text-slate-400 line-through">SAR {{ number_format($plan->price_monthly_original, 0) }}</p>
+                @endif
+                <p class="{{ $plan->price_monthly_original > $plan->price_monthly ? '' : 'mt-2' }} text-2xl font-extrabold text-slate-900">SAR {{ number_format($plan->price_monthly, 0) }}<span class="text-sm font-normal text-slate-500">/{{ __('month') }}</span></p>
                 <p class="text-xs text-slate-400">SAR {{ number_format($plan->price_yearly, 0) }}/{{ __('year') }}</p>
+
                 <ul class="mt-4 space-y-1.5 text-xs text-slate-500">
-                    <li>{{ __('Invoices/month') }}: {{ $plan->max_invoices_per_month ?? __('Unlimited') }}</li>
-                    <li>{{ __('Customers') }}: {{ $plan->max_customers ?? __('Unlimited') }}</li>
-                    <li>{{ __('Suppliers') }}: {{ $plan->max_suppliers ?? __('Unlimited') }}</li>
-                    <li>{{ __('Users') }}: {{ $plan->max_users ?? __('Unlimited') }}</li>
-                    @foreach ($plan->features ?? [] as $feature)
-                        <li>✓ {{ $feature }}</li>
+                    @foreach ($limitRows as $field => $label)
+                        <li>{{ $label }}: {{ $plan->{$field} ?? __('Unlimited') }}</li>
                     @endforeach
                 </ul>
+                <ul class="mt-4 space-y-1.5 text-xs text-slate-600 border-t border-slate-100 pt-4">
+                    @foreach ($featureRows as $field => $label)
+                        <li class="flex items-center gap-1.5">
+                            @if ($plan->{$field})
+                                <span class="text-brand-600">✓</span> {{ $label }}
+                            @else
+                                <span class="text-slate-300">—</span> <span class="text-slate-400">{{ $label }}</span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+
                 <form method="POST" action="{{ route('app.billing.upgrade') }}" class="mt-4 space-y-2">
                     @csrf
                     <input type="hidden" name="plan_id" value="{{ $plan->id }}">
