@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
+use App\Models\BillItem;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Services\Accounting\LedgerPostingService;
@@ -123,9 +124,14 @@ class PurchaseReturnController extends Controller
             ]);
 
             foreach ($data['items'] as $row) {
+                $sourceLine = ! empty($row['bill_item_id'])
+                    ? BillItem::find($row['bill_item_id'])
+                    : null;
+
                 $item = new PurchaseReturnItem([
                     'purchase_return_id' => $purchaseReturn->id,
                     'bill_item_id' => $row['bill_item_id'] ?? null,
+                    'unit_id' => $sourceLine?->unit_id,
                     'description' => $row['description'],
                     'quantity' => $row['quantity'],
                     'unit_price' => $row['unit_price'],

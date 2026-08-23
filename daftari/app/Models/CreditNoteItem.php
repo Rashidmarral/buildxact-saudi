@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CreditNoteItem extends Model
 {
     protected $fillable = [
-        'credit_note_id', 'invoice_item_id', 'description', 'quantity',
+        'credit_note_id', 'invoice_item_id', 'unit_id', 'description', 'quantity',
         'unit_price', 'vat_rate', 'vat_amount', 'line_total',
     ];
 
@@ -20,6 +20,11 @@ class CreditNoteItem extends Model
     public function invoiceItem(): BelongsTo
     {
         return $this->belongsTo(InvoiceItem::class);
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 
     public function recalculate(): void

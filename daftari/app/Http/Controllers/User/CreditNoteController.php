@@ -7,6 +7,7 @@ use App\Jobs\SyncCreditNoteToZatca;
 use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
@@ -124,9 +125,14 @@ class CreditNoteController extends Controller
             ]);
 
             foreach ($data['items'] as $row) {
+                $sourceLine = ! empty($row['invoice_item_id'])
+                    ? InvoiceItem::find($row['invoice_item_id'])
+                    : null;
+
                 $item = new CreditNoteItem([
                     'credit_note_id' => $creditNote->id,
                     'invoice_item_id' => $row['invoice_item_id'] ?? null,
+                    'unit_id' => $sourceLine?->unit_id,
                     'description' => $row['description'],
                     'quantity' => $row['quantity'],
                     'unit_price' => $row['unit_price'],

@@ -86,7 +86,7 @@
                             <p class="mt-1 text-xs text-slate-500">{{ $line->item->description }}</p>
                         @endif
                     </td>
-                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->vat_amount, 2) }}<br><span class="text-xs text-slate-400">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
@@ -223,7 +223,7 @@
                 <tr>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-500">{{ $index + 1 }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800">{{ $line->description }}</td>
-                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->item?->unit ?? '' }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end font-medium text-slate-900">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                 </tr>
@@ -351,7 +351,7 @@
             @foreach ($doc['lines'] as $line)
                 <tr class="border-b border-slate-50">
                     <td class="py-2">{{ $line->description }}</td>
-                    <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
                     <td class="py-2 text-end">SAR {{ number_format($line->unit_price, 2) }}</td>
                     <td class="py-2 text-end">SAR {{ number_format($line->vat_amount, 2) }}</td>
                     <td class="py-2 text-end">SAR {{ number_format($line->line_total, 2) }}</td>

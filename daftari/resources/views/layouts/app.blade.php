@@ -51,7 +51,7 @@
                     </div>
                 </details>
 
-                @php($itemsActive = request()->routeIs('app.items.*') || request()->routeIs('app.warehouses.*') || request()->routeIs('app.stock-adjustments.*') || request()->routeIs('app.inventory.*'))
+                @php($itemsActive = request()->routeIs('app.items.*') || request()->routeIs('app.units.*') || request()->routeIs('app.warehouses.*') || request()->routeIs('app.stock-adjustments.*') || request()->routeIs('app.inventory.*'))
                 <details class="group" @if($itemsActive) open @endif>
                     <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $itemsActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
                         <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'items', 'class' => 'h-[18px] w-[18px]'])</span>
@@ -60,6 +60,7 @@
                     </summary>
                     <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
                         @include('partials.nav-subitem', ['route' => 'app.items.index', 'label' => __('Items')])
+                        @include('partials.nav-subitem', ['route' => 'app.units.index', 'label' => __('Units')])
                         @include('partials.nav-subitem', ['route' => 'app.warehouses.index', 'label' => __('Warehouses')])
                         @include('partials.nav-subitem', ['route' => 'app.stock-adjustments.index', 'label' => __('Inventory adjustments')])
                         @include('partials.nav-subitem', ['route' => 'app.inventory.valuation', 'label' => __('Inventory reports')])

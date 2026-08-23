@@ -78,6 +78,7 @@ $company = auth()->user()->company;
                         <th class="py-2 pe-3 font-medium w-1/4">{{ __('Item') }}</th>
                         <th class="py-2 pe-3 font-medium">{{ __('Description') }}</th>
                         <th class="py-2 pe-3 font-medium w-20">{{ __('Qty') }}</th>
+                        <th class="py-2 pe-3 font-medium w-28">{{ __('Unit') }}</th>
                         <th class="py-2 pe-3 font-medium w-28">{{ __('Unit price') }}</th>
                         <th class="py-2 pe-3 font-medium w-24">{{ __('VAT %') }}</th>
                         <th class="py-2 pe-3 font-medium w-28">{{ __('Line total') }}</th>
@@ -111,7 +112,15 @@ $company = auth()->user()->company;
 
 @php
     $catalogJson = json_encode($items->map(function ($i) {
-        return ['id' => $i->id, 'name' => $i->name, 'unit_price' => (float) $i->unit_price, 'vat_rate' => (float) $i->vat_rate];
+        return [
+            'id' => $i->id,
+            'name' => $i->name,
+            'unit_price' => (float) $i->unit_price,
+            'vat_rate' => (float) $i->vat_rate,
+            'units' => collect($i->baseUnit ? [['id' => $i->baseUnit->id, 'label' => $i->baseUnit->label(), 'price' => (float) $i->unit_price]] : [])
+                ->merge($i->itemUnits->map(fn ($iu) => ['id' => $iu->unit_id, 'label' => $iu->unit?->label(), 'price' => (float) $i->priceForUnit($iu->unit_id)]))
+                ->values(),
+        ];
     })->values());
 @endphp
 
@@ -178,6 +187,7 @@ function addRow() {
         </td>
         <td class="py-2 pe-3"><input type="text" name="items[${i}][description]" data-role="description" value="${data.description}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0.01" name="items[${i}][quantity]" data-role="quantity" value="${data.quantity}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+        <td class="py-2 pe-3"><select name="items[${i}][unit_id]" data-role="unit" disabled class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></select></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="items[${i}][unit_price]" data-role="unit_price" value="${data.unit_price}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" max="100" name="items[${i}][vat_rate]" data-role="vat_rate" value="${data.vat_rate}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3 text-slate-700" data-role="line_total">SAR 0.00</td>
@@ -194,6 +204,16 @@ function addRow() {
             tr.querySelector('[data-role="unit_price"]').value = opt.dataset.price;
             tr.querySelector('[data-role="vat_rate"]').value = opt.dataset.vat;
         }
+        populateUnitOptions(tr, itemSelect.value, null);
+        recalc();
+    });
+
+    tr.querySelector('[data-role="unit"]').addEventListener('change', () => {
+        const unitSelect = tr.querySelector('[data-role="unit"]');
+        const opt = unitSelect.selectedOptions[0];
+        if (opt && opt.dataset.price !== undefined) {
+            tr.querySelector('[data-role="unit_price"]').value = opt.dataset.price;
+        }
         recalc();
     });
 
@@ -201,6 +221,21 @@ function addRow() {
     tr.querySelector('[data-role="remove"]').addEventListener('click', () => { tr.remove(); recalc(); });
 
     recalc();
+}
+
+function populateUnitOptions(tr, itemId, selectedUnitId) {
+    const unitSelect = tr.querySelector('[data-role="unit"]');
+    const catalogItem = CATALOG.find(c => String(c.id) === String(itemId));
+
+    if (! catalogItem || ! catalogItem.units.length) {
+        unitSelect.innerHTML = '';
+        unitSelect.disabled = true;
+        return;
+    }
+
+    unitSelect.disabled = false;
+    unitSelect.innerHTML = catalogItem.units.map(u => `<option value="${u.id}" data-price="${u.price}">${u.label}</option>`).join('');
+    unitSelect.value = selectedUnitId || catalogItem.units[0].id;
 }
 
 function recalc() {

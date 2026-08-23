@@ -30,6 +30,7 @@ use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
+use App\Http\Controllers\User\UnitController;
 use App\Http\Controllers\User\JournalController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\ProjectController;
@@ -101,6 +102,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     });
     Route::resource('items', ItemController::class)->except(['show'])->middleware('permission:items');
     Route::get('items-generate-barcode', [ItemController::class, 'generateBarcode'])->name('items.generate-barcode')->middleware('permission:items');
+    Route::resource('units', UnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:items');
 
     Route::middleware('permission:invoices')->group(function () {
         Route::resource('invoices', InvoiceController::class);

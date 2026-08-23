@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Item extends Model
@@ -29,7 +30,7 @@ class Item extends Model
 
     protected $fillable = [
         'company_id', 'name', 'name_ar', 'description', 'sku', 'barcode', 'category',
-        'expiry_date', 'item_type', 'unit', 'unit_code', 'image_path',
+        'expiry_date', 'item_type', 'unit', 'unit_code', 'image_path', 'base_unit_id',
         'unit_price', 'purchase_price', 'vat_rate', 'is_active', 'track_inventory', 'reorder_point',
     ];
 
@@ -50,5 +51,70 @@ class Item extends Model
     public function totalStock(): float
     {
         return (float) $this->stocks()->sum('quantity');
+    }
+
+    public function baseUnit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'base_unit_id');
+    }
+
+    public function itemUnits(): HasMany
+    {
+        return $this->hasMany(ItemUnit::class);
+    }
+
+    /**
+     * How many of the item's base unit one unit of $unitId equals, e.g.
+     * base unit "Ton", alt unit "Bag" with conversion_factor 40 means
+     * factorFor(bagId) === 40.0 (1 Bag = 1/40 Ton). Null or the base unit
+     * itself always returns 1 — no conversion needed.
+     */
+    public function conversionFactorFor(?int $unitId): float
+    {
+        if (! $unitId || $unitId === $this->base_unit_id) {
+            return 1.0;
+        }
+
+        $itemUnit = $this->relationLoaded('itemUnits')
+            ? $this->itemUnits->firstWhere('unit_id', $unitId)
+            : $this->itemUnits()->where('unit_id', $unitId)->first();
+
+        return $itemUnit ? (float) $itemUnit->conversion_factor : 1.0;
+    }
+
+    /**
+     * The per-unit sale/purchase price for $unitId: the item unit's own
+     * price override if one is set, otherwise derived from the base
+     * unit_price divided by the conversion factor.
+     */
+    public function priceForUnit(?int $unitId): float
+    {
+        if (! $unitId || $unitId === $this->base_unit_id) {
+            return (float) $this->unit_price;
+        }
+
+        $itemUnit = $this->relationLoaded('itemUnits')
+            ? $this->itemUnits->firstWhere('unit_id', $unitId)
+            : $this->itemUnits()->where('unit_id', $unitId)->first();
+
+        if ($itemUnit && $itemUnit->unit_price !== null) {
+            return (float) $itemUnit->unit_price;
+        }
+
+        $factor = $itemUnit ? (float) $itemUnit->conversion_factor : 1.0;
+
+        return $factor > 0 ? (float) $this->unit_price / $factor : (float) $this->unit_price;
+    }
+
+    /**
+     * Converts a line quantity sold/bought in $unitId into the item's base
+     * unit quantity, for stock tracking (which is always kept in the base
+     * unit regardless of what unit a given line was transacted in).
+     */
+    public function baseQuantityFor(float $quantity, ?int $unitId): float
+    {
+        $factor = $this->conversionFactorFor($unitId);
+
+        return $factor > 0 ? $quantity / $factor : $quantity;
     }
 }

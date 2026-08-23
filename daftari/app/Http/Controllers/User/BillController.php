@@ -44,7 +44,7 @@ class BillController extends Controller
         return view('user.bills.form', [
             'bill' => new Bill(['bill_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString()]),
             'suppliers' => Supplier::orderBy('name')->get(),
-            'items' => Item::where('is_active', true)->orderBy('name')->get(),
+            'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'nextNumberPreview' => $company->bill_prefix.'-'.str_pad((string) $company->next_bill_number, 5, '0', STR_PAD_LEFT),
         ]);
     }
@@ -187,6 +187,7 @@ class BillController extends Controller
             $line = new BillItem([
                 'bill_id' => $bill->id,
                 'item_id' => $row['item_id'] ?? null,
+                'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
@@ -211,6 +212,7 @@ class BillController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],
+            'items.*.unit_id' => ['nullable', Rule::exists('units', 'id')->where('company_id', $companyId)],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],

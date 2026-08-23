@@ -45,7 +45,7 @@ class InvoiceController extends Controller
         return view('user.invoices.form', [
             'invoice' => new Invoice(['issue_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString()]),
             'clients' => Client::orderBy('name')->get(),
-            'items' => Item::where('is_active', true)->orderBy('name')->get(),
+            'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
@@ -201,7 +201,7 @@ class InvoiceController extends Controller
         return view('user.invoices.form', [
             'invoice' => $invoice,
             'clients' => Client::orderBy('name')->get(),
-            'items' => Item::where('is_active', true)->orderBy('name')->get(),
+            'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
@@ -375,7 +375,9 @@ class InvoiceController extends Controller
                 ['quantity' => 0]
             );
 
-            $stock->increment('quantity', $line->quantity * $direction);
+            $baseQuantity = $line->item->baseQuantityFor((float) $line->quantity, $line->unit_id);
+
+            $stock->increment('quantity', $baseQuantity * $direction);
         }
     }
 
@@ -385,6 +387,7 @@ class InvoiceController extends Controller
             $line = new InvoiceItem([
                 'invoice_id' => $invoice->id,
                 'item_id' => $row['item_id'] ?? null,
+                'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
@@ -414,6 +417,7 @@ class InvoiceController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],
+            'items.*.unit_id' => ['nullable', Rule::exists('units', 'id')->where('company_id', $companyId)],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],

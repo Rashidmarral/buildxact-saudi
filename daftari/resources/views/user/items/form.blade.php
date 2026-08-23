@@ -62,18 +62,27 @@
             <input type="number" step="0.01" min="0" name="purchase_price" value="{{ old('purchase_price', $item->purchase_price) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
 
-        <div>
-            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Unit name') }}</label>
-            <input type="text" name="unit" value="{{ old('unit', $item->unit ?? 'unit') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-        </div>
-        <div>
-            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Unit code') }}</label>
-            <select name="unit_code" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                @foreach (\App\Models\Item::UNIT_CODES as $code => $label)
-                    <option value="{{ $code }}" @selected(old('unit_code', $item->unit_code ?? 'PCE') === $code)>{{ $code }} — {{ __($label) }}</option>
+        <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Base unit') }}</label>
+            <select name="base_unit_id" id="base-unit-select" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None (defaults to Piece / PCE)') }}</option>
+                @foreach ($units as $unit)
+                    <option value="{{ $unit->id }}" @selected((int) old('base_unit_id', $item->base_unit_id) === $unit->id)>{{ $unit->label() }}@if($unit->code) — {{ $unit->code }}@endif</option>
                 @endforeach
             </select>
-            <p class="text-xs text-slate-400 mt-1">{{ __('Used on the ZATCA e-invoice XML for this item.') }}</p>
+            <p class="text-xs text-slate-400 mt-1">{{ __('The unit stock is tracked and priced in, e.g. Ton.') }} <a href="{{ route('app.units.index') }}" target="_blank" class="text-brand-600 hover:underline">{{ __('Manage units') }}</a></p>
+        </div>
+
+        <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Alternate units') }}</label>
+                    <p class="text-xs text-slate-400">{{ __('Sell or buy this item in other units too — e.g. base unit Ton, alternate unit Bag with a conversion factor of 40 (1 Ton = 40 Bags).') }}</p>
+                </div>
+                <button type="button" id="add-alt-unit" class="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300">{{ __('+ Add alternate unit') }}</button>
+            </div>
+            <div id="alt-units-rows" class="space-y-2"></div>
+            <p id="alt-units-empty" class="text-xs text-slate-400">{{ __('No alternate units added.') }}</p>
         </div>
 
         <div>
@@ -145,6 +154,60 @@
             .then(r => r.json())
             .then(data => { document.getElementById('barcode').value = data.barcode; });
     });
+})();
+
+@php
+    $unitOptionsData = $units->map(fn ($u) => ['id' => $u->id, 'label' => $u->label()])->values();
+    $existingAltUnitsData = $item->exists
+        ? $item->itemUnits->map(fn ($iu) => [
+            'unit_id' => $iu->unit_id,
+            'conversion_factor' => (float) $iu->conversion_factor,
+            'unit_price' => $iu->unit_price !== null ? (float) $iu->unit_price : '',
+        ])->values()
+        : collect();
+@endphp
+(function () {
+    const UNITS = @json($unitOptionsData);
+    const EXISTING = @json($existingAltUnitsData);
+
+    const rowsWrap = document.getElementById('alt-units-rows');
+    const emptyHint = document.getElementById('alt-units-empty');
+    let rowIndex = 0;
+
+    function unitOptions(selectedId) {
+        return UNITS.map(u => `<option value="${u.id}" ${String(u.id) === String(selectedId) ? 'selected' : ''}>${u.label}</option>`).join('');
+    }
+
+    function refreshEmptyHint() {
+        emptyHint.classList.toggle('hidden', rowsWrap.children.length > 0);
+    }
+
+    function addRow(data) {
+        data = data || {};
+        const i = rowIndex++;
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-12 gap-2 items-center';
+        row.innerHTML = `
+            <select name="alt_units[${i}][unit_id]" class="col-span-5 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Select unit') }}</option>
+                ${unitOptions(data.unit_id)}
+            </select>
+            <input type="number" step="0.0001" min="0.0001" name="alt_units[${i}][conversion_factor]" value="${data.conversion_factor ?? ''}" placeholder="{{ __('Factor, e.g. 40') }}" class="col-span-3 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <input type="number" step="0.01" min="0" name="alt_units[${i}][unit_price]" value="${data.unit_price ?? ''}" placeholder="{{ __('Price (optional)') }}" class="col-span-3 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <button type="button" class="col-span-1 text-red-500 hover:text-red-700" title="{{ __('Remove') }}">✕</button>
+        `;
+        row.querySelector('button').addEventListener('click', () => {
+            row.remove();
+            refreshEmptyHint();
+        });
+        rowsWrap.appendChild(row);
+        refreshEmptyHint();
+    }
+
+    document.getElementById('add-alt-unit').addEventListener('click', () => addRow());
+
+    EXISTING.forEach(addRow);
+    refreshEmptyHint();
 })();
 </script>
 @endsection

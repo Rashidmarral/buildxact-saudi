@@ -48,7 +48,7 @@ class QuotationController extends Controller
     public function create(Request $request)
     {
         $clients = Client::orderBy('name')->get();
-        $items = Item::where('is_active', true)->orderBy('name')->get();
+        $items = Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
         $company = Auth::user()->company;
@@ -179,7 +179,7 @@ class QuotationController extends Controller
     {
         $quotation->load('items');
         $clients = Client::orderBy('name')->get();
-        $items = Item::where('is_active', true)->orderBy('name')->get();
+        $items = Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
 
@@ -297,6 +297,7 @@ class QuotationController extends Controller
             foreach ($quotation->items as $sort => $qItem) {
                 $invoice->items()->create([
                     'item_id' => $qItem->item_id,
+                    'unit_id' => $qItem->unit_id,
                     'description' => $qItem->description,
                     'quantity' => $qItem->quantity,
                     'unit_price' => $qItem->unit_price,
@@ -323,6 +324,7 @@ class QuotationController extends Controller
             $line = new QuotationItem([
                 'quotation_id' => $quotation->id,
                 'item_id' => $row['item_id'] ?? null,
+                'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
@@ -349,6 +351,7 @@ class QuotationController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],
+            'items.*.unit_id' => ['nullable', Rule::exists('units', 'id')->where('company_id', $companyId)],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],

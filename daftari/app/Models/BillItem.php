@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BillItem extends Model
 {
     protected $fillable = [
-        'bill_id', 'item_id', 'description', 'quantity', 'unit_price',
+        'bill_id', 'item_id', 'unit_id', 'description', 'quantity', 'unit_price',
         'vat_rate', 'vat_amount', 'line_total', 'sort_order',
     ];
 
@@ -20,6 +20,11 @@ class BillItem extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
     }
 
     public function recalculate(): void

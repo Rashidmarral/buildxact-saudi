@@ -96,7 +96,7 @@ class ZatcaXmlGenerator
             $line = $doc->createElement('cac:InvoiceLine');
             $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
-            $qty->setAttribute('unitCode', $item->item?->unit_code ?: 'PCE');
+            $qty->setAttribute('unitCode', $item->unit?->code ?: ($item->item?->unit_code ?: 'PCE'));
             $lineNet = $item->quantity * $item->unit_price;
             $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet);
 
@@ -232,7 +232,7 @@ class ZatcaXmlGenerator
             $line = $doc->createElement('cac:InvoiceLine');
             $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
-            $qty->setAttribute('unitCode', $item->invoiceItem?->item?->unit_code ?: 'PCE');
+            $qty->setAttribute('unitCode', $item->unit?->code ?: ($item->invoiceItem?->item?->unit_code ?: 'PCE'));
             $lineNet = $item->quantity * $item->unit_price;
             $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet);
 
