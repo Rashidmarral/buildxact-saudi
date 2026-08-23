@@ -11,11 +11,13 @@ use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password as PasswordBroker;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
@@ -108,8 +110,65 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        $user->sendEmailVerificationNotification();
 
         return redirect()->route('app.dashboard')->with('status', __('Welcome! Your :days-day free trial has started.', ['days' => config('daftari.trial_days')]));
+    }
+
+    public function showVerifyEmail(Request $request)
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->route('app.dashboard');
+        }
+
+        $devVerifyUrl = null;
+
+        // Same dev-convenience already used for password resets: nothing
+        // is actually emailed unless a real mail transport is configured,
+        // so surface the same signed link the notification would have sent.
+        if (app()->environment(['local', 'testing']) || config('mail.default') === 'log') {
+            $devVerifyUrl = URL::temporarySignedRoute(
+                'verification.verify',
+                now()->addMinutes(60),
+                ['id' => $request->user()->getKey(), 'hash' => sha1($request->user()->getEmailForVerification())]
+            );
+        }
+
+        return view('auth.verify-email', compact('devVerifyUrl'));
+    }
+
+    public function verifyEmail(Request $request)
+    {
+        $user = User::findOrFail($request->route('id'));
+
+        // Matches Laravel's own EmailVerificationRequest::authorize(): the
+        // signed link only proves the {id}/{hash} pair is genuine, not that
+        // whoever clicked it is that account's owner — someone else's
+        // active session must not be able to verify a different account by
+        // opening the same link.
+        abort_unless(hash_equals((string) $request->user()->getKey(), (string) $user->getKey()), 403);
+
+        if (! hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
+            abort(403);
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+            event(new Verified($user));
+        }
+
+        return redirect()->route('app.dashboard')->with('status', __('Email verified — welcome aboard!'));
+    }
+
+    public function resendVerificationEmail(Request $request)
+    {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->route('app.dashboard');
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return back()->with('status', __('Verification link sent. Check your inbox.'));
     }
 
     public function logout(Request $request)

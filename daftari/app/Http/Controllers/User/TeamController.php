@@ -47,6 +47,11 @@ class TeamController extends Controller
             'password' => Hash::make($temporaryPassword),
             'role' => $data['role'],
             'status' => 'active',
+            // The owner (already authenticated) is vouching for this
+            // address directly, unlike self-registration where nobody has
+            // confirmed the signup form's email actually belongs to the
+            // signer — so there's no separate address to verify here.
+            'email_verified_at' => now(),
         ]);
 
         $member->roles()->sync($data['role_ids'] ?? []);
