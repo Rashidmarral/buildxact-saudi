@@ -11,6 +11,7 @@ use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -38,6 +39,18 @@ return Application::configure(basePath: dirname(__DIR__))
             report($e);
 
             return back()->withErrors(['pdf' => $e->getMessage()]);
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $e, $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            $seconds = $e->getHeaders()['Retry-After'] ?? 60;
+
+            return back()->withErrors([
+                'email' => __('Too many attempts. Please wait :seconds seconds and try again.', ['seconds' => $seconds]),
+            ])->onlyInput('email');
         });
 
         // Only registers reporting to Sentry when SENTRY_LARAVEL_DSN is set
