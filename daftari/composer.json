@@ -12,7 +12,8 @@
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.9",
         "mpdf/mpdf": "^8.2",
-        "phpseclib/phpseclib": "^3.0"
+        "phpseclib/phpseclib": "^3.0",
+        "sentry/sentry-laravel": "^4.27"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
