@@ -41,6 +41,7 @@ use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\PurchaseReturnController;
 use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
+use App\Http\Controllers\User\RecurringInvoiceController;
 use App\Http\Controllers\User\ReportController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\SalespersonController;
@@ -124,6 +125,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
         Route::post('credit-notes/{creditNote}/void', [CreditNoteController::class, 'void'])->name('credit-notes.void');
         Route::get('credit-notes/{creditNote}/xml', [CreditNoteController::class, 'downloadXml'])->name('credit-notes.xml');
         Route::get('credit-notes/{creditNote}/pdf', [CreditNoteController::class, 'downloadPdf'])->name('credit-notes.pdf');
+
+        Route::middleware('feature:recurring_invoices')->group(function () {
+            Route::resource('recurring-invoices', RecurringInvoiceController::class)->except(['show']);
+            Route::post('recurring-invoices/{recurringInvoice}/pause', [RecurringInvoiceController::class, 'pause'])->name('recurring-invoices.pause');
+            Route::post('recurring-invoices/{recurringInvoice}/resume', [RecurringInvoiceController::class, 'resume'])->name('recurring-invoices.resume');
+        });
     });
 
     Route::middleware(['permission:quotations', 'feature:quotations'])->group(function () {
