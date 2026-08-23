@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Supplier;
 use App\Rules\SaudiCrNumber;
 use App\Rules\SaudiPhoneNumber;
@@ -63,7 +64,9 @@ class SupplierController extends Controller
             return back()->withErrors(['plan_limit' => __('You have reached your plan\'s supplier limit. Upgrade your plan to add more suppliers.')])->withInput();
         }
 
-        Supplier::create($this->validated($request));
+        $supplier = Supplier::create($this->validated($request));
+
+        AuditLog::record('supplier.create', $supplier, __('Created supplier :name', ['name' => $supplier->name]));
 
         return redirect()->route('app.suppliers.index')->with('status', __('Supplier saved.'));
     }
@@ -77,6 +80,8 @@ class SupplierController extends Controller
     {
         $supplier->update($this->validated($request, $supplier));
 
+        AuditLog::record('supplier.update', $supplier, __('Updated supplier :name', ['name' => $supplier->name]));
+
         return redirect()->route('app.suppliers.index')->with('status', __('Supplier updated.'));
     }
 
@@ -85,6 +90,8 @@ class SupplierController extends Controller
         if ($supplier->bills()->exists() || $supplier->purchaseOrders()->exists()) {
             return back()->withErrors(['supplier' => __('This supplier has bills or purchase orders and cannot be deleted.')]);
         }
+
+        AuditLog::record('supplier.delete', $supplier, __('Deleted supplier :name', ['name' => $supplier->name]));
 
         $supplier->delete();
 

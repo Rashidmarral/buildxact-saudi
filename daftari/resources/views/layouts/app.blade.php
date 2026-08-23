@@ -128,6 +128,7 @@
                     @include('partials.nav-item', ['route' => 'app.team.index', 'label' => __('Team'), 'icon' => 'team'])
                     @include('partials.nav-item', ['route' => 'app.branches.index', 'label' => __('Branches'), 'icon' => 'branches'])
                     @include('partials.nav-item', ['route' => 'app.invoice-templates.index', 'label' => __('Invoice Templates'), 'icon' => 'templates'])
+                    @include('partials.nav-item', ['route' => 'app.activity.index', 'label' => __('Activity log'), 'icon' => 'activity'])
                     @include('partials.nav-item', ['route' => 'app.settings.index', 'label' => __('Settings'), 'icon' => 'settings'])
                 @endif
             </nav>

@@ -16,7 +16,7 @@ class AuditLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'admin_user_id', 'action', 'subject_type', 'subject_id', 'description', 'created_at',
+        'company_id', 'admin_user_id', 'action', 'subject_type', 'subject_id', 'description', 'created_at',
     ];
 
     protected function casts(): array
@@ -31,15 +31,30 @@ class AuditLog extends Model
         return $this->belongsTo(User::class, 'admin_user_id');
     }
 
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
     public function subject(): \Illuminate\Database\Eloquent\Relations\MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * $actorId defaults to the current user. For a company user this also
+     * stamps company_id so the entry shows up on that company's own
+     * Activity page; platform-admin actions (actor has no company_id, or
+     * none is authenticated) leave company_id null, matching the existing
+     * admin-only audit trail.
+     */
     public static function record(string $action, ?Model $subject = null, ?string $description = null, ?int $actorId = null): self
     {
+        $actor = $actorId !== null ? User::find($actorId) : auth()->user();
+
         return self::create([
-            'admin_user_id' => $actorId ?? auth()->id(),
+            'company_id' => $actor?->company_id,
+            'admin_user_id' => $actor?->id,
             'action' => $action,
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),

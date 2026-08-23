@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Item;
@@ -77,9 +78,12 @@ class BillController extends Controller
             return $bill;
         });
 
+        AuditLog::record('bill.create', $bill, __('Created bill :number', ['number' => $bill->bill_number]));
+
         if ($postImmediately) {
             $bill->update(['status' => 'posted']);
             $ledger->postBillPosted($bill);
+            AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
         }
 
         return redirect()->route('app.bills.show', $bill)->with('status', $postImmediately ? __('Bill created and posted.') : __('Bill created.'));
@@ -140,6 +144,7 @@ class BillController extends Controller
         if ($bill->status === 'draft') {
             $bill->update(['status' => 'posted']);
             $ledger->postBillPosted($bill);
+            AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
         }
 
         return back()->with('status', __('Bill posted.'));
@@ -149,6 +154,8 @@ class BillController extends Controller
     {
         $bill->update(['status' => 'void']);
         $ledger->reverse($bill->company, 'bill', $bill->id, __('Bill :number voided', ['number' => $bill->bill_number]));
+
+        AuditLog::record('bill.void', $bill, __('Voided bill :number', ['number' => $bill->bill_number]));
 
         return back()->with('status', __('Bill voided.'));
     }

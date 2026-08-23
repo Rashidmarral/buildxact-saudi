@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\PurchaseReturn;
@@ -147,6 +148,8 @@ class PurchaseReturnController extends Controller
         });
 
         app(LedgerPostingService::class)->postPurchaseReturn($purchaseReturn);
+
+        AuditLog::record('purchase_return.create', $purchaseReturn, __('Issued purchase return :number', ['number' => $purchaseReturn->return_number]));
 
         return redirect()->route('app.purchase-returns.show', $purchaseReturn)->with('status', __('Purchase return issued.'));
     }

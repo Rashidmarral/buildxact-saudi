@@ -15,6 +15,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
+use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
 use App\Http\Controllers\User\BankAccountController;
 use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
@@ -235,6 +236,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active'])->grou
     Route::middleware('role:owner')->group(function () {
         Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
         Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+        Route::get('activity', [UserActivityLogController::class, 'index'])->name('activity.index');
     });
 
     Route::middleware('permission:members_roles')->group(function () {

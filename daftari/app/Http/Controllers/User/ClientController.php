@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Client;
 use App\Rules\SaudiCrNumber;
 use App\Rules\SaudiPhoneNumber;
@@ -53,10 +54,14 @@ class ClientController extends Controller
         $contacts = $data['contacts'] ?? [];
         unset($data['contacts']);
 
-        DB::transaction(function () use ($data, $contacts) {
+        $client = DB::transaction(function () use ($data, $contacts) {
             $client = Client::create($data);
             $this->syncContacts($client, $contacts);
+
+            return $client;
         });
+
+        AuditLog::record('client.create', $client, __('Created client :name', ['name' => $client->name]));
 
         return redirect()->route('app.clients.index')->with('status', __('Client saved.'));
     }
@@ -80,11 +85,15 @@ class ClientController extends Controller
             $this->syncContacts($client, $contacts);
         });
 
+        AuditLog::record('client.update', $client, __('Updated client :name', ['name' => $client->name]));
+
         return redirect()->route('app.clients.index')->with('status', __('Client updated.'));
     }
 
     public function destroy(Client $client)
     {
+        AuditLog::record('client.delete', $client, __('Deleted client :name', ['name' => $client->name]));
+
         $client->delete();
 
         return redirect()->route('app.clients.index')->with('status', __('Client deleted.'));

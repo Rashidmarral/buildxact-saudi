@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -50,6 +51,8 @@ class TeamController extends Controller
 
         $member->roles()->sync($data['role_ids'] ?? []);
 
+        AuditLog::record('team.add', $member, __('Added team member :email', ['email' => $member->email]));
+
         // No transactional email provider wired up yet — show the temporary
         // password once so the owner can share it with the invitee directly.
         return back()->with('status', __('Team member added.'))->with('temporary_password', [
@@ -67,6 +70,8 @@ class TeamController extends Controller
         if ($user->id === Auth::id()) {
             return back()->withErrors(['user' => __('You cannot remove yourself.')]);
         }
+
+        AuditLog::record('team.remove', $user, __('Removed team member :email', ['email' => $user->email]));
 
         $user->delete();
 

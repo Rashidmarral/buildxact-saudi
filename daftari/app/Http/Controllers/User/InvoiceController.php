@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SyncInvoiceToZatca;
 use App\Mail\InvoiceMail;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
@@ -93,6 +94,8 @@ class InvoiceController extends Controller
 
             return $invoice;
         });
+
+        AuditLog::record('invoice.create', $invoice, __('Created invoice :number', ['number' => $invoice->invoice_number]));
 
         if ($sendImmediately) {
             $this->doSend($invoice, $ledger);
@@ -293,6 +296,8 @@ class InvoiceController extends Controller
 
         $ledger->reverse($invoice->company, 'invoice', $invoice->id, __('Invoice :number cancelled', ['number' => $invoice->invoice_number]));
 
+        AuditLog::record('invoice.cancel', $invoice, __('Cancelled invoice :number', ['number' => $invoice->invoice_number]));
+
         return back()->with('status', __('Invoice cancelled.'));
     }
 
@@ -359,6 +364,8 @@ class InvoiceController extends Controller
         });
 
         $ledger->postInvoiceIssued($invoice);
+
+        AuditLog::record('invoice.send', $invoice, __('Sent invoice :number', ['number' => $invoice->invoice_number]));
 
         if ($invoice->company->zatca_sync_frequency === 'instant') {
             SyncInvoiceToZatca::dispatch($invoice->id);
