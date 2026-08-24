@@ -51,6 +51,18 @@ class AuthController extends Controller
             return back()->withErrors(['email' => __('This account is not active.')]);
         }
 
+        if ($user->hasTwoFactorEnabled()) {
+            // Password is confirmed, but not fully trusted yet — log back
+            // out and hand off to the challenge, which is the only place
+            // that actually calls Auth::login() for this request cycle.
+            $remember = $request->boolean('remember');
+            Auth::logout();
+            $request->session()->put('two_factor_user_id', $user->id);
+            $request->session()->put('two_factor_remember', $remember);
+
+            return redirect()->route('two-factor.challenge');
+        }
+
         if ($user->isSuperAdmin() || $user->isAdminStaff()) {
             return redirect()->intended(route('admin.dashboard'));
         }

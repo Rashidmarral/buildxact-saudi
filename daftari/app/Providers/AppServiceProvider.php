@@ -38,5 +38,16 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('password-email', function ($request) {
             return Limit::perMinute(3)->by($request->ip());
         });
+
+        // The pending user hasn't authenticated yet at this point (that's
+        // the whole reason there's a second factor), so this can't be
+        // keyed by Auth::id() — the session-stored pending user id is the
+        // closest equivalent, still narrow enough to not let one account
+        // exhaust another's attempts.
+        RateLimiter::for('two-factor', function ($request) {
+            $key = $request->session()->get('two_factor_user_id', 'guest').'|'.$request->ip();
+
+            return Limit::perMinute(5)->by($key);
+        });
     }
 }

@@ -249,6 +249,25 @@
     </form>
 </div>
 
+<div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between">
+    <div>
+        <h3 class="font-semibold text-slate-900">{{ __('Two-factor authentication') }}</h3>
+        <p class="text-sm text-slate-500 mt-1">
+            @if (auth()->user()->hasTwoFactorEnabled())
+                <span class="inline-flex items-center gap-1.5 text-emerald-700 font-medium">
+                    @include('partials.icon', ['name' => 'check-circle', 'class' => 'h-4 w-4'])
+                    {{ __('Enabled') }}
+                </span>
+            @else
+                {{ __('Require a code from an authenticator app when signing in.') }}
+            @endif
+        </p>
+    </div>
+    <a href="{{ route('app.settings.two-factor') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">
+        {{ auth()->user()->hasTwoFactorEnabled() ? __('Manage') : __('Set up') }}
+    </a>
+</div>
+
 <div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6">
     <h3 class="font-semibold text-slate-900">{{ __('Active sessions') }}</h3>
     <p class="text-sm text-slate-500 mt-1">{{ __('Devices currently signed in to your account.') }}</p>

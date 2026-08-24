@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\TeamInviteController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\FileServeController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\ImpersonationController;
@@ -53,6 +54,7 @@ use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\StockAdjustmentController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
+use App\Http\Controllers\User\TwoFactorController;
 use App\Http\Controllers\User\WarehouseController;
 use App\Http\Controllers\User\ZatcaController;
 use Illuminate\Support\Facades\Route;
@@ -103,6 +105,9 @@ Route::middleware('guest')->group(function () {
 });
 Route::get('/team/invite/{id}/{hash}', [TeamInviteController::class, 'show'])->middleware('signed')->name('team.invite.accept');
 Route::post('/team/invite/{id}/{hash}', [TeamInviteController::class, 'accept'])->middleware('signed')->name('team.invite.store');
+
+Route::get('/two-factor-challenge', [TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
+Route::post('/two-factor-challenge', [TwoFactorChallengeController::class, 'verify'])->middleware('throttle:two-factor')->name('two-factor.verify');
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 Route::post('/stop-impersonating', [ImpersonationController::class, 'stop'])->middleware('auth')->name('stop-impersonating');
@@ -303,6 +308,11 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::delete('settings/sessions/{sessionId}', [SettingsController::class, 'destroySession'])->name('settings.sessions.destroy');
     Route::post('settings/documents', [SettingsController::class, 'storeDocument'])->name('settings.documents.store')->middleware('permission:settings');
     Route::delete('settings/documents/{attachment}', [SettingsController::class, 'destroyDocument'])->name('settings.documents.destroy')->middleware('permission:settings');
+
+    Route::get('settings/two-factor', [TwoFactorController::class, 'show'])->name('settings.two-factor');
+    Route::post('settings/two-factor/confirm', [TwoFactorController::class, 'confirm'])->name('settings.two-factor.confirm');
+    Route::post('settings/two-factor/disable', [TwoFactorController::class, 'disable'])->name('settings.two-factor.disable');
+    Route::post('settings/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('settings.two-factor.recovery-codes');
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');

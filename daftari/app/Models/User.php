@@ -30,11 +30,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // when a signed link already proved control of the address — never
         // sourced from raw, unvalidated request input.
         'email_verified_at',
+        // Same rule: only ever set by TwoFactorController after verifying
+        // a real TOTP code, never from raw request input.
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     protected function casts(): array
@@ -42,7 +49,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return ! is_null($this->two_factor_confirmed_at);
     }
 
     public function company(): BelongsTo
