@@ -4,6 +4,14 @@
 
 @section('content')
 <div class="max-w-2xl space-y-6">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between">
+        <div>
+            <h3 class="font-semibold text-slate-900">{{ __('Payment gateways') }}</h3>
+            <p class="text-sm text-slate-500 mt-1">{{ __('Daftari\'s own credentials for collecting subscription payments.') }}</p>
+        </div>
+        <a href="{{ route('admin.settings.payment-gateways') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Manage') }}</a>
+    </div>
+
 
     <form method="POST" action="{{ route('admin.settings.branding') }}" enctype="multipart/form-data" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
         @csrf

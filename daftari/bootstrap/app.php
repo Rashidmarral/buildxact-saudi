@@ -28,6 +28,14 @@ return Application::configure(basePath: dirname(__DIR__))
             CheckMaintenanceMode::class,
         ]);
 
+        // Payment providers POST here with no Laravel session/CSRF token
+        // of their own — authenticity is verified inside the controller
+        // via each gateway's own signature scheme instead (see
+        // PaymentGatewayDriver::verifyWebhook).
+        $middleware->validateCsrfTokens(except: [
+            'payments/webhook/*',
+        ]);
+
         $middleware->alias([
             'role' => EnsureRole::class,
             'company.active' => EnsureCompanyActive::class,

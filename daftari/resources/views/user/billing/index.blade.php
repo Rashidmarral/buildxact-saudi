@@ -202,6 +202,13 @@
                         <option value="monthly">{{ __('Monthly') }}</option>
                         <option value="yearly">{{ __('Yearly') }}</option>
                     </select>
+                    @if (! empty($enabledProviders))
+                        <select name="provider" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            @foreach ($enabledProviders as $provider)
+                                <option value="{{ $provider }}">{{ __('Pay online with :provider', ['provider' => ucfirst($provider)]) }}</option>
+                            @endforeach
+                        </select>
+                    @endif
                     <button type="submit" class="w-full rounded-lg {{ $subscription && $subscription->plan_id === $plan->id ? 'bg-slate-100 text-slate-500' : 'bg-brand-600 text-white hover:bg-brand-700' }} px-4 py-2 text-sm font-semibold">
                         {{ $subscription && $subscription->plan_id === $plan->id ? __('Current plan') : __('Choose plan') }}
                     </button>

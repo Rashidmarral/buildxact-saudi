@@ -3,6 +3,13 @@
 @section('title', $invoice->invoice_number)
 
 @section('content')
+@if (session('status'))
+    <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 print:hidden">{{ session('status') }}</div>
+@endif
+@if (session('error'))
+    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 print:hidden">{{ session('error') }}</div>
+@endif
+
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ __('Invoice :number', ['number' => $invoice->invoice_number]) }}</h1>
@@ -27,6 +34,16 @@
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <h2 class="font-semibold text-slate-900 mb-1">{{ __('How to pay') }}</h2>
             <p class="text-sm text-slate-500 mb-4">{{ __('Balance due: :amount :currency', ['amount' => number_format($invoice->balanceDue(), 2), 'currency' => $invoice->currency]) }}</p>
+
+            @if (! empty($enabledProviders))
+                <div class="mb-5 flex flex-wrap gap-2">
+                    @foreach ($enabledProviders as $provider)
+                        <a href="{{ route('public.invoices.pay', ['id' => $invoice->id, 'token' => $invoice->public_token, 'provider' => $provider]) }}" class="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
+                            {{ __('Pay online with :provider', ['provider' => ucfirst($provider)]) }}
+                        </a>
+                    @endforeach
+                </div>
+            @endif
 
             @if ($doc['bank_account'])
                 <div class="rounded-lg border border-slate-100 bg-slate-50 p-4 text-sm">

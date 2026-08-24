@@ -8,11 +8,14 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PlatformDocumentController;
+use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\TeamInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\FileServeController;
+use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\PaymentWidgetController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
@@ -57,6 +60,7 @@ use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
 use App\Http\Controllers\User\WarehouseController;
+use App\Http\Controllers\User\PaymentGatewayController;
 use App\Http\Controllers\User\WebhookController;
 use App\Http\Controllers\User\ZatcaController;
 use Illuminate\Support\Facades\Route;
@@ -76,6 +80,15 @@ Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('fi
 
 Route::get('/pay/invoices/{id}/{token}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
 Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->name('public.invoices.pdf');
+Route::get('/pay/invoices/{id}/{token}/pay/{provider}', [PublicInvoiceController::class, 'pay'])->name('public.invoices.pay');
+
+// Public payment-gateway plumbing: the hosted-widget page for HyperPay's
+// COPYandPAY flow, and the single webhook endpoint every driver posts (or,
+// for HyperPay's redirect flow, GETs) results to. Deliberately outside any
+// auth middleware — these are called by the payment provider or by a
+// payer's browser that may never have a Daftari session.
+Route::get('/payments/widget/{provider}/{reference}', [PaymentWidgetController::class, 'show'])->name('payments.widget');
+Route::match(['get', 'post'], '/payments/webhook/{provider}', [PaymentWebhookController::class, 'handle'])->name('payments.webhook');
 
 Route::get('/glossary', [ToolsController::class, 'glossary'])->name('glossary');
 Route::prefix('tools')->name('tools.')->group(function () {
@@ -329,6 +342,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::post('settings/webhooks/{webhook}/send-test', [WebhookController::class, 'sendTest'])->name('settings.webhooks.send-test');
     Route::delete('settings/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('settings.webhooks.destroy');
 
+    Route::get('settings/payment-gateways', [PaymentGatewayController::class, 'index'])->name('settings.payment-gateways');
+    Route::post('settings/payment-gateways/{provider}', [PaymentGatewayController::class, 'update'])->name('settings.payment-gateways.update');
+
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');
 
@@ -392,6 +408,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
         Route::post('settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
         Route::post('settings/branding', [PlatformSettingsController::class, 'updateBranding'])->name('settings.branding');
+
+        Route::get('settings/payment-gateways', [AdminPaymentGatewaySettingsController::class, 'index'])->name('settings.payment-gateways');
+        Route::post('settings/payment-gateways/{provider}', [AdminPaymentGatewaySettingsController::class, 'update'])->name('settings.payment-gateways.update');
 
         Route::resource('certificates', PlatformDocumentController::class)->only(['index', 'store', 'destroy']);
     });
