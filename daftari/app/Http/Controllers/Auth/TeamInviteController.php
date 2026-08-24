@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\GenericNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -46,6 +47,15 @@ class TeamInviteController extends Controller
             'status' => 'active',
             'email_verified_at' => now(),
         ]);
+
+        foreach ($member->company->owners()->where('id', '!=', $member->id)->get() as $owner) {
+            $owner->notify(new GenericNotification(
+                title: __('New team member joined'),
+                body: __(':name (:email) accepted their invite.', ['name' => $member->name, 'email' => $member->email]),
+                url: route('app.team.index'),
+                icon: 'team',
+            ));
+        }
 
         Auth::login($member);
         $request->session()->regenerate();

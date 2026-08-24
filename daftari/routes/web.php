@@ -36,6 +36,7 @@ use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\UnitController;
 use App\Http\Controllers\User\JournalController;
+use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\PurchaseOrderController;
@@ -110,6 +111,10 @@ Route::middleware('auth')->group(function () {
 // User panel
 Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verified'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
 
     Route::middleware('permission:clients')->group(function () {
         Route::resource('clients', ClientController::class)->except(['show']);

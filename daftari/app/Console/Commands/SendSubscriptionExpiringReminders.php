@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\SubscriptionExpiringMail;
 use App\Models\Subscription;
+use App\Notifications\GenericNotification;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
@@ -35,6 +36,12 @@ class SendSubscriptionExpiringReminders extends Command
         foreach ($subscriptions as $subscription) {
             foreach ($subscription->company->owners as $owner) {
                 Mail::to($owner->email)->send(new SubscriptionExpiringMail($subscription));
+                $owner->notify(new GenericNotification(
+                    title: $subscription->isTrial() ? __('Your trial is ending soon') : __('Your subscription is renewing soon'),
+                    body: __(':plan · ends :date', ['plan' => $subscription->plan->name, 'date' => $subscription->current_period_end->format('Y-m-d')]),
+                    url: route('app.billing.index'),
+                    icon: 'clock',
+                ));
             }
 
             $subscription->update(['expiry_reminder_sent_at' => now()]);

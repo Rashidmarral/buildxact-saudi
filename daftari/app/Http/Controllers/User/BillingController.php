@@ -7,6 +7,7 @@ use App\Mail\PaymentReceiptMail;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -107,6 +108,12 @@ class BillingController extends Controller
 
         foreach ($company->owners as $owner) {
             Mail::to($owner->email)->send(new PaymentReceiptMail($payment, $pdf));
+            $owner->notify(new GenericNotification(
+                title: __('Payment received'),
+                body: __(':amount :currency for the :plan plan', ['amount' => number_format($payment->amount, 2), 'currency' => $payment->currency, 'plan' => $plan->name]),
+                url: route('app.billing.index'),
+                icon: 'billing',
+            ));
         }
 
         return redirect()->route('app.billing.index')->with('status', __('Subscription updated.'));

@@ -9,10 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false }">
+<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false, notificationsOpen: false }">
     @php
         $company = auth()->user()->company;
         $sub = $company?->activeSubscription();
+        $recentNotifications = auth()->user()->notifications()->latest()->take(8)->get();
+        $unreadNotificationsCount = auth()->user()->unreadNotifications()->count();
     @endphp
 
     <div class="flex min-h-screen">
@@ -164,6 +166,46 @@
                         @include('partials.icon', ['name' => 'globe', 'class' => 'h-4 w-4'])
                         {{ app()->getLocale() === 'ar' ? 'EN' : 'AR' }}
                     </a>
+                    <div class="relative" @click.outside="notificationsOpen = false">
+                        <button type="button" @click="notificationsOpen = !notificationsOpen" class="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700">
+                            @include('partials.icon', ['name' => 'bell', 'class' => 'h-5 w-5'])
+                            @if ($unreadNotificationsCount > 0)
+                                <span class="absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>
+                            @endif
+                        </button>
+                        <div x-show="notificationsOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95 -translate-y-1" x-transition:enter-end="opacity-100 scale-100 translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute end-0 top-full z-40 mt-2 w-80 rounded-xl border border-slate-100 bg-white py-2 shadow-card-hover" style="display: none;">
+                            <div class="flex items-center justify-between border-b border-slate-50 px-4 py-2.5">
+                                <p class="text-sm font-semibold text-slate-800">{{ __('Notifications') }}</p>
+                                @if ($unreadNotificationsCount > 0)
+                                    <form method="POST" action="{{ route('app.notifications.read-all') }}">
+                                        @csrf
+                                        <button type="submit" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Mark all as read') }}</button>
+                                    </form>
+                                @endif
+                            </div>
+                            <div class="max-h-96 overflow-y-auto">
+                                @forelse ($recentNotifications as $notification)
+                                    <form method="POST" action="{{ route('app.notifications.read', $notification->id) }}">
+                                        @csrf
+                                        <button type="submit" class="flex w-full items-start gap-2.5 px-4 py-2.5 text-start hover:bg-slate-50 {{ $notification->read_at ? '' : 'bg-brand-50/40' }}">
+                                            <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full {{ $notification->read_at ? 'bg-slate-100 text-slate-400' : 'bg-brand-100 text-brand-600' }}">
+                                                @include('partials.icon', ['name' => $notification->data['icon'] ?? 'bell', 'class' => 'h-3.5 w-3.5'])
+                                            </span>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="block truncate text-sm font-medium text-slate-800">{{ $notification->data['title'] ?? '' }}</span>
+                                                <span class="block truncate text-xs text-slate-500">{{ $notification->data['body'] ?? '' }}</span>
+                                            </span>
+                                        </button>
+                                    </form>
+                                @empty
+                                    <p class="px-4 py-6 text-center text-sm text-slate-400">{{ __('No notifications yet.') }}</p>
+                                @endforelse
+                            </div>
+                            <div class="border-t border-slate-50 px-4 pt-2">
+                                <a href="{{ route('app.notifications.index') }}" class="block py-1 text-center text-xs font-semibold text-brand-700 hover:underline">{{ __('View all notifications') }}</a>
+                            </div>
+                        </div>
+                    </div>
                     <div class="relative" @click.outside="userMenuOpen = false">
                         <button type="button" @click="userMenuOpen = !userMenuOpen" class="flex items-center gap-2.5 rounded-lg py-1 ps-1 pe-2 transition-colors hover:bg-slate-100">
                             <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white shadow-soft">
