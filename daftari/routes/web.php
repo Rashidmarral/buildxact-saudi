@@ -57,6 +57,7 @@ use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
 use App\Http\Controllers\User\WarehouseController;
+use App\Http\Controllers\User\WebhookController;
 use App\Http\Controllers\User\ZatcaController;
 use Illuminate\Support\Facades\Route;
 
@@ -318,6 +319,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::get('settings/api-tokens', [ApiTokenController::class, 'index'])->name('settings.api-tokens');
     Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
     Route::delete('settings/api-tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+
+    Route::get('settings/webhooks', [WebhookController::class, 'index'])->name('settings.webhooks.index');
+    Route::post('settings/webhooks', [WebhookController::class, 'store'])->name('settings.webhooks.store');
+    Route::get('settings/webhooks/{webhook}', [WebhookController::class, 'show'])->name('settings.webhooks.show');
+    Route::put('settings/webhooks/{webhook}', [WebhookController::class, 'update'])->name('settings.webhooks.update');
+    Route::post('settings/webhooks/{webhook}/toggle', [WebhookController::class, 'toggle'])->name('settings.webhooks.toggle');
+    Route::post('settings/webhooks/{webhook}/regenerate-secret', [WebhookController::class, 'regenerateSecret'])->name('settings.webhooks.regenerate-secret');
+    Route::post('settings/webhooks/{webhook}/send-test', [WebhookController::class, 'sendTest'])->name('settings.webhooks.send-test');
+    Route::delete('settings/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('settings.webhooks.destroy');
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');

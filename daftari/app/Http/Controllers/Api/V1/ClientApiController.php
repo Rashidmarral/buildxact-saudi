@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Client;
+use App\Models\Webhook;
 use App\Rules\SaudiCrNumber;
 use App\Rules\SaudiPhoneNumber;
 use App\Rules\SaudiVatNumber;
@@ -58,6 +59,13 @@ class ClientApiController extends Controller
         $client = Client::create($data);
 
         AuditLog::record('client.create', $client, __('Created client :name', ['name' => $client->name]));
+
+        Webhook::trigger($client->company_id, 'client.created', [
+            'id' => $client->id,
+            'client_code' => $client->client_code,
+            'name' => $client->name,
+            'email' => $client->email,
+        ]);
 
         return response()->json($this->transform($client), 201);
     }

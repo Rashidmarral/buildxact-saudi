@@ -17,6 +17,7 @@ use App\Models\ItemStock;
 use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\Warehouse;
+use App\Models\Webhook;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
@@ -114,6 +115,8 @@ class InvoiceController extends Controller
         });
 
         AuditLog::record('invoice.create', $invoice, __('Created invoice :number', ['number' => $invoice->invoice_number]));
+
+        Webhook::trigger($invoice->company_id, 'invoice.created', $this->webhookPayload($invoice));
 
         if ($sendImmediately) {
             $this->doSend($invoice, $ledger);
@@ -328,11 +331,17 @@ class InvoiceController extends Controller
             'reference' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $wasPaid = $invoice->status === 'paid';
+
         $payment = $invoice->invoicePayments()->create($data);
         $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
         $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
         $invoice->save();
         $ledger->postInvoicePayment($payment);
+
+        if ($invoice->status === 'paid' && ! $wasPaid) {
+            Webhook::trigger($invoice->company_id, 'invoice.paid', $this->webhookPayload($invoice));
+        }
 
         return back()->with('status', __('Payment recorded.'));
     }
@@ -385,9 +394,25 @@ class InvoiceController extends Controller
 
         AuditLog::record('invoice.send', $invoice, __('Sent invoice :number', ['number' => $invoice->invoice_number]));
 
+        Webhook::trigger($invoice->company_id, 'invoice.sent', $this->webhookPayload($invoice));
+
         if ($invoice->company->zatca_sync_frequency === 'instant') {
             SyncInvoiceToZatca::dispatch($invoice->id);
         }
+    }
+
+    private function webhookPayload(Invoice $invoice): array
+    {
+        return [
+            'id' => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'status' => $invoice->status,
+            'client_id' => $invoice->client_id,
+            'total' => $invoice->total,
+            'currency' => $invoice->currency,
+            'issue_date' => $invoice->issue_date?->toDateString(),
+            'due_date' => $invoice->due_date?->toDateString(),
+        ];
     }
 
     private function applyStock(Invoice $invoice, int $direction): void
