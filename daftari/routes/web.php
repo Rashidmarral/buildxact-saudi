@@ -271,6 +271,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update')->middleware('permission:settings');
     Route::get('settings', [SettingsController::class, 'index'])->name('settings.index')->middleware('permission:settings');
     Route::put('settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::post('settings/sessions/logout-others', [SettingsController::class, 'logoutOtherSessions'])->name('settings.sessions.logout-others');
+    Route::delete('settings/sessions/{sessionId}', [SettingsController::class, 'destroySession'])->name('settings.sessions.destroy');
     Route::post('settings/documents', [SettingsController::class, 'storeDocument'])->name('settings.documents.store')->middleware('permission:settings');
     Route::delete('settings/documents/{attachment}', [SettingsController::class, 'destroyDocument'])->name('settings.documents.destroy')->middleware('permission:settings');
 

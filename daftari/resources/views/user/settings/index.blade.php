@@ -249,6 +249,52 @@
     </form>
 </div>
 
+<div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6">
+    <h3 class="font-semibold text-slate-900">{{ __('Active sessions') }}</h3>
+    <p class="text-sm text-slate-500 mt-1">{{ __('Devices currently signed in to your account.') }}</p>
+
+    @if (is_null($sessions))
+        <p class="mt-4 text-sm text-slate-400">{{ __('Session listing is not available in this environment.') }}</p>
+    @else
+        <div class="mt-4 divide-y divide-slate-100">
+            @foreach ($sessions as $session)
+                <div class="py-3 flex items-center justify-between gap-4">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-slate-800">
+                            {{ $session->device }}
+                            @if ($session->is_current_device)
+                                <span class="ml-1 inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">{{ __('This device') }}</span>
+                            @endif
+                        </p>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            {{ $session->ip_address ?? __('Unknown IP') }} &middot; {{ __('Last active :time', ['time' => $session->last_active->diffForHumans()]) }}
+                        </p>
+                    </div>
+                    @unless ($session->is_current_device)
+                        <form method="POST" action="{{ route('app.settings.sessions.destroy', $session->id) }}">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-red-300 hover:text-red-600">{{ __('Log out') }}</button>
+                        </form>
+                    @endunless
+                </div>
+            @endforeach
+        </div>
+
+        @if ($sessions->count() > 1)
+            <form method="POST" action="{{ route('app.settings.sessions.logout-others') }}" class="mt-5 pt-5 border-t border-slate-100 space-y-3 max-w-sm">
+                @csrf
+                <label class="block text-sm font-medium text-slate-700">{{ __('Confirm your password to log out other devices') }}</label>
+                <input type="password" name="current_password" required placeholder="{{ __('Current password') }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                @error('sessions_current_password')
+                    <p class="text-xs text-red-600">{{ $message }}</p>
+                @enderror
+                <button type="submit" class="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">{{ __('Log out of all other sessions') }}</button>
+            </form>
+        @endif
+    @endif
+</div>
+
 <div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between">
     <div>
         <h3 class="font-semibold text-slate-900">{{ __('Branches') }}</h3>

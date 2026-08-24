@@ -10,8 +10,11 @@ use App\Models\Company;
 use App\Rules\SaudiCrNumber;
 use App\Rules\SaudiPhoneNumber;
 use App\Rules\SaudiVatNumber;
+use App\Support\UserAgentSummary;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -43,8 +46,33 @@ class SettingsController extends Controller
         $branches = Branch::orderBy('name')->get();
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
         $documents = $company->documents;
+        $sessions = $this->activeSessions();
 
-        return view('user.settings.index', compact('company', 'branches', 'bankAccounts', 'documents'));
+        return view('user.settings.index', compact('company', 'branches', 'bankAccounts', 'documents', 'sessions'));
+    }
+
+    /**
+     * Only meaningful on the "database" session driver — other drivers
+     * (file, redis, etc.) don't expose a queryable list of active sessions,
+     * so the view falls back to a plain explanation instead of a table.
+     */
+    protected function activeSessions()
+    {
+        if (config('session.driver') !== 'database') {
+            return null;
+        }
+
+        return DB::table('sessions')
+            ->where('user_id', Auth::id())
+            ->orderByDesc('last_activity')
+            ->get()
+            ->map(function ($session) {
+                $session->is_current_device = $session->id === session()->getId();
+                $session->device = UserAgentSummary::describe($session->user_agent);
+                $session->last_active = Carbon::createFromTimestamp($session->last_activity);
+
+                return $session;
+            });
     }
 
     public function update(Request $request)
@@ -152,5 +180,45 @@ class SettingsController extends Controller
         $user->update(['password' => Hash::make($request->string('password'))]);
 
         return back()->with('status', __('Password updated.'));
+    }
+
+    /**
+     * Revokes every other session belonging to this user, keeping the one
+     * making this request alive. Requires the current password first —
+     * matching the change-password form above — so that anyone with brief
+     * access to an already-open, unlocked browser can't silently kick the
+     * real owner's other devices without knowing their password.
+     */
+    public function logoutOtherSessions(Request $request)
+    {
+        $request->validate(['current_password' => ['required', 'string']]);
+
+        $user = Auth::user();
+
+        if (! Hash::check($request->string('current_password'), $user->password)) {
+            return back()->withErrors(['sessions_current_password' => __('The current password is incorrect.')]);
+        }
+
+        if (config('session.driver') === 'database') {
+            DB::table('sessions')
+                ->where('user_id', $user->id)
+                ->where('id', '!=', session()->getId())
+                ->delete();
+        }
+
+        return back()->with('status', __('Logged out of all other sessions.'));
+    }
+
+    public function destroySession(Request $request, string $sessionId)
+    {
+        abort_unless(config('session.driver') === 'database', 404);
+        abort_if($sessionId === session()->getId(), 422);
+
+        DB::table('sessions')
+            ->where('user_id', Auth::id())
+            ->where('id', $sessionId)
+            ->delete();
+
+        return back()->with('status', __('Session logged out.'));
     }
 }
