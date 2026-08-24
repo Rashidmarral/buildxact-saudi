@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PaymentReceiptMail;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -10,6 +11,7 @@ use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class BillingController extends Controller
 {
@@ -65,7 +67,7 @@ class BillingController extends Controller
         return view('user.billing.index', compact('company', 'subscription', 'plans', 'payments', 'tab', 'usage'));
     }
 
-    public function upgrade(Request $request)
+    public function upgrade(Request $request, MpdfRenderer $renderer)
     {
         $data = $request->validate([
             'plan_id' => ['required', 'exists:plans,id'],
@@ -76,7 +78,7 @@ class BillingController extends Controller
         $plan = Plan::findOrFail($data['plan_id']);
         $periodEnd = $data['billing_cycle'] === 'yearly' ? now()->addYear() : now()->addMonth();
 
-        DB::transaction(function () use ($company, $plan, $data, $periodEnd) {
+        $payment = DB::transaction(function () use ($company, $plan, $data, $periodEnd) {
             $subscription = Subscription::create([
                 'company_id' => $company->id,
                 'plan_id' => $plan->id,
@@ -89,7 +91,7 @@ class BillingController extends Controller
             // PAYMENT_GATEWAY=manual is a stub: it records the charge as paid
             // immediately. Wire up a real Saudi gateway (Moyasar, HyperPay,
             // PayTabs, Tap) here before taking this to production.
-            $company->payments()->create([
+            return $company->payments()->create([
                 'subscription_id' => $subscription->id,
                 'plan_id' => $plan->id,
                 'amount' => $plan->priceFor($data['billing_cycle']),
@@ -99,6 +101,13 @@ class BillingController extends Controller
                 'paid_at' => now(),
             ]);
         });
+
+        $payment->loadMissing('plan', 'company');
+        $pdf = $renderer->render('documents.print.saas-receipt', ['payment' => $payment, 'company' => $company]);
+
+        foreach ($company->owners as $owner) {
+            Mail::to($owner->email)->send(new PaymentReceiptMail($payment, $pdf));
+        }
 
         return redirect()->route('app.billing.index')->with('status', __('Subscription updated.'));
     }

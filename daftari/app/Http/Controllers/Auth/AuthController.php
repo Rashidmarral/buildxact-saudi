@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\WelcomeMail;
 use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\Company;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password as PasswordBroker;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -111,6 +113,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         $user->sendEmailVerificationNotification();
+        Mail::to($user->email)->send(new WelcomeMail($user->company));
 
         return redirect()->route('app.dashboard')->with('status', __('Welcome! Your :days-day free trial has started.', ['days' => config('daftari.trial_days')]));
     }

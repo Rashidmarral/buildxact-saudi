@@ -13,6 +13,7 @@ class Subscription extends Model
     protected $fillable = [
         'company_id', 'plan_id', 'status', 'billing_cycle',
         'current_period_start', 'current_period_end', 'cancelled_at',
+        'expiry_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -21,6 +22,7 @@ class Subscription extends Model
             'current_period_start' => 'datetime',
             'current_period_end' => 'datetime',
             'cancelled_at' => 'datetime',
+            'expiry_reminder_sent_at' => 'datetime',
         ];
     }
 

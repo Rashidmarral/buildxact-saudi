@@ -88,6 +88,16 @@ class Company extends Model
         return $this->hasMany(User::class);
     }
 
+    /**
+     * Who billing-related emails (welcome, receipts, renewal reminders) go
+     * to — there can be more than one owner, and staff accounts shouldn't
+     * see the company's payment details.
+     */
+    public function owners(): HasMany
+    {
+        return $this->hasMany(User::class)->where('role', 'owner');
+    }
+
     public function clients(): HasMany
     {
         return $this->hasMany(Client::class);
