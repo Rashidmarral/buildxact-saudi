@@ -161,6 +161,41 @@
                     @endif
                     <h1 class="text-base font-semibold text-slate-900 sm:text-lg">@yield('title')</h1>
                 </div>
+                <div class="hidden flex-1 max-w-sm md:block" x-data="{
+                        open: false, query: '', groups: [], loading: false, timer: null,
+                        run() {
+                            clearTimeout(this.timer);
+                            if (this.query.trim().length < 2) { this.groups = []; this.open = false; return; }
+                            this.timer = setTimeout(() => {
+                                this.loading = true;
+                                fetch('{{ route('app.search') }}?q=' + encodeURIComponent(this.query))
+                                    .then(r => r.json())
+                                    .then(data => { this.groups = data.groups; this.open = true; this.loading = false; })
+                                    .catch(() => { this.loading = false; });
+                            }, 250);
+                        }
+                    }" @click.outside="open = false">
+                    <div class="relative">
+                        @include('partials.icon', ['name' => 'search', 'class' => 'pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400'])
+                        <input type="search" x-model="query" @input="run()" @focus="if (groups.length) open = true" placeholder="{{ __('Search invoices, clients, items…') }}" class="w-full rounded-lg border border-slate-200 py-1.5 ps-9 pe-3 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div x-show="open" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95 -translate-y-1" x-transition:enter-end="opacity-100 scale-100 translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute z-40 mt-2 w-full max-w-sm rounded-xl border border-slate-100 bg-white py-2 shadow-card-hover" style="display: none;">
+                        <template x-if="!loading && groups.length === 0">
+                            <p class="px-4 py-6 text-center text-sm text-slate-400">{{ __('No results.') }}</p>
+                        </template>
+                        <template x-for="group in groups" :key="group.label">
+                            <div class="mb-1 last:mb-0">
+                                <p class="px-4 pt-2 pb-1 text-xs font-semibold text-slate-400" x-text="group.label"></p>
+                                <template x-for="item in group.items" :key="item.url">
+                                    <a :href="item.url" class="flex items-center justify-between gap-2 px-4 py-2 text-sm hover:bg-slate-50">
+                                        <span class="truncate font-medium text-slate-800" x-text="item.title"></span>
+                                        <span class="shrink-0 truncate text-xs text-slate-400" x-text="item.subtitle"></span>
+                                    </a>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
                 <div class="flex items-center gap-2 sm:gap-4">
                     <a href="{{ route('locale.switch', app()->getLocale() === 'ar' ? 'en' : 'ar') }}" class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700">
                         @include('partials.icon', ['name' => 'globe', 'class' => 'h-4 w-4'])

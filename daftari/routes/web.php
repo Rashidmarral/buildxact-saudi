@@ -35,6 +35,7 @@ use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\UnitController;
+use App\Http\Controllers\User\GlobalSearchController;
 use App\Http\Controllers\User\JournalController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\PaymentVoucherController;
@@ -111,6 +112,8 @@ Route::middleware('auth')->group(function () {
 // User panel
 Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verified'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard');
+
+    Route::get('search', [GlobalSearchController::class, 'search'])->name('search');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
