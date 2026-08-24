@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Mail\PaymentReceiptMail;
+use App\Models\AuditLog;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -117,6 +118,49 @@ class BillingController extends Controller
         }
 
         return redirect()->route('app.billing.index')->with('status', __('Subscription updated.'));
+    }
+
+    /**
+     * "Cancels" a subscription without cutting off access mid-period: the
+     * company already paid for this period, so status stays trialing/active
+     * and every existing feature/limit check keeps working unchanged.
+     * cancelled_at just marks it as scheduled to lapse — the daily
+     * subscriptions:expire-cancelled command flips status to "cancelled"
+     * once current_period_end actually passes.
+     */
+    public function cancel()
+    {
+        $company = Auth::user()->company;
+        $subscription = $company->activeSubscription();
+
+        abort_unless($subscription && ! $subscription->cancelled_at, 404);
+
+        $subscription->update(['cancelled_at' => now()]);
+
+        AuditLog::record(
+            'subscription.cancel',
+            $subscription,
+            __('Cancelled subscription, effective :date', ['date' => $subscription->current_period_end->format('Y-m-d')])
+        );
+
+        return back()->with('status', __('Your subscription will end on :date. You can keep using :plan until then.', [
+            'date' => $subscription->current_period_end->format('Y-m-d'),
+            'plan' => $subscription->plan->name,
+        ]));
+    }
+
+    public function resume()
+    {
+        $company = Auth::user()->company;
+        $subscription = $company->activeSubscription();
+
+        abort_unless($subscription && $subscription->cancelled_at, 404);
+
+        $subscription->update(['cancelled_at' => null]);
+
+        AuditLog::record('subscription.resume', $subscription, __('Resumed subscription'));
+
+        return back()->with('status', __('Your subscription has been resumed.'));
     }
 
     public function downloadReceipt(Payment $payment, MpdfRenderer $renderer)

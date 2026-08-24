@@ -18,6 +18,19 @@
     </div>
 @endif
 
+@if ($subscription?->cancelled_at)
+    <div class="mt-4 mb-6 rounded-xl bg-red-50 border border-red-200 px-5 py-4 flex items-center justify-between gap-4">
+        <div>
+            <p class="font-semibold text-red-800">{{ __('Subscription cancelled') }}</p>
+            <p class="text-sm text-red-700 mt-0.5">{{ __('Your subscription will end on :date. You can keep using :plan until then.', ['date' => $subscription->current_period_end->format('Y-m-d'), 'plan' => $subscription->plan->name]) }}</p>
+        </div>
+        <form method="POST" action="{{ route('app.billing.resume') }}">
+            @csrf
+            <button type="submit" class="shrink-0 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">{{ __('Keep my subscription') }}</button>
+        </form>
+    </div>
+@endif
+
 <div class="flex items-center gap-2 mb-6 text-sm">
     <a href="{{ route('app.billing.index', ['tab' => 'overview']) }}" class="rounded-lg px-3 py-1.5 {{ $tab === 'overview' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Overview') }}</a>
     <a href="{{ route('app.billing.index', ['tab' => 'plans']) }}" class="rounded-lg px-3 py-1.5 {{ $tab === 'plans' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Plans') }}</a>
@@ -37,6 +50,12 @@
             <div class="flex items-center gap-3">
                 @if ($subscription)
                     <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ $subscription->isTrial() ? __('trialing') : ucfirst($subscription->status) }}</span>
+                @endif
+                @if ($subscription && ! $subscription->cancelled_at)
+                    <form method="POST" action="{{ route('app.billing.cancel') }}" onsubmit="return confirm('{{ __('Cancel your subscription? You will keep access until the end of the current period.') }}')">
+                        @csrf
+                        <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:border-red-300 hover:text-red-600">{{ __('Cancel subscription') }}</button>
+                    </form>
                 @endif
                 <a href="{{ route('app.billing.index', ['tab' => 'plans']) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Subscribe now') }}</a>
             </div>

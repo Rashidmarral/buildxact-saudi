@@ -100,13 +100,19 @@ class CompanyController extends Controller
         $plan = Plan::findOrFail($data['plan_id']);
         $subscription = $company->activeSubscription();
 
-        DB::transaction(function () use ($company, $plan, $data, $subscription) {
+        // Keep cancelled_at consistent with status here too, since it's the
+        // same column the self-service cancel flow and the admin dashboard's
+        // "cancellations this month" metric both rely on.
+        $cancelledAt = $data['status'] === 'cancelled' ? ($subscription?->cancelled_at ?? now()) : null;
+
+        DB::transaction(function () use ($company, $plan, $data, $subscription, $cancelledAt) {
             if ($subscription) {
                 $subscription->update([
                     'plan_id' => $plan->id,
                     'billing_cycle' => $data['billing_cycle'],
                     'status' => $data['status'],
                     'current_period_end' => $data['current_period_end'],
+                    'cancelled_at' => $cancelledAt,
                 ]);
             } else {
                 $subscription = Subscription::create([
@@ -116,6 +122,7 @@ class CompanyController extends Controller
                     'billing_cycle' => $data['billing_cycle'],
                     'current_period_start' => now(),
                     'current_period_end' => $data['current_period_end'],
+                    'cancelled_at' => $cancelledAt,
                 ]);
             }
 

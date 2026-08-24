@@ -277,6 +277,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
         Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
         Route::get('billing/payments/{payment}/receipt', [BillingController::class, 'downloadReceipt'])->name('billing.receipt');
+        Route::post('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
+        Route::post('billing/resume', [BillingController::class, 'resume'])->name('billing.resume');
         Route::get('activity', [UserActivityLogController::class, 'index'])->name('activity.index');
     });
 
