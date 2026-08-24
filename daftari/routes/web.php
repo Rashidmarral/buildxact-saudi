@@ -20,6 +20,7 @@ use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
+use App\Http\Controllers\User\ApiTokenController;
 use App\Http\Controllers\User\BankAccountController;
 use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
@@ -313,6 +314,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::post('settings/two-factor/confirm', [TwoFactorController::class, 'confirm'])->name('settings.two-factor.confirm');
     Route::post('settings/two-factor/disable', [TwoFactorController::class, 'disable'])->name('settings.two-factor.disable');
     Route::post('settings/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('settings.two-factor.recovery-codes');
+
+    Route::get('settings/api-tokens', [ApiTokenController::class, 'index'])->name('settings.api-tokens');
+    Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+    Route::delete('settings/api-tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');

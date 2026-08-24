@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmailContract
 {
-    use HasFactory, MustVerifyEmail, Notifiable;
+    use HasApiTokens, HasFactory, MustVerifyEmail, Notifiable;
 
     // Deliberately does NOT use BelongsToCompany: that trait's global scope
     // calls Auth::user(), and resolving Auth::user() itself queries this
