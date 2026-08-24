@@ -205,7 +205,9 @@
                     @if (! empty($enabledProviders))
                         <select name="provider" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                             @foreach ($enabledProviders as $provider)
-                                <option value="{{ $provider }}">{{ __('Pay online with :provider', ['provider' => ucfirst($provider)]) }}</option>
+                                <option value="{{ $provider }}">
+                                    {{ $provider === \App\Models\PaymentGateway::BANK_TRANSFER ? __('Pay by bank transfer') : __('Pay online with :provider', ['provider' => ucfirst($provider)]) }}
+                                </option>
                             @endforeach
                         </select>
                     @endif

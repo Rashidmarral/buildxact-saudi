@@ -3,19 +3,17 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Mail\PaymentReceiptMail;
 use App\Models\AuditLog;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\Plan;
 use App\Models\Subscription;
-use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
 use App\Services\Payments\PaymentCheckoutService;
+use App\Services\Payments\PaymentSettlementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 
 class BillingController extends Controller
 {
@@ -73,7 +71,7 @@ class BillingController extends Controller
         return view('user.billing.index', compact('company', 'subscription', 'plans', 'payments', 'tab', 'usage', 'enabledProviders'));
     }
 
-    public function upgrade(Request $request, MpdfRenderer $renderer, PaymentCheckoutService $checkout)
+    public function upgrade(Request $request, PaymentCheckoutService $checkout, PaymentSettlementService $settlement)
     {
         $data = $request->validate([
             'plan_id' => ['required', 'exists:plans,id'],
@@ -89,6 +87,30 @@ class BillingController extends Controller
         $gateway = ! empty($data['provider'])
             ? PaymentGateway::whereNull('company_id')->where('provider', $data['provider'])->where('is_enabled', true)->first()
             : null;
+
+        if ($gateway && $gateway->provider === PaymentGateway::BANK_TRANSFER) {
+            $subscription = Subscription::create([
+                'company_id' => $company->id,
+                'plan_id' => $plan->id,
+                'status' => 'pending',
+                'billing_cycle' => $data['billing_cycle'],
+                'current_period_start' => now(),
+                'current_period_end' => $periodEnd,
+            ]);
+
+            $payment = $company->payments()->create([
+                'subscription_id' => $subscription->id,
+                'plan_id' => $plan->id,
+                'amount' => $amount,
+                'currency' => $company->currency,
+                'status' => 'pending',
+                'method' => PaymentGateway::BANK_TRANSFER,
+            ]);
+
+            AuditLog::record('subscription.checkout_started', $subscription, __('Started offline bank-transfer payment for :plan plan', ['plan' => $plan->name]));
+
+            return redirect()->route('app.billing.bank-transfer', $payment->id);
+        }
 
         if ($gateway) {
             $subscription = Subscription::create([
@@ -127,8 +149,8 @@ class BillingController extends Controller
             ]);
 
             // PAYMENT_GATEWAY=manual is a stub: it records the charge as paid
-            // immediately. Wire up a real Saudi gateway (Moyasar, HyperPay,
-            // PayTabs, Tap) here before taking this to production.
+            // immediately. Used when the platform admin hasn't enabled any
+            // real gateway (online or offline bank transfer) yet.
             return $company->payments()->create([
                 'subscription_id' => $subscription->id,
                 'plan_id' => $plan->id,
@@ -140,20 +162,31 @@ class BillingController extends Controller
             ]);
         });
 
-        $payment->loadMissing('plan', 'company');
-        $pdf = $renderer->render('documents.print.saas-receipt', ['payment' => $payment, 'company' => $company]);
-
-        foreach ($company->owners as $owner) {
-            Mail::to($owner->email)->send(new PaymentReceiptMail($payment, $pdf));
-            $owner->notify(new GenericNotification(
-                title: __('Payment received'),
-                body: __(':amount :currency for the :plan plan', ['amount' => number_format($payment->amount, 2), 'currency' => $payment->currency, 'plan' => $plan->name]),
-                url: route('app.billing.index'),
-                icon: 'billing',
-            ));
-        }
+        $settlement->sendSubscriptionReceipt($payment);
 
         return redirect()->route('app.billing.index')->with('status', __('Subscription updated.'));
+    }
+
+    /**
+     * Shown after choosing to pay a subscription by offline bank transfer —
+     * Daftari's own bank details plus the pending payment reference. The
+     * subscription stays "pending" (no feature access yet) until an admin
+     * confirms the transfer arrived (Admin\PaymentController::confirmBankTransfer).
+     */
+    public function bankTransferInstructions(int $payment)
+    {
+        $payment = Payment::where('company_id', Auth::user()->company_id)
+            ->where('method', PaymentGateway::BANK_TRANSFER)
+            ->with('plan')
+            ->findOrFail($payment);
+
+        $gateway = PaymentGateway::platform(PaymentGateway::BANK_TRANSFER);
+        abort_unless($gateway && $gateway->is_enabled, 404);
+
+        return view('user.billing.bank-transfer', [
+            'payment' => $payment,
+            'bank' => $gateway->credentials,
+        ]);
     }
 
     /**

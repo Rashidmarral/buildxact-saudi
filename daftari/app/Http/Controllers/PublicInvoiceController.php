@@ -33,12 +33,22 @@ class PublicInvoiceController extends Controller
             ->pluck('provider')
             ->all();
 
+        // Bank-transfer instructions on invoices don't need a company-level
+        // PaymentGateway row (the company's existing BankAccount already
+        // supplies the details shown below) — just the platform-wide kill
+        // switch, so an admin can turn the whole feature off everywhere.
+        $showBankTransfer = PaymentGateway::whereNull('company_id')
+            ->where('provider', PaymentGateway::BANK_TRANSFER)
+            ->where('is_enabled', true)
+            ->exists();
+
         return view('public.invoice-show', [
             'invoice' => $invoice,
             'company' => $invoice->company,
             'doc' => $doc,
             'template' => $template,
             'enabledProviders' => $enabledProviders,
+            'showBankTransfer' => $showBankTransfer,
         ]);
     }
 

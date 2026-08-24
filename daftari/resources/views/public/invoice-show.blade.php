@@ -45,7 +45,7 @@
                 </div>
             @endif
 
-            @if ($doc['bank_account'])
+            @if ($showBankTransfer && $doc['bank_account'])
                 <div class="rounded-lg border border-slate-100 bg-slate-50 p-4 text-sm">
                     <p class="font-medium text-slate-700 mb-2">{{ __('Pay by bank transfer to:') }}</p>
                     <dl class="grid gap-1.5 sm:grid-cols-2">

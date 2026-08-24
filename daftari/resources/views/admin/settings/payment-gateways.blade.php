@@ -3,7 +3,7 @@
 @section('title', __('Payment gateways'))
 
 @php
-    $labels = ['moyasar' => 'Moyasar', 'hyperpay' => 'HyperPay', 'tap' => 'Tap Payments', 'paytabs' => 'PayTabs'];
+    $labels = ['moyasar' => 'Moyasar', 'hyperpay' => 'HyperPay', 'tap' => 'Tap Payments', 'paytabs' => 'PayTabs', 'bank_transfer' => __('Bank transfer (offline)')];
 @endphp
 
 @section('content')
@@ -13,7 +13,7 @@
         <p class="text-sm text-slate-500 mt-1">{{ __('Daftari\'s own credentials for collecting subscription payments from companies. Enable at least one provider so companies can pay online — each company still configures its own separate gateway for collecting payments on its own invoices.') }}</p>
     </div>
 
-    @foreach (\App\Models\PaymentGateway::PROVIDERS as $provider)
+    @foreach ([...\App\Models\PaymentGateway::PROVIDERS, \App\Models\PaymentGateway::BANK_TRANSFER] as $provider)
         @php $gateway = $gateways->get($provider); @endphp
         <form method="POST" action="{{ route('admin.settings.payment-gateways.update', $provider) }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
             @csrf
@@ -25,13 +25,17 @@
                 </label>
             </div>
 
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Mode') }}</label>
-                <select name="mode" class="w-full rounded-lg border border-slate-200 text-sm">
-                    <option value="test" {{ ($gateway?->mode ?? 'test') === 'test' ? 'selected' : '' }}>{{ __('Test') }}</option>
-                    <option value="live" {{ $gateway?->mode === 'live' ? 'selected' : '' }}>{{ __('Live') }}</option>
-                </select>
-            </div>
+            @if ($provider === 'bank_transfer')
+                <p class="text-sm text-slate-500 -mt-2">{{ __('Lets companies pay their subscription by wiring money to this account instead of an online gateway. Payments still need to be confirmed manually from Admin > Payments once the transfer arrives. Also turns bank-transfer instructions on or off for every company\'s invoices platform-wide.') }}</p>
+            @else
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Mode') }}</label>
+                    <select name="mode" class="w-full rounded-lg border border-slate-200 text-sm">
+                        <option value="test" {{ ($gateway?->mode ?? 'test') === 'test' ? 'selected' : '' }}>{{ __('Test') }}</option>
+                        <option value="live" {{ $gateway?->mode === 'live' ? 'selected' : '' }}>{{ __('Live') }}</option>
+                    </select>
+                </div>
+            @endif
 
             @if ($provider === 'moyasar')
                 <div>
@@ -71,6 +75,27 @@
                         <option value="sa" {{ ($gateway?->credentials['region'] ?? 'sa') === 'sa' ? 'selected' : '' }}>{{ __('Saudi Arabia (.sa)') }}</option>
                         <option value="com" {{ ($gateway?->credentials['region'] ?? '') === 'com' ? 'selected' : '' }}>{{ __('Global (.com)') }}</option>
                     </select>
+                </div>
+            @elseif ($provider === 'bank_transfer')
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Bank name') }}</label>
+                    <input type="text" name="bank_name" value="{{ old('bank_name', $gateway?->credentials['bank_name'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Account holder name') }}</label>
+                    <input type="text" name="account_holder_name" value="{{ old('account_holder_name', $gateway?->credentials['account_holder_name'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('IBAN') }}</label>
+                    <input type="text" name="iban" value="{{ old('iban', $gateway?->credentials['iban'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Account number (optional)') }}</label>
+                    <input type="text" name="account_number" value="{{ old('account_number', $gateway?->credentials['account_number'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('SWIFT/BIC code (optional)') }}</label>
+                    <input type="text" name="swift_code" value="{{ old('swift_code', $gateway?->credentials['swift_code'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
                 </div>
             @endif
 

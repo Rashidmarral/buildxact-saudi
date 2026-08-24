@@ -12,13 +12,17 @@ use Illuminate\Support\Facades\Http;
  * Mastercard, Apple Pay, and STC Pay. Uses the Invoice API for a fully
  * hosted checkout page (no card form of our own, no PCI scope).
  *
- * NOTE: field names below reflect Moyasar's documented API at the time
- * this was written from public documentation, without a live sandbox
- * account to test against — verify against https://docs.moyasar.com/
- * before processing real payments, in particular the exact webhook
- * signature-verification mechanism (Moyasar verifies via a shared secret
- * echoed back in the payload rather than an HMAC header; confirm this is
- * still current).
+ * Webhook authentication: confirmed against Moyasar's own webhook
+ * documentation — unlike the other three drivers, Moyasar does not sign
+ * the payload with an HMAC; it echoes a shared secret you configure back
+ * inside the request body ("secret_token"), and a valid match just proves
+ * the sender knows that secret (it does not prove the body is unmodified
+ * in transit, since nothing actually signs it). This is Moyasar's real
+ * mechanism, not a limitation of this implementation.
+ *
+ * NOTE: written from public documentation without a live sandbox account —
+ * the endpoint, amount-in-halalas, and callback_url fields are confirmed
+ * against Moyasar's own PHP SDK docs; double-check before going live.
  */
 class MoyasarDriver implements PaymentGatewayDriver
 {

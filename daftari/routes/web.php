@@ -300,6 +300,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::middleware('role:owner')->group(function () {
         Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
         Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+        Route::get('billing/bank-transfer/{payment}', [BillingController::class, 'bankTransferInstructions'])->name('billing.bank-transfer');
         Route::get('billing/payments/{payment}/receipt', [BillingController::class, 'downloadReceipt'])->name('billing.receipt');
         Route::post('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
         Route::post('billing/resume', [BillingController::class, 'resume'])->name('billing.resume');
@@ -389,6 +390,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     Route::middleware('admin.permission:payments')->group(function () {
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
         Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
+        Route::post('payments/{payment}/confirm-bank-transfer', [PaymentController::class, 'confirmBankTransfer'])->name('payments.confirm-bank-transfer');
     });
 
     Route::middleware('admin.permission:activity')->group(function () {

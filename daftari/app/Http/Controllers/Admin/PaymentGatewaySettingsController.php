@@ -25,7 +25,8 @@ class PaymentGatewaySettingsController extends Controller
 
     public function update(Request $request, string $provider)
     {
-        abort_unless(in_array($provider, PaymentGateway::PROVIDERS, true), 404);
+        $allProviders = [...PaymentGateway::PROVIDERS, PaymentGateway::BANK_TRANSFER];
+        abort_unless(in_array($provider, $allProviders, true), 404);
 
         $data = $request->validate($this->rulesFor($provider));
 
@@ -34,7 +35,7 @@ class PaymentGatewaySettingsController extends Controller
         PaymentGateway::updateOrCreate(
             ['company_id' => null, 'provider' => $provider],
             [
-                'mode' => $data['mode'],
+                'mode' => $data['mode'] ?? 'live',
                 'is_enabled' => $request->boolean('is_enabled'),
                 'credentials' => $credentials,
             ]
@@ -47,9 +48,15 @@ class PaymentGatewaySettingsController extends Controller
 
     private function rulesFor(string $provider): array
     {
+        // Bank transfer has no test/live distinction — it's just a bank
+        // account.
+        $modeRule = $provider === PaymentGateway::BANK_TRANSFER
+            ? ['nullable']
+            : ['required', Rule::in(['test', 'live'])];
+
         return [
-            'mode' => ['required', Rule::in(['test', 'live'])],
+            'mode' => $modeRule,
             'is_enabled' => ['nullable', 'boolean'],
-        ] + PaymentGateway::credentialRulesFor($provider);
+        ] + PaymentGateway::credentialRulesFor($provider, isPlatform: true);
     }
 }

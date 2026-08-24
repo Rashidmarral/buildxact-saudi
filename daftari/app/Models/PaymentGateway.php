@@ -17,6 +17,13 @@ class PaymentGateway extends Model
 {
     public const PROVIDERS = ['moyasar', 'hyperpay', 'tap', 'paytabs'];
 
+    // Offline manual payment — never goes through PaymentGatewayDriver /
+    // PaymentCheckoutService at all. Listed separately from PROVIDERS
+    // (which are the real online-checkout drivers PaymentGatewayManager
+    // knows how to resolve) so a bank_transfer row can never accidentally
+    // be routed through the online-checkout pipeline.
+    public const BANK_TRANSFER = 'bank_transfer';
+
     protected $fillable = [
         'company_id', 'provider', 'mode', 'is_enabled', 'credentials',
     ];
@@ -60,9 +67,27 @@ class PaymentGateway extends Model
      * Credential fields each provider needs, shared by the admin
      * (platform-level) and company (per-tenant) settings controllers so
      * the two never drift out of sync.
+     *
+     * bank_transfer only takes real fields at the platform level — that's
+     * Daftari's own bank account, which subscription payers wire money to.
+     * At company level it's just an on/off switch: companies already
+     * manage their own bank accounts under Settings > Cash & Banks, and
+     * the public invoice page already shows whichever one is attached to
+     * the invoice (or the company's default) — no need to duplicate that
+     * here.
      */
-    public static function credentialRulesFor(string $provider): array
+    public static function credentialRulesFor(string $provider, bool $isPlatform = true): array
     {
+        if ($provider === self::BANK_TRANSFER) {
+            return $isPlatform ? [
+                'bank_name' => ['required', 'string', 'max:255'],
+                'account_holder_name' => ['required', 'string', 'max:255'],
+                'iban' => ['required', 'string', 'max:34'],
+                'account_number' => ['nullable', 'string', 'max:50'],
+                'swift_code' => ['nullable', 'string', 'max:20'],
+            ] : [];
+        }
+
         return match ($provider) {
             'moyasar' => [
                 'secret_key' => ['required', 'string', 'max:255'],

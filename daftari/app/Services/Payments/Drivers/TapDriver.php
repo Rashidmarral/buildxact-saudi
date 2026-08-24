@@ -12,8 +12,13 @@ use Illuminate\Support\Facades\Http;
  * Visa/Mastercard, Apple Pay, and STC Pay through a single "charge" with
  * source.id = "src_all" (Tap's unified hosted checkout picks the method).
  *
+ * Webhook signature: Tap sends an HMAC-SHA256 of the raw JSON request body
+ * (signed with the account's secret key) in a "hashstring" header —
+ * confirmed against Tap's own webhook documentation, not the field-
+ * concatenation scheme an earlier version of this file guessed at.
+ *
  * NOTE: written from public documentation without a live sandbox account —
- * verify field names and the exact webhook signature scheme against
+ * double-check the checkout-creation field names against
  * https://developers.tap.company/ before processing real payments.
  */
 class TapDriver implements PaymentGatewayDriver
@@ -63,23 +68,9 @@ class TapDriver implements PaymentGatewayDriver
     public function verifyWebhook(PaymentGateway $gateway, Request $request): ?array
     {
         $secretKey = $gateway->credentials['secret_key'] ?? '';
-        $providedSignature = $request->header('hashstring') ?? $request->input('hashstring');
+        $providedSignature = $request->header('hashstring');
 
-        // Tap computes the signature over a specific concatenation of
-        // response fields (id, amount, currency, gateway_reference,
-        // payment_reference, status, created) — confirm the exact field
-        // set/order against current docs before relying on this in
-        // production; this is the documented shape as of writing.
-        $toHash = implode('', [
-            $request->input('id'),
-            $request->input('amount'),
-            $request->input('currency'),
-            $request->input('gateway_reference'),
-            $request->input('payment_reference'),
-            $request->input('status'),
-            $request->input('created'),
-        ]);
-        $expected = hash_hmac('sha256', $toHash, $secretKey);
+        $expected = hash_hmac('sha256', $request->getContent(), $secretKey);
 
         if (! $providedSignature || ! hash_equals($expected, (string) $providedSignature)) {
             return null;

@@ -4,6 +4,7 @@ namespace App\Services\Payments;
 
 use App\Mail\PaymentReceiptMail;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
 use App\Models\Webhook;
@@ -50,7 +51,20 @@ class PaymentSettlementService
             'paid_at' => now(),
         ]);
 
+        $this->sendSubscriptionReceipt($payment);
+    }
+
+    /**
+     * Renders the SaaS receipt PDF and emails/notifies every company owner
+     * — shared by the online-gateway settlement path above, the instant
+     * "manual" stub in BillingController::upgrade(), and the admin action
+     * that confirms an offline bank-transfer payment, so all three ways a
+     * subscription payment can become "paid" produce the same receipt.
+     */
+    public function sendSubscriptionReceipt(Payment $payment): void
+    {
         $payment->loadMissing('plan', 'company');
+        $company = $payment->company;
 
         $renderer = app(MpdfRenderer::class);
         $pdf = $renderer->render('documents.print.saas-receipt', ['payment' => $payment, 'company' => $company]);

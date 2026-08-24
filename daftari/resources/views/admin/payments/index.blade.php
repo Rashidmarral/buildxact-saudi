@@ -33,7 +33,12 @@
                             </span>
                         </td>
                         <td class="px-6 py-3 text-right">
-                            @if ($payment->status === 'paid')
+                            @if ($payment->status === 'pending' && $payment->method === 'bank_transfer')
+                                <form method="POST" action="{{ route('admin.payments.confirm-bank-transfer', $payment->id) }}" onsubmit="return confirm('{{ __('Confirm this bank transfer arrived and activate the subscription?') }}')">
+                                    @csrf
+                                    <button type="submit" class="text-xs font-semibold text-emerald-600 hover:underline">{{ __('Confirm transfer') }}</button>
+                                </form>
+                            @elseif ($payment->status === 'paid')
                                 <form method="POST" action="{{ route('admin.payments.refund', $payment->id) }}" onsubmit="return confirm('{{ __('Mark this payment as refunded? This only updates Daftari\'s own records — no gateway is charged.') }}')">
                                     @csrf
                                     <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Mark refunded') }}</button>

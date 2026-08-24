@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Payment;
+use App\Models\PaymentGateway;
+use App\Models\Subscription;
+use App\Services\Payments\PaymentSettlementService;
 
 class PaymentController extends Controller
 {
@@ -48,5 +51,35 @@ class PaymentController extends Controller
         ]));
 
         return back()->with('status', __('Payment marked as refunded.'));
+    }
+
+    /**
+     * Activates a subscription that was paid via offline bank transfer,
+     * once an admin has actually checked Daftari's bank statement and seen
+     * the money arrive — there's no automated confirmation for this method
+     * by definition, so a human has to do it here.
+     */
+    public function confirmBankTransfer(int $payment, PaymentSettlementService $settlement)
+    {
+        $payment = Payment::withoutGlobalScopes()->findOrFail($payment);
+
+        abort_unless($payment->method === PaymentGateway::BANK_TRANSFER, 404);
+
+        if ($payment->status !== 'pending') {
+            return back()->withErrors(['payment' => __('This payment is not awaiting confirmation.')]);
+        }
+
+        $payment->update(['status' => 'paid', 'paid_at' => now()]);
+
+        $subscription = Subscription::withoutGlobalScopes()->find($payment->subscription_id);
+        $subscription?->update(['status' => 'active']);
+
+        $settlement->sendSubscriptionReceipt($payment);
+
+        AuditLog::record('payment.confirm_bank_transfer', $payment, __('Confirmed bank-transfer payment #:id (:amount :currency)', [
+            'id' => $payment->id, 'amount' => number_format($payment->amount, 2), 'currency' => $payment->currency,
+        ]));
+
+        return back()->with('status', __('Payment confirmed — subscription activated.'));
     }
 }

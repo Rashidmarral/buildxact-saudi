@@ -41,7 +41,7 @@ class PaymentGatewayController extends Controller
         $data = $request->validate([
             'mode' => ['required', Rule::in(['test', 'live'])],
             'is_enabled' => ['nullable', 'boolean'],
-        ] + PaymentGateway::credentialRulesFor($provider));
+        ] + PaymentGateway::credentialRulesFor($provider, isPlatform: false));
 
         $credentials = collect($data)->except(['is_enabled', 'mode'])->all();
 
