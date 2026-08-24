@@ -3,11 +3,10 @@
 @section('title', __('Team'))
 
 @section('content')
-@if (session('temporary_password'))
-    <div class="mb-6 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 text-sm">
-        {{ __('Share these credentials with :email — there is no email delivery configured yet.', ['email' => session('temporary_password')['email']]) }}
-        <br>
-        {{ __('Temporary password') }}: <code class="font-mono font-semibold">{{ session('temporary_password')['password'] }}</code>
+@if (session('dev_invite_url'))
+    <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+        <p class="font-semibold">{{ __('Development mode: no email transport is configured, so here is the invite link directly.') }}</p>
+        <a href="{{ session('dev_invite_url') }}" class="mt-1 block break-all font-mono text-amber-900 underline">{{ session('dev_invite_url') }}</a>
     </div>
 @endif
 
@@ -32,7 +31,12 @@
         <tbody>
             @foreach ($members as $member)
                 <tr class="border-b border-slate-50 last:border-0">
-                    <td class="px-6 py-3 font-medium text-slate-800">{{ $member->name }}</td>
+                    <td class="px-6 py-3 font-medium text-slate-800">
+                        {{ $member->name }}
+                        @if ($member->status === 'invited')
+                            <span class="ms-1 inline-block rounded-full bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1">{{ __('Invited') }}</span>
+                        @endif
+                    </td>
                     <td class="px-6 py-3 text-slate-500">{{ $member->email }}</td>
                     <td class="px-6 py-3 text-slate-500">
                         @if ($member->role === 'owner')
@@ -45,9 +49,15 @@
                             @endforeach
                         @endif
                     </td>
-                    <td class="px-6 py-3 text-right">
+                    <td class="px-6 py-3 text-right whitespace-nowrap">
+                        @if ($member->status === 'invited')
+                            <form method="POST" action="{{ route('app.team.resend-invite', $member) }}" class="inline">
+                                @csrf
+                                <button type="submit" class="text-brand-700 hover:underline me-3">{{ __('Resend invite') }}</button>
+                            </form>
+                        @endif
                         @if ($member->id !== auth()->id())
-                            <form method="POST" action="{{ route('app.team.destroy', $member) }}" onsubmit="return confirm('{{ __('Remove this team member?') }}')">
+                            <form method="POST" action="{{ route('app.team.destroy', $member) }}" onsubmit="return confirm('{{ __('Remove this team member?') }}')" class="inline">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:underline">{{ __('Remove') }}</button>
                             </form>
@@ -60,7 +70,7 @@
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100 p-6 max-w-xl">
-    <h2 class="font-semibold text-slate-900 mb-4">{{ __('Add team member') }}</h2>
+    <h2 class="font-semibold text-slate-900 mb-4">{{ __('Invite team member') }}</h2>
     <form method="POST" action="{{ route('app.team.store') }}" class="space-y-4">
         @csrf
         <div>
@@ -93,7 +103,7 @@
                 @endforeach
             </div>
         </div>
-        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Add member') }}</button>
+        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Send invite') }}</button>
     </form>
 </div>
 @endsection

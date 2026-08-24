@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\TeamInviteController;
 use App\Http\Controllers\FileServeController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
@@ -94,6 +95,9 @@ Route::middleware('guest')->group(function () {
     Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 });
+Route::get('/team/invite/{id}/{hash}', [TeamInviteController::class, 'show'])->middleware('signed')->name('team.invite.accept');
+Route::post('/team/invite/{id}/{hash}', [TeamInviteController::class, 'accept'])->middleware('signed')->name('team.invite.store');
+
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 Route::post('/stop-impersonating', [ImpersonationController::class, 'stop'])->middleware('auth')->name('stop-impersonating');
 
@@ -263,6 +267,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::get('team', [TeamController::class, 'index'])->name('team.index');
         Route::post('team', [TeamController::class, 'store'])->name('team.store');
         Route::delete('team/{user}', [TeamController::class, 'destroy'])->name('team.destroy');
+        Route::post('team/{user}/resend-invite', [TeamController::class, 'resendInvite'])->name('team.resend-invite');
 
         Route::resource('roles', RoleController::class)->except(['show']);
         Route::get('roles/{role}', [RoleController::class, 'show'])->name('roles.show');

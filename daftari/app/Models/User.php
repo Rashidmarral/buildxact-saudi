@@ -26,6 +26,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'password',
         'role',
         'status',
+        // Only ever written server-side (see TeamInviteController::accept())
+        // when a signed link already proved control of the address — never
+        // sourced from raw, unvalidated request input.
+        'email_verified_at',
     ];
 
     protected $hidden = [
