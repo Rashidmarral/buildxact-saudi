@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
 use App\Models\Client;
@@ -17,11 +18,28 @@ use Illuminate\Validation\Rule;
 
 class ClientController extends Controller
 {
-    use ImportsCsv;
+    use ExportsCsv, ImportsCsv;
 
-    public function index()
+    public function index(Request $request)
     {
-        $clients = Client::orderBy('name')->paginate(20);
+        $query = Client::orderBy('name');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse(
+                'clients.csv',
+                [__('Code'), __('Name'), __('Type'), __('VAT number'), __('Email'), __('Phone')],
+                $query->get()->map(fn ($client) => [
+                    $client->client_code,
+                    $client->name,
+                    $client->type === 'individual' ? __('Individual') : __('Company'),
+                    $client->vat_number,
+                    $client->email,
+                    $client->phone,
+                ])
+            );
+        }
+
+        $clients = $query->paginate(20);
 
         return view('user.clients.index', compact('clients'));
     }

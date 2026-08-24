@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
 use App\Models\Supplier;
@@ -15,11 +16,27 @@ use Illuminate\Support\Facades\Validator;
 
 class SupplierController extends Controller
 {
-    use ImportsCsv;
+    use ExportsCsv, ImportsCsv;
 
-    public function index()
+    public function index(Request $request)
     {
-        $suppliers = Supplier::orderBy('name')->paginate(20);
+        $query = Supplier::orderBy('name');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse(
+                'suppliers.csv',
+                [__('Code'), __('Name'), __('VAT number'), __('Email'), __('Phone')],
+                $query->get()->map(fn ($supplier) => [
+                    $supplier->supplier_code,
+                    $supplier->name,
+                    $supplier->vat_number,
+                    $supplier->email,
+                    $supplier->phone,
+                ])
+            );
+        }
+
+        $suppliers = $query->paginate(20);
 
         return view('user.suppliers.index', compact('suppliers'));
     }

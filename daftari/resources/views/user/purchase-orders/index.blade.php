@@ -11,7 +11,10 @@
 
 <div class="flex items-center justify-between mb-6">
     <p class="text-sm text-slate-500">{{ __('Approve and track orders before they become bills.') }}</p>
-    <a href="{{ route('app.purchase-orders.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New purchase order') }}</a>
+    <div class="flex items-center gap-2">
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Export CSV') }}</a>
+        <a href="{{ route('app.purchase-orders.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New purchase order') }}</a>
+    </div>
 </div>
 
 <div class="flex flex-wrap items-center gap-2 mb-6 text-sm">

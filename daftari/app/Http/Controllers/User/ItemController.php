@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
 use App\Models\Item;
@@ -16,11 +17,28 @@ use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
 {
-    use ImportsCsv;
+    use ExportsCsv, ImportsCsv;
 
-    public function index()
+    public function index(Request $request)
     {
-        $items = Item::orderBy('name')->paginate(20);
+        $query = Item::orderBy('name');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse(
+                'items.csv',
+                [__('Name'), __('SKU'), __('Type'), __('Unit price'), __('VAT rate'), __('Status')],
+                $query->get()->map(fn ($item) => [
+                    $item->name,
+                    $item->sku,
+                    $item->item_type === 'service' ? __('Service') : __('Physical'),
+                    number_format($item->unit_price, 2),
+                    $item->vat_rate,
+                    $item->is_active ? __('Active') : __('Inactive'),
+                ])
+            );
+        }
+
+        $items = $query->paginate(20);
 
         return view('user.items.index', compact('items'));
     }

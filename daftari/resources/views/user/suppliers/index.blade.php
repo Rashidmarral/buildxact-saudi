@@ -6,6 +6,7 @@
 <div class="flex items-center justify-between mb-6">
     <p class="text-sm text-slate-500">{{ __('Manage the suppliers you purchase from.') }}</p>
     <div class="flex items-center gap-2">
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Export CSV') }}</a>
         <a href="{{ route('app.suppliers.import') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Import CSV') }}</a>
         <a href="{{ route('app.suppliers.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New supplier') }}</a>
     </div>

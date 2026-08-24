@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Jobs\SyncInvoiceToZatca;
 use App\Mail\InvoiceMail;
 use App\Models\Attachment;
@@ -27,14 +28,31 @@ use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
 {
+    use ExportsCsv;
+
     public function index(Request $request)
     {
-        $invoices = Invoice::with('client')
+        $query = Invoice::with('client')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->orderByDesc('issue_date')
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
+            ->orderByDesc('id');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse(
+                'invoices.csv',
+                [__('Invoice'), __('Client'), __('Date'), __('Total'), __('Balance due'), __('Status')],
+                $query->get()->map(fn ($invoice) => [
+                    $invoice->invoice_number,
+                    $invoice->client->name,
+                    $invoice->issue_date->format('Y-m-d'),
+                    number_format($invoice->total, 2),
+                    number_format($invoice->balanceDue(), 2),
+                    $invoice->status,
+                ])
+            );
+        }
+
+        $invoices = $query->paginate(20)->withQueryString();
 
         return view('user.invoices.index', compact('invoices'));
     }

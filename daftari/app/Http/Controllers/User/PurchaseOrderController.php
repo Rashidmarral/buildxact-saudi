@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Models\Attachment;
 use App\Models\Bill;
 use App\Models\Item;
@@ -18,14 +19,30 @@ use Illuminate\Validation\Rule;
 
 class PurchaseOrderController extends Controller
 {
+    use ExportsCsv;
+
     public function index(Request $request)
     {
-        $orders = PurchaseOrder::with('supplier')
+        $query = PurchaseOrder::with('supplier')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->orderByDesc('order_date')
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
+            ->orderByDesc('id');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse(
+                'purchase-orders.csv',
+                [__('Number'), __('Supplier'), __('Order date'), __('Total'), __('Status')],
+                $query->get()->map(fn ($order) => [
+                    $order->po_number,
+                    $order->supplier->name,
+                    $order->order_date->format('Y-m-d'),
+                    number_format($order->total, 2),
+                    $order->status,
+                ])
+            );
+        }
+
+        $orders = $query->paginate(20)->withQueryString();
 
         $counts = [
             'all' => PurchaseOrder::count(),

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Bill;
@@ -19,14 +20,31 @@ use Illuminate\Validation\Rule;
 
 class BillController extends Controller
 {
+    use ExportsCsv;
+
     public function index(Request $request)
     {
-        $bills = Bill::with('supplier')
+        $query = Bill::with('supplier')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->orderByDesc('bill_date')
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
+            ->orderByDesc('id');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse(
+                'bills.csv',
+                [__('Number'), __('Supplier'), __('Date'), __('Total'), __('Balance'), __('Status')],
+                $query->get()->map(fn ($bill) => [
+                    $bill->bill_number,
+                    $bill->supplier->name,
+                    $bill->bill_date->format('Y-m-d'),
+                    number_format($bill->total, 2),
+                    number_format($bill->balanceDue(), 2),
+                    $bill->status,
+                ])
+            );
+        }
+
+        $bills = $query->paginate(20)->withQueryString();
 
         $counts = [
             'all' => Bill::count(),

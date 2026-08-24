@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Mail\QuotationMail;
 use App\Models\Attachment;
 use App\Models\BankAccount;
@@ -22,15 +23,32 @@ use Illuminate\Validation\Rule;
 
 class QuotationController extends Controller
 {
+    use ExportsCsv;
+
     public function index(Request $request)
     {
-        $quotations = Quotation::with('client')
+        $query = Quotation::with('client')
             ->when($request->type, fn ($q, $type) => $q->where('type', $type))
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->orderByDesc('issue_date')
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString();
+            ->orderByDesc('id');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse(
+                'quotations.csv',
+                [__('Number'), __('Client'), __('Type'), __('Issue date'), __('Total'), __('Status')],
+                $query->get()->map(fn ($quotation) => [
+                    $quotation->quotation_number,
+                    $quotation->client->name,
+                    $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
+                    $quotation->issue_date->format('Y-m-d'),
+                    number_format($quotation->total, 2),
+                    $quotation->status,
+                ])
+            );
+        }
+
+        $quotations = $query->paginate(20)->withQueryString();
 
         $counts = [
             'all' => Quotation::count(),
