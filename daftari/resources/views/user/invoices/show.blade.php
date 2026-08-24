@@ -38,6 +38,12 @@
             <a href="{{ route('app.invoices.xml', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download XML') }}</a>
         @endif
         <a href="{{ route('app.invoices.pdf', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
+        @if ($invoice->status !== 'draft')
+            <button type="button" x-data="{ copied: false }" @click="navigator.clipboard.writeText('{{ route('public.invoices.show', ['id' => $invoice->id, 'token' => $invoice->public_token]) }}'); copied = true; setTimeout(() => copied = false, 2000)" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">
+                <span x-show="!copied">{{ __('Copy payable link') }}</span>
+                <span x-show="copied" style="display: none;">{{ __('Link copied!') }}</span>
+            </button>
+        @endif
         @if ($invoice->client->email)
             <form method="POST" action="{{ route('app.invoices.email', $invoice) }}">
                 @csrf

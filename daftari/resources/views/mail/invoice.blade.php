@@ -20,6 +20,10 @@
 
 {{ __('The full invoice, including the ZATCA QR code, is attached as a PDF.') }}
 
+@component('mail::button', ['url' => route('public.invoices.show', ['id' => $invoice->id, 'token' => $invoice->public_token])])
+{{ __('View & pay online') }}
+@endcomponent
+
 {{ __('Thank you for your business.') }}<br>
 {{ $company->name }}
 @endcomponent

@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\TeamInviteController;
 use App\Http\Controllers\FileServeController;
+use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\HomeController;
@@ -68,6 +69,9 @@ Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact
 Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
 Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('filepath', '.*')->name('files.show');
+
+Route::get('/pay/invoices/{id}/{token}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
+Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->name('public.invoices.pdf');
 
 Route::get('/glossary', [ToolsController::class, 'glossary'])->name('glossary');
 Route::prefix('tools')->name('tools.')->group(function () {

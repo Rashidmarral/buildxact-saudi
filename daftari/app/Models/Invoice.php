@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Str;
 
 class Invoice extends Model
 {
@@ -28,6 +29,18 @@ class Invoice extends Model
             'stock_deducted' => 'boolean',
             'last_reminder_sent_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Deliberately not mass-assignable (not in $fillable) — this is
+        // the token that makes the public "view & pay" link work, so it
+        // must only ever come from the server, never from request input.
+        static::creating(function (Invoice $invoice) {
+            if (empty($invoice->public_token)) {
+                $invoice->public_token = Str::random(40);
+            }
+        });
     }
 
     public function isOverdue(): bool

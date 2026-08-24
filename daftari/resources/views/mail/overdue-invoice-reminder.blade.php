@@ -16,6 +16,10 @@
 
 {{ __('Please arrange payment at your earliest convenience. If you have already paid, kindly disregard this reminder.') }}
 
+@component('mail::button', ['url' => route('public.invoices.show', ['id' => $invoice->id, 'token' => $invoice->public_token])])
+{{ __('View & pay online') }}
+@endcomponent
+
 {{ __('Thank you for your business.') }}<br>
 {{ $company->name }}
 @endcomponent
