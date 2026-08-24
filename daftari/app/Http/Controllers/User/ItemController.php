@@ -3,16 +3,21 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ImportsCsv;
+use App\Models\AuditLog;
 use App\Models\Item;
 use App\Models\ItemUnit;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
 {
+    use ImportsCsv;
+
     public function index()
     {
         $items = Item::orderBy('name')->paginate(20);
@@ -87,6 +92,67 @@ class ItemController extends Controller
         $item->delete();
 
         return redirect()->route('app.items.index')->with('status', __('Item deleted.'));
+    }
+
+    public function showImport()
+    {
+        return view('user.items.import');
+    }
+
+    public function importTemplate()
+    {
+        $csv = "name,item_type,sku,barcode,category,unit_price,purchase_price,vat_rate\n"
+            .'"Portland Cement 50kg",physical,CEM-50,,Building Materials,25.00,18.00,15'."\n";
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="items-template.csv"',
+        ]);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt']]);
+
+        $companyId = Auth::user()->company_id;
+
+        $result = $this->runCsvImport(
+            $request->file('file'),
+            function (array $row) {
+                return Validator::make([
+                    'name' => $row['name'] ?: null,
+                    'item_type' => strtolower($row['item_type'] ?? '') === 'service' ? 'service' : 'physical',
+                    'sku' => $row['sku'] ?: null,
+                    'barcode' => $row['barcode'] ?: null,
+                    'category' => $row['category'] ?: null,
+                    'unit_price' => $row['unit_price'] ?: null,
+                    'purchase_price' => $row['purchase_price'] ?: null,
+                    'vat_rate' => $row['vat_rate'] !== '' ? $row['vat_rate'] : 15,
+                ], [
+                    'name' => ['required', 'string', 'max:255'],
+                    'item_type' => ['required', 'in:service,physical'],
+                    'sku' => ['nullable', 'string', 'max:40'],
+                    'barcode' => ['nullable', 'string', 'max:64'],
+                    'category' => ['nullable', 'string', 'max:100'],
+                    'unit_price' => ['required', 'numeric', 'min:0'],
+                    'purchase_price' => ['nullable', 'numeric', 'min:0'],
+                    'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+                ])->validate();
+            },
+            function (array $data) use ($companyId) {
+                Item::create($data + [
+                    'company_id' => $companyId,
+                    'unit' => 'unit',
+                    'unit_code' => 'PCE',
+                    'is_active' => true,
+                    'track_inventory' => false,
+                ]);
+            }
+        );
+
+        AuditLog::record('item.import', null, __(':count item(s) imported via CSV', ['count' => $result['imported']]));
+
+        return redirect()->route('app.items.import')->with('import_result', $result);
     }
 
     public function generateBarcode()

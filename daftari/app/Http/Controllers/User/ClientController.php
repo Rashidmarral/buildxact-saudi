@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
 use App\Models\Client;
 use App\Rules\SaudiCrNumber;
@@ -11,10 +12,13 @@ use App\Rules\SaudiVatNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class ClientController extends Controller
 {
+    use ImportsCsv;
+
     public function index()
     {
         $clients = Client::orderBy('name')->paginate(20);
@@ -97,6 +101,68 @@ class ClientController extends Controller
         $client->delete();
 
         return redirect()->route('app.clients.index')->with('status', __('Client deleted.'));
+    }
+
+    public function showImport()
+    {
+        return view('user.clients.import');
+    }
+
+    public function importTemplate()
+    {
+        $csv = "name,type,email,phone,vat_number,cr_number,city,notes\n"
+            .'"Al Rashid Trading Co.",company,billing@example.com,0512345678,300012345600003,1010123456,Riyadh,"Preferred customer"'."\n";
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="clients-template.csv"',
+        ]);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt']]);
+
+        $company = Auth::user()->company;
+        $companyId = $company->id;
+
+        $plan = $company->activeSubscription()?->plan;
+        $maxRows = $plan && $plan->max_customers !== null
+            ? max(0, $plan->max_customers - $company->clients()->count())
+            : null;
+
+        $result = $this->runCsvImport(
+            $request->file('file'),
+            function (array $row) {
+                return Validator::make([
+                    'type' => strtolower($row['type'] ?? '') === 'individual' ? 'individual' : 'company',
+                    'name' => $row['name'] ?: null,
+                    'email' => $row['email'] ?: null,
+                    'phone' => $row['phone'] ?: null,
+                    'vat_number' => $row['vat_number'] ?: null,
+                    'cr_number' => $row['cr_number'] ?: null,
+                    'city' => $row['city'] ?: null,
+                    'notes' => $row['notes'] ?: null,
+                ], [
+                    'name' => ['required', 'string', 'max:255'],
+                    'type' => ['required', 'in:individual,company'],
+                    'email' => ['nullable', 'email', 'max:255'],
+                    'phone' => ['nullable', 'string', new SaudiPhoneNumber],
+                    'vat_number' => ['nullable', 'string', new SaudiVatNumber],
+                    'cr_number' => ['nullable', 'string', new SaudiCrNumber],
+                    'city' => ['nullable', 'string', 'max:100'],
+                    'notes' => ['nullable', 'string', 'max:2000'],
+                ])->validate();
+            },
+            function (array $data) use ($companyId) {
+                Client::create($data + ['company_id' => $companyId]);
+            },
+            $maxRows
+        );
+
+        AuditLog::record('client.import', null, __(':count client(s) imported via CSV', ['count' => $result['imported']]));
+
+        return redirect()->route('app.clients.import')->with('import_result', $result);
     }
 
     private function syncContacts(Client $client, array $contacts): void

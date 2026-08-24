@@ -119,9 +119,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::middleware('permission:clients')->group(function () {
         Route::resource('clients', ClientController::class)->except(['show']);
         Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
+        Route::get('clients-import', [ClientController::class, 'showImport'])->name('clients.import');
+        Route::post('clients-import', [ClientController::class, 'import'])->name('clients.import.store');
+        Route::get('clients-import/template', [ClientController::class, 'importTemplate'])->name('clients.import.template');
     });
     Route::resource('items', ItemController::class)->except(['show'])->middleware('permission:items');
     Route::get('items-generate-barcode', [ItemController::class, 'generateBarcode'])->name('items.generate-barcode')->middleware('permission:items');
+    Route::get('items-import', [ItemController::class, 'showImport'])->name('items.import')->middleware('permission:items');
+    Route::post('items-import', [ItemController::class, 'import'])->name('items.import.store')->middleware('permission:items');
+    Route::get('items-import/template', [ItemController::class, 'importTemplate'])->name('items.import.template')->middleware('permission:items');
     Route::resource('units', UnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:items');
 
     Route::middleware('permission:invoices')->group(function () {
@@ -220,6 +226,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::resource('suppliers', SupplierController::class)->except(['show']);
         Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
         Route::get('suppliers/{supplier}/bills', [SupplierController::class, 'bills'])->name('suppliers.bills');
+        Route::get('suppliers-import', [SupplierController::class, 'showImport'])->name('suppliers.import');
+        Route::post('suppliers-import', [SupplierController::class, 'import'])->name('suppliers.import.store');
+        Route::get('suppliers-import/template', [SupplierController::class, 'importTemplate'])->name('suppliers.import.template');
 
         Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');

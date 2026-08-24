@@ -5,7 +5,10 @@
 @section('content')
 <div class="flex items-center justify-between mb-6">
     <p class="text-sm text-slate-500">{{ __('Your reusable catalog of products and services.') }}</p>
-    <a href="{{ route('app.items.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New item') }}</a>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('app.items.import') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Import CSV') }}</a>
+        <a href="{{ route('app.items.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New item') }}</a>
+    </div>
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100">
