@@ -35,6 +35,7 @@ class Permissions
             'members_roles' => __('Members & Roles'),
             'settings' => __('Settings'),
             'zatca' => __('ZATCA Integration'),
+            'approvals' => __('Approve purchase orders & expenses'),
         ];
     }
 
@@ -52,7 +53,7 @@ class Permissions
     {
         return [
             'admin' => self::keys(),
-            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'projects', 'reports', 'zatca', 'accounting'],
+            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'projects', 'reports', 'zatca', 'accounting', 'approvals'],
             'sales' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'salespersons', 'projects', 'reports'],
             'member' => ['dashboard', 'reports'],
         ];

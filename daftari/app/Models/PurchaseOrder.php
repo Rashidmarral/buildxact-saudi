@@ -16,6 +16,7 @@ class PurchaseOrder extends Model
         'company_id', 'supplier_id', 'branch_id', 'created_by', 'converted_bill_id',
         'po_number', 'status', 'order_date', 'expected_date', 'subtotal',
         'discount_total', 'vat_total', 'total', 'notes',
+        'approved_by', 'approved_at', 'rejection_reason',
     ];
 
     protected function casts(): array
@@ -23,12 +24,18 @@ class PurchaseOrder extends Model
         return [
             'order_date' => 'date',
             'expected_date' => 'date',
+            'approved_at' => 'datetime',
         ];
     }
 
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function branch(): BelongsTo

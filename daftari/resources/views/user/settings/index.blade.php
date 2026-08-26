@@ -308,6 +308,16 @@
     </a>
 </div>
 
+<div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between">
+    <div>
+        <h3 class="font-semibold text-slate-900">{{ __('Approvals') }}</h3>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Require sign-off on purchase orders or expenses above a set amount.') }}</p>
+    </div>
+    <a href="{{ route('app.settings.approvals') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">
+        {{ __('Manage') }}
+    </a>
+</div>
+
 <div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6">
     <h3 class="font-semibold text-slate-900">{{ __('Active sessions') }}</h3>
     <p class="text-sm text-slate-500 mt-1">{{ __('Devices currently signed in to your account.') }}</p>

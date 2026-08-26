@@ -21,6 +21,7 @@
     @foreach ([
         '' => __('All') . " ({$counts['all']})",
         'draft' => __('Draft') . " ({$counts['draft']})",
+        'pending_approval' => __('Pending approval') . " ({$counts['pending_approval']})",
         'approved' => __('Approved') . " ({$counts['approved']})",
         'converted' => __('Converted') . " ({$counts['converted']})",
         'void' => __('Void') . " ({$counts['void']})",

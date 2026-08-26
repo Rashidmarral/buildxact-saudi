@@ -63,6 +63,7 @@ use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
 use App\Http\Controllers\User\WarehouseController;
 use App\Http\Controllers\User\PaymentGatewayController;
+use App\Http\Controllers\User\ApprovalSettingsController;
 use App\Http\Controllers\User\WhatsappSettingsController;
 use App\Http\Controllers\User\WebhookController;
 use App\Http\Controllers\User\ZatcaController;
@@ -217,6 +218,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
 
     Route::middleware('permission:expenses')->group(function () {
         Route::resource('expenses', ExpenseController::class)->except(['show']);
+        Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expenses.approve');
+        Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
         Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
         Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
     });
@@ -298,6 +301,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::middleware('feature:purchase_orders')->group(function () {
             Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
             Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+            Route::post('purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
             Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
             Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
             Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
@@ -380,6 +384,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::get('settings/whatsapp', [WhatsappSettingsController::class, 'show'])->name('settings.whatsapp');
     Route::post('settings/whatsapp', [WhatsappSettingsController::class, 'update'])->name('settings.whatsapp.update');
     Route::post('settings/whatsapp/test', [WhatsappSettingsController::class, 'test'])->name('settings.whatsapp.test');
+
+    Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
+    Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');

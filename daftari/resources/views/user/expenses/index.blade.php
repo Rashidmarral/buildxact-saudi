@@ -42,6 +42,7 @@
                     <th class="px-6 py-3 font-medium">{{ __('Financial account') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Gross amount') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('VAT') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
                     <th class="px-6 py-3"></th>
                 </tr>
             </thead>
@@ -53,7 +54,26 @@
                         <td class="px-6 py-3">{{ $expense->bankAccount?->name ?? __('Unpaid (payable)') }}</td>
                         <td class="px-6 py-3">SAR {{ number_format($expense->gross_amount ?? ($expense->amount + $expense->vat_amount), 2) }}</td>
                         <td class="px-6 py-3">SAR {{ number_format($expense->vat_amount, 2) }}</td>
+                        <td class="px-6 py-3">
+                            @php
+                                $statusColors = ['pending_approval' => 'bg-amber-50 text-amber-700', 'approved' => 'bg-emerald-50 text-emerald-700', 'rejected' => 'bg-red-50 text-red-600'];
+                                $statusLabels = ['pending_approval' => __('Pending approval'), 'approved' => __('Approved'), 'rejected' => __('Rejected')];
+                            @endphp
+                            <span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium {{ $statusColors[$expense->status] ?? 'bg-slate-100 text-slate-600' }}" @if($expense->status === 'rejected' && $expense->rejection_reason) title="{{ $expense->rejection_reason }}" @endif>
+                                {{ $statusLabels[$expense->status] ?? $expense->status }}
+                            </span>
+                        </td>
                         <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
+                            @if ($expense->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
+                                <form method="POST" action="{{ route('app.expenses.approve', $expense) }}" class="inline">
+                                    @csrf
+                                    <button type="submit" class="text-emerald-600 hover:underline">{{ __('Approve') }}</button>
+                                </form>
+                                <form method="POST" action="{{ route('app.expenses.reject', $expense) }}" class="inline" onsubmit="return confirm('{{ __('Reject this expense?') }}')">
+                                    @csrf
+                                    <button type="submit" class="text-red-600 hover:underline">{{ __('Reject') }}</button>
+                                </form>
+                            @endif
                             <a href="{{ route('app.expenses.edit', $expense) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
                             <form method="POST" action="{{ route('app.expenses.destroy', $expense) }}" class="inline" onsubmit="return confirm('{{ __('Delete this expense?') }}')">
                                 @csrf @method('DELETE')

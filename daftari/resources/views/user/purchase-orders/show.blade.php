@@ -15,6 +15,13 @@
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Approve') }}</button>
             </form>
         @endif
+        @if ($order->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
+            <form method="POST" action="{{ route('app.purchase-orders.approve', $order) }}">
+                @csrf
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Approve') }}</button>
+            </form>
+            <button type="button" onclick="document.getElementById('po-reject-form').classList.toggle('hidden')" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reject') }}</button>
+        @endif
         @if ($order->status === 'approved')
             <form method="POST" action="{{ route('app.purchase-orders.convert', $order) }}">
                 @csrf
@@ -34,6 +41,21 @@
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>
+
+@if ($order->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
+    <form id="po-reject-form" method="POST" action="{{ route('app.purchase-orders.reject', $order) }}" class="hidden mb-6 max-w-md rounded-xl border border-red-100 bg-red-50 p-4 print:hidden">
+        @csrf
+        <label class="block text-xs font-medium text-red-700 mb-1">{{ __('Reason for rejection (optional)') }}</label>
+        <textarea name="rejection_reason" rows="2" class="w-full rounded-lg border border-red-200 text-sm mb-3"></textarea>
+        <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">{{ __('Confirm rejection') }}</button>
+    </form>
+@endif
+
+@if ($order->status === 'rejected' && $order->rejection_reason)
+    <div class="mb-6 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700 print:hidden">
+        <span class="font-semibold">{{ __('Rejection reason:') }}</span> {{ $order->rejection_reason }}
+    </div>
+@endif
 
 @php
     $doc = [

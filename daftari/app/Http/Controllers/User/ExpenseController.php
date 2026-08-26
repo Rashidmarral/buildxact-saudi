@@ -4,10 +4,13 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Project;
+use App\Models\User;
+use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,7 +42,19 @@ class ExpenseController extends Controller
         $data = $this->validated($request);
         $data = $this->withComputedAmounts($data);
         $data['created_by'] = Auth::id();
+
+        $company = Auth::user()->company;
+        $requiresApproval = $company->expenseRequiresApproval((float) $data['gross_amount']);
+        $data['status'] = $requiresApproval ? 'pending_approval' : 'approved';
+
         $expense = Expense::create($data);
+
+        if ($requiresApproval) {
+            $this->notifyApprovers($expense);
+
+            return redirect()->route('app.expenses.index')->with('status', __('Expense submitted for approval.'));
+        }
+
         $ledger->postExpense($expense);
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense recorded.'));
@@ -61,18 +76,75 @@ class ExpenseController extends Controller
         $data = $this->validated($request);
         $data = $this->withComputedAmounts($data);
         $expense->update($data);
-        $ledger->deletePosting($expense->company, 'expense', $expense->id);
-        $ledger->postExpense($expense);
+
+        // Still awaiting approval — nothing was ever posted, so there's
+        // nothing to repost either; the approve action does that once.
+        if ($expense->status === 'approved') {
+            $ledger->deletePosting($expense->company, 'expense', $expense->id);
+            $ledger->postExpense($expense);
+        }
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense updated.'));
     }
 
     public function destroy(Expense $expense, LedgerPostingService $ledger)
     {
-        $ledger->reverse($expense->company, 'expense', $expense->id, __('Expense deleted'));
+        if ($expense->status === 'approved') {
+            $ledger->reverse($expense->company, 'expense', $expense->id, __('Expense deleted'));
+        }
+
         $expense->delete();
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense deleted.'));
+    }
+
+    public function approve(Expense $expense, LedgerPostingService $ledger)
+    {
+        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        abort_unless($expense->status === 'pending_approval', 404);
+
+        $expense->update(['status' => 'approved', 'approved_by' => Auth::id(), 'approved_at' => now()]);
+        $ledger->postExpense($expense);
+
+        AuditLog::record('expense.approve', $expense, __('Approved expense of :amount :currency', ['amount' => number_format($expense->gross_amount, 2), 'currency' => $expense->company->currency]));
+
+        return back()->with('status', __('Expense approved and posted.'));
+    }
+
+    public function reject(Request $request, Expense $expense)
+    {
+        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        abort_unless($expense->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $expense->update(['status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(), 'rejection_reason' => $data['rejection_reason'] ?? null]);
+
+        AuditLog::record('expense.reject', $expense, __('Rejected expense of :amount :currency', ['amount' => number_format($expense->gross_amount, 2), 'currency' => $expense->company->currency]));
+
+        if ($expense->creator) {
+            $expense->creator->notify(new GenericNotification(
+                title: __('Expense rejected'),
+                body: __(':amount :currency was rejected.', ['amount' => number_format($expense->gross_amount, 2), 'currency' => $expense->company->currency]),
+                url: route('app.expenses.index'),
+                icon: 'purchases',
+            ));
+        }
+
+        return back()->with('status', __('Expense rejected.'));
+    }
+
+    private function notifyApprovers(Expense $expense): void
+    {
+        User::where('company_id', $expense->company_id)
+            ->get()
+            ->filter(fn (User $user) => $user->hasPermission('approvals'))
+            ->each(fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Expense awaiting approval'),
+                body: __(':amount :currency from :vendor', ['amount' => number_format($expense->gross_amount, 2), 'currency' => $expense->company->currency, 'vendor' => $expense->vendor_name ?: __('Unknown vendor')]),
+                url: route('app.expenses.index'),
+                icon: 'purchases',
+            )));
     }
 
     private function withComputedAmounts(array $data): array

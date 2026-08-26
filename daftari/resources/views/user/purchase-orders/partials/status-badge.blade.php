@@ -1,13 +1,17 @@
 @php
     $colors = [
         'draft' => 'bg-slate-100 text-slate-600',
+        'pending_approval' => 'bg-amber-50 text-amber-700',
         'approved' => 'bg-brand-50 text-brand-700',
+        'rejected' => 'bg-red-50 text-red-600',
         'converted' => 'bg-purple-50 text-purple-700',
         'void' => 'bg-red-50 text-red-600',
     ];
     $labels = [
         'draft' => __('Draft'),
+        'pending_approval' => __('Pending approval'),
         'approved' => __('Approved'),
+        'rejected' => __('Rejected'),
         'converted' => __('Converted'),
         'void' => __('Void'),
     ];

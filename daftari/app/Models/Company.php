@@ -20,6 +20,7 @@ class Company extends Model
         'currency', 'locale', 'status', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
+        'po_approval_threshold', 'expense_approval_threshold',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_csr', 'zatca_private_key',
         'zatca_compliance_request_id', 'zatca_compliance_csid', 'zatca_compliance_secret',
@@ -80,6 +81,8 @@ class Company extends Model
             'zatca_production_secret' => 'encrypted',
             'zatca_linked_at' => 'datetime',
             'zatca_last_sync_at' => 'datetime',
+            'po_approval_threshold' => 'decimal:2',
+            'expense_approval_threshold' => 'decimal:2',
         ];
     }
 
@@ -253,6 +256,16 @@ class Company extends Model
     public function defaultBankAccount(): ?BankAccount
     {
         return $this->default_bank_account_id ? BankAccount::find($this->default_bank_account_id) : null;
+    }
+
+    public function poRequiresApproval(float $total): bool
+    {
+        return $this->po_approval_threshold !== null && $total >= (float) $this->po_approval_threshold;
+    }
+
+    public function expenseRequiresApproval(float $amount): bool
+    {
+        return $this->expense_approval_threshold !== null && $amount >= (float) $this->expense_approval_threshold;
     }
 
     public function formatNumber(float $amount, int $decimals = 2): string

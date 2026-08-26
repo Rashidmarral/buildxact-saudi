@@ -5,11 +5,14 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
+use App\Models\User;
+use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,6 +50,7 @@ class PurchaseOrderController extends Controller
         $counts = [
             'all' => PurchaseOrder::count(),
             'draft' => PurchaseOrder::where('status', 'draft')->count(),
+            'pending_approval' => PurchaseOrder::where('status', 'pending_approval')->count(),
             'approved' => PurchaseOrder::where('status', 'approved')->count(),
             'converted' => PurchaseOrder::where('status', 'converted')->count(),
             'void' => PurchaseOrder::where('status', 'void')->count(),
@@ -93,11 +97,20 @@ class PurchaseOrderController extends Controller
             return $order;
         });
 
+        $status = null;
+
         if ($postImmediately) {
-            $order->update(['status' => 'approved']);
+            if ($order->company->poRequiresApproval((float) $order->total)) {
+                $order->update(['status' => 'pending_approval']);
+                $this->notifyApprovers($order);
+                $status = __('Purchase order created and submitted for approval.');
+            } else {
+                $order->update(['status' => 'approved']);
+                $status = __('Purchase order created and approved.');
+            }
         }
 
-        return redirect()->route('app.purchase-orders.show', $order)->with('status', $postImmediately ? __('Purchase order created and approved.') : __('Purchase order created.'));
+        return redirect()->route('app.purchase-orders.show', $order)->with('status', $status ?? __('Purchase order created.'));
     }
 
     public function show(PurchaseOrder $purchaseOrder)
@@ -147,11 +160,54 @@ class PurchaseOrderController extends Controller
 
     public function approve(PurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->status === 'draft') {
+        // A plain draft (never crossed the approval threshold) can still
+        // be self-approved by anyone with the ordinary "purchases"
+        // permission this route already requires — the stricter
+        // "approvals" permission only matters once it's actually sitting
+        // in pending_approval, waiting on a designated approver.
+        if ($purchaseOrder->status === 'pending_approval') {
+            abort_unless(Auth::user()->hasPermission('approvals'), 403);
+
+            $purchaseOrder->update([
+                'status' => 'approved',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ]);
+
+            AuditLog::record('purchase_order.approve', $purchaseOrder, __('Approved purchase order :number', ['number' => $purchaseOrder->po_number]));
+        } elseif ($purchaseOrder->status === 'draft') {
             $purchaseOrder->update(['status' => 'approved']);
         }
 
         return back()->with('status', __('Purchase order approved.'));
+    }
+
+    public function reject(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        abort_unless($purchaseOrder->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $purchaseOrder->update([
+            'status' => 'rejected',
+            'approved_by' => Auth::id(),
+            'approved_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('purchase_order.reject', $purchaseOrder, __('Rejected purchase order :number', ['number' => $purchaseOrder->po_number]));
+
+        if ($purchaseOrder->created_by) {
+            User::find($purchaseOrder->created_by)?->notify(new GenericNotification(
+                title: __('Purchase order rejected'),
+                body: __('Purchase order :number was rejected.', ['number' => $purchaseOrder->po_number]),
+                url: route('app.purchase-orders.show', $purchaseOrder),
+                icon: 'purchases',
+            ));
+        }
+
+        return back()->with('status', __('Purchase order rejected.'));
     }
 
     public function void(PurchaseOrder $purchaseOrder)
@@ -167,6 +223,10 @@ class PurchaseOrderController extends Controller
     {
         if ($purchaseOrder->status === 'converted') {
             return back()->withErrors(['purchase_order' => __('This purchase order has already been converted.')]);
+        }
+
+        if ($purchaseOrder->status === 'pending_approval') {
+            return back()->withErrors(['purchase_order' => __('This purchase order is still awaiting approval.')]);
         }
 
         $bill = DB::transaction(function () use ($purchaseOrder) {
@@ -235,6 +295,19 @@ class PurchaseOrderController extends Controller
         $attachment->delete();
 
         return back()->with('status', __('Attachment removed.'));
+    }
+
+    private function notifyApprovers(PurchaseOrder $order): void
+    {
+        User::where('company_id', $order->company_id)
+            ->get()
+            ->filter(fn (User $user) => $user->hasPermission('approvals'))
+            ->each(fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Purchase order awaiting approval'),
+                body: __(':number — :amount :currency', ['number' => $order->po_number, 'amount' => number_format($order->total, 2), 'currency' => $order->company->currency]),
+                url: route('app.purchase-orders.show', $order),
+                icon: 'purchases',
+            )));
     }
 
     private function syncItems(PurchaseOrder $order, array $items): void

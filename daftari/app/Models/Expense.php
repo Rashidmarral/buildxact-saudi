@@ -16,13 +16,20 @@ class Expense extends Model
         'company_id', 'expense_category_id', 'project_id', 'bank_account_id', 'account_id', 'created_by',
         'vendor_name', 'description', 'amount', 'gross_amount', 'vat_amount', 'tax_category',
         'reference', 'expense_date', 'receipt_path',
+        'status', 'approved_by', 'approved_at', 'rejection_reason',
     ];
 
     protected function casts(): array
     {
         return [
             'expense_date' => 'date',
+            'approved_at' => 'datetime',
         ];
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function category(): BelongsTo
