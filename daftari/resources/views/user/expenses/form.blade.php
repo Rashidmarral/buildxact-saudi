@@ -21,6 +21,22 @@
 
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Category') }}</label>
+            <select name="expense_category_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None') }}</option>
+                @foreach ($categories as $category)
+                    <option value="{{ $category->id }}" @selected(old('expense_category_id', $expense->expense_category_id) == $category->id)>{{ $category->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Vendor name') }}</label>
+            <input type="text" name="vendor_name" value="{{ old('vendor_name', $expense->vendor_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+        <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Financial account') }}</label>
             <select name="bank_account_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="" @selected(! old('bank_account_id', $expense->bank_account_id))>{{ __('Unpaid (record as payable)') }}</option>
