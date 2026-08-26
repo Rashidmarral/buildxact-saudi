@@ -359,6 +359,11 @@ class Company extends Model
         return $this->hasMany(Account::class);
     }
 
+    public function zakatCalculations(): HasMany
+    {
+        return $this->hasMany(ZakatCalculation::class);
+    }
+
     public function accountMappings(): HasMany
     {
         return $this->hasMany(AccountMapping::class);

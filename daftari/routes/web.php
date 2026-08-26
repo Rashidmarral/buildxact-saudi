@@ -31,6 +31,7 @@ use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\CostCenterController;
+use App\Http\Controllers\User\ZakatController;
 use App\Http\Controllers\User\CreditNoteController;
 use App\Http\Controllers\User\CustomsDeclarationController;
 use App\Http\Controllers\User\DashboardController;
@@ -236,6 +237,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
             Route::delete('{costCenter}', [CostCenterController::class, 'destroy'])->name('destroy');
             Route::post('links', [CostCenterController::class, 'storeLink'])->name('links.store');
             Route::delete('links/{costCenterLink}', [CostCenterController::class, 'destroyLink'])->name('links.destroy');
+        });
+
+        Route::prefix('zakat')->name('zakat.')->group(function () {
+            Route::get('/', [ZakatController::class, 'index'])->name('index');
+            Route::get('create', [ZakatController::class, 'create'])->name('create');
+            Route::post('/', [ZakatController::class, 'store'])->name('store');
+            Route::get('{zakat}', [ZakatController::class, 'show'])->name('show');
+            Route::delete('{zakat}', [ZakatController::class, 'destroy'])->name('destroy');
+            Route::get('{zakat}/pdf', [ZakatController::class, 'downloadPdf'])->name('pdf');
         });
     });
 
