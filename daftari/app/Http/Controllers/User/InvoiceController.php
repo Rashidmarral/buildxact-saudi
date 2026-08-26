@@ -18,8 +18,10 @@ use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\Warehouse;
 use App\Models\Webhook;
+use App\Models\WhatsappConfig;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -129,8 +131,9 @@ class InvoiceController extends Controller
     {
         $invoice->load('items', 'client', 'invoicePayments', 'bankAccount', 'warehouse', 'attachments');
         $template = $invoice->company->defaultTemplateFor('invoice');
+        $whatsappEnabled = (bool) WhatsappConfig::where('is_enabled', true)->exists();
 
-        return view('user.invoices.show', compact('invoice', 'template'));
+        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled'));
     }
 
     public function downloadPdf(Invoice $invoice, MpdfRenderer $renderer)
@@ -156,6 +159,45 @@ class InvoiceController extends Controller
         Mail::to($recipient)->send(new InvoiceMail($invoice, $pdfBinary));
 
         return back()->with('status', __('Invoice emailed to :email.', ['email' => $recipient]));
+    }
+
+    /**
+     * Sends the client a WhatsApp notification with the invoice number,
+     * total, and its public pay link — the same public_token link used by
+     * emailInvoice's "view online" URL. This is a business-initiated
+     * message, so it can only go out as a template message using whatever
+     * template the company has already had approved in their own Meta
+     * Business account (see WhatsappSettingsController) — Daftari expects
+     * that template's body to take 4 positional parameters in this order:
+     * client name, invoice number, total (with currency), pay link.
+     */
+    public function sendWhatsapp(Invoice $invoice, WhatsAppService $whatsapp)
+    {
+        $config = WhatsappConfig::first();
+        abort_unless($config && $config->is_enabled, 404);
+
+        $phone = $invoice->client->mobile ?: $invoice->client->phone;
+
+        if (! $phone) {
+            return back()->withErrors(['invoice' => __('This client has no phone number on file. Add one on the client record first.')]);
+        }
+
+        $payUrl = route('public.invoices.show', [$invoice->id, $invoice->public_token]);
+
+        $result = $whatsapp->sendTemplateMessage($config, $phone, [
+            $invoice->client->name,
+            $invoice->invoice_number,
+            number_format($invoice->total, 2).' '.$invoice->currency,
+            $payUrl,
+        ]);
+
+        if (! $result['success']) {
+            return back()->withErrors(['invoice' => __('WhatsApp send failed: :error', ['error' => $result['error']])]);
+        }
+
+        AuditLog::record('invoice.whatsapp_sent', $invoice, __('Sent invoice #:number via WhatsApp', ['number' => $invoice->invoice_number]));
+
+        return back()->with('status', __('Invoice sent via WhatsApp.'));
     }
 
     private function pdfData(Invoice $invoice): array

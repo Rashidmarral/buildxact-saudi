@@ -50,6 +50,12 @@
                 <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Email to client') }}</button>
             </form>
         @endif
+        @if ($whatsappEnabled && ($invoice->client->mobile || $invoice->client->phone))
+            <form method="POST" action="{{ route('app.invoices.whatsapp', $invoice) }}">
+                @csrf
+                <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Send via WhatsApp') }}</button>
+            </form>
+        @endif
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>

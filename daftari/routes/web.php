@@ -61,6 +61,7 @@ use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
 use App\Http\Controllers\User\WarehouseController;
 use App\Http\Controllers\User\PaymentGatewayController;
+use App\Http\Controllers\User\WhatsappSettingsController;
 use App\Http\Controllers\User\WebhookController;
 use App\Http\Controllers\User\ZatcaController;
 use Illuminate\Support\Facades\Route;
@@ -167,6 +168,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::get('invoices/{invoice}/xml', [InvoiceController::class, 'downloadXml'])->name('invoices.xml');
         Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
         Route::post('invoices/{invoice}/email', [InvoiceController::class, 'emailInvoice'])->name('invoices.email');
+        Route::post('invoices/{invoice}/whatsapp', [InvoiceController::class, 'sendWhatsapp'])->name('invoices.whatsapp');
 
         Route::get('credit-notes/eligible-invoices', [CreditNoteController::class, 'eligibleInvoices'])->name('credit-notes.eligible-invoices');
         Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);
@@ -345,6 +347,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
 
     Route::get('settings/payment-gateways', [PaymentGatewayController::class, 'index'])->name('settings.payment-gateways');
     Route::post('settings/payment-gateways/{provider}', [PaymentGatewayController::class, 'update'])->name('settings.payment-gateways.update');
+
+    Route::get('settings/whatsapp', [WhatsappSettingsController::class, 'show'])->name('settings.whatsapp');
+    Route::post('settings/whatsapp', [WhatsappSettingsController::class, 'update'])->name('settings.whatsapp.update');
+    Route::post('settings/whatsapp/test', [WhatsappSettingsController::class, 'test'])->name('settings.whatsapp.test');
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');
