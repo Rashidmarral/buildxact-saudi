@@ -14,10 +14,10 @@
 @include('user.reports.partials.period-selector')
 
 <div class="grid sm:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Opening balance') }}</p><p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($openingTotal, 2) }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Cash in') }}</p><p class="text-xl font-bold text-emerald-600 mt-1">SAR {{ number_format($totalInflow, 2) }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Cash out') }}</p><p class="text-xl font-bold text-red-600 mt-1">SAR {{ number_format($totalOutflow, 2) }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Closing balance') }}</p><p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($closingTotal, 2) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Opening balance') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($openingTotal) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Cash in') }}</p><p class="text-xl font-bold text-emerald-600 mt-1">{{ \App\Support\Money::format($totalInflow) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Cash out') }}</p><p class="text-xl font-bold text-red-600 mt-1">{{ \App\Support\Money::format($totalOutflow) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Closing balance') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($closingTotal) }}</p></div>
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100">

@@ -12,14 +12,14 @@
         </td>
         <td style="width: 45%; vertical-align: top;">
             <table>
-                <tr><td style="padding: 2px 0; color: #64748b;">{{ __('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">SAR {{ number_format($doc['subtotal'], 2) }}</td></tr>
+                <tr><td style="padding: 2px 0; color: #64748b;">{{ __('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                 @if (($doc['discount_total'] ?? 0) > 0)
-                    <tr><td style="padding: 2px 0; color: #64748b;">{{ __('Discount') }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">-SAR {{ number_format($doc['discount_total'], 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ __('Discount') }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">-{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
                 @endif
-                <tr><td style="padding: 2px 0; color: #64748b;">{{ __('Total VAT') }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">SAR {{ number_format($doc['vat_total'], 2) }}</td></tr>
-                <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #1e293b;">{{ __('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #1e293b;">SAR {{ number_format($doc['total'], 2) }}</td></tr>
+                <tr><td style="padding: 2px 0; color: #64748b;">{{ __('Total VAT') }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #1e293b;">{{ __('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #1e293b;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                 @foreach ($doc['extra_rows'] ?? [] as $row)
-                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">SAR {{ number_format($row['value'], 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">{{ \App\Support\Money::format($row['value']) }}</td></tr>
                 @endforeach
             </table>
         </td>

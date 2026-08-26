@@ -74,7 +74,7 @@
         <h3 class="text-sm font-semibold text-slate-900 mb-2">{{ __('Payments') }}</h3>
         <ul class="text-sm text-slate-600 space-y-1">
             @foreach ($bill->billPayments as $payment)
-                <li>{{ $payment->paid_at->format('Y-m-d') }} — SAR {{ number_format($payment->amount, 2) }}</li>
+                <li>{{ $payment->paid_at->format('Y-m-d') }} — {{ \App\Support\Money::format($payment->amount) }}</li>
             @endforeach
         </ul>
     </div>

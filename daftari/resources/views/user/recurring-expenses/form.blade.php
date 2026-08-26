@@ -100,7 +100,7 @@
         </div>
     </div>
 
-    <p class="text-xs text-slate-500">{{ __('Net amount') }}: <span id="net-preview" class="font-semibold text-slate-700">SAR 0.00</span> &middot; {{ __('VAT') }}: <span id="vat-preview" class="font-semibold text-slate-700">SAR 0.00</span></p>
+    <p class="text-xs text-slate-500">{{ __('Net amount') }}: <span id="net-preview" class="font-semibold text-slate-700">{{ \App\Support\Money::format(0) }}</span> &middot; {{ __('VAT') }}: <span id="vat-preview" class="font-semibold text-slate-700">{{ \App\Support\Money::format(0) }}</span></p>
 
     <div>
         <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reference') }}</label>
@@ -132,6 +132,7 @@
 
 <script>
 (function () {
+    const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
     const gross = document.getElementById('gross_amount');
     const taxCategory = document.getElementById('tax_category');
     const netPreview = document.getElementById('net-preview');
@@ -142,8 +143,8 @@
         const rate = parseFloat(taxCategory.selectedOptions[0]?.dataset.rate || 0);
         const vat = Math.round((g * rate / (100 + rate)) * 100) / 100;
         const net = Math.round((g - vat) * 100) / 100;
-        netPreview.textContent = 'SAR ' + net.toFixed(2);
-        vatPreview.textContent = 'SAR ' + vat.toFixed(2);
+        netPreview.textContent = CURRENCY_SYMBOL + ' ' + net.toFixed(2);
+        vatPreview.textContent = CURRENCY_SYMBOL + ' ' + vat.toFixed(2);
     }
 
     gross.addEventListener('input', recalc);

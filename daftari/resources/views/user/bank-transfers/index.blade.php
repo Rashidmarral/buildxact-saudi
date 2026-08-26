@@ -29,7 +29,7 @@
                         <td class="px-6 py-3">{{ $transfer->date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $transfer->fromAccount->name }}</td>
                         <td class="px-6 py-3">{{ $transfer->toAccount->name }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($transfer->amount, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($transfer->amount) }}</td>
                     </tr>
                 @endforeach
             </tbody>

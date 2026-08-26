@@ -94,13 +94,13 @@ $company = auth()->user()->company;
 
         <div class="mt-6 flex justify-end">
             <div class="w-full max-w-xs space-y-2 text-sm">
-                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">SAR 0.00</span></div>
+                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">{{ \App\Support\Money::format(0) }}</span></div>
                 <div class="flex justify-between items-center text-slate-500">
                     <span>{{ __('Discount') }}</span>
                     <input type="number" step="0.01" min="0" name="discount_total" id="discount_total" value="{{ old('discount_total', 0) }}" class="w-28 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
                 </div>
-                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">SAR 0.00</span></div>
-                <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-100"><span>{{ __('Total') }}</span><span id="summary-total">SAR 0.00</span></div>
+                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">{{ \App\Support\Money::format(0) }}</span></div>
+                <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-100"><span>{{ __('Total') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
             </div>
         </div>
     </div>
@@ -172,12 +172,13 @@ const CATALOG = {!! $catalogJson !!};
 const tbody = document.getElementById('items-body');
 let rowIndex = 0;
 
+const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
 function fmt(n) {
-    return 'SAR ' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return CURRENCY_SYMBOL + ' ' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function addRow(data) {
-    data = data || { item_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15 };
+    data = data || { item_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: {{ \App\Models\TaxRate::defaultRate(auth()->user()->company_id) }} };
     const i = rowIndex++;
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-50';
@@ -194,7 +195,7 @@ function addRow(data) {
         <td class="py-2 pe-3"><select name="items[${i}][unit_id]" data-role="unit" disabled class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></select></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="items[${i}][unit_price]" data-role="unit_price" value="${data.unit_price}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" max="100" name="items[${i}][vat_rate]" data-role="vat_rate" value="${data.vat_rate}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
-        <td class="py-2 pe-3 text-slate-700" data-role="line_total">SAR 0.00</td>
+        <td class="py-2 pe-3 text-slate-700" data-role="line_total">${CURRENCY_SYMBOL} 0.00</td>
         <td class="py-2"><button type="button" data-role="remove" class="text-slate-400 hover:text-red-600">&times;</button></td>
     `;
     tbody.appendChild(tr);

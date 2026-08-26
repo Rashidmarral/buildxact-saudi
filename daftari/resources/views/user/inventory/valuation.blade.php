@@ -26,13 +26,13 @@
                     <td class="px-6 py-3 text-slate-500">{{ $row['item']->sku ?: '—' }}</td>
                     <td class="px-6 py-3 text-slate-500">{{ $row['warehouse']->name }}</td>
                     <td class="px-6 py-3 text-right">{{ rtrim(rtrim(number_format($row['quantity'], 2), '0'), '.') }}</td>
-                    <td class="px-6 py-3 text-right">SAR {{ number_format($row['avg_cost'], 2) }}</td>
-                    <td class="px-6 py-3 text-right">SAR {{ number_format($row['total_value'], 2) }}</td>
+                    <td class="px-6 py-3 text-right">{{ \App\Support\Money::format($row['avg_cost']) }}</td>
+                    <td class="px-6 py-3 text-right">{{ \App\Support\Money::format($row['total_value']) }}</td>
                 </tr>
             @endforeach
             <tr class="border-t border-slate-200 font-semibold text-slate-900">
                 <td class="px-6 py-3" colspan="5">{{ __('Grand total') }}</td>
-                <td class="px-6 py-3 text-right">SAR {{ number_format($grandTotal, 2) }}</td>
+                <td class="px-6 py-3 text-right">{{ \App\Support\Money::format($grandTotal) }}</td>
             </tr>
         </tbody>
     </table>

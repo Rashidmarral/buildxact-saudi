@@ -16,19 +16,19 @@
 <div class="grid sm:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net sales') }}</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1">SAR {{ number_format($netSales, 2) }}</p>
+        <p class="text-2xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($netSales) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Gross profit') }}</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1">SAR {{ number_format($grossProfit, 2) }}</p>
+        <p class="text-2xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($grossProfit) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Operating profit (loss)') }}</p>
-        <p class="text-2xl font-bold {{ $operatingProfit >= 0 ? 'text-slate-900' : 'text-red-600' }} mt-1">SAR {{ number_format($operatingProfit, 2) }}</p>
+        <p class="text-2xl font-bold {{ $operatingProfit >= 0 ? 'text-slate-900' : 'text-red-600' }} mt-1">{{ \App\Support\Money::format($operatingProfit) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net profit') }}</p>
-        <p class="text-2xl font-bold {{ $netProfit >= 0 ? 'text-slate-900' : 'text-red-600' }} mt-1">SAR {{ number_format($netProfit, 2) }}</p>
+        <p class="text-2xl font-bold {{ $netProfit >= 0 ? 'text-slate-900' : 'text-red-600' }} mt-1">{{ \App\Support\Money::format($netProfit) }}</p>
     </div>
 </div>
 

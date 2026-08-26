@@ -40,9 +40,9 @@
                         <td class="px-6 py-3 text-slate-500">{{ $asset->asset_code }}</td>
                         <td class="px-6 py-3 font-medium text-slate-900">{{ $asset->name }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $asset->category ?: '—' }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($asset->acquisition_cost, 2) }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($asset->accumulated_depreciation, 2) }}</td>
-                        <td class="px-6 py-3 font-semibold text-slate-900">SAR {{ number_format($asset->netBookValue(), 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($asset->acquisition_cost) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($asset->accumulated_depreciation) }}</td>
+                        <td class="px-6 py-3 font-semibold text-slate-900">{{ \App\Support\Money::format($asset->netBookValue()) }}</td>
                         <td class="px-6 py-3">
                             @if ($asset->status === 'disposed')
                                 <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{{ __('Disposed') }}</span>

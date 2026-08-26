@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Locales;
 use Illuminate\Http\Request;
 
 class LocaleController extends Controller
 {
     public function switch(Request $request, string $locale)
     {
-        if (in_array($locale, ['en', 'ar'], true)) {
+        if (Locales::isValid($locale)) {
             $request->session()->put('locale', $locale);
         }
 

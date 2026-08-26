@@ -33,7 +33,7 @@
                         <td class="px-6 py-3">{{ $creditNote->issue_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $creditNote->invoice->invoice_number }}</td>
                         <td class="px-6 py-3">{{ $creditNote->client->name }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($creditNote->total, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($creditNote->total) }}</td>
                         <td class="px-6 py-3">
                             @if ($creditNote->status === 'void')
                                 <span class="inline-block rounded-full bg-red-50 text-red-600 text-xs font-medium px-2.5 py-1">{{ __('Void') }}</span>

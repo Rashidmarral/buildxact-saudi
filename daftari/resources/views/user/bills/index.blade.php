@@ -52,8 +52,8 @@
                         <td class="px-6 py-3 font-medium text-brand-700">{{ $bill->bill_number }}</td>
                         <td class="px-6 py-3">{{ $bill->supplier->name }}</td>
                         <td class="px-6 py-3">{{ $bill->bill_date->format('Y-m-d') }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($bill->total, 2) }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($bill->balanceDue(), 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($bill->total) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($bill->balanceDue()) }}</td>
                         <td class="px-6 py-3">@include('user.bills.partials.status-badge', ['status' => $bill->status])</td>
                     </tr>
                 @endforeach

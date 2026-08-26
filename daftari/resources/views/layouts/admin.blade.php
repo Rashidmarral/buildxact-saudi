@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
+<html lang="{{ app()->getLocale() }}" dir="{{ \App\Support\Locales::dir(app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -54,6 +54,7 @@
                     @include('partials.nav-item', ['route' => 'admin.admins.index', 'label' => __('Admin Users'), 'icon' => 'shield'])
                     @include('partials.nav-item', ['route' => 'admin.admin-roles.index', 'label' => __('Admin Roles'), 'icon' => 'shield'])
                     @include('partials.nav-item', ['route' => 'admin.certificates.index', 'label' => __('Certificates'), 'icon' => 'templates'])
+                    @include('partials.nav-item', ['route' => 'admin.currencies.index', 'label' => __('Currencies'), 'icon' => 'billing'])
                     @include('partials.nav-item', ['route' => 'admin.settings.edit', 'label' => __('Platform settings'), 'icon' => 'settings'])
                 @endif
             </nav>

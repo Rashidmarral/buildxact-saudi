@@ -26,8 +26,8 @@
 </form>
 
 <div class="grid sm:grid-cols-2 gap-4 mb-6">
-    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Total expenses') }}</p><p class="text-2xl font-bold text-slate-900 mt-1">SAR {{ number_format($total, 2) }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('VAT') }}</p><p class="text-2xl font-bold text-slate-900 mt-1">SAR {{ number_format($vatTotal, 2) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('Total expenses') }}</p><p class="text-2xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($total) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5"><p class="text-xs text-slate-400">{{ __('VAT') }}</p><p class="text-2xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($vatTotal) }}</p></div>
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100">
@@ -49,8 +49,8 @@
                     <td class="px-5 py-3">{{ $expense->vendor_name ?: '—' }}</td>
                     <td class="px-5 py-3">{{ $expense->category->name ?? '—' }}</td>
                     <td class="px-5 py-3">{{ $expense->description }}</td>
-                    <td class="px-5 py-3 text-end">SAR {{ number_format($expense->amount, 2) }}</td>
-                    <td class="px-5 py-3 text-end">SAR {{ number_format($expense->vat_amount, 2) }}</td>
+                    <td class="px-5 py-3 text-end">{{ \App\Support\Money::format($expense->amount) }}</td>
+                    <td class="px-5 py-3 text-end">{{ \App\Support\Money::format($expense->vat_amount) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="6" class="px-5 py-10 text-center text-slate-400">{{ __('No expenses in this period.') }}</td></tr>

@@ -52,8 +52,8 @@
                         <td class="px-6 py-3">{{ $expense->expense_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $expense->account?->label() ?? $expense->category?->name ?? '—' }}</td>
                         <td class="px-6 py-3">{{ $expense->bankAccount?->name ?? __('Unpaid (payable)') }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($expense->gross_amount ?? ($expense->amount + $expense->vat_amount), 2) }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($expense->vat_amount, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($expense->gross_amount ?? ($expense->amount + $expense->vat_amount)) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($expense->vat_amount) }}</td>
                         <td class="px-6 py-3">
                             @php
                                 $statusColors = ['pending_approval' => 'bg-amber-50 text-amber-700', 'approved' => 'bg-emerald-50 text-emerald-700', 'rejected' => 'bg-red-50 text-red-600'];

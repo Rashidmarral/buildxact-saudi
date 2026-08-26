@@ -60,7 +60,7 @@
                         <td class="px-6 py-3">{{ $quotation->client->name }}</td>
                         <td class="px-6 py-3">{{ $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation') }}</td>
                         <td class="px-6 py-3">{{ $quotation->issue_date->format('Y-m-d') }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($quotation->total, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($quotation->total) }}</td>
                         <td class="px-6 py-3">@include('user.quotations.partials.status-badge', ['status' => $quotation->status])</td>
                     </tr>
                 @endforeach

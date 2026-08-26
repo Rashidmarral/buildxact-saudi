@@ -19,9 +19,9 @@
             <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Currency') }}</label>
                 <select name="currency" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                    <option value="SAR" @selected(old('currency', $account->currency ?? 'SAR') === 'SAR')>{{ __('SAR - Saudi Riyal (ر.س)') }}</option>
-                    <option value="USD" @selected(old('currency', $account->currency) === 'USD')>{{ __('USD - US Dollar ($)') }}</option>
-                    <option value="EUR" @selected(old('currency', $account->currency) === 'EUR')>{{ __('EUR - Euro (€)') }}</option>
+                    @foreach (\App\Models\Currency::active()->orderBy('sort_order')->get() as $currencyOption)
+                        <option value="{{ $currencyOption->code }}" @selected(old('currency', $account->currency ?: \App\Support\Money::defaultCode()) === $currencyOption->code)>{{ $currencyOption->code }} - {{ $currencyOption->name }} ({{ $currencyOption->symbol }})</option>
+                    @endforeach
                 </select>
             </div>
         </div>

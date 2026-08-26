@@ -24,7 +24,7 @@
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="px-6 py-3 font-medium text-slate-900">{{ $invoice->invoice_number }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $invoice->issue_date->format('Y-m-d') }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($invoice->total, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($invoice->total) }}</td>
                         <td class="px-6 py-3">
                             <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $invoice->status === 'paid' ? 'bg-emerald-50 text-emerald-700' : ($invoice->status === 'cancelled' ? 'bg-slate-100 text-slate-500' : 'bg-amber-50 text-amber-700') }}">
                                 {{ ucfirst(str_replace('_', ' ', $invoice->status)) }}

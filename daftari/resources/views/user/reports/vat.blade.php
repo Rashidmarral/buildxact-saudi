@@ -21,16 +21,16 @@
         <h3 class="font-semibold text-slate-900">{{ __('Sales (Output VAT)') }}</h3>
         <div class="mt-4 space-y-2 text-sm">
             <div class="flex justify-between text-slate-500"><span>{{ __('Invoices issued') }}</span><span>{{ $invoiceCount }}</span></div>
-            <div class="flex justify-between text-slate-500"><span>{{ __('Sales subtotal') }}</span><span>SAR {{ number_format($salesTotal, 2) }}</span></div>
-            <div class="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-100"><span>{{ __('Output VAT') }}</span><span>SAR {{ number_format($outputVat, 2) }}</span></div>
+            <div class="flex justify-between text-slate-500"><span>{{ __('Sales subtotal') }}</span><span>{{ \App\Support\Money::format($salesTotal) }}</span></div>
+            <div class="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-100"><span>{{ __('Output VAT') }}</span><span>{{ \App\Support\Money::format($outputVat) }}</span></div>
         </div>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="font-semibold text-slate-900">{{ __('Purchases (Input VAT)') }}</h3>
         <div class="mt-4 space-y-2 text-sm">
             <div class="flex justify-between text-slate-500"><span>{{ __('Expenses recorded') }}</span><span>{{ $expenseCount }}</span></div>
-            <div class="flex justify-between text-slate-500"><span>{{ __('Purchases total') }}</span><span>SAR {{ number_format($purchasesTotal, 2) }}</span></div>
-            <div class="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-100"><span>{{ __('Input VAT') }}</span><span>SAR {{ number_format($inputVat, 2) }}</span></div>
+            <div class="flex justify-between text-slate-500"><span>{{ __('Purchases total') }}</span><span>{{ \App\Support\Money::format($purchasesTotal) }}</span></div>
+            <div class="flex justify-between font-semibold text-slate-900 pt-2 border-t border-slate-100"><span>{{ __('Input VAT') }}</span><span>{{ \App\Support\Money::format($inputVat) }}</span></div>
         </div>
     </div>
 </div>

@@ -3,7 +3,10 @@
 namespace App\Services\Zatca;
 
 use App\Models\CreditNote;
+use App\Models\CreditNoteItem;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\TaxRate;
 use DOMDocument;
 use Illuminate\Support\Str;
 
@@ -110,7 +113,7 @@ class ZatcaXmlGenerator
             $itemEl = $doc->createElement('cac:Item');
             $this->append($doc, $itemEl, 'cbc:Name', $item->description);
             $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
-            $this->append($doc, $taxCategory, 'cbc:ID', (float) $item->vat_rate > 0 ? 'S' : 'Z');
+            $this->append($doc, $taxCategory, 'cbc:ID', $this->taxCategoryCode($item));
             $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $item->vat_rate, 2, '.', ''));
             $lineTaxScheme = $doc->createElement('cac:TaxScheme');
             $this->append($doc, $lineTaxScheme, 'cbc:ID', 'VAT');
@@ -244,7 +247,7 @@ class ZatcaXmlGenerator
             $itemEl = $doc->createElement('cac:Item');
             $this->append($doc, $itemEl, 'cbc:Name', $item->description);
             $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
-            $this->append($doc, $taxCategory, 'cbc:ID', (float) $item->vat_rate > 0 ? 'S' : 'Z');
+            $this->append($doc, $taxCategory, 'cbc:ID', $this->taxCategoryCode($item));
             $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $item->vat_rate, 2, '.', ''));
             $lineTaxScheme = $doc->createElement('cac:TaxScheme');
             $this->append($doc, $lineTaxScheme, 'cbc:ID', 'VAT');
@@ -506,21 +509,29 @@ class ZatcaXmlGenerator
         $withBreakdown = $doc->createElement('cac:TaxTotal');
         $this->appendAmount($doc, $withBreakdown, 'cbc:TaxAmount', $vatTotal);
 
+        // Grouped by (tax category, rate) — not rate alone — since a
+        // zero-rated (Z) and an exempt (E) line can share the same 0%
+        // rate but are different legal categories UBL requires as
+        // separate TaxSubtotal entries.
         $groups = [];
         foreach ($items as $item) {
             $rate = number_format((float) $item->vat_rate, 2, '.', '');
-            $groups[$rate]['taxable'] = ($groups[$rate]['taxable'] ?? 0) + $netAmount($item);
-            $groups[$rate]['tax'] = ($groups[$rate]['tax'] ?? 0) + (float) $item->vat_amount;
+            $code = $this->taxCategoryCode($item);
+            $key = $code.'|'.$rate;
+            $groups[$key]['code'] = $code;
+            $groups[$key]['rate'] = $rate;
+            $groups[$key]['taxable'] = ($groups[$key]['taxable'] ?? 0) + $netAmount($item);
+            $groups[$key]['tax'] = ($groups[$key]['tax'] ?? 0) + (float) $item->vat_amount;
         }
 
-        foreach ($groups as $rate => $group) {
+        foreach ($groups as $group) {
             $subtotal = $doc->createElement('cac:TaxSubtotal');
             $this->appendAmount($doc, $subtotal, 'cbc:TaxableAmount', (float) $group['taxable']);
             $this->appendAmount($doc, $subtotal, 'cbc:TaxAmount', (float) $group['tax']);
 
             $category = $doc->createElement('cac:TaxCategory');
-            $this->append($doc, $category, 'cbc:ID', (float) $rate > 0 ? 'S' : 'Z');
-            $this->append($doc, $category, 'cbc:Percent', $rate);
+            $this->append($doc, $category, 'cbc:ID', $group['code']);
+            $this->append($doc, $category, 'cbc:Percent', $group['rate']);
             $scheme = $doc->createElement('cac:TaxScheme');
             $this->append($doc, $scheme, 'cbc:ID', 'VAT');
             $category->appendChild($scheme);
@@ -590,6 +601,25 @@ class ZatcaXmlGenerator
         $allowance->appendChild($category);
 
         return $allowance;
+    }
+
+    /**
+     * ZATCA's ClassifiedTaxCategory/ID for a sales line: S (standard-rated),
+     * Z (zero-rated — still a taxable supply, e.g. exports), or E (exempt —
+     * outside VAT entirely, e.g. residential rent). Both Z and E charge 0
+     * SAR of VAT, so they can't be told apart from vat_rate alone — this
+     * uses the line's linked TaxRate (Settings → Tax rates) when one is
+     * set, and only falls back to the old "0% ⇒ zero-rated" guess for
+     * lines created before tax rate management existed (tax_rate_id null).
+     */
+    private function taxCategoryCode(InvoiceItem|CreditNoteItem $item): string
+    {
+        return match ($item->taxRate?->type) {
+            TaxRate::TYPE_EXEMPT => 'E',
+            TaxRate::TYPE_ZERO_RATED => 'Z',
+            TaxRate::TYPE_STANDARD => 'S',
+            default => (float) $item->vat_rate > 0 ? 'S' : 'Z',
+        };
     }
 
     private function append(DOMDocument $doc, \DOMElement $parent, string $tag, string $value): \DOMElement

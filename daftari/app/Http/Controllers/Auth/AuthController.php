@@ -11,6 +11,7 @@ use App\Models\Plan;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\Subscription;
+use App\Models\TaxRate;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
@@ -109,6 +110,7 @@ class AuthController extends Controller
             Role::seedSystemRoles($company->id);
             Account::seedSystemAccounts($company->id);
             AccountMapping::seedDefaults($company->id);
+            TaxRate::seedDefaults($company->id);
 
             $user = User::create([
                 'company_id' => $company->id,

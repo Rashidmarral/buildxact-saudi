@@ -12,9 +12,9 @@
 @if ($quotation->expiry_date)
 | {{ __('Valid until') }} | {{ $quotation->expiry_date->format('Y-m-d') }} |
 @endif
-| {{ __('Subtotal') }} | SAR {{ number_format($quotation->subtotal, 2) }} |
-| {{ __('VAT') }} | SAR {{ number_format($quotation->vat_total, 2) }} |
-| **{{ __('Total') }}** | **SAR {{ number_format($quotation->total, 2) }}** |
+| {{ __('Subtotal') }} | {{ \App\Support\Money::format($quotation->subtotal) }} |
+| {{ __('VAT') }} | {{ \App\Support\Money::format($quotation->vat_total) }} |
+| **{{ __('Total') }}** | **{{ \App\Support\Money::format($quotation->total) }}** |
 @endcomponent
 
 {{ __('The full document is attached as a PDF.') }}

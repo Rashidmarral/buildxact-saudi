@@ -30,7 +30,7 @@
                 @foreach ($items as $item)
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3 font-medium text-slate-800">{{ $item->name }}</td>
-                        <td class="px-6 py-3 text-slate-500">SAR {{ number_format($item->unit_price, 2) }}</td>
+                        <td class="px-6 py-3 text-slate-500">{{ \App\Support\Money::format($item->unit_price) }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ rtrim(rtrim(number_format($item->vat_rate, 2), '0'), '.') }}%</td>
                         <td class="px-6 py-3">
                             @if ($item->is_active)

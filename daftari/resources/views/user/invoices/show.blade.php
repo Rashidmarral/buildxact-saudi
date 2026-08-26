@@ -135,7 +135,7 @@
                         <td class="py-2">{{ $payment->paid_at->format('Y-m-d') }}</td>
                         <td class="py-2">{{ $payment->method ?: '—' }}</td>
                         <td class="py-2">{{ $payment->reference ?: '—' }}</td>
-                        <td class="py-2 text-end">SAR {{ number_format($payment->amount, 2) }}</td>
+                        <td class="py-2 text-end">{{ \App\Support\Money::format($payment->amount) }}</td>
                     </tr>
                 @endforeach
             </tbody>

@@ -32,7 +32,7 @@
                         <td class="px-6 py-3">{{ $voucher->date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $voucher->payee_name }}</td>
                         <td class="px-6 py-3">{{ $voucher->bankAccount->name }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($voucher->amount, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($voucher->amount) }}</td>
                         <td class="px-6 py-3">
                             @if ($voucher->status === 'void')
                                 <span class="inline-block rounded-full bg-red-50 text-red-600 text-xs font-medium px-2.5 py-1">{{ __('Void') }}</span>

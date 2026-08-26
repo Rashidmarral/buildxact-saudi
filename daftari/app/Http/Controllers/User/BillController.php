@@ -10,6 +10,7 @@ use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Item;
 use App\Models\Supplier;
+use App\Models\TaxRate;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use App\Support\Currencies;
@@ -225,7 +226,7 @@ class BillController extends Controller
                 'description' => $row['description'],
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
-                'vat_rate' => $row['vat_rate'] ?? 15,
+                'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($bill->company_id),
                 'sort_order' => $sort,
             ]);
             $line->recalculate();

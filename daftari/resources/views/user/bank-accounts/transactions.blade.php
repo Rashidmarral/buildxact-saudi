@@ -51,11 +51,11 @@
                         <td class="px-6 py-3">{{ $t['account'] }}</td>
                         <td class="px-6 py-3">
                             @if ($t['type'] === 'payment')
-                                <span class="text-red-600">- SAR {{ number_format($t['amount'], 2) }}</span>
+                                <span class="text-red-600">- {{ \App\Support\Money::format($t['amount']) }}</span>
                             @elseif ($t['type'] === 'receipt')
-                                <span class="text-emerald-600">+ SAR {{ number_format($t['amount'], 2) }}</span>
+                                <span class="text-emerald-600">+ {{ \App\Support\Money::format($t['amount']) }}</span>
                             @else
-                                SAR {{ number_format($t['amount'], 2) }}
+                                {{ \App\Support\Money::format($t['amount']) }}
                             @endif
                         </td>
                         <td class="px-6 py-3">

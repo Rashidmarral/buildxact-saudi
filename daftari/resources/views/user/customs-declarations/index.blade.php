@@ -18,7 +18,7 @@
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-sm text-slate-500">{{ __('Recorded import VAT') }}</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1">SAR {{ number_format($totalVat, 2) }}</p>
+        <p class="text-2xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($totalVat) }}</p>
     </div>
 </div>
 
@@ -46,8 +46,8 @@
                         <td class="px-6 py-3">{{ $declaration->declaration_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $declaration->port_of_entry ?: '—' }}</td>
                         <td class="px-6 py-3">{{ $declaration->supplier->name ?? '—' }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($declaration->customs_value, 2) }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($declaration->vat_amount, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($declaration->customs_value) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($declaration->vat_amount) }}</td>
                         <td class="px-6 py-3">{{ $declaration->bills->count() }}</td>
                         <td class="px-6 py-3 text-right">
                             <form method="POST" action="{{ route('app.customs-declarations.destroy', $declaration) }}" onsubmit="return confirm('{{ __('Delete this declaration?') }}')">
@@ -123,7 +123,7 @@
             <div class="grid sm:grid-cols-2 gap-4 mt-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('VAT base') }}</label>
-                    <input type="text" id="vat-base" disabled value="SAR 0.00" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-100 text-sm text-slate-500">
+                    <input type="text" id="vat-base" disabled value="{{ \App\Support\Money::format(0) }}" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-100 text-sm text-slate-500">
                     <p class="text-xs text-slate-400 mt-1">{{ __('Customs value + customs duty. Calculated for you.') }}</p>
                 </div>
                 <div>
@@ -139,7 +139,7 @@
             <div class="grid sm:grid-cols-2 gap-4 mt-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('VAT amount') }}</label>
-                    <input type="text" id="vat-amount" disabled value="SAR 0.00" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-100 text-sm text-slate-500">
+                    <input type="text" id="vat-amount" disabled value="{{ \App\Support\Money::format(0) }}" class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-100 text-sm text-slate-500">
                     <p class="text-xs text-slate-400 mt-1">{{ __('VAT base × rate. Calculated for you.') }}</p>
                 </div>
                 <div>
@@ -165,6 +165,7 @@
 
 <script>
 (function () {
+    const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
     const cif = document.getElementById('customs-value');
     const duty = document.getElementById('customs-duty');
     const rate = document.getElementById('vat-rate');
@@ -174,8 +175,8 @@
     function recalc() {
         const base = (parseFloat(cif.value) || 0) + (parseFloat(duty.value) || 0);
         const vat = base * (parseFloat(rate.value) || 0) / 100;
-        baseField.value = 'SAR ' + base.toFixed(2);
-        amountField.value = 'SAR ' + vat.toFixed(2);
+        baseField.value = CURRENCY_SYMBOL + ' ' + base.toFixed(2);
+        amountField.value = CURRENCY_SYMBOL + ' ' + vat.toFixed(2);
     }
 
     [cif, duty, rate].forEach(el => el.addEventListener('input', recalc));

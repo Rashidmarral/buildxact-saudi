@@ -10,8 +10,8 @@
 |:---|---:|
 | {{ __('Issue date') }} | {{ $invoice->issue_date->format('Y-m-d') }} |
 | {{ __('Due date') }} | {{ $invoice->due_date->format('Y-m-d') }} |
-| {{ __('Total') }} | SAR {{ number_format($invoice->total, 2) }} |
-| **{{ __('Balance due') }}** | **SAR {{ number_format($invoice->balanceDue(), 2) }}** |
+| {{ __('Total') }} | {{ \App\Support\Money::format($invoice->total) }} |
+| **{{ __('Balance due') }}** | **{{ \App\Support\Money::format($invoice->balanceDue()) }}** |
 @endcomponent
 
 {{ __('Please arrange payment at your earliest convenience. If you have already paid, kindly disregard this reminder.') }}

@@ -61,7 +61,7 @@
                             <td class="py-2 pe-3">
                                 <input type="number" step="0.01" min="0" max="100" name="items[{{ $index }}][vat_rate]" value="{{ $item->vat_rate }}" data-vat class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                             </td>
-                            <td class="py-2 text-end font-medium" data-line-total>SAR {{ number_format($item->line_total, 2) }}</td>
+                            <td class="py-2 text-end font-medium" data-line-total>{{ \App\Support\Money::format($item->line_total) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -70,9 +70,9 @@
 
         <div class="mt-6 flex justify-end">
             <div class="w-full max-w-xs space-y-2 text-sm">
-                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">SAR 0.00</span></div>
-                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">SAR 0.00</span></div>
-                <div class="flex justify-between font-bold text-slate-900 text-base border-t border-slate-100 pt-2"><span>{{ __('Total credit') }}</span><span id="summary-total">SAR 0.00</span></div>
+                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">{{ \App\Support\Money::format(0) }}</span></div>
+                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">{{ \App\Support\Money::format(0) }}</span></div>
+                <div class="flex justify-between font-bold text-slate-900 text-base border-t border-slate-100 pt-2"><span>{{ __('Total credit') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
             </div>
         </div>
     </div>
@@ -82,6 +82,7 @@
 
 <script>
 (function () {
+    const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
     const rows = () => document.querySelectorAll('#items-body tr[data-row]');
 
     function recalc() {
@@ -93,14 +94,14 @@
             const rate = parseFloat(row.querySelector('[data-vat]').value) || 0;
             const lineSubtotal = qty * price;
             const lineVat = lineSubtotal * rate / 100;
-            row.querySelector('[data-line-total]').textContent = 'SAR ' + (lineSubtotal + lineVat).toFixed(2);
+            row.querySelector('[data-line-total]').textContent = CURRENCY_SYMBOL + ' ' + (lineSubtotal + lineVat).toFixed(2);
             subtotal += lineSubtotal;
             vat += lineVat;
         });
 
-        document.getElementById('summary-subtotal').textContent = 'SAR ' + subtotal.toFixed(2);
-        document.getElementById('summary-vat').textContent = 'SAR ' + vat.toFixed(2);
-        document.getElementById('summary-total').textContent = 'SAR ' + (subtotal + vat).toFixed(2);
+        document.getElementById('summary-subtotal').textContent = CURRENCY_SYMBOL + ' ' + subtotal.toFixed(2);
+        document.getElementById('summary-vat').textContent = CURRENCY_SYMBOL + ' ' + vat.toFixed(2);
+        document.getElementById('summary-total').textContent = CURRENCY_SYMBOL + ' ' + (subtotal + vat).toFixed(2);
     }
 
     document.getElementById('items-body').addEventListener('input', recalc);

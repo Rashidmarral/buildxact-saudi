@@ -29,16 +29,16 @@
 <div class="grid sm:grid-cols-3 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs font-medium text-slate-500">{{ __('Total budgeted') }}</p>
-        <p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($totalBudgeted, 2) }}</p>
+        <p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($totalBudgeted) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs font-medium text-slate-500">{{ __('Total actual') }}</p>
-        <p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($totalActual, 2) }}</p>
+        <p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($totalActual) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs font-medium text-slate-500">{{ __('Variance') }}</p>
         @php($totalVariance = $totalActual - $totalBudgeted)
-        <p class="text-xl font-bold mt-1 {{ $totalVariance > 0 ? 'text-red-600' : 'text-emerald-600' }}">SAR {{ number_format($totalVariance, 2) }}</p>
+        <p class="text-xl font-bold mt-1 {{ $totalVariance > 0 ? 'text-red-600' : 'text-emerald-600' }}">{{ \App\Support\Money::format($totalVariance) }}</p>
     </div>
 </div>
 
@@ -62,9 +62,9 @@
                         <td class="px-6 py-3">
                             <span class="text-slate-400">{{ $row['account']->code }}</span> {{ $row['account']->name }}
                         </td>
-                        <td class="px-6 py-3 text-end">SAR {{ number_format($row['budgeted'], 2) }}</td>
-                        <td class="px-6 py-3 text-end">SAR {{ number_format($row['actual'], 2) }}</td>
-                        <td class="px-6 py-3 text-end font-medium {{ $row['unfavorable'] ? 'text-red-600' : 'text-emerald-600' }}">SAR {{ number_format($row['variance'], 2) }}</td>
+                        <td class="px-6 py-3 text-end">{{ \App\Support\Money::format($row['budgeted']) }}</td>
+                        <td class="px-6 py-3 text-end">{{ \App\Support\Money::format($row['actual']) }}</td>
+                        <td class="px-6 py-3 text-end font-medium {{ $row['unfavorable'] ? 'text-red-600' : 'text-emerald-600' }}">{{ \App\Support\Money::format($row['variance']) }}</td>
                         <td class="px-6 py-3 text-end text-slate-500">
                             {{ $row['budgeted'] > 0 ? number_format(($row['actual'] / $row['budgeted']) * 100, 0) : '—' }}{{ $row['budgeted'] > 0 ? '%' : '' }}
                         </td>

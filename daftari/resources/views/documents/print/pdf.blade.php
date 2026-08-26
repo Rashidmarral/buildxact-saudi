@@ -278,9 +278,9 @@
                 <tr style="border-bottom: 0.5pt solid #f1f5f9;">
                     <td style="padding: 5px 0;">{{ $line->description }}</td>
                     <td class="text-end" style="padding: 5px 0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
-                    <td class="text-end" style="padding: 5px 0;">SAR {{ number_format($line->unit_price, 2) }}</td>
-                    <td class="text-end" style="padding: 5px 0;">SAR {{ number_format($line->vat_amount, 2) }}</td>
-                    <td class="text-end" style="padding: 5px 0;">SAR {{ number_format($line->line_total, 2) }}</td>
+                    <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->unit_price) }}</td>
+                    <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
+                    <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->line_total) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -292,14 +292,14 @@
             <td style="width: 55%;"></td>
             <td style="width: 45%; @if ($boxed) background-color: {{ $accent }}; border-radius: 6px; padding: 12px; @endif">
                 <table>
-                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">SAR {{ number_format($doc['subtotal'], 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                     @if (($doc['discount_total'] ?? 0) > 0)
-                        <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('Discount') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">-SAR {{ number_format($doc['discount_total'], 2) }}</td></tr>
+                        <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('Discount') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">-{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
                     @endif
-                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('VAT') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">SAR {{ number_format($doc['vat_total'], 2) }}</td></tr>
-                    <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">{{ __('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">SAR {{ number_format($doc['total'], 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('VAT') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                    <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">{{ __('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @foreach ($doc['extra_rows'] ?? [] as $row)
-                        <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">SAR {{ number_format($row['value'], 2) }}</td></tr>
+                        <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($row['value']) }}</td></tr>
                     @endforeach
                 </table>
             </td>

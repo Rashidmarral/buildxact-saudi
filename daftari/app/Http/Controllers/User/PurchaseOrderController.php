@@ -11,6 +11,7 @@ use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
+use App\Models\TaxRate;
 use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
@@ -320,7 +321,7 @@ class PurchaseOrderController extends Controller
                 'description' => $row['description'],
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
-                'vat_rate' => $row['vat_rate'] ?? 15,
+                'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($order->company_id),
                 'sort_order' => $sort,
             ]);
             $line->recalculate();

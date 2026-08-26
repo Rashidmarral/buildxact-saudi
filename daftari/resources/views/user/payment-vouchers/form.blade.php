@@ -60,7 +60,7 @@
                     <select name="expense_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         <option value="">{{ __('None') }}</option>
                         @foreach ($expenses as $expense)
-                            <option value="{{ $expense->id }}" @selected(old('expense_id') == $expense->id)>{{ $expense->vendor_name }} — SAR {{ number_format($expense->amount, 2) }} ({{ $expense->expense_date->format('Y-m-d') }})</option>
+                            <option value="{{ $expense->id }}" @selected(old('expense_id') == $expense->id)>{{ $expense->vendor_name }} — {{ \App\Support\Money::format($expense->amount) }} ({{ $expense->expense_date->format('Y-m-d') }})</option>
                         @endforeach
                     </select>
                 </div>

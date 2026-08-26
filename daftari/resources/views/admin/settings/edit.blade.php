@@ -8,6 +8,7 @@
     <div class="flex flex-wrap items-center gap-3 mb-6">
         <a href="{{ route('admin.settings.payment-gateways') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Payment gateways') }}</a>
         <a href="{{ route('admin.certificates.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Certificates & compliance documents') }}</a>
+        <a href="{{ route('admin.currencies.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Currencies') }}</a>
     </div>
 
     <div class="flex gap-1 border-b border-slate-200 mb-6 overflow-x-auto">
@@ -73,7 +74,7 @@
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Default currency') }}</label>
                     <select name="general_default_currency" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         @foreach ($currencies as $currency)
-                            <option value="{{ $currency }}" @selected(old('general_default_currency', $settings['general_default_currency']) === $currency)>{{ $currency }}</option>
+                            <option value="{{ $currency->code }}" @selected(old('general_default_currency', $settings['general_default_currency']) === $currency->code)>{{ $currency->code }} — {{ $currency->name }}</option>
                         @endforeach
                     </select>
                 </div>

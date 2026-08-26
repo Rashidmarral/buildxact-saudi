@@ -49,7 +49,7 @@
     @if ($voucher->party_vat_number)
         <tr><td class="k">{{ __('VAT number') }}</td><td class="v">{{ $voucher->party_vat_number }}</td></tr>
     @endif
-    <tr><td class="k">{{ __('Amount') }}</td><td class="v" style="font-size: 12pt;">SAR {{ number_format($voucher->amount, 2) }}</td></tr>
+    <tr><td class="k">{{ __('Amount') }}</td><td class="v" style="font-size: 12pt;">{{ \App\Support\Money::format($voucher->amount) }}</td></tr>
     <tr><td class="k">{{ __('Account') }}</td><td class="v">{{ $voucher->bankAccount->name }}</td></tr>
     @if ($voucher->counterAccount)
         <tr><td class="k">{{ __('Counter account') }}</td><td class="v">{{ $voucher->counterAccount->label() }}</td></tr>

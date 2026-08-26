@@ -9,12 +9,18 @@ class CreditNoteItem extends Model
 {
     protected $fillable = [
         'credit_note_id', 'invoice_item_id', 'unit_id', 'description', 'quantity',
-        'unit_price', 'vat_rate', 'vat_amount', 'line_total',
+        'unit_price', 'vat_rate', 'tax_rate_id', 'vat_amount', 'line_total',
     ];
 
     public function creditNote(): BelongsTo
     {
         return $this->belongsTo(CreditNote::class);
+    }
+
+    /** @see InvoiceItem::taxRate() */
+    public function taxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class);
     }
 
     public function invoiceItem(): BelongsTo

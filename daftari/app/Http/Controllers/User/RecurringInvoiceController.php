@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceItem;
 use App\Models\Salesperson;
+use App\Models\TaxRate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -157,7 +158,7 @@ class RecurringInvoiceController extends Controller
                 'description' => $row['description'],
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
-                'vat_rate' => $row['vat_rate'] ?? 15,
+                'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($recurringInvoice->company_id),
                 'sort_order' => $sort,
             ]);
         }

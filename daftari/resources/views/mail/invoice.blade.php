@@ -12,10 +12,10 @@
 @if ($invoice->due_date)
 | {{ __('Due date') }} | {{ $invoice->due_date->format('Y-m-d') }} |
 @endif
-| {{ __('Subtotal') }} | SAR {{ number_format($invoice->subtotal, 2) }} |
-| {{ __('VAT') }} | SAR {{ number_format($invoice->vat_total, 2) }} |
-| **{{ __('Total') }}** | **SAR {{ number_format($invoice->total, 2) }}** |
-| {{ __('Balance due') }} | SAR {{ number_format($invoice->balanceDue(), 2) }} |
+| {{ __('Subtotal') }} | {{ \App\Support\Money::format($invoice->subtotal) }} |
+| {{ __('VAT') }} | {{ \App\Support\Money::format($invoice->vat_total) }} |
+| **{{ __('Total') }}** | **{{ \App\Support\Money::format($invoice->total) }}** |
+| {{ __('Balance due') }} | {{ \App\Support\Money::format($invoice->balanceDue()) }} |
 @endcomponent
 
 {{ __('The full invoice, including the ZATCA QR code, is attached as a PDF.') }}

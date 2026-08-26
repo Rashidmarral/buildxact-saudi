@@ -2,32 +2,25 @@
 
 namespace App\Support;
 
+use App\Models\Currency;
+
 /**
- * The currencies invoices/bills can be denominated in. Kept to a short,
- * curated list (Gulf neighbours + the handful of currencies Saudi SMEs
- * actually trade in) rather than the full ISO 4217 table, since every
- * entry here needs a manually-entered exchange rate — there's no live FX
- * feed wired in, so a shorter list is a shorter list of rates to keep an
- * eye on.
+ * The currencies invoices/bills can be denominated in — sourced from the
+ * admin-managed `currencies` table (Platform Settings → Currencies), not a
+ * hardcoded list, so turning a currency on/off there is what actually
+ * controls what shows up here. Every entry still needs a manually-entered
+ * exchange rate on the document itself — there's no live FX feed wired in.
  */
 class Currencies
 {
+    /**
+     * @return array<string, string> code => "Name (CODE)"
+     */
     public static function catalog(): array
     {
-        return [
-            'SAR' => 'Saudi Riyal (SAR)',
-            'USD' => 'US Dollar (USD)',
-            'EUR' => 'Euro (EUR)',
-            'GBP' => 'British Pound (GBP)',
-            'AED' => 'UAE Dirham (AED)',
-            'KWD' => 'Kuwaiti Dinar (KWD)',
-            'BHD' => 'Bahraini Dinar (BHD)',
-            'QAR' => 'Qatari Riyal (QAR)',
-            'OMR' => 'Omani Rial (OMR)',
-            'EGP' => 'Egyptian Pound (EGP)',
-            'JOD' => 'Jordanian Dinar (JOD)',
-            'INR' => 'Indian Rupee (INR)',
-        ];
+        return Currency::query()->active()->orderBy('sort_order')->get()
+            ->mapWithKeys(fn (Currency $c) => [$c->code => "{$c->name} ({$c->code})"])
+            ->all();
     }
 
     public static function codes(): array

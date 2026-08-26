@@ -30,17 +30,17 @@
 <div class="grid sm:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Revenue') }}</p>
-        <p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($revenue, 2) }}</p>
-        @if ($project->target_revenue)<p class="text-xs text-slate-400 mt-1">{{ __('Target') }}: SAR {{ number_format($project->target_revenue, 2) }}</p>@endif
+        <p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($revenue) }}</p>
+        @if ($project->target_revenue)<p class="text-xs text-slate-400 mt-1">{{ __('Target') }}: {{ \App\Support\Money::format($project->target_revenue) }}</p>@endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Costs') }}</p>
-        <p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($costs, 2) }}</p>
-        @if ($project->cost_ceiling)<p class="text-xs {{ $costs > $project->cost_ceiling ? 'text-red-600' : 'text-slate-400' }} mt-1">{{ __('Ceiling') }}: SAR {{ number_format($project->cost_ceiling, 2) }}</p>@endif
+        <p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($costs) }}</p>
+        @if ($project->cost_ceiling)<p class="text-xs {{ $costs > $project->cost_ceiling ? 'text-red-600' : 'text-slate-400' }} mt-1">{{ __('Ceiling') }}: {{ \App\Support\Money::format($project->cost_ceiling) }}</p>@endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Margin') }}</p>
-        <p class="text-xl font-bold {{ $margin >= 0 ? 'text-emerald-600' : 'text-red-600' }} mt-1">SAR {{ number_format($margin, 2) }}</p>
+        <p class="text-xl font-bold {{ $margin >= 0 ? 'text-emerald-600' : 'text-red-600' }} mt-1">{{ \App\Support\Money::format($margin) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Margin %') }}</p>
@@ -60,7 +60,7 @@
                         <tr class="border-b border-slate-50 last:border-0">
                             <td class="py-2"><a href="{{ route('app.invoices.show', $invoice) }}" class="text-brand-700 hover:underline">{{ $invoice->invoice_number }}</a></td>
                             <td class="py-2 text-slate-500">{{ $invoice->client->name ?? '—' }}</td>
-                            <td class="py-2 text-end">SAR {{ number_format($invoice->total, 2) }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($invoice->total) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -78,7 +78,7 @@
                         <tr class="border-b border-slate-50 last:border-0">
                             <td class="py-2">{{ $expense->description ?: ($expense->category->name ?? '—') }}</td>
                             <td class="py-2 text-slate-500">{{ $expense->expense_date->format('Y-m-d') }}</td>
-                            <td class="py-2 text-end">SAR {{ number_format($expense->amount, 2) }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($expense->amount) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

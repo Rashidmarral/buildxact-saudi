@@ -35,7 +35,7 @@
                 <p class="text-slate-400">{{ __('No activity yet.') }}</p>
             @endforelse
         </div>
-        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200"><span>{{ __('Total assets') }}</span><span>SAR {{ number_format($totalAssets, 2) }}</span></div>
+        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200"><span>{{ __('Total assets') }}</span><span>{{ \App\Support\Money::format($totalAssets) }}</span></div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -47,7 +47,7 @@
                 <p class="text-slate-400">{{ __('No activity yet.') }}</p>
             @endforelse
         </div>
-        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200"><span>{{ __('Total liabilities') }}</span><span>SAR {{ number_format($totalLiabilities, 2) }}</span></div>
+        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200"><span>{{ __('Total liabilities') }}</span><span>{{ \App\Support\Money::format($totalLiabilities) }}</span></div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -62,7 +62,7 @@
                 <p class="text-slate-400">{{ __('No activity yet.') }}</p>
             @endforelse
         </div>
-        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200"><span>{{ __('Total equity') }}</span><span>SAR {{ number_format($totalEquity, 2) }}</span></div>
+        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200"><span>{{ __('Total equity') }}</span><span>{{ \App\Support\Money::format($totalEquity) }}</span></div>
     </div>
 </div>
 @endsection

@@ -8,6 +8,7 @@ use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
 use App\Models\Item;
 use App\Models\ItemUnit;
+use App\Models\TaxRate;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +49,7 @@ class ItemController extends Controller
         return view('user.items.form', [
             'item' => new Item,
             'units' => Unit::orderBy('name')->get(),
+            'taxRates' => TaxRate::active()->effectiveAsOf()->orderByDesc('is_default')->orderBy('name')->get(),
             'customFieldDefinitions' => Item::customFieldDefinitions(),
             'customFieldValues' => [],
         ]);
@@ -74,6 +76,7 @@ class ItemController extends Controller
         return view('user.items.form', [
             'item' => $item,
             'units' => Unit::orderBy('name')->get(),
+            'taxRates' => TaxRate::active()->effectiveAsOf()->orderByDesc('is_default')->orderBy('name')->get(),
             'customFieldDefinitions' => Item::customFieldDefinitions(),
             'customFieldValues' => $item->customFieldValuesMap(),
         ]);
@@ -146,7 +149,7 @@ class ItemController extends Controller
 
         $result = $this->runCsvImport(
             $request->file('file'),
-            function (array $row) {
+            function (array $row) use ($companyId) {
                 return Validator::make([
                     'name' => $row['name'] ?: null,
                     'item_type' => strtolower($row['item_type'] ?? '') === 'service' ? 'service' : 'physical',
@@ -155,7 +158,7 @@ class ItemController extends Controller
                     'category' => $row['category'] ?: null,
                     'unit_price' => $row['unit_price'] ?: null,
                     'purchase_price' => $row['purchase_price'] ?: null,
-                    'vat_rate' => $row['vat_rate'] !== '' ? $row['vat_rate'] : 15,
+                    'vat_rate' => $row['vat_rate'] !== '' ? $row['vat_rate'] : TaxRate::defaultRate($companyId),
                 ], [
                     'name' => ['required', 'string', 'max:255'],
                     'item_type' => ['required', 'in:service,physical'],

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Currency;
 use App\Models\Plan;
 use App\Models\Setting;
 use App\Support\Countries;
@@ -30,9 +31,18 @@ class PlatformSettingsController extends Controller
 
     public const COUNTRIES = Countries::LIST;
 
-    public const CURRENCIES = ['SAR', 'USD', 'EUR', 'GBP', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'EGP'];
-
     public const LANGUAGES = ['en' => 'English', 'ar' => 'العربية'];
+
+    /**
+     * Active currency codes, sourced from the admin-managed currencies
+     * table (Platform Settings → Currencies) instead of a hardcoded list —
+     * every currency selectable here is one a super admin actually turned
+     * on.
+     */
+    private function activeCurrencyCodes(): array
+    {
+        return Currency::query()->active()->orderBy('sort_order')->pluck('code')->all();
+    }
 
     public function edit()
     {
@@ -92,7 +102,7 @@ class PlatformSettingsController extends Controller
             'dateFormats' => self::DATE_FORMATS,
             'timeFormats' => self::TIME_FORMATS,
             'countries' => self::COUNTRIES,
-            'currencies' => self::CURRENCIES,
+            'currencies' => Currency::query()->active()->orderBy('sort_order')->get(),
             'languages' => self::LANGUAGES,
             'timezones' => \DateTimeZone::listIdentifiers(),
             'appVersion' => config('daftari.version'),
@@ -107,7 +117,7 @@ class PlatformSettingsController extends Controller
             'general_default_country' => ['required', 'string', Rule::in(array_keys(self::COUNTRIES))],
             'general_default_timezone' => ['required', 'string', Rule::in(\DateTimeZone::listIdentifiers())],
             'general_default_language' => ['required', 'string', Rule::in(array_keys(self::LANGUAGES))],
-            'general_default_currency' => ['required', 'string', Rule::in(self::CURRENCIES)],
+            'general_default_currency' => ['required', 'string', Rule::in($this->activeCurrencyCodes())],
             'general_date_format' => ['required', 'string', Rule::in(self::DATE_FORMATS)],
             'general_time_format' => ['required', 'string', Rule::in(self::TIME_FORMATS)],
             'general_fiscal_year_start' => ['required', 'integer', 'min:1', 'max:12'],

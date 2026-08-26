@@ -26,7 +26,7 @@
                         <td class="px-6 py-3">{{ $line->description }}</td>
                         <td class="px-6 py-3">{{ $line->debit > 0 ? number_format($line->debit, 2) : '—' }}</td>
                         <td class="px-6 py-3">{{ $line->credit > 0 ? number_format($line->credit, 2) : '—' }}</td>
-                        <td class="px-6 py-3 font-semibold text-slate-900">SAR {{ number_format($line->balance, 2) }}</td>
+                        <td class="px-6 py-3 font-semibold text-slate-900">{{ \App\Support\Money::format($line->balance) }}</td>
                     </tr>
                 @endforeach
             </tbody>

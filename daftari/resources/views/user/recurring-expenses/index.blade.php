@@ -30,7 +30,7 @@
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="px-6 py-3 font-medium text-slate-800">{{ $recurringExpense->title }}</td>
                         <td class="px-6 py-3">{{ $recurringExpense->category->name ?? '—' }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($recurringExpense->gross_amount, 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($recurringExpense->gross_amount) }}</td>
                         <td class="px-6 py-3">{{ __(ucfirst($recurringExpense->frequency)) }}</td>
                         <td class="px-6 py-3">{{ $recurringExpense->status === 'active' ? $recurringExpense->next_run_date->format('Y-m-d') : '—' }}</td>
                         <td class="px-6 py-3">{{ $recurringExpense->generated_count }}</td>

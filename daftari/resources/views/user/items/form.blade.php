@@ -88,9 +88,11 @@
 
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Default tax category') }}</label>
+            @php($defaultVatRate = $item->vat_rate ?? \App\Models\TaxRate::defaultRate(auth()->user()->company_id))
             <select name="vat_rate" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                <option value="15" @selected((float) old('vat_rate', $item->vat_rate ?? 15) === 15.0)>{{ __('Standard rated 15%') }}</option>
-                <option value="0" @selected((float) old('vat_rate', $item->vat_rate ?? 15) === 0.0)>{{ __('Zero rated / Exempt') }}</option>
+                @foreach ($taxRates as $taxRate)
+                    <option value="{{ $taxRate->rate }}" @selected((float) old('vat_rate', $defaultVatRate) === (float) $taxRate->rate)>{{ $taxRate->name }} ({{ number_format((float) $taxRate->rate, 2) }}%)</option>
+                @endforeach
             </select>
         </div>
         <div>

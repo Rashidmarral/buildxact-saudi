@@ -41,7 +41,7 @@
                     <td class="px-5 py-3 text-slate-500">{{ $entry->entry_date->format('Y-m-d') }}</td>
                     <td class="px-5 py-3">{{ $entry->description }}</td>
                     <td class="px-5 py-3 text-slate-500">{{ ucfirst(str_replace('_', ' ', $entry->source_type ?? '—')) }}</td>
-                    <td class="px-5 py-3 text-end">SAR {{ number_format($entry->total_debit, 2) }}</td>
+                    <td class="px-5 py-3 text-end">{{ \App\Support\Money::format($entry->total_debit) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="5" class="px-5 py-10 text-center text-slate-400">{{ __('No journal entries yet — they appear automatically as invoices, bills, and payments are recorded.') }}</td></tr>

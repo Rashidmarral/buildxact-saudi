@@ -84,10 +84,10 @@
 <div class="grid sm:grid-cols-6 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Invoices') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ $invoiceCount }}</p></div>
     <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Line items') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ $lineCount }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Discounts') }}</p><p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($discountTotal, 2) }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Taxable sales') }}</p><p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($taxableSales, 2) }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Tax') }}</p><p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($taxTotal, 2) }}</p></div>
-    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Total sales') }}</p><p class="text-xl font-bold text-slate-900 mt-1">SAR {{ number_format($totalSales, 2) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Discounts') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($discountTotal) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Taxable sales') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($taxableSales) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Tax') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($taxTotal) }}</p></div>
+    <div class="bg-white rounded-xl border border-slate-100 p-4"><p class="text-xs text-slate-400">{{ __('Total sales') }}</p><p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($totalSales) }}</p></div>
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -119,7 +119,7 @@
                             <td class="py-2"><a href="{{ route('app.invoices.show', $row->invoice) }}" class="text-brand-700 hover:underline">{{ $row->invoice->invoice_number }}</a></td>
                             <td class="py-2">{{ $row->invoice->client->name ?? '—' }}</td>
                             <td class="py-2">{{ $row->line->description }}</td>
-                            <td class="py-2 text-end">SAR {{ number_format($row->line->line_total, 2) }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($row->line->line_total) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

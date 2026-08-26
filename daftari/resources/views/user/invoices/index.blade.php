@@ -39,8 +39,8 @@
                         <td class="px-6 py-3 font-medium text-brand-700">{{ $invoice->invoice_number }}</td>
                         <td class="px-6 py-3">{{ $invoice->client->name }}</td>
                         <td class="px-6 py-3">{{ $invoice->issue_date->format('Y-m-d') }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($invoice->total, 2) }}</td>
-                        <td class="px-6 py-3">SAR {{ number_format($invoice->balanceDue(), 2) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($invoice->total) }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($invoice->balanceDue()) }}</td>
                         <td class="px-6 py-3">@include('user.invoices.partials.status-badge', ['status' => $invoice->status])</td>
                     </tr>
                 @endforeach

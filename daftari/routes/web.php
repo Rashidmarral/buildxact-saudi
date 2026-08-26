@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
+use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\DemoLoginController;
@@ -47,6 +48,7 @@ use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
+use App\Http\Controllers\User\TaxRateController;
 use App\Http\Controllers\User\UnitController;
 use App\Http\Controllers\User\GlobalSearchController;
 use App\Http\Controllers\User\JournalController;
@@ -191,6 +193,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::post('items-import', [ItemController::class, 'import'])->name('items.import.store')->middleware('permission:items');
     Route::get('items-import/template', [ItemController::class, 'importTemplate'])->name('items.import.template')->middleware('permission:items');
     Route::resource('units', UnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:items');
+    Route::resource('tax-rates', TaxRateController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:settings');
 
     Route::middleware('permission:invoices')->group(function () {
         Route::resource('invoices', InvoiceController::class);
@@ -505,5 +508,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('settings/payment-gateways/{provider}', [AdminPaymentGatewaySettingsController::class, 'update'])->name('settings.payment-gateways.update');
 
         Route::resource('certificates', PlatformDocumentController::class)->only(['index', 'store', 'destroy']);
+
+        Route::resource('currencies', CurrencyController::class)->except(['show']);
     });
 });

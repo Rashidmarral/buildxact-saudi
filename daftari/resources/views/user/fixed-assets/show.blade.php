@@ -28,22 +28,22 @@
                 <dd class="text-right font-medium text-slate-900">{{ $asset->acquisition_date->format('Y-m-d') }}</dd>
 
                 <dt class="text-slate-500">{{ __('Acquisition cost') }}</dt>
-                <dd class="text-right font-medium text-slate-900">SAR {{ number_format($asset->acquisition_cost, 2) }}</dd>
+                <dd class="text-right font-medium text-slate-900">{{ \App\Support\Money::format($asset->acquisition_cost) }}</dd>
 
                 <dt class="text-slate-500">{{ __('Salvage value') }}</dt>
-                <dd class="text-right font-medium text-slate-900">SAR {{ number_format($asset->salvage_value, 2) }}</dd>
+                <dd class="text-right font-medium text-slate-900">{{ \App\Support\Money::format($asset->salvage_value) }}</dd>
 
                 <dt class="text-slate-500">{{ __('Useful life') }}</dt>
                 <dd class="text-right font-medium text-slate-900">{{ __(':years years', ['years' => $asset->useful_life_years]) }}</dd>
 
                 <dt class="text-slate-500">{{ __('Monthly depreciation') }}</dt>
-                <dd class="text-right font-medium text-slate-900">SAR {{ number_format($asset->monthlyDepreciation(), 2) }}</dd>
+                <dd class="text-right font-medium text-slate-900">{{ \App\Support\Money::format($asset->monthlyDepreciation()) }}</dd>
 
                 <dt class="text-slate-500">{{ __('Accumulated depreciation') }}</dt>
-                <dd class="text-right font-medium text-slate-900">SAR {{ number_format($asset->accumulated_depreciation, 2) }}</dd>
+                <dd class="text-right font-medium text-slate-900">{{ \App\Support\Money::format($asset->accumulated_depreciation) }}</dd>
 
                 <dt class="font-semibold text-slate-900 pt-3 border-t border-slate-100 mt-1">{{ __('Net book value') }}</dt>
-                <dd class="text-right font-bold text-brand-700 pt-3 border-t border-slate-100 mt-1">SAR {{ number_format($asset->netBookValue(), 2) }}</dd>
+                <dd class="text-right font-bold text-brand-700 pt-3 border-t border-slate-100 mt-1">{{ \App\Support\Money::format($asset->netBookValue()) }}</dd>
             </dl>
             @if ($asset->notes)
                 <div class="mt-5 pt-5 border-t border-slate-100">
@@ -73,7 +73,7 @@
                                 <td class="px-6 py-3">
                                     <a href="{{ route('app.journals.show', $entry) }}" class="text-brand-700 hover:underline">{{ $entry->description }}</a>
                                 </td>
-                                <td class="px-6 py-3 text-right font-medium text-slate-900">SAR {{ number_format($entry->lines->sum('debit'), 2) }}</td>
+                                <td class="px-6 py-3 text-right font-medium text-slate-900">{{ \App\Support\Money::format($entry->lines->sum('debit')) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

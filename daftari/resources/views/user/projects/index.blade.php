@@ -33,8 +33,8 @@
             <p class="mt-2 font-semibold text-slate-900">{{ $project->name }}</p>
             @if ($project->client)<p class="text-xs text-slate-400 mt-0.5">{{ $project->client->name }}</p>@endif
             <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
-                <div><p class="text-slate-400">{{ __('Revenue') }}</p><p class="font-semibold text-slate-800">SAR {{ number_format($project->revenue(), 0) }}</p></div>
-                <div><p class="text-slate-400">{{ __('Margin') }}</p><p class="font-semibold {{ $margin >= 0 ? 'text-emerald-600' : 'text-red-600' }}">SAR {{ number_format($margin, 0) }}</p></div>
+                <div><p class="text-slate-400">{{ __('Revenue') }}</p><p class="font-semibold text-slate-800">{{ \App\Support\Money::format($project->revenue(), decimalsOverride: 0) }}</p></div>
+                <div><p class="text-slate-400">{{ __('Margin') }}</p><p class="font-semibold {{ $margin >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ \App\Support\Money::format($margin, decimalsOverride: 0) }}</p></div>
             </div>
         </a>
     @empty

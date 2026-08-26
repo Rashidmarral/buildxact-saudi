@@ -17,6 +17,7 @@ use App\Models\ItemStock;
 use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\SmsConfig;
+use App\Models\TaxRate;
 use App\Models\Warehouse;
 use App\Models\Webhook;
 use App\Models\WhatsappConfig;
@@ -540,7 +541,8 @@ class InvoiceController extends Controller
                 'description' => $row['description'],
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
-                'vat_rate' => $row['vat_rate'] ?? 15,
+                'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($invoice->company_id),
+                'tax_rate_id' => $row['tax_rate_id'] ?? null,
                 'sort_order' => $sort,
             ]);
             $line->recalculate();
@@ -573,6 +575,7 @@ class InvoiceController extends Controller
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'items.*.tax_rate_id' => ['nullable', Rule::exists('tax_rates', 'id')->where('company_id', $companyId)],
         ]);
     }
 }

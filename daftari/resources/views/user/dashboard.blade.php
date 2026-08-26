@@ -25,10 +25,10 @@
 
 <div class="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-5">
     @foreach ([
-        ['label' => __('Total invoiced'), 'value' => 'SAR '.number_format($stats['total_invoiced'], 2), 'icon' => 'sales', 'accent' => 'from-brand-500 to-emerald-500'],
-        ['label' => __('Outstanding'), 'value' => 'SAR '.number_format($stats['total_outstanding'], 2), 'icon' => 'clock', 'accent' => 'from-amber-500 to-orange-500'],
-        ['label' => __('Paid this month'), 'value' => 'SAR '.number_format($stats['total_paid_this_month'], 2), 'icon' => 'check-circle', 'accent' => 'from-teal-500 to-cyan-500'],
-        ['label' => __('Expenses this month'), 'value' => 'SAR '.number_format($stats['total_expenses_this_month'], 2), 'icon' => 'purchases', 'accent' => 'from-rose-500 to-red-500'],
+        ['label' => __('Total invoiced'), 'value' => \App\Support\Money::format($stats['total_invoiced']), 'icon' => 'sales', 'accent' => 'from-brand-500 to-emerald-500'],
+        ['label' => __('Outstanding'), 'value' => \App\Support\Money::format($stats['total_outstanding']), 'icon' => 'clock', 'accent' => 'from-amber-500 to-orange-500'],
+        ['label' => __('Paid this month'), 'value' => \App\Support\Money::format($stats['total_paid_this_month']), 'icon' => 'check-circle', 'accent' => 'from-teal-500 to-cyan-500'],
+        ['label' => __('Expenses this month'), 'value' => \App\Support\Money::format($stats['total_expenses_this_month']), 'icon' => 'purchases', 'accent' => 'from-rose-500 to-red-500'],
         ['label' => __('Open quotations'), 'value' => $stats['open_quotations'], 'icon' => 'clipboard', 'accent' => 'from-violet-500 to-purple-500'],
     ] as $card)
         <div class="card-hover rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
@@ -55,7 +55,7 @@
         ] as $key => $label)
             <div class="rounded-xl {{ $key === 'current' ? 'bg-slate-50' : ($aging[$key] > 0 ? 'bg-amber-50' : 'bg-slate-50') }} p-4 text-center transition-colors">
                 <div class="text-xs text-slate-500">{{ $label }}</div>
-                <div class="mt-1 text-lg font-bold {{ $key !== 'current' && $aging[$key] > 0 ? 'text-amber-700' : 'text-slate-900' }}">SAR {{ number_format($aging[$key], 2) }}</div>
+                <div class="mt-1 text-lg font-bold {{ $key !== 'current' && $aging[$key] > 0 ? 'text-amber-700' : 'text-slate-900' }}">{{ \App\Support\Money::format($aging[$key]) }}</div>
             </div>
         @endforeach
     </div>
@@ -89,7 +89,7 @@
                         <td class="px-6 py-3"><a href="{{ route('app.invoices.show', $invoice) }}" class="font-medium text-brand-700 hover:underline">{{ $invoice->invoice_number }}</a></td>
                         <td class="px-6 py-3">{{ $invoice->client->name }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ \App\Support\PlatformFormat::date($invoice->issue_date) }}</td>
-                        <td class="px-6 py-3 font-medium">SAR {{ number_format($invoice->total, 2) }}</td>
+                        <td class="px-6 py-3 font-medium">{{ \App\Support\Money::format($invoice->total) }}</td>
                         <td class="px-6 py-3">@include('user.invoices.partials.status-badge', ['status' => $invoice->status])</td>
                     </tr>
                 @endforeach
