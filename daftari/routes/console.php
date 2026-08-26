@@ -18,3 +18,4 @@ Schedule::command('expenses:generate-recurring')->dailyAt('06:15');
 Schedule::command('subscriptions:send-expiring-reminders')->dailyAt('07:00');
 Schedule::command('subscriptions:expire-cancelled')->dailyAt('01:00');
 Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00');
+Schedule::command('inventory:check-low-stock')->dailyAt('07:00');
