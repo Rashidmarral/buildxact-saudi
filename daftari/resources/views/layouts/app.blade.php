@@ -28,6 +28,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.branding-overrides')
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false, notificationsOpen: false, darkMode: document.documentElement.classList.contains('dark') }" x-init="$watch('darkMode', value => { document.documentElement.classList.toggle('dark', value); try { localStorage.setItem('theme', value ? 'dark' : 'light'); } catch (e) {} })">
     @php

@@ -1,6 +1,10 @@
 <?php
 
 return [
+    // Shown read-only on the admin System settings tab. Bump manually on
+    // release — there's no build-time version stamping in this repo.
+    'version' => '1.0.0',
+
     'trial_days' => (int) env('TRIAL_DAYS', 14),
     'default_currency' => env('DEFAULT_CURRENCY', 'SAR'),
     'payment_gateway' => env('PAYMENT_GATEWAY', 'manual'),

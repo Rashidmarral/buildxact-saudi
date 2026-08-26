@@ -138,8 +138,8 @@ Route::prefix('tools')->name('tools.')->group(function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
-    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register')->middleware('registration.open');
+    Route::post('/register', [AuthController::class, 'register'])->middleware(['throttle:5,1', 'registration.open']);
 
     Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
     Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email')->middleware('throttle:password-email');
@@ -486,8 +486,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::resource('admin-roles', AdminRoleController::class)->only(['index', 'store', 'update', 'destroy']);
 
         Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
-        Route::post('settings', [PlatformSettingsController::class, 'update'])->name('settings.update');
+        Route::post('settings/general', [PlatformSettingsController::class, 'updateGeneral'])->name('settings.general.update');
+        Route::post('settings/identity', [PlatformSettingsController::class, 'updateIdentity'])->name('settings.identity.update');
         Route::post('settings/branding', [PlatformSettingsController::class, 'updateBranding'])->name('settings.branding');
+        Route::post('settings/signup', [PlatformSettingsController::class, 'updateSignup'])->name('settings.signup.update');
+        Route::post('settings/maintenance', [PlatformSettingsController::class, 'updateMaintenance'])->name('settings.maintenance.update');
+        Route::post('settings/storage', [PlatformSettingsController::class, 'updateStorage'])->name('settings.storage.update');
+        Route::post('settings/system/{action}', [PlatformSettingsController::class, 'runSystemAction'])->name('settings.system.run');
 
         Route::get('settings/payment-gateways', [AdminPaymentGatewaySettingsController::class, 'index'])->name('settings.payment-gateways');
         Route::post('settings/payment-gateways/{provider}', [AdminPaymentGatewaySettingsController::class, 'update'])->name('settings.payment-gateways.update');

@@ -29,8 +29,8 @@
 <table style="margin-bottom: 20px;">
     <tr>
         <td>
-            @if ($billing['logo_path'])
-                <img class="logo" src="{{ Storage::url($billing['logo_path']) }}" alt="{{ $billing['name'] }}">
+            @if ($billing['pdf_logo_path'] ?? $billing['logo_path'])
+                <img class="logo" src="{{ Storage::url($billing['pdf_logo_path'] ?: $billing['logo_path']) }}" alt="{{ $billing['name'] }}">
             @endif
             <div class="title">{{ $billing['name'] }}</div>
             @if ($billing['address'])<div class="muted">{{ $billing['address'] }}</div>@endif

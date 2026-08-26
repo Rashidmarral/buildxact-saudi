@@ -18,16 +18,44 @@ class CheckMaintenanceMode
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! Setting::getBool('maintenance_mode')) {
+        if (! $this->maintenanceActive()) {
             return $next($request);
         }
 
-        if ($request->is('login', 'logout') || $request->user()?->isSuperAdmin()) {
+        $allowSuperAdmin = Setting::getBool('maintenance_allow_super_admin', true);
+
+        if ($request->is('login', 'logout') || ($allowSuperAdmin && $request->user()?->isSuperAdmin())) {
             return $next($request);
         }
 
         return response()->view('errors.maintenance', [
             'message' => Setting::get('maintenance_message', ''),
         ], 503);
+    }
+
+    /**
+     * On, either because the toggle is flipped, or because "now" falls
+     * inside an admin-scheduled maintenance window (both bounds set).
+     */
+    private function maintenanceActive(): bool
+    {
+        if (Setting::getBool('maintenance_mode')) {
+            return true;
+        }
+
+        $start = Setting::get('maintenance_scheduled_start');
+        $end = Setting::get('maintenance_scheduled_end');
+
+        if (! $start || ! $end) {
+            return false;
+        }
+
+        try {
+            $now = now();
+
+            return $now->betweenIncluded(\Illuminate\Support\Carbon::parse($start), \Illuminate\Support\Carbon::parse($end));
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

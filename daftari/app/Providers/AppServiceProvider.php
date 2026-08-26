@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Setting;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -22,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->configureStorageDriver();
+
         // Keyed by email+IP (not IP alone) so one attacker can't lock out
         // every other user sharing that IP (offices, NAT, mobile carriers),
         // while still throttling credential-stuffing against a single
@@ -57,5 +60,54 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($key);
         });
+    }
+
+    /**
+     * When the admin picks S3 in Platform Settings → Storage, swap the
+     * 'public' disk (every Storage::disk('public') upload call in the app —
+     * branding logos, attachments, letterheads — targets this one name)
+     * over to the s3 driver, keyed by the encrypted credentials from the
+     * Setting table instead of the .env AWS_* vars. Runs before any disk is
+     * resolved, so every existing call site picks it up with no code
+     * changes. Falls through to the default 'local' driver from
+     * config/filesystems.php untouched if S3 isn't configured — a fresh
+     * install behaves exactly as before this setting existed.
+     */
+    private function configureStorageDriver(): void
+    {
+        try {
+            if (Setting::get('storage_driver', 'local') !== 's3') {
+                return;
+            }
+
+            $key = Setting::get('storage_s3_key');
+            $secret = Setting::get('storage_s3_secret');
+            $bucket = Setting::get('storage_s3_bucket');
+            $region = Setting::get('storage_s3_region');
+
+            if (! $key || ! $secret || ! $bucket || ! $region) {
+                return;
+            }
+
+            config([
+                'filesystems.disks.public' => [
+                    'driver' => 's3',
+                    'key' => $key,
+                    'secret' => $secret,
+                    'region' => $region,
+                    'bucket' => $bucket,
+                    'endpoint' => Setting::get('storage_s3_endpoint') ?: null,
+                    'url' => Setting::get('storage_s3_url') ?: null,
+                    'use_path_style_endpoint' => (bool) Setting::get('storage_s3_endpoint'),
+                    'visibility' => 'public',
+                    'throw' => false,
+                    'report' => false,
+                ],
+            ]);
+        } catch (\Throwable) {
+            // Settings table not migrated yet (fresh install running an
+            // early artisan command) — behave as if S3 isn't configured
+            // rather than breaking every request.
+        }
     }
 }

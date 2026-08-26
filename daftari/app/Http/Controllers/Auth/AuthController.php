@@ -73,8 +73,9 @@ class AuthController extends Controller
     public function showRegister()
     {
         $plans = Plan::where('is_active', true)->orderBy('sort_order')->get();
+        $defaultPlanId = Setting::get('signup_default_plan_id') ?: null;
 
-        return view('auth.register', compact('plans'));
+        return view('auth.register', compact('plans', 'defaultPlanId'));
     }
 
     public function register(Request $request)
@@ -94,7 +95,8 @@ class AuthController extends Controller
                 'name' => $data['company_name'],
                 'slug' => $slug,
                 'trial_ends_at' => now()->addDays((int) Setting::get('trial_days', config('daftari.trial_days'))),
-                'currency' => config('daftari.default_currency'),
+                'currency' => Setting::get('general_default_currency', config('daftari.default_currency')),
+                'locale' => Setting::get('general_default_language', config('app.locale')),
             ]);
 
             Role::seedSystemRoles($company->id);
@@ -108,6 +110,10 @@ class AuthController extends Controller
                 'password' => Hash::make($data['password']),
                 'role' => 'owner',
                 'status' => 'active',
+                // Skips the verification screen entirely when the admin has
+                // turned the requirement off — same as if the address were
+                // already confirmed.
+                'email_verified_at' => Setting::getBool('signup_require_email_verification', true) ? null : now(),
             ]);
 
             Subscription::create([
@@ -124,7 +130,11 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
-        $user->sendEmailVerificationNotification();
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+
         Mail::to($user->email)->send(new WelcomeMail($user->company));
 
         return redirect()->route('app.dashboard')->with('status', __('Welcome! Your :days-day free trial has started.', ['days' => config('daftari.trial_days')]));

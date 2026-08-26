@@ -32,7 +32,7 @@
         <label class="block text-sm font-medium text-slate-700">{{ __('Plan') }}</label>
         <select name="plan_id" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             @foreach ($plans as $plan)
-                <option value="{{ $plan->id }}" @selected(old('plan_id') == $plan->id)>
+                <option value="{{ $plan->id }}" @selected(old('plan_id', $defaultPlanId) == $plan->id)>
                     {{ $plan->name }} — SAR {{ number_format($plan->price_monthly, 0) }}/{{ __('month') }}
                 </option>
             @endforeach

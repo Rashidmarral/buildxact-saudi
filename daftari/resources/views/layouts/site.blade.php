@@ -9,8 +9,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @php($__branding = \App\Support\PlatformBranding::all())
+    @include('partials.branding-overrides')
 </head>
-@php($__branding = \App\Support\PlatformBranding::all())
 <body class="bg-white text-slate-800 antialiased" x-data="{ mobileOpen: false }">
     <header class="sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">

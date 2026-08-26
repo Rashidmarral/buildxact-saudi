@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureCompanyActive;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsurePlanFeature;
+use App\Http\Middleware\EnsureRegistrationOpen;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => EnsurePermission::class,
             'admin.permission' => EnsureAdminPermission::class,
             'feature' => EnsurePlanFeature::class,
+            'registration.open' => EnsureRegistrationOpen::class,
             'abilities' => CheckAbilities::class,
             'client.portal' => \App\Http\Middleware\EnsureClientPortalSession::class,
         ]);
