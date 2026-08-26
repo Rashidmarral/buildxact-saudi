@@ -88,23 +88,61 @@ class PaymentGateway extends Model
             ] : [];
         }
 
+        // Secret fields (see secretKeysFor()) are 'nullable' here even
+        // though they're conceptually required — the edit form never
+        // redisplays a stored secret in plaintext, so leaving one blank on
+        // save means "keep the existing value", not "clear it". The
+        // controller enforces that a secret must exist (new or already
+        // stored) after merging before it will save.
         return match ($provider) {
             'moyasar' => [
-                'secret_key' => ['required', 'string', 'max:255'],
+                'secret_key' => ['nullable', 'string', 'max:255'],
                 'webhook_secret' => ['nullable', 'string', 'max:255'],
             ],
             'hyperpay' => [
-                'access_token' => ['required', 'string', 'max:500'],
+                'access_token' => ['nullable', 'string', 'max:500'],
                 'entity_id' => ['required', 'string', 'max:255'],
             ],
             'tap' => [
-                'secret_key' => ['required', 'string', 'max:255'],
+                'secret_key' => ['nullable', 'string', 'max:255'],
             ],
             'paytabs' => [
                 'profile_id' => ['required', 'string', 'max:255'],
-                'server_key' => ['required', 'string', 'max:255'],
+                'server_key' => ['nullable', 'string', 'max:255'],
                 'region' => ['required', Rule::in(['sa', 'com'])],
             ],
+            default => [],
+        };
+    }
+
+    /**
+     * Credential keys that hold a secret value — masked (not redisplayed)
+     * in the edit form, and preserved rather than overwritten when the
+     * field is submitted blank. See credentialRulesFor().
+     */
+    public static function secretKeysFor(string $provider): array
+    {
+        return match ($provider) {
+            'moyasar' => ['secret_key', 'webhook_secret'],
+            'hyperpay' => ['access_token'],
+            'tap' => ['secret_key'],
+            'paytabs' => ['server_key'],
+            default => [],
+        };
+    }
+
+    /**
+     * Of those secret keys, the ones that must resolve to a non-empty
+     * value (new submission or already-stored) before the gateway can be
+     * saved — webhook_secret, for example, is an optional secret.
+     */
+    public static function requiredSecretKeysFor(string $provider): array
+    {
+        return match ($provider) {
+            'moyasar' => ['secret_key'],
+            'hyperpay' => ['access_token'],
+            'tap' => ['secret_key'],
+            'paytabs' => ['server_key'],
             default => [],
         };
     }

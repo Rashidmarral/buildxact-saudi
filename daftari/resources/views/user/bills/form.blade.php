@@ -131,7 +131,7 @@ $company = auth()->user()->company;
 </form>
 
 @php
-    $catalogJson = json_encode($items->map(function ($i) {
+    $catalogJson = \Illuminate\Support\Js::from($items->map(function ($i) {
         return [
             'id' => $i->id,
             'name' => $i->name,

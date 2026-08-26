@@ -30,7 +30,23 @@ class PaymentGatewaySettingsController extends Controller
 
         $data = $request->validate($this->rulesFor($provider));
 
-        $credentials = collect($data)->except(['is_enabled', 'mode'])->all();
+        $gateway = PaymentGateway::where('company_id', null)->where('provider', $provider)->first();
+
+        // Secret fields are never redisplayed in the form, so a blank
+        // submission means "unchanged", not "clear this secret" — merge
+        // onto the existing stored credentials instead of replacing them.
+        foreach (PaymentGateway::secretKeysFor($provider) as $key) {
+            if (blank($data[$key] ?? null)) {
+                unset($data[$key]);
+            }
+        }
+        $credentials = array_merge($gateway?->credentials ?? [], collect($data)->except(['is_enabled', 'mode'])->all());
+
+        foreach (PaymentGateway::requiredSecretKeysFor($provider) as $key) {
+            if (blank($credentials[$key] ?? null)) {
+                return back()->withErrors([$key => __('This field is required.')])->withInput();
+            }
+        }
 
         PaymentGateway::updateOrCreate(
             ['company_id' => null, 'provider' => $provider],

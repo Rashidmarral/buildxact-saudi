@@ -404,28 +404,30 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
     Route::delete('settings/api-tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
 
-    Route::get('settings/webhooks', [WebhookController::class, 'index'])->name('settings.webhooks.index');
-    Route::post('settings/webhooks', [WebhookController::class, 'store'])->name('settings.webhooks.store');
-    Route::get('settings/webhooks/{webhook}', [WebhookController::class, 'show'])->name('settings.webhooks.show');
-    Route::put('settings/webhooks/{webhook}', [WebhookController::class, 'update'])->name('settings.webhooks.update');
-    Route::post('settings/webhooks/{webhook}/toggle', [WebhookController::class, 'toggle'])->name('settings.webhooks.toggle');
-    Route::post('settings/webhooks/{webhook}/regenerate-secret', [WebhookController::class, 'regenerateSecret'])->name('settings.webhooks.regenerate-secret');
-    Route::post('settings/webhooks/{webhook}/send-test', [WebhookController::class, 'sendTest'])->name('settings.webhooks.send-test');
-    Route::delete('settings/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('settings.webhooks.destroy');
+    Route::middleware('permission:settings')->group(function () {
+        Route::get('settings/webhooks', [WebhookController::class, 'index'])->name('settings.webhooks.index');
+        Route::post('settings/webhooks', [WebhookController::class, 'store'])->name('settings.webhooks.store');
+        Route::get('settings/webhooks/{webhook}', [WebhookController::class, 'show'])->name('settings.webhooks.show');
+        Route::put('settings/webhooks/{webhook}', [WebhookController::class, 'update'])->name('settings.webhooks.update');
+        Route::post('settings/webhooks/{webhook}/toggle', [WebhookController::class, 'toggle'])->name('settings.webhooks.toggle');
+        Route::post('settings/webhooks/{webhook}/regenerate-secret', [WebhookController::class, 'regenerateSecret'])->name('settings.webhooks.regenerate-secret');
+        Route::post('settings/webhooks/{webhook}/send-test', [WebhookController::class, 'sendTest'])->name('settings.webhooks.send-test');
+        Route::delete('settings/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('settings.webhooks.destroy');
 
-    Route::get('settings/payment-gateways', [PaymentGatewayController::class, 'index'])->name('settings.payment-gateways');
-    Route::post('settings/payment-gateways/{provider}', [PaymentGatewayController::class, 'update'])->name('settings.payment-gateways.update');
+        Route::get('settings/payment-gateways', [PaymentGatewayController::class, 'index'])->name('settings.payment-gateways');
+        Route::post('settings/payment-gateways/{provider}', [PaymentGatewayController::class, 'update'])->name('settings.payment-gateways.update');
 
-    Route::get('settings/whatsapp', [WhatsappSettingsController::class, 'show'])->name('settings.whatsapp');
-    Route::post('settings/whatsapp', [WhatsappSettingsController::class, 'update'])->name('settings.whatsapp.update');
-    Route::post('settings/whatsapp/test', [WhatsappSettingsController::class, 'test'])->name('settings.whatsapp.test');
+        Route::get('settings/whatsapp', [WhatsappSettingsController::class, 'show'])->name('settings.whatsapp');
+        Route::post('settings/whatsapp', [WhatsappSettingsController::class, 'update'])->name('settings.whatsapp.update');
+        Route::post('settings/whatsapp/test', [WhatsappSettingsController::class, 'test'])->name('settings.whatsapp.test');
 
-    Route::get('settings/sms', [SmsSettingsController::class, 'show'])->name('settings.sms');
-    Route::post('settings/sms', [SmsSettingsController::class, 'update'])->name('settings.sms.update');
-    Route::post('settings/sms/test', [SmsSettingsController::class, 'test'])->name('settings.sms.test');
+        Route::get('settings/sms', [SmsSettingsController::class, 'show'])->name('settings.sms');
+        Route::post('settings/sms', [SmsSettingsController::class, 'update'])->name('settings.sms.update');
+        Route::post('settings/sms/test', [SmsSettingsController::class, 'test'])->name('settings.sms.test');
 
-    Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
-    Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
+        Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
+        Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
+    });
 
     Route::middleware('permission:settings')->prefix('settings/custom-fields')->name('settings.custom-fields.')->group(function () {
         Route::get('/', [CustomFieldDefinitionController::class, 'index'])->name('index');
@@ -468,6 +470,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
         Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
         Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
+    });
+
+    // Impersonation grants full access to a tenant's account — kept out of
+    // the delegable 'companies' admin permission (above) and restricted to
+    // super_admin only, so a granular admin role can never be used to gain
+    // full access to a company's data.
+    Route::middleware('role:super_admin')->group(function () {
         Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
     });
 

@@ -158,7 +158,7 @@ $company = auth()->user()->company;
 </form>
 
 @php
-    $catalogJson = json_encode($items->map(function ($i) {
+    $catalogJson = \Illuminate\Support\Js::from($items->map(function ($i) {
         return [
             'id' => $i->id,
             'name' => $i->name,
@@ -170,7 +170,7 @@ $company = auth()->user()->company;
                 ->values(),
         ];
     })->values());
-    $existingJson = json_encode($existingItems->map(function ($i) {
+    $existingJson = \Illuminate\Support\Js::from($existingItems->map(function ($i) {
         return ['item_id' => $i->item_id, 'unit_id' => $i->unit_id, 'description' => $i->description, 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'vat_rate' => (float) $i->vat_rate];
     })->values());
 @endphp

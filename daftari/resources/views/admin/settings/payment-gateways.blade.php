@@ -40,16 +40,16 @@
             @if ($provider === 'moyasar')
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Secret key') }}</label>
-                    <input type="text" name="secret_key" value="{{ old('secret_key', $gateway?->credentials['secret_key'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                    <input type="text" name="secret_key" value="{{ old('secret_key') }}" placeholder="{{ ! empty($gateway?->credentials['secret_key']) ? __('•••••••• (configured — leave blank to keep)') : '' }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono" autocomplete="off">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Webhook shared secret') }}</label>
-                    <input type="text" name="webhook_secret" value="{{ old('webhook_secret', $gateway?->credentials['webhook_secret'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                    <input type="text" name="webhook_secret" value="{{ old('webhook_secret') }}" placeholder="{{ ! empty($gateway?->credentials['webhook_secret']) ? __('•••••••• (configured — leave blank to keep)') : '' }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono" autocomplete="off">
                 </div>
             @elseif ($provider === 'hyperpay')
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Access token') }}</label>
-                    <input type="text" name="access_token" value="{{ old('access_token', $gateway?->credentials['access_token'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                    <input type="text" name="access_token" value="{{ old('access_token') }}" placeholder="{{ ! empty($gateway?->credentials['access_token']) ? __('•••••••• (configured — leave blank to keep)') : '' }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono" autocomplete="off">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Entity ID') }}</label>
@@ -58,7 +58,7 @@
             @elseif ($provider === 'tap')
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Secret key') }}</label>
-                    <input type="text" name="secret_key" value="{{ old('secret_key', $gateway?->credentials['secret_key'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                    <input type="text" name="secret_key" value="{{ old('secret_key') }}" placeholder="{{ ! empty($gateway?->credentials['secret_key']) ? __('•••••••• (configured — leave blank to keep)') : '' }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono" autocomplete="off">
                 </div>
             @elseif ($provider === 'paytabs')
                 <div>
@@ -67,7 +67,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Server key') }}</label>
-                    <input type="text" name="server_key" value="{{ old('server_key', $gateway?->credentials['server_key'] ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                    <input type="text" name="server_key" value="{{ old('server_key') }}" placeholder="{{ ! empty($gateway?->credentials['server_key']) ? __('•••••••• (configured — leave blank to keep)') : '' }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono" autocomplete="off">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Region') }}</label>
