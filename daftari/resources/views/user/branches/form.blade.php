@@ -55,7 +55,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Country') }}</label>
-                <input type="text" name="country" value="{{ old('country', $branch->country) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" name="country" value="{{ old('country', $branch->country ?: ($branch->exists ? '' : \App\Support\Countries::name(\App\Models\Setting::get('general_default_country')))) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
 

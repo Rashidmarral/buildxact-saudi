@@ -207,7 +207,7 @@
                                 {{ $company->status === 'active' ? __('Active') : __('Suspended') }}
                             </span>
                         </td>
-                        <td class="px-6 py-3 text-slate-500">{{ $company->created_at->format('Y-m-d') }}</td>
+                        <td class="px-6 py-3 text-slate-500">{{ \App\Support\PlatformFormat::date($company->created_at) }}</td>
                     </tr>
                 @endforeach
             </tbody>

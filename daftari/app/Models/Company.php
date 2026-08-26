@@ -17,7 +17,7 @@ class Company extends Model
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
-        'currency', 'locale', 'status', 'trial_ends_at', 'default_branch_id',
+        'currency', 'locale', 'timezone', 'status', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
         'po_approval_threshold', 'expense_approval_threshold',

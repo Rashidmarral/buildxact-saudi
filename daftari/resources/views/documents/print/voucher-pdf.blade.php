@@ -36,7 +36,7 @@
         <td style="width: 35%;">
             <div class="doc-title">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
             <div class="muted text-end" style="text-align: right;">{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
-            <div class="muted text-end" style="text-align: right;">{{ __('Date') }}: {{ $voucher->date->format('Y-m-d') }}</div>
+            <div class="muted text-end" style="text-align: right;">{{ __('Date') }}: {{ \App\Support\PlatformFormat::date($voucher->date) }}</div>
         </td>
     </tr>
 </table>

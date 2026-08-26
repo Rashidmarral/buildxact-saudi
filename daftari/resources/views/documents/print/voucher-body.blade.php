@@ -8,7 +8,7 @@
     <h2 class="text-xl font-bold text-slate-900">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</h2>
     <div class="text-end text-xs text-slate-500">
         <div>{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
-        <div>{{ __('Date') }}: {{ $voucher->date->format('Y-m-d') }}</div>
+        <div>{{ __('Date') }}: {{ \App\Support\PlatformFormat::date($voucher->date) }}</div>
     </div>
 </div>
 <div class="mt-6 space-y-4 text-sm">

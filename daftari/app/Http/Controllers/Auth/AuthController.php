@@ -27,7 +27,9 @@ class AuthController extends Controller
 {
     public function showLogin()
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'demoEnabled' => Setting::getBool('general_allow_demo_accounts'),
+        ]);
     }
 
     public function login(Request $request)
@@ -74,16 +76,20 @@ class AuthController extends Controller
     {
         $plans = Plan::where('is_active', true)->orderBy('sort_order')->get();
         $defaultPlanId = Setting::get('signup_default_plan_id') ?: null;
+        $phoneRequired = Setting::getBool('signup_require_phone_verification');
 
-        return view('auth.register', compact('plans', 'defaultPlanId'));
+        return view('auth.register', compact('plans', 'defaultPlanId', 'phoneRequired'));
     }
 
     public function register(Request $request)
     {
+        $phoneRequired = Setting::getBool('signup_require_phone_verification');
+
         $data = $request->validate([
             'company_name' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => [$phoneRequired ? 'required' : 'nullable', 'string', 'max:30'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'plan_id' => ['required', 'exists:plans,id'],
         ]);
@@ -97,6 +103,7 @@ class AuthController extends Controller
                 'trial_ends_at' => now()->addDays((int) Setting::get('trial_days', config('daftari.trial_days'))),
                 'currency' => Setting::get('general_default_currency', config('daftari.default_currency')),
                 'locale' => Setting::get('general_default_language', config('app.locale')),
+                'timezone' => Setting::get('general_default_timezone', config('app.timezone')),
             ]);
 
             Role::seedSystemRoles($company->id);
@@ -107,6 +114,7 @@ class AuthController extends Controller
                 'company_id' => $company->id,
                 'name' => $data['name'],
                 'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
                 'password' => Hash::make($data['password']),
                 'role' => 'owner',
                 'status' => 'active',

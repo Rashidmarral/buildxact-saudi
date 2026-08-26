@@ -51,13 +51,13 @@
             @endif
             <tr class="border-b border-slate-300">
                 <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Number') }}</td>
-                <td class="px-3 py-2 text-center text-slate-600">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ $doc['date']->format('Y-m-d') }}</td>
+                <td class="px-3 py-2 text-center text-slate-600">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
                 <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم | التاريخ</td>
             </tr>
             @if (!empty($doc['date2']))
                 <tr>
                     <td class="px-3 py-2 font-semibold text-slate-700">{{ $doc['date2_label'] }}</td>
-                    <td class="px-3 py-2 text-center text-slate-600">{{ $doc['date2']->format('Y-m-d') }}</td>
+                    <td class="px-3 py-2 text-center text-slate-600">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
                     <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">{{ $doc['date2_label_ar'] ?? '' }}</td>
                 </tr>
             @endif
@@ -187,10 +187,10 @@
             </tr>
             <tr>
                 <td class="py-1 font-semibold text-slate-600">{{ $doc['date_label'] }}</td>
-                <td class="py-1 text-slate-800">{{ $doc['date']->format('d-m-Y') }}</td>
+                <td class="py-1 text-slate-800">{{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
                 @if (!empty($doc['date2']))
                     <td class="py-1 font-semibold text-slate-600">{{ $doc['date2_label'] }}</td>
-                    <td class="py-1 text-slate-800">{{ $doc['date2']->format('d-m-Y') }}</td>
+                    <td class="py-1 text-slate-800">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
                 @endif
             </tr>
             @if (!empty($doc['ref_no']))
@@ -311,8 +311,8 @@
         <div class="text-end">
             <h2 class="text-xl font-bold" style="color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }}">{{ $doc['type_label'] }}</h2>
             <p class="text-sm text-slate-500">{{ $doc['number'] }}</p>
-            <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ $doc['date']->format('Y-m-d') }}</p>
-            @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ $doc['date2']->format('Y-m-d') }}</p>@endif
+            <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</p>
+            @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</p>@endif
         </div>
     </div>
 

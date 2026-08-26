@@ -122,7 +122,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Country') }}</label>
-                    <input type="text" name="country" value="{{ old('country', $supplier->country) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="country" value="{{ old('country', $supplier->country ?: ($supplier->exists ? '' : \App\Support\Countries::name(\App\Models\Setting::get('general_default_country')))) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
         </div>

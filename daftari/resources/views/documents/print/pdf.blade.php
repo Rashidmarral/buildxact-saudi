@@ -81,7 +81,7 @@
         @endif
         <tr>
             <td style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ __('Number') }}</td>
-            <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ $doc['date']->format('Y-m-d') }}</td>
+            <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
             <td class="ar" style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">رقم | التاريخ</td>
         </tr>
     </table>
@@ -146,10 +146,10 @@
         </tr>
         <tr>
             <td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $doc['date_label'] }}</td>
-            <td style="padding: 3px 0;">{{ $doc['date']->format('d-m-Y') }}</td>
+            <td style="padding: 3px 0;">{{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
             @if (!empty($doc['date2']))
                 <td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $doc['date2_label'] }}</td>
-                <td style="padding: 3px 0;">{{ $doc['date2']->format('d-m-Y') }}</td>
+                <td style="padding: 3px 0;">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
             @endif
         </tr>
         @if (!empty($doc['ref_no']))
@@ -240,8 +240,8 @@
             <td style="width: 40%; vertical-align: top; text-align: right;">
                 <div style="font-size: 13pt; font-weight: bold; color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }};">{{ $doc['type_label'] }}</div>
                 <div class="muted">{{ $doc['number'] }}</div>
-                <div class="muted">{{ $doc['date_label'] }}: {{ $doc['date']->format('Y-m-d') }}</div>
-                @if (!empty($doc['date2']))<div class="muted">{{ $doc['date2_label'] }}: {{ $doc['date2']->format('Y-m-d') }}</div>@endif
+                <div class="muted">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
+                @if (!empty($doc['date2']))<div class="muted">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
             </td>
         </tr>
     </table>

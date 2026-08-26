@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\DemoLoginController;
+use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\TeamInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\FileServeController;
@@ -153,16 +155,21 @@ Route::get('/two-factor-challenge', [TwoFactorChallengeController::class, 'show'
 Route::post('/two-factor-challenge', [TwoFactorChallengeController::class, 'verify'])->middleware('throttle:two-factor')->name('two-factor.verify');
 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::post('/demo-login', [DemoLoginController::class, 'login'])->middleware('throttle:10,1')->name('demo.login');
 Route::post('/stop-impersonating', [ImpersonationController::class, 'stop'])->middleware('auth')->name('stop-impersonating');
 
 Route::middleware('auth')->group(function () {
     Route::get('/email/verify', [AuthController::class, 'showVerifyEmail'])->name('verification.notice');
     Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->middleware('signed')->name('verification.verify');
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])->middleware('throttle:6,1')->name('verification.send');
+
+    Route::get('/phone/verify', [PhoneVerificationController::class, 'show'])->name('phone.verify');
+    Route::post('/phone/send-code', [PhoneVerificationController::class, 'sendCode'])->middleware('throttle:6,1')->name('phone.send-code');
+    Route::post('/phone/verify-code', [PhoneVerificationController::class, 'verifyCode'])->middleware('throttle:10,1')->name('phone.verify-code');
 });
 
 // User panel
-Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verified'])->group(function () {
+Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verified', 'phone.verified'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard');
 
     Route::get('search', [GlobalSearchController::class, 'search'])->name('search');

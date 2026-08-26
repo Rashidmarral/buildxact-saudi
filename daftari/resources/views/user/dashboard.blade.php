@@ -88,7 +88,7 @@
                     <tr class="border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3"><a href="{{ route('app.invoices.show', $invoice) }}" class="font-medium text-brand-700 hover:underline">{{ $invoice->invoice_number }}</a></td>
                         <td class="px-6 py-3">{{ $invoice->client->name }}</td>
-                        <td class="px-6 py-3 text-slate-500">{{ $invoice->issue_date->format('Y-m-d') }}</td>
+                        <td class="px-6 py-3 text-slate-500">{{ \App\Support\PlatformFormat::date($invoice->issue_date) }}</td>
                         <td class="px-6 py-3 font-medium">SAR {{ number_format($invoice->total, 2) }}</td>
                         <td class="px-6 py-3">@include('user.invoices.partials.status-badge', ['status' => $invoice->status])</td>
                     </tr>

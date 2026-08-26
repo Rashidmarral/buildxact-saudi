@@ -5,10 +5,12 @@ use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureCompanyActive;
 use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsurePhoneVerified;
 use App\Http\Middleware\EnsurePlanFeature;
 use App\Http\Middleware\EnsureRegistrationOpen;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetTimezone;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
+            SetTimezone::class,
             SetLocale::class,
             CheckMaintenanceMode::class,
         ]);
@@ -44,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.permission' => EnsureAdminPermission::class,
             'feature' => EnsurePlanFeature::class,
             'registration.open' => EnsureRegistrationOpen::class,
+            'phone.verified' => EnsurePhoneVerified::class,
             'abilities' => CheckAbilities::class,
             'client.portal' => \App\Http\Middleware\EnsureClientPortalSession::class,
         ]);

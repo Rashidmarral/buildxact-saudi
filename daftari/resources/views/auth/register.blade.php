@@ -21,6 +21,13 @@
         <input type="email" name="email" value="{{ old('email') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
     <div>
+        <label class="block text-sm font-medium text-slate-700">{{ __('Phone number') }} @if(!$phoneRequired) <span class="font-normal text-slate-400">({{ __('optional') }})</span> @endif</label>
+        <input type="text" name="phone" value="{{ old('phone') }}" @required($phoneRequired) placeholder="05XXXXXXXX" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        @if ($phoneRequired)
+            <p class="mt-1 text-xs text-slate-400">{{ __("We'll text you a code to verify it after you sign up.") }}</p>
+        @endif
+    </div>
+    <div>
         <label class="block text-sm font-medium text-slate-700">{{ __('Password') }}</label>
         <input type="password" name="password" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>

@@ -24,6 +24,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'company_id',
         'name',
         'email',
+        'phone',
         'password',
         'role',
         'status',
@@ -49,6 +50,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
@@ -59,6 +61,22 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function hasTwoFactorEnabled(): bool
     {
         return ! is_null($this->two_factor_confirmed_at);
+    }
+
+    public function hasVerifiedPhone(): bool
+    {
+        return ! is_null($this->phone_verified_at);
+    }
+
+    /**
+     * Whether this account still needs to complete phone verification
+     * before reaching the dashboard — only true when the platform actually
+     * requires it (Platform Settings → Signup) and this account hasn't
+     * done it yet. Off by default, matching every other opt-in gate here.
+     */
+    public function needsPhoneVerification(): bool
+    {
+        return \App\Models\Setting::getBool('signup_require_phone_verification') && ! $this->hasVerifiedPhone();
     }
 
     public function company(): BelongsTo

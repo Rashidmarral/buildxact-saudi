@@ -34,9 +34,13 @@
     <a href="{{ route('register') }}" class="font-semibold text-brand-700 hover:underline">{{ __('Start a free trial') }}</a>
 </p>
 
-<div class="mt-6 pt-6 border-t border-slate-100 text-xs text-slate-400 space-y-1">
-    <p class="font-semibold text-slate-500">{{ __('Demo logins') }}</p>
-    <p>{{ __('Platform admin') }}: admin@daftari.local / Admin@12345</p>
-    <p>{{ __('Demo company owner') }}: owner@daftari.local / Demo@12345</p>
-</div>
+@if ($demoEnabled)
+    <div class="mt-6 pt-6 border-t border-slate-100 text-center">
+        <p class="mb-3 text-xs text-slate-400">{{ __('Just want to look around?') }}</p>
+        <form method="POST" action="{{ route('demo.login') }}">
+            @csrf
+            <button type="submit" class="w-full rounded-lg border border-slate-200 px-6 py-2.5 text-sm font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700">{{ __('Try the demo') }}</button>
+        </form>
+    </div>
+@endif
 @endsection

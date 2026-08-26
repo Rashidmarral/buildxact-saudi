@@ -57,7 +57,7 @@
         </td>
         <td class="text-end" style="padding: 10px 0;">
             <div class="muted">{{ __('Date paid') }}</div>
-            <div style="font-weight: bold;">{{ optional($payment->paid_at)->format('Y-m-d') ?? '—' }}</div>
+            <div style="font-weight: bold;">{{ $payment->paid_at ? \App\Support\PlatformFormat::date($payment->paid_at) : '—' }}</div>
             <div style="margin-top: 6px;"><span class="paid-badge">{{ __('Paid') }}</span></div>
         </td>
     </tr>

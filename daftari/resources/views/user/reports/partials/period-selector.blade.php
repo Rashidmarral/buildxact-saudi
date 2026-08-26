@@ -1,6 +1,6 @@
 @php($extra = $extra ?? [])
 <div class="bg-white rounded-xl border border-slate-100 p-4 mb-6">
-    <p class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Period') }} {{ $period['from']->format('Y-m-d') }} &rarr; {{ $period['to']->format('Y-m-d') }}</p>
+    <p class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Period') }} {{ \App\Support\PlatformFormat::date($period['from']) }} &rarr; {{ \App\Support\PlatformFormat::date($period['to']) }}</p>
     <form method="GET" class="flex flex-wrap items-center gap-3">
         @foreach ($extra as $name => $value)
             <input type="hidden" name="{{ $name }}" value="{{ $value }}">

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Plan;
 use App\Models\Setting;
+use App\Support\Countries;
 use App\Support\PlatformBranding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -27,12 +28,7 @@ class PlatformSettingsController extends Controller
 
     public const TIME_FORMATS = ['24h', '12h'];
 
-    public const COUNTRIES = [
-        'SA' => 'Saudi Arabia', 'AE' => 'United Arab Emirates', 'KW' => 'Kuwait', 'QA' => 'Qatar',
-        'BH' => 'Bahrain', 'OM' => 'Oman', 'EG' => 'Egypt', 'JO' => 'Jordan', 'LB' => 'Lebanon',
-        'IQ' => 'Iraq', 'YE' => 'Yemen', 'US' => 'United States', 'GB' => 'United Kingdom',
-        'DE' => 'Germany', 'FR' => 'France', 'IN' => 'India', 'PK' => 'Pakistan',
-    ];
+    public const COUNTRIES = Countries::LIST;
 
     public const CURRENCIES = ['SAR', 'USD', 'EUR', 'GBP', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'EGP'];
 
