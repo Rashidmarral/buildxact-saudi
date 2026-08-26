@@ -69,6 +69,7 @@ use App\Http\Controllers\User\TwoFactorController;
 use App\Http\Controllers\User\WarehouseController;
 use App\Http\Controllers\User\PaymentGatewayController;
 use App\Http\Controllers\User\ApprovalSettingsController;
+use App\Http\Controllers\User\SmsSettingsController;
 use App\Http\Controllers\User\WhatsappSettingsController;
 use App\Http\Controllers\User\WebhookController;
 use App\Http\Controllers\User\ZatcaController;
@@ -195,6 +196,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
         Route::post('invoices/{invoice}/email', [InvoiceController::class, 'emailInvoice'])->name('invoices.email');
         Route::post('invoices/{invoice}/whatsapp', [InvoiceController::class, 'sendWhatsapp'])->name('invoices.whatsapp');
+        Route::post('invoices/{invoice}/sms', [InvoiceController::class, 'sendSms'])->name('invoices.sms');
 
         Route::get('credit-notes/eligible-invoices', [CreditNoteController::class, 'eligibleInvoices'])->name('credit-notes.eligible-invoices');
         Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);
@@ -407,6 +409,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
     Route::get('settings/whatsapp', [WhatsappSettingsController::class, 'show'])->name('settings.whatsapp');
     Route::post('settings/whatsapp', [WhatsappSettingsController::class, 'update'])->name('settings.whatsapp.update');
     Route::post('settings/whatsapp/test', [WhatsappSettingsController::class, 'test'])->name('settings.whatsapp.test');
+
+    Route::get('settings/sms', [SmsSettingsController::class, 'show'])->name('settings.sms');
+    Route::post('settings/sms', [SmsSettingsController::class, 'update'])->name('settings.sms.update');
+    Route::post('settings/sms/test', [SmsSettingsController::class, 'test'])->name('settings.sms.test');
 
     Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
     Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');

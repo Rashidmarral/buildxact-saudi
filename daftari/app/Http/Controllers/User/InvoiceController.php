@@ -16,11 +16,13 @@ use App\Models\Item;
 use App\Models\ItemStock;
 use App\Models\Project;
 use App\Models\Salesperson;
+use App\Models\SmsConfig;
 use App\Models\Warehouse;
 use App\Models\Webhook;
 use App\Models\WhatsappConfig;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
+use App\Services\SmsService;
 use App\Services\WhatsAppService;
 use App\Support\Currencies;
 use Illuminate\Http\Request;
@@ -135,8 +137,9 @@ class InvoiceController extends Controller
         $invoice->load('items', 'client', 'invoicePayments', 'bankAccount', 'warehouse', 'attachments');
         $template = $invoice->company->defaultTemplateFor('invoice');
         $whatsappEnabled = (bool) WhatsappConfig::where('is_enabled', true)->exists();
+        $smsEnabled = (bool) SmsConfig::where('is_enabled', true)->exists();
 
-        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled'));
+        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled', 'smsEnabled'));
     }
 
     public function downloadPdf(Invoice $invoice, MpdfRenderer $renderer)
@@ -201,6 +204,42 @@ class InvoiceController extends Controller
         AuditLog::record('invoice.whatsapp_sent', $invoice, __('Sent invoice #:number via WhatsApp', ['number' => $invoice->invoice_number]));
 
         return back()->with('status', __('Invoice sent via WhatsApp.'));
+    }
+
+    /**
+     * Sends the client a plain-text SMS with the invoice number, total, and
+     * its public pay link. Unlike WhatsApp, SMS has no template-approval
+     * requirement, so the message is composed here directly.
+     */
+    public function sendSms(Invoice $invoice, SmsService $sms)
+    {
+        $config = SmsConfig::first();
+        abort_unless($config && $config->is_enabled, 404);
+
+        $phone = $invoice->client->mobile ?: $invoice->client->phone;
+
+        if (! $phone) {
+            return back()->withErrors(['invoice' => __('This client has no phone number on file. Add one on the client record first.')]);
+        }
+
+        $payUrl = route('public.invoices.show', [$invoice->id, $invoice->public_token]);
+
+        $message = __(':company: Invoice :number for :total is ready. Pay online: :link', [
+            'company' => $invoice->company->name,
+            'number' => $invoice->invoice_number,
+            'total' => number_format($invoice->total, 2).' '.$invoice->currency,
+            'link' => $payUrl,
+        ]);
+
+        $result = $sms->send($config, $phone, $message);
+
+        if (! $result['success']) {
+            return back()->withErrors(['invoice' => __('SMS send failed: :error', ['error' => $result['error']])]);
+        }
+
+        AuditLog::record('invoice.sms_sent', $invoice, __('Sent invoice #:number via SMS', ['number' => $invoice->invoice_number]));
+
+        return back()->with('status', __('Invoice sent via SMS.'));
     }
 
     private function pdfData(Invoice $invoice): array
