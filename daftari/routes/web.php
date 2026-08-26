@@ -53,6 +53,7 @@ use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\PurchaseReturnController;
 use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
+use App\Http\Controllers\User\RecurringExpenseController;
 use App\Http\Controllers\User\RecurringInvoiceController;
 use App\Http\Controllers\User\ReportController;
 use App\Http\Controllers\User\RoleController;
@@ -224,6 +225,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
         Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
         Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+        Route::resource('recurring-expenses', RecurringExpenseController::class)->except(['show']);
+        Route::post('recurring-expenses/{recurringExpense}/pause', [RecurringExpenseController::class, 'pause'])->name('recurring-expenses.pause');
+        Route::post('recurring-expenses/{recurringExpense}/resume', [RecurringExpenseController::class, 'resume'])->name('recurring-expenses.resume');
     });
 
     Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {
