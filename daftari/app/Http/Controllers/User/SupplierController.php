@@ -43,7 +43,11 @@ class SupplierController extends Controller
 
     public function create()
     {
-        return view('user.suppliers.form', ['supplier' => new Supplier]);
+        return view('user.suppliers.form', [
+            'supplier' => new Supplier,
+            'customFieldDefinitions' => Supplier::customFieldDefinitions(),
+            'customFieldValues' => [],
+        ]);
     }
 
     public function outstandingBills(Supplier $supplier)
@@ -85,7 +89,12 @@ class SupplierController extends Controller
             return back()->withErrors(['plan_limit' => __('You have reached your plan\'s supplier limit. Upgrade your plan to add more suppliers.')])->withInput();
         }
 
-        $supplier = Supplier::create($this->validated($request));
+        $data = $this->validated($request);
+        $customFields = $data['custom_fields'] ?? [];
+        unset($data['custom_fields']);
+
+        $supplier = Supplier::create($data);
+        $supplier->syncCustomFieldValues($customFields);
 
         AuditLog::record('supplier.create', $supplier, __('Created supplier :name', ['name' => $supplier->name]));
 
@@ -94,12 +103,23 @@ class SupplierController extends Controller
 
     public function edit(Supplier $supplier)
     {
-        return view('user.suppliers.form', compact('supplier'));
+        $supplier->load('customFieldValues');
+
+        return view('user.suppliers.form', [
+            'supplier' => $supplier,
+            'customFieldDefinitions' => Supplier::customFieldDefinitions(),
+            'customFieldValues' => $supplier->customFieldValuesMap(),
+        ]);
     }
 
     public function update(Request $request, Supplier $supplier)
     {
-        $supplier->update($this->validated($request, $supplier));
+        $data = $this->validated($request, $supplier);
+        $customFields = $data['custom_fields'] ?? [];
+        unset($data['custom_fields']);
+
+        $supplier->update($data);
+        $supplier->syncCustomFieldValues($customFields);
 
         AuditLog::record('supplier.update', $supplier, __('Updated supplier :name', ['name' => $supplier->name]));
 
@@ -185,7 +205,7 @@ class SupplierController extends Controller
     {
         $companyId = Auth::user()->company_id;
 
-        return $request->validate([
+        $data = $request->validate([
             'supplier_code' => ['nullable', 'string', 'max:20'],
             'type' => ['required', 'in:individual,company'],
             'name' => ['required', 'string', 'max:255'],
@@ -205,6 +225,30 @@ class SupplierController extends Controller
             'state' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'custom_fields' => ['nullable', 'array'],
+            'custom_fields.*' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        $this->validateRequiredCustomFields(Supplier::customFieldDefinitions(), $data['custom_fields'] ?? []);
+
+        return $data;
+    }
+
+    private function validateRequiredCustomFields($definitions, array $submitted): void
+    {
+        $errors = [];
+        foreach ($definitions as $definition) {
+            if (! $definition->is_required) {
+                continue;
+            }
+            $value = $submitted[$definition->id] ?? null;
+            if ($value === null || $value === '') {
+                $errors["custom_fields.{$definition->id}"] = __(':field is required.', ['field' => $definition->label]);
+            }
+        }
+
+        if ($errors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
     }
 }

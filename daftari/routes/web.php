@@ -36,6 +36,7 @@ use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\FixedAssetController;
 use App\Http\Controllers\User\ZakatController;
 use App\Http\Controllers\User\CreditNoteController;
+use App\Http\Controllers\User\CustomFieldDefinitionController;
 use App\Http\Controllers\User\CustomsDeclarationController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ExpenseCategoryController;
@@ -409,6 +410,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
 
     Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
     Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
+
+    Route::middleware('permission:settings')->prefix('settings/custom-fields')->name('settings.custom-fields.')->group(function () {
+        Route::get('/', [CustomFieldDefinitionController::class, 'index'])->name('index');
+        Route::post('/', [CustomFieldDefinitionController::class, 'store'])->name('store');
+        Route::put('{customField}', [CustomFieldDefinitionController::class, 'update'])->name('update');
+        Route::delete('{customField}', [CustomFieldDefinitionController::class, 'destroy'])->name('destroy');
+    });
 
     Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
     Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');

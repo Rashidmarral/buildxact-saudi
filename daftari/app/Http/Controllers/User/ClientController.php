@@ -64,7 +64,11 @@ class ClientController extends Controller
     {
         $client = new Client(['client_code' => Client::generateClientCode(Auth::user()->company_id)]);
 
-        return view('user.clients.form', compact('client'));
+        return view('user.clients.form', [
+            'client' => $client,
+            'customFieldDefinitions' => Client::customFieldDefinitions(),
+            'customFieldValues' => [],
+        ]);
     }
 
     public function store(Request $request)
@@ -75,11 +79,13 @@ class ClientController extends Controller
 
         $data = $this->validated($request);
         $contacts = $data['contacts'] ?? [];
-        unset($data['contacts']);
+        $customFields = $data['custom_fields'] ?? [];
+        unset($data['contacts'], $data['custom_fields']);
 
-        $client = DB::transaction(function () use ($data, $contacts) {
+        $client = DB::transaction(function () use ($data, $contacts, $customFields) {
             $client = Client::create($data);
             $this->syncContacts($client, $contacts);
+            $client->syncCustomFieldValues($customFields);
 
             return $client;
         });
@@ -98,21 +104,27 @@ class ClientController extends Controller
 
     public function edit(Client $client)
     {
-        $client->load('contacts');
+        $client->load(['contacts', 'customFieldValues']);
 
-        return view('user.clients.form', compact('client'));
+        return view('user.clients.form', [
+            'client' => $client,
+            'customFieldDefinitions' => Client::customFieldDefinitions(),
+            'customFieldValues' => $client->customFieldValuesMap(),
+        ]);
     }
 
     public function update(Request $request, Client $client)
     {
         $data = $this->validated($request, $client);
         $contacts = $data['contacts'] ?? [];
-        unset($data['contacts']);
+        $customFields = $data['custom_fields'] ?? [];
+        unset($data['contacts'], $data['custom_fields']);
 
-        DB::transaction(function () use ($client, $data, $contacts) {
+        DB::transaction(function () use ($client, $data, $contacts, $customFields) {
             $client->update($data);
             $client->contacts()->delete();
             $this->syncContacts($client, $contacts);
+            $client->syncCustomFieldValues($customFields);
         });
 
         AuditLog::record('client.update', $client, __('Updated client :name', ['name' => $client->name]));
@@ -239,10 +251,32 @@ class ClientController extends Controller
             'contacts.*.name' => ['nullable', 'string', 'max:255'],
             'contacts.*.phone' => ['nullable', 'string', 'max:30'],
             'contacts.*.email' => ['nullable', 'email', 'max:255'],
+            'custom_fields' => ['nullable', 'array'],
+            'custom_fields.*' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $data['is_vat_registered'] = $request->boolean('is_vat_registered');
 
+        $this->validateRequiredCustomFields(Client::customFieldDefinitions(), $data['custom_fields'] ?? []);
+
         return $data;
+    }
+
+    private function validateRequiredCustomFields($definitions, array $submitted): void
+    {
+        $errors = [];
+        foreach ($definitions as $definition) {
+            if (! $definition->is_required) {
+                continue;
+            }
+            $value = $submitted[$definition->id] ?? null;
+            if ($value === null || $value === '') {
+                $errors["custom_fields.{$definition->id}"] = __(':field is required.', ['field' => $definition->label]);
+            }
+        }
+
+        if ($errors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
     }
 }

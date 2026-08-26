@@ -158,6 +158,8 @@
         <button type="button" id="add-contact" class="mt-3 text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add new contact') }}</button>
     </div>
 
+    @include('partials.custom-fields')
+
     <div class="flex gap-3">
         <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
         <a href="{{ route('app.clients.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>

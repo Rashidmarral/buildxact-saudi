@@ -48,6 +48,8 @@ class ItemController extends Controller
         return view('user.items.form', [
             'item' => new Item,
             'units' => Unit::orderBy('name')->get(),
+            'customFieldDefinitions' => Item::customFieldDefinitions(),
+            'customFieldValues' => [],
         ]);
     }
 
@@ -55,19 +57,25 @@ class ItemController extends Controller
     {
         $data = $this->validated($request);
         $altUnits = $data['alt_units'] ?? [];
-        unset($data['alt_units']);
+        $customFields = $data['custom_fields'] ?? [];
+        unset($data['alt_units'], $data['custom_fields']);
         $data = $this->withImage($request, $data);
         $item = Item::create($data);
         $this->syncAltUnits($item, $altUnits);
+        $item->syncCustomFieldValues($customFields);
 
         return redirect()->route('app.items.index')->with('status', __('Item saved.'));
     }
 
     public function edit(Item $item)
     {
+        $item->load('customFieldValues');
+
         return view('user.items.form', [
             'item' => $item,
             'units' => Unit::orderBy('name')->get(),
+            'customFieldDefinitions' => Item::customFieldDefinitions(),
+            'customFieldValues' => $item->customFieldValuesMap(),
         ]);
     }
 
@@ -75,10 +83,12 @@ class ItemController extends Controller
     {
         $data = $this->validated($request);
         $altUnits = $data['alt_units'] ?? [];
-        unset($data['alt_units']);
+        $customFields = $data['custom_fields'] ?? [];
+        unset($data['alt_units'], $data['custom_fields']);
         $data = $this->withImage($request, $data, $item);
         $item->update($data);
         $this->syncAltUnits($item, $altUnits);
+        $item->syncCustomFieldValues($customFields);
 
         return redirect()->route('app.items.index')->with('status', __('Item updated.'));
     }
@@ -218,6 +228,8 @@ class ItemController extends Controller
             'alt_units.*.unit_id' => ['nullable', Rule::exists('units', 'id')->where('company_id', $companyId)],
             'alt_units.*.conversion_factor' => ['nullable', 'numeric', 'min:0.0001'],
             'alt_units.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'custom_fields' => ['nullable', 'array'],
+            'custom_fields.*' => ['nullable', 'string', 'max:2000'],
         ]);
 
         unset($data['image']);
@@ -229,6 +241,26 @@ class ItemController extends Controller
         $data['unit'] = $baseUnit->name ?? 'unit';
         $data['unit_code'] = $baseUnit ? ($baseUnit->code ?: 'PCE') : 'PCE';
 
+        $this->validateRequiredCustomFields(Item::customFieldDefinitions(), $data['custom_fields'] ?? []);
+
         return $data;
+    }
+
+    private function validateRequiredCustomFields($definitions, array $submitted): void
+    {
+        $errors = [];
+        foreach ($definitions as $definition) {
+            if (! $definition->is_required) {
+                continue;
+            }
+            $value = $submitted[$definition->id] ?? null;
+            if ($value === null || $value === '') {
+                $errors["custom_fields.{$definition->id}"] = __(':field is required.', ['field' => $definition->label]);
+            }
+        }
+
+        if ($errors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
     }
 }
