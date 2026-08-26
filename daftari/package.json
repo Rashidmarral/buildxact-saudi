@@ -15,6 +15,7 @@
         "vite": "^6.0.11"
     },
     "dependencies": {
+        "@zxing/library": "^0.21.3",
         "alpinejs": "^3.16.1"
     }
 }

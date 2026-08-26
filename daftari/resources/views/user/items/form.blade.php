@@ -24,7 +24,8 @@
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Barcode') }}</label>
             <div class="mt-1 flex gap-2">
-                <input type="text" id="barcode" name="barcode" value="{{ old('barcode', $item->barcode) }}" placeholder="{{ __('Enter or generate barcode') }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" id="barcode" name="barcode" value="{{ old('barcode', $item->barcode) }}" placeholder="{{ __('Enter, scan, or generate barcode') }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <button type="button" id="scan-barcode" class="shrink-0 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:border-brand-300">{{ __('Scan') }}</button>
                 <button type="button" id="generate-barcode" class="shrink-0 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 hover:border-brand-300">{{ __('Generate') }}</button>
             </div>
         </div>
@@ -155,6 +156,12 @@
         fetch('{{ route('app.items.generate-barcode') }}')
             .then(r => r.json())
             .then(data => { document.getElementById('barcode').value = data.barcode; });
+    });
+
+    document.getElementById('scan-barcode').addEventListener('click', function () {
+        window.DaftariBarcodeScanner.open(function (code) {
+            document.getElementById('barcode').value = code;
+        }, @json(__('Scan barcode')), @json(__('Point the camera at the item\'s barcode.')));
     });
 })();
 

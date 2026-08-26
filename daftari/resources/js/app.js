@@ -1,4 +1,5 @@
 import './bootstrap';
+import './barcode-scanner';
 import Alpine from 'alpinejs';
 
 document.addEventListener('alpine:init', () => {

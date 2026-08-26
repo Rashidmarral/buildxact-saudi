@@ -85,7 +85,10 @@ $company = auth()->user()->company;
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
-            <button type="button" id="add-row" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add line') }}</button>
+            <div class="flex items-center gap-3">
+                <button type="button" id="scan-line-barcode" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Scan barcode') }}</button>
+                <button type="button" id="add-row" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add line') }}</button>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -134,6 +137,7 @@ $company = auth()->user()->company;
             'name' => $i->name,
             'unit_price' => (float) $i->unit_price,
             'vat_rate' => (float) $i->vat_rate,
+            'barcode' => $i->barcode,
             'units' => collect($i->baseUnit ? [['id' => $i->baseUnit->id, 'label' => $i->baseUnit->label(), 'price' => (float) $i->unit_price]] : [])
                 ->merge($i->itemUnits->map(fn ($iu) => ['id' => $iu->unit_id, 'label' => $iu->unit?->label(), 'price' => (float) $i->priceForUnit($iu->unit_id)]))
                 ->values(),
@@ -189,8 +193,8 @@ function fmt(n) {
     return 'SAR ' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function addRow() {
-    const data = { item_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15 };
+function addRow(data) {
+    data = data || { item_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: 15 };
     const i = rowIndex++;
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-50';
@@ -213,6 +217,8 @@ function addRow() {
     tbody.appendChild(tr);
 
     const itemSelect = tr.querySelector('[data-role="item"]');
+    if (data.item_id) itemSelect.value = data.item_id;
+
     itemSelect.addEventListener('change', () => {
         const opt = itemSelect.selectedOptions[0];
         tr.querySelector('[data-role="item_id"]').value = itemSelect.value;
@@ -224,6 +230,8 @@ function addRow() {
         populateUnitOptions(tr, itemSelect.value, null);
         recalc();
     });
+
+    populateUnitOptions(tr, data.item_id, data.unit_id);
 
     tr.querySelector('[data-role="unit"]').addEventListener('change', () => {
         const unitSelect = tr.querySelector('[data-role="unit"]');
@@ -273,8 +281,31 @@ function recalc() {
     document.getElementById('summary-total').textContent = fmt(subtotal - discount + vat);
 }
 
-document.getElementById('add-row').addEventListener('click', addRow);
+document.getElementById('add-row').addEventListener('click', () => addRow());
 document.getElementById('discount_total').addEventListener('input', recalc);
+
+document.getElementById('scan-line-barcode').addEventListener('click', () => {
+    window.DaftariBarcodeScanner.open((code) => {
+        const item = CATALOG.find(c => c.barcode && c.barcode === code);
+        if (!item) {
+            alert(@json(__('No item found with that barcode.')));
+            return;
+        }
+
+        const existingRow = Array.from(tbody.querySelectorAll('tr')).find(
+            tr => tr.querySelector('[data-role="item_id"]')?.value === String(item.id)
+        );
+        if (existingRow) {
+            const qtyInput = existingRow.querySelector('[data-role="quantity"]');
+            qtyInput.value = (parseFloat(qtyInput.value) || 0) + 1;
+            recalc();
+            return;
+        }
+
+        addRow({ item_id: item.id, description: item.name, quantity: 1, unit_price: item.unit_price, vat_rate: item.vat_rate });
+    }, @json(__('Scan barcode')), @json(__('Point the camera at the item\'s barcode to add it as a line.')));
+});
+
 addRow();
 
 document.getElementById('bill-form').addEventListener('submit', (e) => {
