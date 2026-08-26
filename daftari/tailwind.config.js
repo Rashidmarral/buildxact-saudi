@@ -2,6 +2,11 @@ import defaultTheme from 'tailwindcss/defaultTheme';
 
 /** @type {import('tailwindcss').Config} */
 export default {
+    // Toggled explicitly via a `dark` class on <html> (see the theme
+    // toggle in layouts/app.blade.php and layouts/admin.blade.php), not
+    // the OS-preference `media` strategy, so the choice is a deliberate
+    // per-user setting rather than following the device automatically.
+    darkMode: 'class',
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',

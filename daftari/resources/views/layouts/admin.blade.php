@@ -3,13 +3,22 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('theme');
+                var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', dark);
+            } catch (e) {}
+        })();
+    </script>
     <title>@yield('title') · Daftari Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false }">
+<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, darkMode: document.documentElement.classList.contains('dark') }" x-init="$watch('darkMode', value => { document.documentElement.classList.toggle('dark', value); try { localStorage.setItem('theme', value ? 'dark' : 'light'); } catch (e) {} })">
     <div class="flex min-h-screen">
         <div x-show="mobileNavOpen" x-transition:enter="transition-opacity ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden" style="display: none;"></div>
 
@@ -69,6 +78,10 @@
                     <h1 class="text-base font-semibold text-slate-900 sm:text-lg">@yield('title')</h1>
                 </div>
                 <div class="flex items-center gap-2.5">
+                    <button type="button" @click="darkMode = !darkMode" class="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700" :title="darkMode ? '{{ __('Switch to light mode') }}' : '{{ __('Switch to dark mode') }}'">
+                        <span x-show="!darkMode">@include('partials.icon', ['name' => 'moon', 'class' => 'h-4.5 w-4.5'])</span>
+                        <span x-show="darkMode" style="display: none;">@include('partials.icon', ['name' => 'sun', 'class' => 'h-4.5 w-4.5'])</span>
+                    </button>
                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white shadow-soft">
                         {{ mb_substr(auth()->user()->name, 0, 1) }}
                     </span>

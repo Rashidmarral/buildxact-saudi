@@ -35,6 +35,8 @@
         'alert' => '<path d="M12 3l9.5 17H2.5L12 3z"/><path d="M12 10v4"/><path d="M12 17.2v.01"/>',
         'activity' => '<path d="M3 12h4l2.5-7L14 19l2.5-7H21"/>',
         'log-in' => '<path d="M15 21h4a2 2 0 002-2V5a2 2 0 00-2-2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/>',
+        'sun' => '<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+        'moon' => '<path d="M20.5 14.5a8.5 8.5 0 11-9-11 6.8 6.8 0 009 11z"/>',
     ];
     $d = $paths[$name] ?? $paths['dashboard'];
 @endphp

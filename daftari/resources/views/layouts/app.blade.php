@@ -3,13 +3,26 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+        // Runs synchronously before first paint so the page never flashes
+        // light before switching to dark. Honors the saved preference; with
+        // none stored yet, falls back to the OS preference for that first
+        // visit only — the toggle below always writes an explicit choice.
+        (function () {
+            try {
+                var stored = localStorage.getItem('theme');
+                var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', dark);
+            } catch (e) {}
+        })();
+    </script>
     <title>@yield('title') · Daftari</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false, notificationsOpen: false }">
+<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false, notificationsOpen: false, darkMode: document.documentElement.classList.contains('dark') }" x-init="$watch('darkMode', value => { document.documentElement.classList.toggle('dark', value); try { localStorage.setItem('theme', value ? 'dark' : 'light'); } catch (e) {} })">
     @php
         $company = auth()->user()->company;
         $sub = $company?->activeSubscription();
@@ -202,6 +215,10 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2 sm:gap-4">
+                    <button type="button" @click="darkMode = !darkMode" class="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700" :title="darkMode ? '{{ __('Switch to light mode') }}' : '{{ __('Switch to dark mode') }}'">
+                        <span x-show="!darkMode">@include('partials.icon', ['name' => 'moon', 'class' => 'h-4.5 w-4.5'])</span>
+                        <span x-show="darkMode" style="display: none;">@include('partials.icon', ['name' => 'sun', 'class' => 'h-4.5 w-4.5'])</span>
+                    </button>
                     <a href="{{ route('locale.switch', app()->getLocale() === 'ar' ? 'en' : 'ar') }}" class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700">
                         @include('partials.icon', ['name' => 'globe', 'class' => 'h-4 w-4'])
                         {{ app()->getLocale() === 'ar' ? 'EN' : 'AR' }}
