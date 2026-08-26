@@ -59,6 +59,7 @@ use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\SalespersonController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\StockAdjustmentController;
+use App\Http\Controllers\User\StockTransferController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
@@ -334,6 +335,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
         Route::post('warehouses/{warehouse}/make-default', [WarehouseController::class, 'makeDefault'])->name('warehouses.make-default');
         Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'store']);
         Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
+        Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'store']);
+        Route::post('stock-transfers/{stockTransfer}/reverse', [StockTransferController::class, 'reverse'])->name('stock-transfers.reverse');
         Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->name('inventory.valuation');
     });
