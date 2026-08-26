@@ -111,7 +111,7 @@
                     </div>
                 </details>
 
-                @php($accountingActive = request()->routeIs('app.accounts.*') || request()->routeIs('app.journals.*') || request()->routeIs('app.ledger.*') || request()->routeIs('app.cost-centers.*') || request()->routeIs('app.zakat.*') || request()->routeIs('app.fixed-assets.*'))
+                @php($accountingActive = request()->routeIs('app.accounts.*') || request()->routeIs('app.journals.*') || request()->routeIs('app.ledger.*') || request()->routeIs('app.cost-centers.*') || request()->routeIs('app.zakat.*') || request()->routeIs('app.fixed-assets.*') || request()->routeIs('app.budgets.*'))
                 <details class="group" @if($accountingActive) open @endif>
                     <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $accountingActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
                         <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'accounting', 'class' => 'h-[18px] w-[18px]'])</span>
@@ -123,6 +123,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.cost-centers.index', 'label' => __('Cost Centers')])
                         @include('partials.nav-subitem', ['route' => 'app.zakat.index', 'label' => __('Zakat Estimate')])
                         @include('partials.nav-subitem', ['route' => 'app.fixed-assets.index', 'label' => __('Fixed Assets')])
+                        @include('partials.nav-subitem', ['route' => 'app.budgets.index', 'label' => __('Budgets')])
                         @include('partials.nav-subitem', ['route' => 'app.journals.index', 'label' => __('Journals')])
                         @include('partials.nav-subitem', ['route' => 'app.ledger.index', 'label' => __('Ledger')])
                     </div>

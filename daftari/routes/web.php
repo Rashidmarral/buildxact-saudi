@@ -30,6 +30,7 @@ use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
 use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
+use App\Http\Controllers\User\BudgetController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\FixedAssetController;
@@ -284,6 +285,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
             Route::post('run-depreciation', [FixedAssetController::class, 'runDepreciation'])->name('run-depreciation');
             Route::post('{fixedAsset}/dispose', [FixedAssetController::class, 'dispose'])->name('dispose');
         });
+
+        Route::resource('budgets', BudgetController::class)->except(['show']);
+        Route::get('budgets/{budget}', [BudgetController::class, 'show'])->name('budgets.show');
+        Route::post('budgets/{budget}/activate', [BudgetController::class, 'activate'])->name('budgets.activate');
     });
 
     Route::middleware('permission:cash_banks')->group(function () {
