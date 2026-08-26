@@ -39,6 +39,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(3)->by($request->ip());
         });
 
+        // Same reasoning as password-email: this doesn't reveal whether the
+        // address matches a client, so the abuse case is inbox-bombing a
+        // client, not credential stuffing (there's no credential to stuff —
+        // it's a magic link).
+        RateLimiter::for('client-portal-login', function ($request) {
+            return Limit::perMinute(3)->by($request->ip());
+        });
+
         // The pending user hasn't authenticated yet at this point (that's
         // the whole reason there's a second factor), so this can't be
         // keyed by Auth::id() — the session-stored pending user id is the

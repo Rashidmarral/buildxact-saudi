@@ -75,6 +75,11 @@
                     @endif
                 </p>
             @endif
+
+            <p class="mt-4 text-sm text-slate-500">
+                {{ __('Want to see all your invoices with :company in one place?', ['company' => $company->name]) }}
+                <a href="{{ route('portal.login') }}" class="font-semibold text-brand-700 hover:underline">{{ __('Sign in to your account') }}</a>
+            </p>
         </div>
     @endif
 </div>

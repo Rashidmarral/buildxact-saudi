@@ -43,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.permission' => EnsureAdminPermission::class,
             'feature' => EnsurePlanFeature::class,
             'abilities' => CheckAbilities::class,
+            'client.portal' => \App\Http\Middleware\EnsureClientPortalSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

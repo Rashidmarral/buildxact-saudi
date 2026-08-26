@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\FileServeController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PaymentWidgetController;
+use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
@@ -83,6 +84,24 @@ Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('fi
 Route::get('/pay/invoices/{id}/{token}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
 Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->name('public.invoices.pdf');
 Route::get('/pay/invoices/{id}/{token}/pay/{provider}', [PublicInvoiceController::class, 'pay'])->name('public.invoices.pay');
+
+// Client self-service portal — full invoice history and a running account
+// statement for a company's own clients, signed in via a one-time magic
+// link (Client records have no password). Viewing/paying one specific
+// invoice deliberately reuses the public.invoices.* routes above rather
+// than re-implementing that page here.
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('login', [ClientPortalController::class, 'showLogin'])->name('login');
+    Route::post('login', [ClientPortalController::class, 'sendLoginLink'])->name('login.send')->middleware('throttle:client-portal-login');
+    Route::get('login/{token}', [ClientPortalController::class, 'authenticate'])->name('authenticate');
+    Route::post('logout', [ClientPortalController::class, 'logout'])->name('logout');
+
+    Route::middleware('client.portal')->group(function () {
+        Route::get('/', [ClientPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('invoices', [ClientPortalController::class, 'invoices'])->name('invoices');
+        Route::get('statement', [ClientPortalController::class, 'statement'])->name('statement');
+    });
+});
 
 // Public payment-gateway plumbing: the hosted-widget page for HyperPay's
 // COPYandPAY flow, and the single webhook endpoint every driver posts (or,
