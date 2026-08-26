@@ -109,17 +109,17 @@
             @endif
         </div>
         <div class="w-full max-w-xs space-y-1.5 text-sm">
-            <div class="flex justify-between text-slate-600"><span>{{ __('Subtotal') }} <span class="text-xs text-slate-400" dir="rtl">المجموع الفرعي</span></span><span>SAR {{ number_format($doc['subtotal'], 2) }}</span></div>
+            <div class="flex justify-between text-slate-600"><span>{{ __('Subtotal') }} <span class="text-xs text-slate-400" dir="rtl">المجموع الفرعي</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
             @if (($doc['discount_total'] ?? 0) > 0)
-                <div class="flex justify-between text-slate-600"><span>{{ __('Discount') }}</span><span>-SAR {{ number_format($doc['discount_total'], 2) }}</span></div>
+                <div class="flex justify-between text-slate-600"><span>{{ __('Discount') }}</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
             @endif
-            <div class="flex justify-between text-slate-600"><span>{{ __('Total VAT') }} <span class="text-xs text-slate-400" dir="rtl">إجمالي ضريبة القيمة المضافة</span></span><span>SAR {{ number_format($doc['vat_total'], 2) }}</span></div>
-            <div class="flex justify-between border-t-2 border-slate-800 pt-2 text-base font-bold text-slate-900"><span>{{ __('Total') }} <span class="text-xs font-normal text-slate-400" dir="rtl">المجموع شامل القيمة المضافة</span></span><span>SAR {{ number_format($doc['total'], 2) }}</span></div>
+            <div class="flex justify-between text-slate-600"><span>{{ __('Total VAT') }} <span class="text-xs text-slate-400" dir="rtl">إجمالي ضريبة القيمة المضافة</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
+            <div class="flex justify-between border-t-2 border-slate-800 pt-2 text-base font-bold text-slate-900"><span>{{ __('Total') }} <span class="text-xs font-normal text-slate-400" dir="rtl">المجموع شامل القيمة المضافة</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 @php
                     $rowColor = ($row['variant'] ?? null) === 'red' ? 'font-semibold text-red-600' : (($row['emphasis'] ?? false) ? 'font-semibold text-brand-700' : 'text-slate-600');
                 @endphp
-                <div class="flex justify-between {{ $rowColor }}"><span>{{ $row['label'] }}</span><span>SAR {{ number_format($row['value'], 2) }}</span></div>
+                <div class="flex justify-between {{ $rowColor }}"><span>{{ $row['label'] }}</span><span>{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</span></div>
             @endforeach
         </div>
     </div>
@@ -352,9 +352,9 @@
                 <tr class="border-b border-slate-50">
                     <td class="py-2">{{ $line->description }}</td>
                     <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
-                    <td class="py-2 text-end">SAR {{ number_format($line->unit_price, 2) }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($line->vat_amount, 2) }}</td>
-                    <td class="py-2 text-end">SAR {{ number_format($line->line_total, 2) }}</td>
+                    <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
+                    <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
+                    <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->line_total, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -365,12 +365,12 @@
             @php
                 $boxed = $layout === 'boxed' && $accent;
             @endphp
-            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Subtotal') }}</span><span>SAR {{ number_format($doc['subtotal'], 2) }}</span></div>
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Subtotal') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
             @if (($doc['discount_total'] ?? 0) > 0)
-                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Discount') }}</span><span>-SAR {{ number_format($doc['discount_total'], 2) }}</span></div>
+                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Discount') }}</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
             @endif
-            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('VAT') }}</span><span>SAR {{ number_format($doc['vat_total'], 2) }}</span></div>
-            <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ __('Total') }}</span><span>SAR {{ number_format($doc['total'], 2) }}</span></div>
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('VAT') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
+            <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ __('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 @php
                     $rowColor = 'text-slate-500';
@@ -382,7 +382,7 @@
                         $rowColor = 'font-semibold text-brand-700';
                     }
                 @endphp
-                <div class="flex justify-between {{ $rowColor }}"><span>{{ $row['label'] }}</span><span>SAR {{ number_format($row['value'], 2) }}</span></div>
+                <div class="flex justify-between {{ $rowColor }}"><span>{{ $row['label'] }}</span><span>{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</span></div>
             @endforeach
         </div>
     </div>

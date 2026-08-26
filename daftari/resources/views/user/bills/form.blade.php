@@ -67,6 +67,19 @@ $company = auth()->user()->company;
             <label class="block text-sm font-medium text-slate-700">{{ __('Due date') }}</label>
             <input type="date" name="due_date" value="{{ old('due_date', optional($bill->due_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Currency') }}</label>
+            <select name="currency" id="currency" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                @foreach ($currencies as $code => $label)
+                    <option value="{{ $code }}" data-base="{{ $code === $company->currency ? '1' : '0' }}" @selected(old('currency', $bill->currency ?? $company->currency) === $code)>{{ __($label) }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div id="exchange-rate-wrap" class="{{ old('currency', $bill->currency ?? $company->currency) === $company->currency ? 'hidden' : '' }}">
+            <label class="block text-sm font-medium text-slate-700">{{ __('Exchange rate (to :currency)', ['currency' => $company->currency]) }}</label>
+            <input type="number" step="0.000001" min="0.000001" name="exchange_rate" id="exchange_rate" value="{{ old('exchange_rate', $bill->exchange_rate ?? 1) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <p class="text-xs text-slate-400 mt-1">{{ __('Amounts below stay in the selected currency. Your ledger converts them to :currency using this rate.', ['currency' => $company->currency]) }}</p>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -304,6 +317,14 @@ document.getElementById('preview-btn').addEventListener('click', () => {
     document.getElementById('preview-total').textContent = fmt(subtotal + vat - (parseFloat(document.getElementById('discount_total').value) || 0));
 
     document.getElementById('preview-modal').showModal();
+});
+
+document.getElementById('currency').addEventListener('change', (e) => {
+    const isBase = e.target.selectedOptions[0].dataset.base === '1';
+    document.getElementById('exchange-rate-wrap').classList.toggle('hidden', isBase);
+    if (isBase) {
+        document.getElementById('exchange_rate').value = 1;
+    }
 });
 </script>
 @endsection

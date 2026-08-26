@@ -22,6 +22,7 @@ use App\Models\WhatsappConfig;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use App\Services\WhatsAppService;
+use App\Support\Currencies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -65,13 +66,14 @@ class InvoiceController extends Controller
         $company = Auth::user()->company;
 
         return view('user.invoices.form', [
-            'invoice' => new Invoice(['issue_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString()]),
+            'invoice' => new Invoice(['issue_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString(), 'currency' => $company->currency, 'exchange_rate' => 1]),
             'clients' => Client::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
+            'currencies' => Currencies::catalog(),
             'nextNumberPreview' => $company->invoice_prefix.'-'.str_pad((string) $company->next_invoice_number, 5, '0', STR_PAD_LEFT),
         ]);
     }
@@ -106,7 +108,8 @@ class InvoiceController extends Controller
                 'discount_total' => $data['discount_total'] ?? 0,
                 'retention_rate' => $data['retention_rate'] ?? 0,
                 'retention_amount' => $retentionAmount,
-                'currency' => $company->currency,
+                'currency' => $data['currency'] ?? $company->currency,
+                'exchange_rate' => ($data['currency'] ?? $company->currency) === $company->currency ? 1 : ($data['exchange_rate'] ?? 1),
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -221,11 +224,17 @@ class InvoiceController extends Controller
             'qr_code' => $invoice->qr_code,
             'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
             'lines' => $invoice->items,
+            'currency' => $invoice->currency,
             'subtotal' => $invoice->subtotal,
             'discount_total' => $invoice->discount_total,
             'vat_total' => $invoice->vat_total,
             'total' => $invoice->total,
             'extra_rows' => array_values(array_filter([
+                $invoice->currency !== $invoice->company->currency ? [
+                    'label' => __(':currency equivalent (rate :rate)', ['currency' => $invoice->company->currency, 'rate' => rtrim(rtrim(number_format($invoice->exchange_rate, 6), '0'), '.')]),
+                    'value' => round($invoice->total * $invoice->exchange_rate, 2),
+                    'currency' => $invoice->company->currency,
+                ] : null,
                 $invoice->retention_amount > 0 ? [
                     'label' => __('Retention held').' ('.rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.').'%)',
                     'value' => $invoice->retention_amount,
@@ -276,6 +285,7 @@ class InvoiceController extends Controller
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
+            'currencies' => Currencies::catalog(),
         ]);
     }
 
@@ -289,8 +299,10 @@ class InvoiceController extends Controller
         $data = $this->validated($request);
 
         DB::transaction(function () use ($invoice, $data) {
+            $company = $invoice->company;
             $subtotal = collect($data['items'])->sum(fn ($row) => $row['quantity'] * $row['unit_price']);
             $retentionAmount = round($subtotal * (($data['retention_rate'] ?? 0) / 100), 2);
+            $currency = $data['currency'] ?? $company->currency;
 
             $invoice->update([
                 'client_id' => $data['client_id'],
@@ -304,6 +316,8 @@ class InvoiceController extends Controller
                 'discount_total' => $data['discount_total'] ?? 0,
                 'retention_rate' => $data['retention_rate'] ?? 0,
                 'retention_amount' => $retentionAmount,
+                'currency' => $currency,
+                'exchange_rate' => $currency === $company->currency ? 1 : ($data['exchange_rate'] ?? 1),
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -508,6 +522,8 @@ class InvoiceController extends Controller
             'type' => ['required', 'in:standard,simplified'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
+            'currency' => ['nullable', 'string', Rule::in(Currencies::codes())],
+            'exchange_rate' => ['nullable', 'numeric', 'min:0.000001'],
             'discount_total' => ['nullable', 'numeric', 'min:0'],
             'retention_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],

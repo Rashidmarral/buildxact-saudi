@@ -154,11 +154,25 @@ class LedgerPostingService
             return null;
         }
 
+        // The Chart of Accounts is always kept in the company's base
+        // currency, so a foreign-currency invoice is converted through its
+        // exchange_rate before it ever reaches a journal line — every
+        // amount below this point is a base-currency amount. total is
+        // re-derived from the converted components (not rounded
+        // independently from invoice->total) so the entry balances exactly
+        // even after each component's own rounding.
+        $rate = (float) $invoice->exchange_rate ?: 1.0;
+        $subtotal = round((float) $invoice->subtotal * $rate, 2);
+        $vatTotal = round((float) $invoice->vat_total * $rate, 2);
+        $discountTotal = round((float) $invoice->discount_total * $rate, 2);
+        $retentionAmountRaw = round((float) $invoice->retention_amount * $rate, 2);
+        $total = round($subtotal - $discountTotal + $vatTotal, 2);
+
         // A retained portion of the receivable isn't collectible until the
         // retention is released later, so it's tracked in its own AR account
         // rather than blended into ordinary receivables.
-        $retentionAmount = min((float) $invoice->retention_amount, (float) $invoice->total);
-        $regularAr = round((float) $invoice->total - $retentionAmount, 2);
+        $retentionAmount = min($retentionAmountRaw, $total);
+        $regularAr = round($total - $retentionAmount, 2);
 
         $lines = [];
 
@@ -170,11 +184,11 @@ class LedgerPostingService
             $lines[] = ['account_id' => ($arRetention ?: $ar)->id, 'debit' => $retentionAmount, 'memo' => __('Retention held on :number', ['number' => $invoice->invoice_number])];
         }
 
-        $lines[] = ['account_id' => $revenue->id, 'credit' => $invoice->subtotal];
-        $lines[] = ['account_id' => $vatOutput->id, 'credit' => $invoice->vat_total];
+        $lines[] = ['account_id' => $revenue->id, 'credit' => $subtotal];
+        $lines[] = ['account_id' => $vatOutput->id, 'credit' => $vatTotal];
 
-        if ($invoice->discount_total > 0 && $discounts) {
-            $lines[] = ['account_id' => $discounts->id, 'debit' => $invoice->discount_total];
+        if ($discountTotal > 0 && $discounts) {
+            $lines[] = ['account_id' => $discounts->id, 'debit' => $discountTotal];
         }
 
         return $this->post($company, 'invoice', $invoice->id, __('Invoice :number issued', ['number' => $invoice->invoice_number]), $invoice->issue_date, $lines);
@@ -211,9 +225,11 @@ class LedgerPostingService
             return null;
         }
 
+        $baseAmount = round((float) $payment->amount * ((float) $invoice->exchange_rate ?: 1.0), 2);
+
         return $this->post($company, 'invoice_payment', $payment->id, __('Payment received for :number', ['number' => $invoice->invoice_number]), $payment->paid_at, [
-            ['account_id' => $cashOrBank->id, 'debit' => $payment->amount],
-            ['account_id' => $ar->id, 'credit' => $payment->amount],
+            ['account_id' => $cashOrBank->id, 'debit' => $baseAmount],
+            ['account_id' => $ar->id, 'credit' => $baseAmount],
         ]);
     }
 
@@ -259,12 +275,21 @@ class LedgerPostingService
             return null;
         }
 
-        $net = $bill->subtotal - $bill->discount_total;
+        // Converted to the company's base currency the same way as
+        // postInvoiceIssued() — see the note there on why total is
+        // re-derived from the converted components rather than converted
+        // independently (keeps the entry balanced after rounding).
+        $rate = (float) $bill->exchange_rate ?: 1.0;
+        $subtotal = round((float) $bill->subtotal * $rate, 2);
+        $discountTotal = round((float) $bill->discount_total * $rate, 2);
+        $vatTotal = round((float) $bill->vat_total * $rate, 2);
+        $net = round($subtotal - $discountTotal, 2);
+        $total = round($net + $vatTotal, 2);
 
         return $this->post($company, 'bill', $bill->id, __('Bill :number posted', ['number' => $bill->bill_number]), $bill->bill_date, [
             ['account_id' => $expenseAccount->id, 'debit' => $net],
-            ['account_id' => $vatInput->id, 'debit' => $bill->vat_total],
-            ['account_id' => $ap->id, 'credit' => $bill->total],
+            ['account_id' => $vatInput->id, 'debit' => $vatTotal],
+            ['account_id' => $ap->id, 'credit' => $total],
         ]);
     }
 
@@ -279,9 +304,11 @@ class LedgerPostingService
             return null;
         }
 
+        $baseAmount = round((float) $payment->amount * ((float) $bill->exchange_rate ?: 1.0), 2);
+
         return $this->post($company, 'bill_payment', $payment->id, __('Payment made for :number', ['number' => $bill->bill_number]), $payment->paid_at, [
-            ['account_id' => $ap->id, 'debit' => $payment->amount],
-            ['account_id' => $cashOrBank->id, 'credit' => $payment->amount],
+            ['account_id' => $ap->id, 'debit' => $baseAmount],
+            ['account_id' => $cashOrBank->id, 'credit' => $baseAmount],
         ]);
     }
 

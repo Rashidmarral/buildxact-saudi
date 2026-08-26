@@ -45,17 +45,23 @@
         'party_label_ar' => 'المورد',
         'party' => $bill->supplier,
         'lines' => $bill->items,
+        'currency' => $bill->currency,
         'subtotal' => $bill->subtotal,
         'discount_total' => $bill->discount_total,
         'vat_total' => $bill->vat_total,
         'total' => $bill->total,
-        'extra_rows' => [
+        'extra_rows' => array_values(array_filter([
+            $bill->currency !== $bill->company->currency ? [
+                'label' => __(':currency equivalent (rate :rate)', ['currency' => $bill->company->currency, 'rate' => rtrim(rtrim(number_format($bill->exchange_rate, 6), '0'), '.')]),
+                'value' => round($bill->total * $bill->exchange_rate, 2),
+                'currency' => $bill->company->currency,
+            ] : null,
             ['label' => __('Paid'), 'value' => $bill->amount_paid],
             [
                 'label' => __('Balance due'), 'value' => $bill->balanceDue(), 'emphasis' => true,
                 'variant' => $bill->balanceDue() > 0 ? 'red' : null,
             ],
-        ],
+        ])),
         'notes' => $bill->notes,
     ];
 @endphp

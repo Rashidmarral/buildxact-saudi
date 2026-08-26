@@ -16,7 +16,7 @@ class Bill extends Model
     protected $fillable = [
         'company_id', 'supplier_id', 'branch_id', 'created_by', 'bill_number',
         'supplier_reference', 'status', 'bill_date', 'due_date', 'subtotal',
-        'discount_total', 'vat_total', 'total', 'amount_paid', 'currency', 'notes',
+        'discount_total', 'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes',
     ];
 
     protected function casts(): array

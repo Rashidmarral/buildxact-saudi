@@ -12,6 +12,10 @@
                 @include('partials.icon', ['name' => 'shield', 'class' => 'h-3.5 w-3.5'])
                 {{ __('ZATCA cleared — locked') }}
             </span>
+        @elseif ($invoice->currency !== $invoice->company->currency)
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700" title="{{ __('ZATCA e-invoicing sync only supports invoices in your base currency (:currency).', ['currency' => $invoice->company->currency]) }}">
+                {{ __('ZATCA sync skipped — foreign currency') }}
+            </span>
         @endif
     </div>
     <div class="flex items-center gap-3">
@@ -76,11 +80,17 @@
         'qr_code' => $invoice->qr_code,
         'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
         'lines' => $invoice->items,
+        'currency' => $invoice->currency,
         'subtotal' => $invoice->subtotal,
         'discount_total' => $invoice->discount_total,
         'vat_total' => $invoice->vat_total,
         'total' => $invoice->total,
         'extra_rows' => array_values(array_filter([
+            $invoice->currency !== $invoice->company->currency ? [
+                'label' => __(':currency equivalent (rate :rate)', ['currency' => $invoice->company->currency, 'rate' => rtrim(rtrim(number_format($invoice->exchange_rate, 6), '0'), '.')]),
+                'value' => round($invoice->total * $invoice->exchange_rate, 2),
+                'currency' => $invoice->company->currency,
+            ] : null,
             $invoice->retention_amount > 0 ? [
                 'label' => __('Retention held').' ('.rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.').'%)',
                 'value' => $invoice->retention_amount,

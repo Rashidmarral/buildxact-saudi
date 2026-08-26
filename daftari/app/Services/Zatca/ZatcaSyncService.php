@@ -49,9 +49,18 @@ class ZatcaSyncService
      * Invoices this company's current sync settings say should go to
      * ZATCA but have no successful (cleared/reported) log entry yet.
      */
+    /**
+     * ZATCA's XML monetary amounts are always rendered in the company's
+     * base currency (SAR) regardless of DocumentCurrencyCode — a
+     * foreign-currency invoice's amounts are only ever entered in that
+     * foreign currency, so submitting one as-is would clear/report the
+     * wrong figures. Until the generator is extended to do the conversion
+     * itself, only base-currency invoices/credit notes are eligible.
+     */
     public function pendingInvoices(Company $company)
     {
         return Invoice::where('company_id', $company->id)
+            ->where('currency', $company->currency)
             ->whereNotIn('status', ['draft', 'cancelled'])
             ->when(! $company->zatca_sync_b2b, fn ($q) => $q->where('type', '!=', 'standard'))
             ->when(! $company->zatca_sync_b2c, fn ($q) => $q->where('type', '!=', 'simplified'))
@@ -77,6 +86,7 @@ class ZatcaSyncService
     {
         return CreditNote::where('company_id', $company->id)
             ->where('status', 'issued')
+            ->where('currency', $company->currency)
             ->with('invoice')
             ->whereHas('invoice', function ($q) use ($company) {
                 $q->when(! $company->zatca_sync_b2b, fn ($q) => $q->where('type', '!=', 'standard'))

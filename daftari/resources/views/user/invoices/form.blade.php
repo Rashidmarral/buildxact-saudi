@@ -76,6 +76,19 @@ $company = auth()->user()->company;
             <label class="block text-sm font-medium text-slate-700">{{ __('Due date') }}</label>
             <input type="date" name="due_date" value="{{ old('due_date', optional($invoice->due_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Currency') }}</label>
+            <select name="currency" id="currency" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                @foreach ($currencies as $code => $label)
+                    <option value="{{ $code }}" data-base="{{ $code === $company->currency ? '1' : '0' }}" @selected(old('currency', $invoice->currency ?? $company->currency) === $code)>{{ __($label) }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div id="exchange-rate-wrap" class="{{ old('currency', $invoice->currency ?? $company->currency) === $company->currency ? 'hidden' : '' }}">
+            <label class="block text-sm font-medium text-slate-700">{{ __('Exchange rate (to :currency)', ['currency' => $company->currency]) }}</label>
+            <input type="number" step="0.000001" min="0.000001" name="exchange_rate" id="exchange_rate" value="{{ old('exchange_rate', $invoice->exchange_rate ?? 1) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <p class="text-xs text-slate-400 mt-1">{{ __('Amounts below stay in the selected currency. Your ledger converts them to :currency using this rate.', ['currency' => $company->currency]) }}</p>
+        </div>
         @if ($salespersons->isNotEmpty())
             <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Salesperson (optional)') }}</label>
@@ -357,6 +370,14 @@ if (parseFloat(document.getElementById('retention_rate').value) > 0) {
     document.getElementById('retention-input-wrap').classList.remove('hidden');
     document.getElementById('add-retention-btn').classList.add('hidden');
 }
+
+document.getElementById('currency').addEventListener('change', (e) => {
+    const isBase = e.target.selectedOptions[0].dataset.base === '1';
+    document.getElementById('exchange-rate-wrap').classList.toggle('hidden', isBase);
+    if (isBase) {
+        document.getElementById('exchange_rate').value = 1;
+    }
+});
 
 if (EXISTING.length) {
     EXISTING.forEach(addRow);

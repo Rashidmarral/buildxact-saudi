@@ -12,6 +12,7 @@ use App\Models\Item;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
+use App\Support\Currencies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -61,9 +62,10 @@ class BillController extends Controller
         $company = Auth::user()->company;
 
         return view('user.bills.form', [
-            'bill' => new Bill(['bill_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString()]),
+            'bill' => new Bill(['bill_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString(), 'currency' => $company->currency, 'exchange_rate' => 1]),
             'suppliers' => Supplier::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'currencies' => Currencies::catalog(),
             'nextNumberPreview' => $company->bill_prefix.'-'.str_pad((string) $company->next_bill_number, 5, '0', STR_PAD_LEFT),
         ]);
     }
@@ -86,7 +88,8 @@ class BillController extends Controller
                 'bill_date' => $data['bill_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'discount_total' => $data['discount_total'] ?? 0,
-                'currency' => $company->currency,
+                'currency' => $data['currency'] ?? $company->currency,
+                'exchange_rate' => ($data['currency'] ?? $company->currency) === $company->currency ? 1 : ($data['exchange_rate'] ?? 1),
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -134,14 +137,20 @@ class BillController extends Controller
             'party_label_ar' => 'المورد',
             'party' => $bill->supplier,
             'lines' => $bill->items,
+            'currency' => $bill->currency,
             'subtotal' => $bill->subtotal,
             'discount_total' => $bill->discount_total,
             'vat_total' => $bill->vat_total,
             'total' => $bill->total,
-            'extra_rows' => [
+            'extra_rows' => array_values(array_filter([
+                $bill->currency !== $bill->company->currency ? [
+                    'label' => __(':currency equivalent (rate :rate)', ['currency' => $bill->company->currency, 'rate' => rtrim(rtrim(number_format($bill->exchange_rate, 6), '0'), '.')]),
+                    'value' => round($bill->total * $bill->exchange_rate, 2),
+                    'currency' => $bill->company->currency,
+                ] : null,
                 ['label' => __('Paid'), 'value' => $bill->amount_paid],
                 ['label' => __('Balance due'), 'value' => $bill->balanceDue()],
-            ],
+            ])),
             'notes' => $bill->notes,
         ];
 
@@ -233,6 +242,8 @@ class BillController extends Controller
             'supplier_reference' => ['nullable', 'string', 'max:255'],
             'bill_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:bill_date'],
+            'currency' => ['nullable', 'string', Rule::in(Currencies::codes())],
+            'exchange_rate' => ['nullable', 'numeric', 'min:0.000001'],
             'discount_total' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
