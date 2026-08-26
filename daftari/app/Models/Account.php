@@ -37,6 +37,11 @@ class Account extends Model
             ['code' => '1300', 'name' => 'VAT Input', 'name_ar' => 'ضريبة القيمة المضافة المدخلات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1310', 'name' => 'VAT Input – Imports', 'name_ar' => 'ضريبة مدخلات - الواردات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1400', 'name' => 'Inventory', 'name_ar' => 'المخزون', 'type' => 'asset', 'normal_balance' => 'debit'],
+            ['code' => '1500', 'name' => 'Fixed Assets', 'name_ar' => 'الأصول الثابتة', 'type' => 'asset', 'normal_balance' => 'debit'],
+            // Contra-asset: normal_balance is credit even though the
+            // account's type is "asset" — accumulated depreciation reduces
+            // the fixed-asset balance, it isn't a liability.
+            ['code' => '1550', 'name' => 'Accumulated Depreciation', 'name_ar' => 'مجمع الإهلاك', 'type' => 'asset', 'normal_balance' => 'credit'],
             ['code' => '2000', 'name' => 'Accounts Payable', 'name_ar' => 'الذمم الدائنة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2100', 'name' => 'VAT Output', 'name_ar' => 'ضريبة القيمة المضافة المخرجات', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2110', 'name' => 'VAT Output – Reverse Charge', 'name_ar' => 'ضريبة مخرجات - آلية الاحتساب العكسي', 'type' => 'liability', 'normal_balance' => 'credit'],
@@ -49,6 +54,7 @@ class Account extends Model
             ['code' => '4200', 'name' => 'Other Income', 'name_ar' => 'إيرادات أخرى', 'type' => 'revenue', 'normal_balance' => 'credit'],
             ['code' => '5000', 'name' => 'Cost of Goods Sold', 'name_ar' => 'تكلفة البضاعة المباعة', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5100', 'name' => 'Operating Expenses', 'name_ar' => 'مصاريف تشغيلية', 'type' => 'expense', 'normal_balance' => 'debit'],
+            ['code' => '5150', 'name' => 'Depreciation Expense', 'name_ar' => 'مصروف الإهلاك', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5200', 'name' => 'Inventory Adjustment', 'name_ar' => 'تسوية المخزون', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5300', 'name' => 'Zakat / Income Tax', 'name_ar' => 'الزكاة / ضريبة الدخل', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '9000', 'name' => 'Rounding', 'name_ar' => 'فروقات التقريب', 'type' => 'expense', 'normal_balance' => 'debit'],

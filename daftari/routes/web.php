@@ -32,6 +32,7 @@ use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\CostCenterController;
+use App\Http\Controllers\User\FixedAssetController;
 use App\Http\Controllers\User\ZakatController;
 use App\Http\Controllers\User\CreditNoteController;
 use App\Http\Controllers\User\CustomsDeclarationController;
@@ -268,6 +269,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
             Route::get('{zakat}', [ZakatController::class, 'show'])->name('show');
             Route::delete('{zakat}', [ZakatController::class, 'destroy'])->name('destroy');
             Route::get('{zakat}/pdf', [ZakatController::class, 'downloadPdf'])->name('pdf');
+        });
+
+        Route::prefix('fixed-assets')->name('fixed-assets.')->group(function () {
+            Route::get('/', [FixedAssetController::class, 'index'])->name('index');
+            Route::get('create', [FixedAssetController::class, 'create'])->name('create');
+            Route::post('/', [FixedAssetController::class, 'store'])->name('store');
+            Route::get('{fixedAsset}', [FixedAssetController::class, 'show'])->name('show');
+            Route::post('run-depreciation', [FixedAssetController::class, 'runDepreciation'])->name('run-depreciation');
+            Route::post('{fixedAsset}/dispose', [FixedAssetController::class, 'dispose'])->name('dispose');
         });
     });
 
