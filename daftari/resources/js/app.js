@@ -222,3 +222,15 @@ Alpine.start();
         });
     }).observe(document.documentElement, { childList: true, subtree: true });
 })();
+
+// Registers the PWA service worker (public/sw.js) so the app is installable
+// from the browser's "Add to Home Screen" / "Install app" prompt. The
+// worker only cache-first's static build assets — it never touches page
+// navigations or API calls, so this is safe to register everywhere the
+// script loads (marketing site included) without any risk of showing stale
+// invoice/balance data.
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+}
