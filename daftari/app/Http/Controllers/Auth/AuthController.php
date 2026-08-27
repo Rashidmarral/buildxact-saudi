@@ -13,6 +13,8 @@ use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\TaxRate;
 use App\Models\User;
+use App\Rules\SaudiPhoneNumber;
+use App\Rules\SaudiVatNumber;
 use App\Support\CompanyProfileOptions;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
@@ -92,17 +94,26 @@ class AuthController extends Controller
     {
         $phoneRequired = Setting::getBool('signup_require_phone_verification');
 
+        // A blank text field submitted as only spaces would otherwise pass
+        // "required" (it's a non-empty string) — trim first so whitespace
+        // can't stand in for a real name/company name.
+        $request->merge([
+            'first_name' => trim((string) $request->input('first_name')),
+            'last_name' => trim((string) $request->input('last_name')),
+            'company_name' => trim((string) $request->input('company_name')),
+        ]);
+
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:150'],
             'last_name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone' => [$phoneRequired ? 'required' : 'nullable', 'string', 'max:30'],
-            'job_title' => ['nullable', Rule::in(array_keys(CompanyProfileOptions::jobTitles()))],
+            'phone' => [$phoneRequired ? 'required' : 'nullable', 'string', 'max:30', new SaudiPhoneNumber],
+            'job_title' => ['required', Rule::in(array_keys(CompanyProfileOptions::jobTitles()))],
             'password' => ['required', 'confirmed', Password::min(8)],
             'company_name' => ['required', 'string', 'max:255'],
             'organization_size' => ['required', Rule::in(array_keys(CompanyProfileOptions::organizationSizes()))],
             'industry' => ['required', Rule::in(array_keys(CompanyProfileOptions::industries()))],
-            'vat_number' => ['nullable', 'string', 'max:30'],
+            'vat_number' => ['nullable', 'string', 'max:30', new SaudiVatNumber],
             'primary_customer_type' => ['required', Rule::in(array_keys(CompanyProfileOptions::customerTypes()))],
         ]);
 

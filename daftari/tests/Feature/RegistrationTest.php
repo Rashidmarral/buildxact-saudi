@@ -81,15 +81,63 @@ class RegistrationTest extends TestCase
         $this->assertDatabaseMissing('companies', ['name' => 'Al-Nour Trading Est.']);
     }
 
-    public function test_registration_allows_blank_vat_number_and_job_title(): void
+    public function test_registration_allows_a_blank_vat_number(): void
     {
         $this->makeActivePlan();
 
-        $response = $this->post(route('register'), $this->validPayload(['vat_number' => '', 'job_title' => '']));
+        $response = $this->post(route('register'), $this->validPayload(['vat_number' => '']));
 
         $response->assertRedirect(route('app.dashboard'));
         $company = Company::where('name', 'Al-Nour Trading Est.')->first();
         $this->assertNull($company->vat_number);
+    }
+
+    public function test_registration_rejects_a_vat_number_that_is_not_a_valid_zatca_format(): void
+    {
+        $this->makeActivePlan();
+
+        $response = $this->post(route('register'), $this->validPayload(['vat_number' => '12345']));
+
+        $response->assertSessionHasErrors('vat_number');
+        $this->assertDatabaseMissing('companies', ['name' => 'Al-Nour Trading Est.']);
+    }
+
+    public function test_registration_requires_a_job_title(): void
+    {
+        $this->makeActivePlan();
+
+        $response = $this->post(route('register'), $this->validPayload(['job_title' => '']));
+
+        $response->assertSessionHasErrors('job_title');
+        $this->assertDatabaseMissing('users', ['email' => 'ahmed@example.com']);
+    }
+
+    public function test_registration_rejects_an_invalid_phone_number(): void
+    {
+        $this->makeActivePlan();
+
+        $response = $this->post(route('register'), $this->validPayload(['phone' => '1234']));
+
+        $response->assertSessionHasErrors('phone');
+        $this->assertDatabaseMissing('users', ['email' => 'ahmed@example.com']);
+    }
+
+    public function test_registration_rejects_a_placeholder_phone_number(): void
+    {
+        $this->makeActivePlan();
+
+        $response = $this->post(route('register'), $this->validPayload(['phone' => '0555555555']));
+
+        $response->assertSessionHasErrors('phone');
+    }
+
+    public function test_registration_rejects_whitespace_only_names(): void
+    {
+        $this->makeActivePlan();
+
+        $response = $this->post(route('register'), $this->validPayload(['first_name' => '   ']));
+
+        $response->assertSessionHasErrors('first_name');
     }
 
     public function test_registration_falls_back_to_first_active_plan_when_no_default_configured(): void

@@ -3,9 +3,21 @@
 @section('title', __('Create your account'))
 
 @section('content')
+@php
+    // A failed server-side validation redirect lands back on this same
+    // page with old()/$errors set — reopen whichever step actually has
+    // the error instead of always resetting to step 1, or the user would
+    // never see why the submission was rejected.
+    $initialStep = 1;
+    if ($errors->hasAny(['company_name', 'organization_size', 'industry', 'vat_number', 'primary_customer_type'])) {
+        $initialStep = 3;
+    } elseif ($errors->hasAny(['first_name', 'last_name', 'phone', 'job_title'])) {
+        $initialStep = 2;
+    }
+@endphp
 <div
     x-data="{
-        step: 1,
+        step: {{ $initialStep }},
         totalSteps: 3,
         email: '{{ old('email', '') }}',
         password: '',
@@ -15,6 +27,19 @@
         get emailLooksValid() { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email) },
         step1Error: null,
         step2Error: null,
+        // Mirrors App\Rules\SaudiPhoneNumber's normalization/format check
+        // client-side, so an obviously-fake number (too short, all the
+        // same digit, missing the leading trunk digit) is caught here
+        // too — the server rule is still the real gate either way.
+        isValidSaudiPhone(raw) {
+            let digits = String(raw).replace(/[^0-9]/g, '');
+            if (digits.startsWith('00966')) digits = digits.slice(5);
+            else if (digits.startsWith('966')) digits = digits.slice(3);
+            else if (digits.startsWith('0')) digits = digits.slice(1);
+            if (!/^[1-9]\d{8}$/.test(digits)) return false;
+            if (/^(\d)\1{8}$/.test(digits)) return false;
+            return true;
+        },
         goToStep2() {
             this.step1Error = null;
             if (!this.emailLooksValid) { this.step1Error = @js(__('Enter a valid email address.')); return; }
@@ -29,8 +54,17 @@
                 this.step2Error = @js(__('Please enter your first and last name.'));
                 return;
             }
-            if (form.phone.hasAttribute('required') && !form.phone.value.trim()) {
+            const phone = form.phone.value.trim();
+            if (form.phone.hasAttribute('required') && !phone) {
                 this.step2Error = @js(__('Phone number is required.'));
+                return;
+            }
+            if (phone && !this.isValidSaudiPhone(phone)) {
+                this.step2Error = @js(__('Enter a valid Saudi phone number, e.g. 05XXXXXXXX.'));
+                return;
+            }
+            if (!form.job_title.value) {
+                this.step2Error = @js(__('Please select your position / job title.'));
                 return;
             }
             this.step = 3;
@@ -113,17 +147,17 @@
                     @endif
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('Position / Job title') }} <span class="font-normal text-slate-400">({{ __('optional') }})</span></label>
-                    <select name="job_title" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                        <option value="">—</option>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Position / Job title') }}</label>
+                    <select name="job_title" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <option value="" disabled @selected(! old('job_title'))>—</option>
                         @foreach ($jobTitles as $value => $label)
                             <option value="{{ $value }}" @selected(old('job_title') === $value)>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
 
-                @if ($errors->has('first_name') || $errors->has('last_name') || $errors->has('phone'))
-                    <p class="text-sm text-red-600">{{ $errors->first('first_name') ?: ($errors->first('last_name') ?: $errors->first('phone')) }}</p>
+                @if ($errors->has('first_name') || $errors->has('last_name') || $errors->has('phone') || $errors->has('job_title'))
+                    <p class="text-sm text-red-600">{{ $errors->first('first_name') ?: ($errors->first('last_name') ?: ($errors->first('phone') ?: $errors->first('job_title'))) }}</p>
                 @endif
                 <p class="text-sm text-red-600" x-show="step2Error" x-text="step2Error" x-cloak></p>
 

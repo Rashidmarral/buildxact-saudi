@@ -11,7 +11,7 @@
     @php($__branding = \App\Support\PlatformBranding::all())
     @include('partials.branding-overrides')
 </head>
-<body class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-slate-50 px-4 py-12">
+<body class="relative flex min-h-screen flex-col items-center overflow-x-hidden overflow-y-auto bg-slate-50 px-4 py-12">
     <div class="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,black,transparent)]"></div>
     <div class="pointer-events-none absolute -top-24 start-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-brand-200/40 blur-3xl"></div>
 
