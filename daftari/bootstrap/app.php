@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsurePhoneVerified;
 use App\Http\Middleware\EnsurePlanFeature;
 use App\Http\Middleware\EnsureRegistrationOpen;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\EnsureUserBelongsToCompany;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTimezone;
 use Illuminate\Foundation\Application;
@@ -44,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
             'company.active' => EnsureCompanyActive::class,
+            'company.member' => EnsureUserBelongsToCompany::class,
             'permission' => EnsurePermission::class,
             'admin.permission' => EnsureAdminPermission::class,
             'feature' => EnsurePlanFeature::class,

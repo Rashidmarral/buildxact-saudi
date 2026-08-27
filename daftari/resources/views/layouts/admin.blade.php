@@ -37,26 +37,9 @@
                 </button>
             </div>
             <nav class="flex-1 space-y-1 px-3 py-4 text-sm">
-                @include('partials.nav-item', ['route' => 'admin.dashboard', 'label' => __('Overview'), 'icon' => 'dashboard'])
-                @if (auth()->user()->hasAdminPermission('companies'))
-                    @include('partials.nav-item', ['route' => 'admin.companies.index', 'label' => __('Companies'), 'icon' => 'building'])
-                @endif
-                @if (auth()->user()->hasAdminPermission('plans'))
-                    @include('partials.nav-item', ['route' => 'admin.plans.index', 'label' => __('Plans'), 'icon' => 'plans'])
-                @endif
-                @if (auth()->user()->hasAdminPermission('payments'))
-                    @include('partials.nav-item', ['route' => 'admin.payments.index', 'label' => __('Payments'), 'icon' => 'billing'])
-                @endif
-                @if (auth()->user()->hasAdminPermission('activity'))
-                    @include('partials.nav-item', ['route' => 'admin.activity.index', 'label' => __('Activity log'), 'icon' => 'activity'])
-                @endif
-                @if (auth()->user()->isSuperAdmin())
-                    @include('partials.nav-item', ['route' => 'admin.admins.index', 'label' => __('Admin Users'), 'icon' => 'shield'])
-                    @include('partials.nav-item', ['route' => 'admin.admin-roles.index', 'label' => __('Admin Roles'), 'icon' => 'shield'])
-                    @include('partials.nav-item', ['route' => 'admin.certificates.index', 'label' => __('Certificates'), 'icon' => 'templates'])
-                    @include('partials.nav-item', ['route' => 'admin.currencies.index', 'label' => __('Currencies'), 'icon' => 'billing'])
-                    @include('partials.nav-item', ['route' => 'admin.settings.edit', 'label' => __('Platform settings'), 'icon' => 'settings'])
-                @endif
+                @foreach (\App\Support\AdminNav::visibleItems(auth()->user()) as $item)
+                    @include('partials.nav-item', ['route' => $item['route'], 'label' => $item['label'], 'icon' => $item['icon']])
+                @endforeach
             </nav>
             <div class="border-t border-white/5 p-3">
                 <form method="POST" action="{{ route('logout') }}">
