@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-teal-50: #eefaf6;
+    --color-teal-100: #d2f0e6;
+    --color-teal-200: #a6e1cd;
+    --color-teal-300: #71cbb0;
+    --color-teal-400: #43ad92;
+    --color-teal-500: #2a9078;
+    --color-teal-600: #1f7462;
+    --color-teal-700: #1c5d50;
+    --color-teal-800: #1a4a41;
+    --color-teal-900: #173c36;
+    --color-teal-950: #0b211e;
+
+    --color-coral-50: #fef4f1;
+    --color-coral-100: #fde4dc;
+    --color-coral-200: #fac6b5;
+    --color-coral-300: #f6a084;
+    --color-coral-400: #ef7c56;
+    --color-coral-500: #e35f38;
+    --color-coral-600: #c94a26;
+    --color-coral-700: #a53b1f;
+    --color-coral-800: #85321e;
+    --color-coral-900: #6d2c1d;
+    --color-coral-950: #3b130c;
+}
+
+@layer utilities {
+    /* Bakes the teal hero gradient and subtle radial highlights into a single
+       background-image so it can't be silently overridden by Tailwind's own
+       gradient utilities fighting over the same background-image property. */
+    .bg-teal-pattern {
+        background-image: radial-gradient(circle at 15% 20%, rgba(227, 95, 56, 0.14) 0, transparent 45%),
+            radial-gradient(circle at 85% 0%, rgba(42, 144, 120, 0.22) 0, transparent 45%),
+            linear-gradient(to bottom right, var(--color-teal-950), var(--color-teal-900) 55%, var(--color-teal-800));
+    }
+
+    .text-balance {
+        text-wrap: balance;
+    }
+}
+
+/* ---- Scroll / entrance animations ---- */
+
+@keyframes fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes leaf-sway {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+}
+
+/* Hidden-until-revealed state only applies once js-ready confirms the reveal
+   script is present — otherwise content stays visible (progressive enhancement,
+   no content lost if JS fails to load). */
+.js-ready .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.js-ready .reveal-scale {
+    opacity: 0;
+    transform: scale(0.94);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-scale.is-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.reveal-stagger.is-visible > * {
+    animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reveal-stagger.is-visible > *:nth-child(1) { animation-delay: 0ms; }
+.reveal-stagger.is-visible > *:nth-child(2) { animation-delay: 80ms; }
+.reveal-stagger.is-visible > *:nth-child(3) { animation-delay: 160ms; }
+.reveal-stagger.is-visible > *:nth-child(4) { animation-delay: 240ms; }
+.reveal-stagger.is-visible > *:nth-child(5) { animation-delay: 320ms; }
+.reveal-stagger.is-visible > *:nth-child(6) { animation-delay: 400ms; }
+.reveal-stagger.is-visible > *:nth-child(7) { animation-delay: 480ms; }
+.reveal-stagger.is-visible > *:nth-child(8) { animation-delay: 560ms; }
+
+.hover-tilt-card {
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+}
+
+.hover-tilt-card:hover {
+    transform: perspective(800px) rotateX(3deg) rotateY(-3deg) translateY(-6px);
+}
+
+.js-ready .reveal-tilt {
+    opacity: 0;
+    transform: perspective(1200px) rotateX(14deg) translateY(36px);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-tilt.is-visible {
+    opacity: 1;
+    transform: perspective(1200px) rotateX(0deg) translateY(0);
+}
+
+.js-ready .reveal-flip {
+    opacity: 0;
+    transform: perspective(1200px) rotateY(-20deg) scale(0.96);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-flip.is-visible {
+    opacity: 1;
+    transform: perspective(1200px) rotateY(0deg) scale(1);
+}
+
+.animate-float {
+    animation: float-slow 5s ease-in-out infinite;
+}
+
+.animate-leaf-sway {
+    animation: leaf-sway 4s ease-in-out infinite;
+    transform-origin: bottom center;
+}
+
+.hero-fade-in {
+    animation: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-fade-in-delay-1 { animation-delay: 120ms; }
+.hero-fade-in-delay-2 { animation-delay: 240ms; }
+.hero-fade-in-delay-3 { animation-delay: 360ms; }
+
+@media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal-scale,
+    .reveal-tilt,
+    .reveal-flip,
+    .reveal-stagger > *,
+    .hero-fade-in,
+    .hero-fade-in-delay-1,
+    .hero-fade-in-delay-2,
+    .hero-fade-in-delay-3,
+    .animate-float,
+    .animate-leaf-sway,
+    .hover-tilt-card {
+        animation: none !important;
+        transition: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
