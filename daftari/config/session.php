@@ -169,7 +169,12 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // An explicit SESSION_SECURE_COOKIE always wins. Left unset, this used
+    // to fall through to Laravel's own null default (cookie sent over
+    // plain HTTP too) even in production — now it defaults to whatever
+    // APP_URL's scheme implies, so a production install on https:// is
+    // secure by default instead of only when someone remembers to set it.
+    'secure' => env('SESSION_SECURE_COOKIE', str_starts_with(config('app.url'), 'https://')),
 
     /*
     |--------------------------------------------------------------------------

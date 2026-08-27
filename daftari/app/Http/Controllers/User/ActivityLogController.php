@@ -10,7 +10,7 @@ class ActivityLogController extends Controller
 {
     public function index()
     {
-        $logs = AuditLog::where('company_id', Auth::user()->company_id)
+        $logs = AuditLog::forCompany(Auth::user()->company_id)
             ->with('admin')
             ->latest('created_at')
             ->paginate(30);

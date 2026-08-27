@@ -24,6 +24,8 @@
                             {{ __('Created :time', ['time' => $token->created_at->diffForHumans()]) }}
                             &middot;
                             {{ $token->last_used_at ? __('Last used :time', ['time' => $token->last_used_at->diffForHumans()]) : __('Never used') }}
+                            &middot;
+                            {{ $token->expires_at ? __('Expires :time', ['time' => $token->expires_at->diffForHumans()]) : __('Never expires') }}
                         </p>
                     </div>
                     <form method="POST" action="{{ route('app.settings.api-tokens.destroy', $token->id) }}" onsubmit="return confirm('{{ __('Revoke this token? Any integration using it will stop working immediately.') }}')">
@@ -59,6 +61,15 @@
                         {{ __('Read & write') }}
                     </label>
                 </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Expires') }}</label>
+                <select name="expires_in" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="90" selected>{{ __('In 90 days') }}</option>
+                    <option value="30">{{ __('In 30 days') }}</option>
+                    <option value="365">{{ __('In 1 year') }}</option>
+                    <option value="never">{{ __('Never (not recommended)') }}</option>
+                </select>
             </div>
             <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Generate token') }}</button>
         </form>

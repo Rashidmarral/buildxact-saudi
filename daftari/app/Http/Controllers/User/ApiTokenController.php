@@ -16,16 +16,26 @@ class ApiTokenController extends Controller
         return view('user.settings.api-tokens', compact('tokens'));
     }
 
+    /**
+     * Days-until-expiry options offered on the form; 'never' keeps
+     * Sanctum's default (no expires_at) for anyone who genuinely needs a
+     * long-lived integration token — the point is offering a shorter
+     * lifetime, not forcing one.
+     */
+    private const EXPIRY_OPTIONS = ['30', '90', '365', 'never'];
+
     public function store(Request $request)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'access' => ['required', 'in:read,write'],
+            'expires_in' => ['required', 'in:'.implode(',', self::EXPIRY_OPTIONS)],
         ]);
 
         $abilities = $data['access'] === 'write' ? ['read', 'write'] : ['read'];
+        $expiresAt = $data['expires_in'] === 'never' ? null : now()->addDays((int) $data['expires_in']);
 
-        $token = Auth::user()->createToken($data['name'], $abilities);
+        $token = Auth::user()->createToken($data['name'], $abilities, $expiresAt);
 
         AuditLog::record('user.api_token_created', Auth::user(), __('Created API token :name', ['name' => $data['name']]));
 

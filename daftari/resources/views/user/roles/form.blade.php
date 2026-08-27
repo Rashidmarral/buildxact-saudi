@@ -23,9 +23,14 @@
         @php $selected = old('permissions', $role->permissions ?? []); @endphp
         <div class="grid sm:grid-cols-2 gap-2">
             @foreach ($catalog as $key => $label)
-                <label class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <input type="checkbox" name="permissions[]" value="{{ $key }}" class="perm-checkbox rounded border-slate-300 text-brand-600 focus:ring-brand-500" @checked(in_array($key, $selected))>
-                    {{ $label }}
+                <label class="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <input type="checkbox" name="permissions[]" value="{{ $key }}" class="perm-checkbox rounded border-slate-300 text-brand-600 focus:ring-brand-500 mt-0.5" @checked(in_array($key, $selected))>
+                    <span>
+                        {{ $label }}
+                        @if ($key === 'members_roles')
+                            <span class="block text-xs text-amber-600 mt-0.5">{{ __('High trust: lets someone invite a new account owner. Grant only to people you\'d trust with full company access.') }}</span>
+                        @endif
+                    </span>
                 </label>
             @endforeach
         </div>

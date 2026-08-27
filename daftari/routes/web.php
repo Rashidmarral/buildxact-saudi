@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PlatformDocumentController;
+use App\Http\Controllers\Admin\PasswordConfirmationController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
@@ -464,19 +465,27 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.active', 'verif
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,admin_staff'])->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-    Route::middleware('admin.permission:companies')->group(function () {
-        Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
-        Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+    // Deliberately outside password.confirm.admin — this is the screen
+    // that satisfies it, so guarding it too would be an infinite redirect.
+    Route::get('confirm-password', [PasswordConfirmationController::class, 'show'])->name('password.confirm');
+    Route::post('confirm-password', [PasswordConfirmationController::class, 'confirm'])->name('password.confirm.store');
+
+    Route::middleware(['admin.permission:companies', 'password.confirm.admin'])->group(function () {
         Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
         Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
         Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
+    });
+
+    Route::middleware('admin.permission:companies')->group(function () {
+        Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
+        Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
     });
 
     // Impersonation grants full access to a tenant's account — kept out of
     // the delegable 'companies' admin permission (above) and restricted to
     // super_admin only, so a granular admin role can never be used to gain
     // full access to a company's data.
-    Route::middleware('role:super_admin')->group(function () {
+    Route::middleware(['role:super_admin', 'password.confirm.admin'])->group(function () {
         Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
     });
 
@@ -499,10 +508,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     // admin role can never be used to escalate itself or another account.
     Route::middleware('role:super_admin')->group(function () {
         Route::get('admins', [AdminUserController::class, 'index'])->name('admins.index');
-        Route::post('admins', [AdminUserController::class, 'store'])->name('admins.store');
-        Route::delete('admins/{user}', [AdminUserController::class, 'destroy'])->name('admins.destroy');
 
-        Route::resource('admin-roles', AdminRoleController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::middleware('password.confirm.admin')->group(function () {
+            Route::post('admins', [AdminUserController::class, 'store'])->name('admins.store');
+            Route::delete('admins/{user}', [AdminUserController::class, 'destroy'])->name('admins.destroy');
+
+            Route::resource('admin-roles', AdminRoleController::class)->only(['store', 'update', 'destroy']);
+        });
+        Route::get('admin-roles', [AdminRoleController::class, 'index'])->name('admin-roles.index');
 
         Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
         Route::post('settings/general', [PlatformSettingsController::class, 'updateGeneral'])->name('settings.general.update');

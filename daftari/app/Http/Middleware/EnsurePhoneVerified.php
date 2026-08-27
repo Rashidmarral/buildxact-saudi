@@ -16,7 +16,7 @@ class EnsurePhoneVerified
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()?->needsPhoneVerification() && ! $request->routeIs('phone.verify', 'phone.send-code', 'phone.verify-code', 'logout')) {
+        if ($request->user()?->needsPhoneVerification() && ! $request->routeIs('phone.*', 'logout')) {
             return redirect()->route('phone.verify');
         }
 

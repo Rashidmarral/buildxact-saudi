@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -10,6 +11,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * impersonate, change a subscription, mark a payment refunded, manage admin
  * users, edit platform settings) — separate from ZatcaInvoiceLog, which
  * records tax-authority submissions rather than admin activity.
+ *
+ * Deliberately does NOT use BelongsToCompany: the platform Activity page
+ * (Admin\ActivityLogController) needs to see every company's entries in
+ * one unscoped feed, which a global company_id scope would break. Any
+ * query meant to show ONE company its own activity — e.g. the company's
+ * own Activity page — must go through scopeForCompany() below rather
+ * than filtering by company_id inline, so that intent is explicit and
+ * grep-able instead of silently relying on an unscoped model.
  */
 class AuditLog extends Model
 {
@@ -39,6 +48,11 @@ class AuditLog extends Model
     public function subject(): \Illuminate\Database\Eloquent\Relations\MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function scopeForCompany(Builder $query, int $companyId): Builder
+    {
+        return $query->where('company_id', $companyId);
     }
 
     /**
