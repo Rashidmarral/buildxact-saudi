@@ -27,6 +27,7 @@
         get emailLooksValid() { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email) },
         step1Error: null,
         step2Error: null,
+        step3Error: null,
         // Mirrors App\Rules\SaudiPhoneNumber's normalization/format check
         // client-side, so an obviously-fake number (too short, all the
         // same digit, missing the leading trunk digit) is caught here
@@ -39,6 +40,34 @@
             if (!/^[1-9]\d{8}$/.test(digits)) return false;
             if (/^(\d)\1{8}$/.test(digits)) return false;
             return true;
+        },
+        // Mirrors App\Rules\SaudiVatNumber the same way: 15 digits,
+        // starts and ends with 3, and not an obvious placeholder run.
+        isValidSaudiVat(raw) {
+            const digits = String(raw).replace(/\s+/g, '');
+            if (!/^\d{15}$/.test(digits)) return false;
+            if (digits[0] !== '3' || digits[14] !== '3') return false;
+            if (/^(\d)\1{14}$/.test(digits)) return false;
+            const middle = digits.slice(1, 14);
+            let ascending = true;
+            let descending = true;
+            for (let i = 1; i < middle.length; i++) {
+                const prev = parseInt(middle[i - 1], 10);
+                const curr = parseInt(middle[i], 10);
+                if (curr !== (prev + 1) % 10) ascending = false;
+                if (curr !== (prev + 9) % 10) descending = false;
+            }
+            return ! (ascending || descending);
+        },
+        submitStep3(event) {
+            if (this.step !== 3) { event.preventDefault(); return; }
+            this.step3Error = null;
+            const form = event.target;
+            const vat = form.vat_number.value.trim();
+            if (vat && !this.isValidSaudiVat(vat)) {
+                event.preventDefault();
+                this.step3Error = @js(__('Enter a valid 15-digit VAT number starting and ending with 3, e.g. 3XXXXXXXXXXXXX3.'));
+            }
         },
         goToStep2() {
             this.step1Error = null;
@@ -80,7 +109,7 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ route('register') }}" class="space-y-5" @submit="if (step !== 3) $event.preventDefault()">
+    <form method="POST" action="{{ route('register') }}" class="space-y-5" @submit="submitStep3($event)">
         @csrf
 
         {{-- Step 1: account --}}
@@ -224,6 +253,7 @@
                         {{ $errors->first('company_name') ?: ($errors->first('organization_size') ?: ($errors->first('industry') ?: ($errors->first('vat_number') ?: $errors->first('primary_customer_type')))) }}
                     </p>
                 @endif
+                <p class="text-sm text-red-600" x-show="step3Error" x-text="step3Error" x-cloak></p>
 
                 <div class="flex gap-3">
                     <button type="button" @click="step = 2" class="rounded-lg border border-slate-200 px-5 py-3 font-semibold text-slate-600 hover:border-slate-300">{{ __('Back') }}</button>

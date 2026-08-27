@@ -937,6 +937,7 @@
     "Endpoint URL": "رابط نقطة النهاية",
     "Enforced on the logo/branding uploads on this settings page.": "يُطبَّق على تحميلات الشعار والهوية البصرية في صفحة الإعدادات هذه.",
     "Enter OTP to get compliance CSID": "أدخل رمز التحقق للحصول على شهادة الامتثال (CSID)",
+    "Enter a valid 15-digit VAT number starting and ending with 3, e.g. 3XXXXXXXXXXXXX3.": "أدخل رقم ضريبة قيمة مضافة صحيح مكوّن من 15 رقمًا يبدأ وينتهي بالرقم 3، مثال: 3XXXXXXXXXXXXX3.",
     "Enter a valid Saudi phone number, e.g. 05XXXXXXXX.": "أدخل رقم هاتف سعودي صحيح، مثال: 05XXXXXXXX.",
     "Enter a valid email address.": "أدخل بريدًا إلكترونيًا صحيحًا.",
     "Enter an annual budgeted amount for each account you want to track. Leave an account blank to skip it.": "أدخل مبلغًا سنويًا مخططًا لكل حساب تريد تتبعه. اترك الحساب فارغًا لتخطيه.",
