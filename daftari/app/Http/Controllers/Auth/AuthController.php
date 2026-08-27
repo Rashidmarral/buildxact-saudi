@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\TaxRate;
 use App\Models\User;
+use App\Support\CompanyProfileOptions;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password as PasswordBroker;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -75,11 +77,15 @@ class AuthController extends Controller
 
     public function showRegister()
     {
-        $plans = Plan::where('is_active', true)->orderBy('sort_order')->get();
-        $defaultPlanId = Setting::get('signup_default_plan_id') ?: null;
         $phoneRequired = Setting::getBool('signup_require_phone_verification');
+        $organizationSizes = CompanyProfileOptions::organizationSizes();
+        $industries = CompanyProfileOptions::industries();
+        $jobTitles = CompanyProfileOptions::jobTitles();
+        $customerTypes = CompanyProfileOptions::customerTypes();
 
-        return view('auth.register', compact('plans', 'defaultPlanId', 'phoneRequired'));
+        return view('auth.register', compact(
+            'phoneRequired', 'organizationSizes', 'industries', 'jobTitles', 'customerTypes'
+        ));
     }
 
     public function register(Request $request)
@@ -87,20 +93,36 @@ class AuthController extends Controller
         $phoneRequired = Setting::getBool('signup_require_phone_verification');
 
         $data = $request->validate([
-            'company_name' => ['required', 'string', 'max:255'],
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:150'],
+            'last_name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => [$phoneRequired ? 'required' : 'nullable', 'string', 'max:30'],
+            'job_title' => ['nullable', Rule::in(array_keys(CompanyProfileOptions::jobTitles()))],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'plan_id' => ['required', 'exists:plans,id'],
+            'company_name' => ['required', 'string', 'max:255'],
+            'organization_size' => ['required', Rule::in(array_keys(CompanyProfileOptions::organizationSizes()))],
+            'industry' => ['required', Rule::in(array_keys(CompanyProfileOptions::industries()))],
+            'vat_number' => ['nullable', 'string', 'max:30'],
+            'primary_customer_type' => ['required', Rule::in(array_keys(CompanyProfileOptions::customerTypes()))],
         ]);
 
-        $user = DB::transaction(function () use ($data) {
+        // No plan selector on the signup form — every new company starts on
+        // the platform's configured default trial plan (or, failing that,
+        // the first active plan), matching the "no credit card required"
+        // simplicity of the rest of the wizard.
+        $planId = Setting::get('signup_default_plan_id') ?: Plan::where('is_active', true)->orderBy('sort_order')->value('id');
+        abort_unless($planId, 500, 'No active plan is configured for new signups.');
+
+        $user = DB::transaction(function () use ($data, $planId) {
             $slug = Str::slug($data['company_name']).'-'.Str::lower(Str::random(5));
 
             $company = Company::create([
                 'name' => $data['company_name'],
                 'slug' => $slug,
+                'organization_size' => $data['organization_size'],
+                'industry' => $data['industry'],
+                'vat_number' => $data['vat_number'] ?? null,
+                'primary_customer_type' => $data['primary_customer_type'],
                 'trial_ends_at' => now()->addDays((int) Setting::get('trial_days', config('daftari.trial_days'))),
                 'currency' => Setting::get('general_default_currency', config('daftari.default_currency')),
                 'locale' => Setting::get('general_default_language', config('app.locale')),
@@ -114,9 +136,10 @@ class AuthController extends Controller
 
             $user = User::create([
                 'company_id' => $company->id,
-                'name' => $data['name'],
+                'name' => trim($data['first_name'].' '.$data['last_name']),
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
+                'job_title' => $data['job_title'] ?? null,
                 'password' => Hash::make($data['password']),
                 'role' => 'owner',
                 'status' => 'active',
@@ -128,7 +151,7 @@ class AuthController extends Controller
 
             Subscription::create([
                 'company_id' => $company->id,
-                'plan_id' => $data['plan_id'],
+                'plan_id' => $planId,
                 'status' => 'trialing',
                 'billing_cycle' => 'monthly',
                 'current_period_start' => now(),

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 class Company extends Model
 {
     protected $fillable = [
-        'name', 'name_ar', 'slug', 'vat_number', 'cr_number', 'address', 'city',
+        'name', 'name_ar', 'organization_size', 'industry', 'slug', 'vat_number', 'cr_number', 'address', 'city',
         'building_number', 'street_name', 'district', 'postal_code', 'additional_number',
         'phone', 'email', 'logo_path', 'stamp_path', 'invoice_prefix', 'next_invoice_number',
         'credit_note_prefix', 'next_credit_note_number',
