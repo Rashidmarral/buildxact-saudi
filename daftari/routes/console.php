@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Setting;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -7,6 +8,11 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+// Touches a timestamp every minute the scheduler actually runs — the only
+// way the Super Admin "System Health" card can tell "the server's cron
+// entry is invoking schedule:run" apart from "it was never configured".
+Schedule::call(fn () => Setting::set('system_scheduler_heartbeat_at', now()->toDateTimeString()))->everyMinute();
 
 Schedule::command('zatca:sync-invoices --frequency=hourly')->hourly();
 Schedule::command('zatca:sync-invoices --frequency=daily')->daily();
