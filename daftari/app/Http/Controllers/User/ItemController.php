@@ -10,6 +10,7 @@ use App\Models\Item;
 use App\Models\ItemUnit;
 use App\Models\TaxRate;
 use App\Models\Unit;
+use App\Services\Limits\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -57,6 +58,10 @@ class ItemController extends Controller
 
     public function store(Request $request)
     {
+        if (app(UsageLimitService::class)->reached(Auth::user()->company, 'products')) {
+            return back()->withErrors(['plan_limit' => app(UsageLimitService::class)->friendlyMessage(Auth::user()->company, 'products')])->withInput();
+        }
+
         $data = $this->validated($request);
         $altUnits = $data['alt_units'] ?? [];
         $customFields = $data['custom_fields'] ?? [];

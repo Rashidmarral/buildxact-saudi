@@ -11,6 +11,7 @@ use App\Http\Middleware\EnsurePlanFeature;
 use App\Http\Middleware\EnsureRegistrationOpen;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureUserBelongsToCompany;
+use App\Http\Middleware\EnsureWithinApiLimit;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTimezone;
 use Illuminate\Foundation\Application;
@@ -54,6 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'abilities' => CheckAbilities::class,
             'client.portal' => \App\Http\Middleware\EnsureClientPortalSession::class,
             'password.confirm.admin' => EnsurePasswordConfirmed::class,
+            'api.limit' => EnsureWithinApiLimit::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

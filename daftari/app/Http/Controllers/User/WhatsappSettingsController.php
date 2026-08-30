@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\WhatsappConfig;
+use App\Services\Features\FeatureAccessService;
 use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,8 +19,14 @@ class WhatsappSettingsController extends Controller
         return view('user.settings.whatsapp', ['config' => $config]);
     }
 
-    public function update(Request $request)
+    public function update(Request $request, FeatureAccessService $featureAccess)
     {
+        if (! $featureAccess->enabled(Auth::user()->company, 'whatsapp')) {
+            return back()->withErrors([
+                'feature' => __("This feature isn't included in your current plan. Upgrade your plan to unlock it."),
+            ]);
+        }
+
         $data = $request->validate([
             'phone_number_id' => ['required', 'string', 'max:255'],
             'access_token' => ['required', 'string', 'max:2000'],

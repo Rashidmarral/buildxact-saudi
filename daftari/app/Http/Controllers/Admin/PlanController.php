@@ -83,6 +83,8 @@ class PlanController extends Controller
             'max_bank_accounts' => ['nullable', 'integer', 'min:1'],
             'max_branches' => ['nullable', 'integer', 'min:1'],
             'max_storage_mb' => ['nullable', 'integer', 'min:1'],
+            'max_items' => ['nullable', 'integer', 'min:1'],
+            'max_api_calls_per_month' => ['nullable', 'integer', 'min:1'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'features' => ['nullable', 'string'],
         ]);
@@ -97,6 +99,12 @@ class PlanController extends Controller
         foreach (array_values(Plan::FEATURE_KEYS) as $column) {
             $data[$column] = $request->boolean($column);
         }
+
+        // has_api/has_whatsapp are Module 07's module-level feature gates
+        // (see FeatureRegistry), not part of the older Plan::FEATURE_KEYS
+        // capability-flag system, so they're set the same way but separately.
+        $data['has_api'] = $request->boolean('has_api');
+        $data['has_whatsapp'] = $request->boolean('has_whatsapp');
 
         return $data;
     }

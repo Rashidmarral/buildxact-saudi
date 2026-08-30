@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Limits\UsageLimitService;
+use App\Support\LimitRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -158,9 +160,20 @@ class Company extends Model
      * Whether creating one more of $type would exceed the company's active
      * plan limit. A company with no active subscription, or a plan with no
      * limit set for $type (null = unlimited), is never blocked.
+     *
+     * The six keys also registered in App\Support\LimitRegistry (Module 07)
+     * delegate to UsageLimitService, so they automatically become
+     * override-aware (a Super Admin can raise or unlimit a single company's
+     * cap) without any change to this method's 8 existing call sites.
+     * invoice_templates/bank_accounts aren't part of that registry and keep
+     * their original inline logic exactly as before.
      */
     public function hasReachedPlanLimit(string $type): bool
     {
+        if (LimitRegistry::isValid($type)) {
+            return app(UsageLimitService::class)->reached($this, $type);
+        }
+
         $subscription = $this->activeSubscription();
 
         if (! $subscription) {
@@ -170,17 +183,8 @@ class Company extends Model
         $plan = $subscription->plan;
 
         [$limit, $used] = match ($type) {
-            'invoices' => [
-                $plan->max_invoices_per_month,
-                $this->invoices()->where('created_at', '>=', $subscription->current_period_start ?? $this->created_at)->count(),
-            ],
-            'customers' => [$plan->max_customers, $this->clients()->count()],
-            'suppliers' => [$plan->max_suppliers, $this->suppliers()->count()],
-            'users' => [$plan->max_users, $this->users()->count()],
             'invoice_templates' => [$plan->max_invoice_templates, $this->invoiceTemplates()->count()],
-            'warehouses' => [$plan->max_warehouses, $this->warehouses()->count()],
             'bank_accounts' => [$plan->max_bank_accounts, $this->bankAccounts()->count()],
-            'branches' => [$plan->max_branches, $this->branches()->count()],
             default => [null, 0],
         };
 

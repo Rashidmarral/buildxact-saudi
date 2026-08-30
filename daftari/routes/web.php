@@ -485,6 +485,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('companies/{company}/pause-subscription', [CompanyController::class, 'pauseSubscription'])->name('companies.pause-subscription');
         Route::post('companies/{company}/reactivate-subscription', [CompanyController::class, 'reactivateSubscription'])->name('companies.reactivate-subscription');
         Route::post('companies/{company}/comp-account', [CompanyController::class, 'compAccount'])->name('companies.comp-account');
+        Route::post('companies/{company}/overrides', [CompanyController::class, 'setOverride'])->name('companies.overrides.set');
+        Route::delete('companies/{company}/overrides/{override}', [CompanyController::class, 'clearOverride'])->name('companies.overrides.clear');
     });
 
     Route::middleware('admin.permission:companies')->group(function () {

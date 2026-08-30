@@ -7,13 +7,18 @@ use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Company;
+use App\Models\CompanyOverride;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaInvoiceLog;
+use App\Services\Features\FeatureAccessService;
+use App\Services\Limits\UsageLimitService;
 use App\Services\Subscriptions\SubscriptionLifecycleService;
+use App\Support\FeatureRegistry;
+use App\Support\LimitRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -198,11 +203,90 @@ class CompanyController extends Controller
             ->take(30)
             ->get();
 
+        $overrides = CompanyOverride::where('company_id', $company->id)->get()->keyBy(fn ($o) => "{$o->type}:{$o->key}");
+
+        $featureAccess = app(FeatureAccessService::class);
+        $featureCatalog = collect(FeatureRegistry::catalog())->map(fn ($entry, $key) => [
+            'key' => $key,
+            'label' => $entry['label'],
+            'type' => $entry['type'],
+            'enabled' => $featureAccess->enabled($company, $key),
+            'override' => $overrides->get("feature:{$key}"),
+        ])->values();
+
+        $limitService = app(UsageLimitService::class);
+        $limitCatalog = collect(LimitRegistry::catalog())->map(fn ($entry, $key) => [
+            'key' => $key,
+            'label' => $entry['label'],
+            'unit' => $entry['unit'],
+            'used' => $limitService->usage($company, $key),
+            'limit' => $limitService->limit($company, $key),
+            'override' => $overrides->get("limit:{$key}"),
+        ])->values();
+
         return view('admin.companies.show', compact(
             'company', 'plans', 'subscription', 'usage', 'zatca', 'failedZatcaSubmissions',
             'branches', 'roles', 'activeUsersCount', 'inactiveUsersCount', 'failedPayments',
-            'storageUsedBytes', 'auditLogs'
+            'storageUsedBytes', 'auditLogs', 'featureCatalog', 'limitCatalog'
         ));
+    }
+
+    /**
+     * Sets (or replaces) a Super Admin override for one feature or limit on
+     * this company — see FeatureAccessService/UsageLimitService, which both
+     * check this table before falling back to the plan's value.
+     */
+    public function setOverride(Request $request, Company $company)
+    {
+        $data = $request->validate([
+            'type' => ['required', 'in:feature,limit'],
+            'key' => ['required', 'string', 'max:60'],
+            'value' => ['nullable', 'string', 'max:30'],
+            'is_unlimited' => ['nullable', 'boolean'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $validKey = $data['type'] === 'feature' ? FeatureRegistry::isValid($data['key']) : LimitRegistry::isValid($data['key']);
+        abort_unless($validKey, 422, __('Unknown feature or limit key.'));
+
+        $isUnlimited = $data['type'] === 'limit' && $request->boolean('is_unlimited');
+        $value = $data['type'] === 'feature' ? ($request->boolean('value') ? '1' : '0') : ($isUnlimited ? null : $data['value']);
+
+        $existing = CompanyOverride::where('company_id', $company->id)->where('type', $data['type'])->where('key', $data['key'])->first();
+        $old = $existing?->only(['value', 'is_unlimited', 'reason']);
+
+        $override = CompanyOverride::updateOrCreate(
+            ['company_id' => $company->id, 'type' => $data['type'], 'key' => $data['key']],
+            ['value' => $value, 'is_unlimited' => $isUnlimited, 'reason' => $data['reason'] ?? null, 'created_by' => Auth::id()]
+        );
+
+        AuditLog::record(
+            'company.override.set',
+            $company,
+            __('Set :type override for :key on :name', ['type' => $data['type'], 'key' => $data['key'], 'name' => $company->name]),
+            old: $old,
+            new: $override->only(['value', 'is_unlimited', 'reason'])
+        );
+
+        return back()->with('status', __('Override saved.'));
+    }
+
+    public function clearOverride(Company $company, CompanyOverride $override)
+    {
+        abort_unless($override->company_id === $company->id, 404);
+
+        $old = $override->only(['type', 'key', 'value', 'is_unlimited', 'reason']);
+        $override->delete();
+
+        AuditLog::record(
+            'company.override.clear',
+            $company,
+            __('Cleared :type override for :key on :name', ['type' => $old['type'], 'key' => $old['key'], 'name' => $company->name]),
+            old: $old,
+            new: null
+        );
+
+        return back()->with('status', __('Override removed.'));
     }
 
     public function suspend(Company $company)

@@ -15,6 +15,8 @@
         'has_debit_notes' => __('Debit notes (purchase returns)'),
         'has_roles_permissions' => __('Custom roles & permissions'),
         'has_zatca_phase2' => __('ZATCA Phase 2 integration (real-time clearance & reporting)'),
+        'has_api' => __('API access'),
+        'has_whatsapp' => __('WhatsApp notifications'),
     ];
 @endphp
 <form method="POST" action="{{ $plan->exists ? route('admin.plans.update', $plan) : route('admin.plans.store') }}" class="max-w-3xl space-y-6">
@@ -104,6 +106,8 @@
                 'max_bank_accounts' => __('Bank & cash accounts'),
                 'max_branches' => __('Branches'),
                 'max_storage_mb' => __('Storage (MB)'),
+                'max_items' => __('Products'),
+                'max_api_calls_per_month' => __('API calls per month'),
             ] as $field => $label)
                 <div>
                     <label class="block text-sm font-medium text-slate-700">{{ $label }}</label>

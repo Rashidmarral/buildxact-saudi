@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Services\Features\FeatureAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -24,8 +25,14 @@ class ApiTokenController extends Controller
      */
     private const EXPIRY_OPTIONS = ['30', '90', '365', 'never'];
 
-    public function store(Request $request)
+    public function store(Request $request, FeatureAccessService $featureAccess)
     {
+        if (! $featureAccess->enabled(Auth::user()->company, 'api')) {
+            return back()->withErrors([
+                'feature' => __("This feature isn't included in your current plan. Upgrade your plan to unlock it."),
+            ]);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'access' => ['required', 'in:read,write'],

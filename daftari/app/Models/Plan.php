@@ -13,9 +13,10 @@ class Plan extends Model
         'price_monthly_original', 'price_yearly_original',
         'max_users', 'max_invoices_per_month', 'max_customers', 'max_suppliers',
         'max_invoice_templates', 'max_warehouses', 'max_bank_accounts', 'max_branches', 'max_storage_mb',
+        'max_items', 'max_api_calls_per_month',
         'has_recurring_invoices', 'has_quotations', 'has_stamps', 'has_financial_statements',
         'has_vat_return_report', 'has_cost_centers', 'has_purchase_orders', 'has_debit_notes',
-        'has_roles_permissions', 'has_zatca_phase2',
+        'has_roles_permissions', 'has_zatca_phase2', 'has_api', 'has_whatsapp',
         'features', 'is_active', 'is_public', 'is_featured', 'sort_order',
     ];
 
@@ -40,6 +41,8 @@ class Plan extends Model
             'has_debit_notes' => 'boolean',
             'has_roles_permissions' => 'boolean',
             'has_zatca_phase2' => 'boolean',
+            'has_api' => 'boolean',
+            'has_whatsapp' => 'boolean',
         ];
     }
 

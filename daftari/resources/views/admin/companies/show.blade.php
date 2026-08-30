@@ -59,6 +59,7 @@
             'branches' => __('Branches'),
             'subscription' => __('Subscription'),
             'billing' => __('Billing'),
+            'limits' => __('Limits & Features'),
             'zatca' => __('ZATCA'),
             'storage' => __('Storage'),
             'activity' => __('Activity'),
@@ -461,6 +462,134 @@
                     @endforeach
                 </ul>
             @endif
+        </div>
+    </div>
+
+    {{-- ============ Limits & Features ============ --}}
+    <div x-show="tab === 'limits'" x-cloak class="space-y-6">
+        <p class="text-sm text-slate-500">{{ __('Values come from the company\'s plan unless overridden below. An override always takes precedence over the plan.') }}</p>
+
+        <div class="bg-white rounded-xl border border-slate-100">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-900">{{ __('Usage limits') }}</h3>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+                    <tr>
+                        <th class="px-6 py-2 text-start">{{ __('Limit') }}</th>
+                        <th class="px-6 py-2 text-start">{{ __('Usage') }}</th>
+                        <th class="px-6 py-2 text-start">{{ __('Effective cap') }}</th>
+                        <th class="px-6 py-2 text-start">{{ __('Override') }}</th>
+                        <th class="px-6 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    @foreach ($limitCatalog as $row)
+                        <tr>
+                            <td class="px-6 py-3 font-medium text-slate-700">{{ $row['label'] }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ number_format($row['used']) }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $row['limit'] === null ? __('Unlimited') : number_format($row['limit']) }}</td>
+                            <td class="px-6 py-3">
+                                @if ($row['override'])
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold bg-violet-50 text-violet-700">
+                                        {{ $row['override']->is_unlimited ? __('Unlimited') : number_format((int) $row['override']->value) }}
+                                    </span>
+                                @else
+                                    <span class="text-xs text-slate-400">{{ __('None (plan default)') }}</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-3 text-end">
+                                <div x-data="{ open: false }" class="relative inline-block text-start">
+                                    <button type="button" @click="open = !open" class="text-xs font-semibold text-brand-600 hover:text-brand-700">{{ __('Set override') }}</button>
+                                    <div x-show="open" x-cloak @click.outside="open = false" class="absolute end-0 z-10 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-4 shadow-lg space-y-3">
+                                        <form method="POST" action="{{ route('admin.companies.overrides.set', $company) }}" class="space-y-2">
+                                            @csrf
+                                            <input type="hidden" name="type" value="limit">
+                                            <input type="hidden" name="key" value="{{ $row['key'] }}">
+                                            <label class="flex items-center gap-2 text-xs text-slate-600">
+                                                <input type="checkbox" name="is_unlimited" value="1" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                                                {{ __('Unlimited') }}
+                                            </label>
+                                            <input type="number" min="0" name="value" placeholder="{{ __('Custom cap') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                            <input type="text" name="reason" placeholder="{{ __('Reason (optional)') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                            <button type="submit" class="w-full rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
+                                        </form>
+                                        @if ($row['override'])
+                                            <form method="POST" action="{{ route('admin.companies.overrides.clear', [$company, $row['override']]) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="w-full rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">{{ __('Clear override') }}</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-100">
+            <div class="px-6 py-4 border-b border-slate-100">
+                <h3 class="font-semibold text-slate-900">{{ __('Features') }}</h3>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+                    <tr>
+                        <th class="px-6 py-2 text-start">{{ __('Feature') }}</th>
+                        <th class="px-6 py-2 text-start">{{ __('Status') }}</th>
+                        <th class="px-6 py-2 text-start">{{ __('Override') }}</th>
+                        <th class="px-6 py-2"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    @foreach ($featureCatalog as $row)
+                        <tr>
+                            <td class="px-6 py-3 font-medium text-slate-700">{{ $row['label'] }}</td>
+                            <td class="px-6 py-3">
+                                <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $row['enabled'] ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
+                                    {{ $row['enabled'] ? __('Enabled') : __('Disabled') }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-3">
+                                @if ($row['override'])
+                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold bg-violet-50 text-violet-700">
+                                        {{ $row['override']->value === '1' ? __('Forced on') : __('Forced off') }}
+                                    </span>
+                                @else
+                                    <span class="text-xs text-slate-400">{{ __('None (plan default)') }}</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-3 text-end">
+                                <div x-data="{ open: false }" class="relative inline-block text-start">
+                                    <button type="button" @click="open = !open" class="text-xs font-semibold text-brand-600 hover:text-brand-700">{{ __('Set override') }}</button>
+                                    <div x-show="open" x-cloak @click.outside="open = false" class="absolute end-0 z-10 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-4 shadow-lg space-y-3">
+                                        <form method="POST" action="{{ route('admin.companies.overrides.set', $company) }}" class="space-y-2">
+                                            @csrf
+                                            <input type="hidden" name="type" value="feature">
+                                            <input type="hidden" name="key" value="{{ $row['key'] }}">
+                                            <select name="value" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                                <option value="1">{{ __('Force on') }}</option>
+                                                <option value="0">{{ __('Force off') }}</option>
+                                            </select>
+                                            <input type="text" name="reason" placeholder="{{ __('Reason (optional)') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                            <button type="submit" class="w-full rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
+                                        </form>
+                                        @if ($row['override'])
+                                            <form method="POST" action="{{ route('admin.companies.overrides.clear', [$company, $row['override']]) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="w-full rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">{{ __('Clear override') }}</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     </div>
 
