@@ -21,6 +21,7 @@ use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\TeamInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\FileServeController;
+use App\Http\Controllers\InstallController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PaymentWidgetController;
 use App\Http\Controllers\ClientPortalController;
@@ -83,6 +84,28 @@ use App\Http\Controllers\User\TicketController;
 use App\Http\Controllers\User\WebhookController;
 use App\Http\Controllers\User\ZatcaController;
 use Illuminate\Support\Facades\Route;
+
+// First-installation wizard (Module 24) — refused once InstallerLock says
+// a successful install has already happened; see RedirectIfInstalled and
+// `php artisan installer:enable` for the only supported way back in.
+Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\RedirectIfInstalled::class)->group(function () {
+    Route::get('/', [InstallController::class, 'index'])->name('index');
+
+    Route::get('requirements', [InstallController::class, 'requirements'])->name('requirements');
+    Route::post('requirements', [InstallController::class, 'confirmRequirements'])->name('requirements.store');
+
+    Route::get('database', [InstallController::class, 'showDatabase'])->name('database');
+    Route::post('database', [InstallController::class, 'saveDatabase'])->name('database.store');
+
+    Route::get('application', [InstallController::class, 'showApplication'])->name('application');
+    Route::post('application', [InstallController::class, 'saveApplication'])->name('application.store');
+
+    Route::get('admin', [InstallController::class, 'showAdmin'])->name('admin');
+    Route::post('admin', [InstallController::class, 'saveAdmin'])->name('admin.store');
+
+    Route::get('finish', [InstallController::class, 'showFinish'])->name('finish');
+    Route::post('finish', [InstallController::class, 'runInstall'])->name('finish.store');
+});
 
 // Marketing site
 Route::get('/', [HomeController::class, 'index'])->name('home');

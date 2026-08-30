@@ -12,6 +12,7 @@ use App\Http\Middleware\EnsureRegistrationOpen;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureUserBelongsToCompany;
 use App\Http\Middleware\EnsureWithinApiLimit;
+use App\Http\Middleware\PrepareInstallerEnvironment;
 use App\Http\Middleware\PreventDemoDestruction;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetTimezone;
@@ -30,6 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(prepend: [
+            PrepareInstallerEnvironment::class,
+        ]);
+
         $middleware->web(append: [
             SetTimezone::class,
             SetLocale::class,

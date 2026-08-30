@@ -73,6 +73,30 @@ php artisan demo:install --fresh  # same, but wipe any existing demo data first
 php artisan demo:reset            # permanently delete the demo company and everything in it
 ```
 
+## Installation wizard (`/install`)
+
+For a fresh deployment (a real server, not this local quick-start), visit `/install` in a
+browser instead of hand-editing `.env` and running `artisan` commands yourself. It's a 6-step
+guided setup: requirements check (PHP version/extensions, writable directories, `APP_KEY`) →
+database connection (tested live before you can continue) → application settings (name, URL,
+timezone, language, currency) → your first administrator account → installation (runs migrations,
+seeds required reference data, sets up storage) → done.
+
+Two things to do first: run `composer install && php artisan key:generate` (the wizard checks for
+`APP_KEY` but won't generate one for you — see Step 1's own note on why) and make sure
+`storage/`, `bootstrap/cache/`, and `.env` are writable by the web server user.
+
+For security, `/install` refuses to run a second time once it completes — every route redirects
+to the login page instead. If you ever need to run it again (a botched deploy, a server
+migration), re-enable it from the server itself:
+
+```bash
+php artisan installer:enable
+```
+
+No database credentials or passwords are ever written to source control — the wizard only ever
+writes to the gitignored `.env` file on disk.
+
 ## Running on MySQL (production)
 
 1. Create a database and user in MySQL.
