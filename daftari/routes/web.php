@@ -474,6 +474,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
         Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
         Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
+        Route::post('companies/{company}/extend-trial', [CompanyController::class, 'extendTrial'])->name('companies.extend-trial');
+        Route::post('companies/{company}/cancel-subscription', [CompanyController::class, 'cancelSubscription'])->name('companies.cancel-subscription');
+        Route::post('companies/{company}/resume-subscription', [CompanyController::class, 'resumeSubscription'])->name('companies.resume-subscription');
+        Route::post('companies/{company}/reset-settings', [CompanyController::class, 'resetSettings'])->name('companies.reset-settings');
     });
 
     Route::middleware('admin.permission:companies')->group(function () {

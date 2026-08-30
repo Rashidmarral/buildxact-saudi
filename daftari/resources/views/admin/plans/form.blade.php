@@ -75,6 +75,7 @@
                 'max_warehouses' => __('Warehouses'),
                 'max_bank_accounts' => __('Bank & cash accounts'),
                 'max_branches' => __('Branches'),
+                'max_storage_mb' => __('Storage (MB)'),
             ] as $field => $label)
                 <div>
                     <label class="block text-sm font-medium text-slate-700">{{ $label }}</label>

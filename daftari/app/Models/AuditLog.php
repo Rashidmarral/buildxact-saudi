@@ -25,13 +25,16 @@ class AuditLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'company_id', 'admin_user_id', 'action', 'subject_type', 'subject_id', 'description', 'created_at',
+        'company_id', 'admin_user_id', 'action', 'subject_type', 'subject_id', 'description',
+        'old_value', 'new_value', 'ip_address', 'user_agent', 'created_at',
     ];
 
     protected function casts(): array
     {
         return [
             'created_at' => 'datetime',
+            'old_value' => 'array',
+            'new_value' => 'array',
         ];
     }
 
@@ -59,20 +62,42 @@ class AuditLog extends Model
      * $actorId defaults to the current user. For a company user this also
      * stamps company_id so the entry shows up on that company's own
      * Activity page; platform-admin actions (actor has no company_id, or
-     * none is authenticated) leave company_id null, matching the existing
-     * admin-only audit trail.
+     * none is authenticated) leave company_id null UNLESS the subject is a
+     * Company (or $companyId is given explicitly) — a super admin acting
+     * on a specific tenant should still surface on that tenant's own
+     * Activity feed, not just the platform-wide one.
+     *
+     * $old/$new capture the before/after state of whatever changed (plain
+     * arrays, JSON-encoded) so every Super Admin action stays reconstructible
+     * — never omit them for a mutating action. ip_address/user_agent are
+     * captured automatically from the current request when available.
      */
-    public static function record(string $action, ?Model $subject = null, ?string $description = null, ?int $actorId = null): self
-    {
+    public static function record(
+        string $action,
+        ?Model $subject = null,
+        ?string $description = null,
+        ?int $actorId = null,
+        ?array $old = null,
+        ?array $new = null,
+        ?int $companyId = null,
+    ): self {
         $actor = $actorId !== null ? User::find($actorId) : auth()->user();
 
+        $companyId ??= $actor?->company_id ?? ($subject instanceof Company ? $subject->id : null);
+
+        $request = app()->bound('request') ? request() : null;
+
         return self::create([
-            'company_id' => $actor?->company_id,
+            'company_id' => $companyId,
             'admin_user_id' => $actor?->id,
             'action' => $action,
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),
             'description' => $description,
+            'old_value' => $old,
+            'new_value' => $new,
+            'ip_address' => $request?->ip(),
+            'user_agent' => $request?->userAgent(),
             'created_at' => now(),
         ]);
     }

@@ -11,7 +11,7 @@ class Plan extends Model
         'name', 'name_ar', 'slug', 'price_monthly', 'price_yearly',
         'price_monthly_original', 'price_yearly_original',
         'max_users', 'max_invoices_per_month', 'max_customers', 'max_suppliers',
-        'max_invoice_templates', 'max_warehouses', 'max_bank_accounts', 'max_branches',
+        'max_invoice_templates', 'max_warehouses', 'max_bank_accounts', 'max_branches', 'max_storage_mb',
         'has_recurring_invoices', 'has_quotations', 'has_stamps', 'has_financial_statements',
         'has_vat_return_report', 'has_cost_centers', 'has_purchase_orders', 'has_debit_notes',
         'has_roles_permissions', 'has_zatca_phase2',

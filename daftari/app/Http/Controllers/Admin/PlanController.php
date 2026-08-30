@@ -71,6 +71,7 @@ class PlanController extends Controller
             'max_warehouses' => ['nullable', 'integer', 'min:1'],
             'max_bank_accounts' => ['nullable', 'integer', 'min:1'],
             'max_branches' => ['nullable', 'integer', 'min:1'],
+            'max_storage_mb' => ['nullable', 'integer', 'min:1'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'features' => ['nullable', 'string'],
         ]);

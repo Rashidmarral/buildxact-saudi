@@ -145,6 +145,16 @@ class Company extends Model
     }
 
     /**
+     * Real (not estimated) storage usage: the sum of every attachment's
+     * byte size, queried without the tenant scope since this is called
+     * from platform-admin context where auth()->user() has no company_id.
+     */
+    public function storageUsedBytes(): int
+    {
+        return (int) Attachment::withoutGlobalScopes()->where('company_id', $this->id)->sum('size');
+    }
+
+    /**
      * Whether creating one more of $type would exceed the company's active
      * plan limit. A company with no active subscription, or a plan with no
      * limit set for $type (null = unlimited), is never blocked.
