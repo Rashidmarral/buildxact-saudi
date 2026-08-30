@@ -13,6 +13,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaInvoiceLog;
+use App\Services\Subscriptions\SubscriptionLifecycleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -73,10 +74,18 @@ class CompanyController extends Controller
             } elseif ($status === 'suspended') {
                 $query->where('status', 'suspended');
             } elseif ($status === 'past_due') {
-                $ids = $latestSubscriptions->filter(fn ($s) => $s->status === 'active'
-                    && ! $s->cancelled_at
-                    && $s->current_period_end
-                    && $s->current_period_end->isPast())->keys();
+                // Matches both the pre-Module-04 computed definition (still
+                // relevant in the daily window before the lifecycle-rules
+                // command actually flips status) and the real 'past_due'
+                // status it flips to.
+                $ids = $latestSubscriptions->filter(fn ($s) => $s->status === 'past_due'
+                    || ($s->status === 'active' && ! $s->cancelled_at && $s->current_period_end && $s->current_period_end->isPast()))->keys();
+                $query->whereIn('id', $ids);
+            } elseif ($status === 'grace_period') {
+                $ids = $latestSubscriptions->where('status', 'grace_period')->keys();
+                $query->whereIn('id', $ids);
+            } elseif ($status === 'sub_suspended') {
+                $ids = $latestSubscriptions->where('status', 'suspended')->keys();
                 $query->whereIn('id', $ids);
             } elseif (array_key_exists($status, self::SUBSCRIPTION_STATUS_FILTERS)) {
                 $ids = $latestSubscriptions->where('status', self::SUBSCRIPTION_STATUS_FILTERS[$status])->keys();
@@ -273,6 +282,89 @@ class CompanyController extends Controller
     }
 
     /**
+     * Upgrade/downgrade are thin, focused variants of changePlan() above:
+     * they only swap the plan on the CURRENT subscription (keeping its
+     * status/dates as-is), and validate the price actually moves in the
+     * expected direction — changePlan() remains the tool for a full manual
+     * override (status, dates, everything at once).
+     */
+    public function upgradePlan(Request $request, Company $company, SubscriptionLifecycleService $lifecycle)
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', 'exists:plans,id'],
+            'billing_cycle' => ['required', 'in:monthly,yearly'],
+        ]);
+
+        $plan = Plan::findOrFail($data['plan_id']);
+        $current = $company->activeSubscription();
+        abort_if($current && $plan->priceFor($data['billing_cycle']) < $current->plan->priceFor($current->billing_cycle), 422, __('The selected plan is not more expensive than the current one.'));
+
+        $lifecycle->upgrade($company, $plan, $data['billing_cycle'], Auth::id());
+
+        return back()->with('status', __('Plan upgraded.'));
+    }
+
+    public function downgradePlan(Request $request, Company $company, SubscriptionLifecycleService $lifecycle)
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', 'exists:plans,id'],
+            'billing_cycle' => ['required', 'in:monthly,yearly'],
+        ]);
+
+        $plan = Plan::findOrFail($data['plan_id']);
+        $current = $company->activeSubscription();
+        abort_if($current && $plan->priceFor($data['billing_cycle']) > $current->plan->priceFor($current->billing_cycle), 422, __('The selected plan is not cheaper than the current one.'));
+
+        $lifecycle->downgrade($company, $plan, $data['billing_cycle'], Auth::id());
+
+        return back()->with('status', __('Plan downgraded.'));
+    }
+
+    public function addGracePeriod(Request $request, Company $company, SubscriptionLifecycleService $lifecycle)
+    {
+        $data = $request->validate([
+            'days' => ['required', 'integer', 'min:1', 'max:90'],
+        ]);
+
+        $lifecycle->addGracePeriod($company, (int) $data['days'], Auth::id());
+
+        return back()->with('status', __('Grace period added.'));
+    }
+
+    public function pauseSubscription(Company $company, SubscriptionLifecycleService $lifecycle)
+    {
+        $lifecycle->pause($company, Auth::id());
+
+        return back()->with('status', __('Subscription paused.'));
+    }
+
+    public function reactivateSubscription(Request $request, Company $company, SubscriptionLifecycleService $lifecycle)
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', 'exists:plans,id'],
+            'billing_cycle' => ['required', 'in:monthly,yearly'],
+        ]);
+
+        $plan = Plan::findOrFail($data['plan_id']);
+        $lifecycle->reactivate($company, $plan, $data['billing_cycle'], Auth::id());
+
+        return back()->with('status', __('Subscription reactivated.'));
+    }
+
+    public function compAccount(Request $request, Company $company, SubscriptionLifecycleService $lifecycle)
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', 'exists:plans,id'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $plan = Plan::findOrFail($data['plan_id']);
+        $lifecycle->compAccount($company, $plan, $data['reason'] ?? null, Auth::id());
+
+        return back()->with('status', __('Comp account granted.'));
+    }
+
+    /**
      * Pushes the company's trial (and, if it's still trialing, its current
      * subscription period) out by N days. Days beyond the original trial
      * length are fine here — this is a manual support override, not the
@@ -345,21 +437,31 @@ class CompanyController extends Controller
      * BillingController::resume(): clears cancelled_at, undoing a pending
      * (not-yet-expired) cancellation — mirrors the same self-service action.
      */
-    public function resumeSubscription(Company $company)
+    public function resumeSubscription(Company $company, SubscriptionLifecycleService $lifecycle)
     {
         $subscription = $company->activeSubscription();
-        abort_unless($subscription && $subscription->cancelled_at, 404);
 
-        $old = ['cancelled_at' => $subscription->cancelled_at->toIso8601String()];
-        $subscription->update(['cancelled_at' => null]);
+        // Two distinct things "resume" can undo: a pending self-service
+        // cancellation (cancelled_at set, status untouched), or the
+        // automatic/manual dunning ladder (past_due/grace_period/
+        // suspended). Try the cancelled_at case first since it's the
+        // original, most common meaning of this action.
+        if ($subscription && $subscription->cancelled_at) {
+            $old = ['cancelled_at' => $subscription->cancelled_at->toIso8601String()];
+            $subscription->update(['cancelled_at' => null]);
 
-        AuditLog::record(
-            'company.resume_subscription',
-            $company,
-            __('Resumed subscription for :name', ['name' => $company->name]),
-            old: $old,
-            new: ['cancelled_at' => null]
-        );
+            AuditLog::record(
+                'company.resume_subscription',
+                $company,
+                __('Resumed subscription for :name', ['name' => $company->name]),
+                old: $old,
+                new: ['cancelled_at' => null]
+            );
+
+            return back()->with('status', __('Subscription resumed.'));
+        }
+
+        $lifecycle->resume($company, Auth::id());
 
         return back()->with('status', __('Subscription resumed.'));
     }

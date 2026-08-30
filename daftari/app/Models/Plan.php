@@ -8,14 +8,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Plan extends Model
 {
     protected $fillable = [
-        'name', 'name_ar', 'slug', 'price_monthly', 'price_yearly',
+        'name', 'name_ar', 'description', 'slug', 'currency', 'trial_days',
+        'price_monthly', 'price_yearly',
         'price_monthly_original', 'price_yearly_original',
         'max_users', 'max_invoices_per_month', 'max_customers', 'max_suppliers',
         'max_invoice_templates', 'max_warehouses', 'max_bank_accounts', 'max_branches', 'max_storage_mb',
         'has_recurring_invoices', 'has_quotations', 'has_stamps', 'has_financial_statements',
         'has_vat_return_report', 'has_cost_centers', 'has_purchase_orders', 'has_debit_notes',
         'has_roles_permissions', 'has_zatca_phase2',
-        'features', 'is_active', 'sort_order',
+        'features', 'is_active', 'is_public', 'is_featured', 'sort_order',
     ];
 
     protected function casts(): array
@@ -23,6 +24,8 @@ class Plan extends Model
         return [
             'features' => 'array',
             'is_active' => 'boolean',
+            'is_public' => 'boolean',
+            'is_featured' => 'boolean',
             'price_monthly' => 'decimal:2',
             'price_yearly' => 'decimal:2',
             'price_monthly_original' => 'decimal:2',
@@ -73,5 +76,17 @@ class Plan extends Model
     public function priceFor(string $cycle): float
     {
         return (float) ($cycle === 'yearly' ? $this->price_yearly : $this->price_monthly);
+    }
+
+    /**
+     * This plan's trial length, falling back to the platform-wide
+     * trial_days Setting (and its config default) when the plan doesn't
+     * override it — same fallback chain AuthController::register() used
+     * before per-plan trial periods existed, so a plan left blank behaves
+     * exactly as every plan did previously.
+     */
+    public function trialDays(): int
+    {
+        return $this->trial_days ?? (int) Setting::get('trial_days', config('daftari.trial_days'));
     }
 }

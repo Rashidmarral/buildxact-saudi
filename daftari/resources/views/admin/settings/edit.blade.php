@@ -296,6 +296,30 @@
                 <p class="text-xs text-amber-600">{{ __('Phone verification has no OTP flow built yet — this stores the preference only and does not currently block signup.') }}</p>
             </div>
 
+            <div class="pt-2 border-t border-slate-100">
+                <h4 class="text-sm font-semibold text-slate-900">{{ __('Subscription lifecycle (automatic rules)') }}</h4>
+                <p class="text-xs text-slate-500 mb-3">{{ __('Controls how long a subscription stays in each stage before automatically moving to the next — trial → past due → grace period → suspended → cancelled.') }}</p>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Trial ending reminder (days before)') }}</label>
+                        <input type="number" name="subscription_trial_reminder_days_before" min="1" max="30" required value="{{ old('subscription_trial_reminder_days_before', $settings['subscription_trial_reminder_days_before']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Grace period length (days)') }}</label>
+                        <input type="number" name="subscription_grace_period_days" min="0" max="90" required value="{{ old('subscription_grace_period_days', $settings['subscription_grace_period_days']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <p class="text-xs text-slate-400 mt-1">{{ __('Days past due before entering the grace period.') }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Suspend after grace period (days)') }}</label>
+                        <input type="number" name="subscription_suspend_after_grace_days" min="0" max="90" required value="{{ old('subscription_suspend_after_grace_days', $settings['subscription_suspend_after_grace_days']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Cancel after suspended (days)') }}</label>
+                        <input type="number" name="subscription_cancel_after_suspended_days" min="0" max="365" required value="{{ old('subscription_cancel_after_suspended_days', $settings['subscription_cancel_after_suspended_days']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                </div>
+            </div>
+
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Signup settings') }}</button>
         </form>
     </div>

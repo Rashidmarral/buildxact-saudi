@@ -19,13 +19,10 @@
                     {{ $company->status === 'active' ? __('Active') : __('Suspended') }}
                 </span>
                 @if ($subscription)
-                    <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold
-                        {{ match($subscription->status) {
-                            'active' => 'bg-emerald-50 text-emerald-700',
-                            'trialing' => 'bg-amber-50 text-amber-700',
-                            'cancelled' => 'bg-slate-100 text-slate-500',
-                            default => 'bg-red-50 text-red-600',
-                        } }}">{{ ucfirst($subscription->status) }}</span>
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $subscription->statusBadgeClasses() }}">{{ $subscription->statusLabel() }}</span>
+                    @if ($subscription->is_comp)
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold bg-violet-50 text-violet-700">{{ __('Comp') }}</span>
+                    @endif
                     @if ($subscription->cancelled_at)
                         <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold bg-orange-50 text-orange-600">{{ __('Scheduled to cancel') }}</span>
                     @endif
@@ -105,7 +102,7 @@
                 <dl class="space-y-2 text-sm">
                     <div class="flex justify-between"><dt class="text-slate-500">{{ __('Company status') }}</dt><dd class="font-medium">{{ $company->status === 'active' ? __('Active') : __('Suspended') }}</dd></div>
                     <div class="flex justify-between"><dt class="text-slate-500">{{ __('Plan') }}</dt><dd class="font-medium">{{ $subscription?->plan?->name ?? '—' }}</dd></div>
-                    <div class="flex justify-between"><dt class="text-slate-500">{{ __('Subscription') }}</dt><dd class="font-medium">{{ $subscription ? ucfirst($subscription->status) : '—' }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-slate-500">{{ __('Subscription') }}</dt><dd class="font-medium">{{ $subscription ? $subscription->statusLabel() : '—' }}</dd></div>
                     <div class="flex justify-between"><dt class="text-slate-500">{{ __('Created') }}</dt><dd class="font-medium">{{ $company->created_at->format('Y-m-d') }}</dd></div>
                 </dl>
             </div>
@@ -214,7 +211,7 @@
             <ul class="space-y-2 text-sm mb-4">
                 @forelse ($company->subscriptions as $sub)
                     <li class="flex justify-between">
-                        <span>{{ $sub->plan->name }} — {{ ucfirst($sub->status) }}</span>
+                        <span>{{ $sub->plan->name }} — {{ $sub->statusLabel() }}</span>
                         <span class="text-slate-500">{{ ucfirst($sub->billing_cycle) }} · {{ __('renews') }} {{ optional($sub->current_period_end)->format('Y-m-d') ?? '—' }}</span>
                     </li>
                 @empty
@@ -299,13 +296,108 @@
                         </form>
                     @endif
 
-                    @if ($subscription && $subscription->cancelled_at)
+                    @if ($subscription && ($subscription->cancelled_at || in_array($subscription->status, ['past_due', 'grace_period', 'suspended'], true)))
                         <form method="POST" action="{{ route('admin.companies.resume-subscription', $company) }}">
                             @csrf
                             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Resume subscription') }}</button>
                         </form>
                     @endif
+
+                    @if ($subscription && $subscription->status !== 'suspended')
+                        <form method="POST" action="{{ route('admin.companies.pause-subscription', $company) }}" onsubmit="return confirm('{{ __('Pause this subscription? This is the manual equivalent of a billing suspension.') }}')">
+                            @csrf
+                            <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Pause subscription') }}</button>
+                        </form>
+                    @endif
                 </div>
+            </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
+                <h3 class="font-semibold text-slate-900 mb-2">{{ __('Upgrade / downgrade plan') }}</h3>
+                <p class="text-sm text-slate-500 mb-4">{{ __('Swaps only the plan on the current subscription — status and dates are untouched.') }}</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <form method="POST" action="{{ route('admin.companies.upgrade-plan', $company) }}" class="space-y-2">
+                        @csrf
+                        <select name="plan_id" required class="w-full rounded-lg border border-slate-200 text-sm">
+                            @foreach ($plans as $plan)
+                                <option value="{{ $plan->id }}">{{ $plan->name }}</option>
+                            @endforeach
+                        </select>
+                        <select name="billing_cycle" required class="w-full rounded-lg border border-slate-200 text-sm">
+                            <option value="monthly">{{ __('Monthly') }}</option>
+                            <option value="yearly">{{ __('Yearly') }}</option>
+                        </select>
+                        <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Upgrade') }}</button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.companies.downgrade-plan', $company) }}" class="space-y-2">
+                        @csrf
+                        <select name="plan_id" required class="w-full rounded-lg border border-slate-200 text-sm">
+                            @foreach ($plans as $plan)
+                                <option value="{{ $plan->id }}">{{ $plan->name }}</option>
+                            @endforeach
+                        </select>
+                        <select name="billing_cycle" required class="w-full rounded-lg border border-slate-200 text-sm">
+                            <option value="monthly">{{ __('Monthly') }}</option>
+                            <option value="yearly">{{ __('Yearly') }}</option>
+                        </select>
+                        <button type="submit" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Downgrade') }}</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
+                <h3 class="font-semibold text-slate-900 mb-2">{{ __('Add grace period') }}</h3>
+                <p class="text-sm text-slate-500 mb-4">{{ __('Gives the company more time before suspension — moves the subscription straight into the grace period stage.') }}</p>
+                <form method="POST" action="{{ route('admin.companies.add-grace-period', $company) }}" class="flex items-end gap-3">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Days') }}</label>
+                        <input type="number" name="days" min="1" max="90" value="7" required class="w-24 rounded-lg border border-slate-200 text-sm">
+                    </div>
+                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add grace period') }}</button>
+                </form>
+                @if ($subscription?->grace_period_ends_at)
+                    <p class="mt-3 text-xs text-slate-400">{{ __('Grace period ends') }}: {{ $subscription->grace_period_ends_at->format('Y-m-d') }}</p>
+                @endif
+            </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-6">
+            @if (! $subscription || in_array($subscription->status, ['cancelled', 'expired'], true))
+                <div class="bg-white rounded-xl border border-slate-100 p-6">
+                    <h3 class="font-semibold text-slate-900 mb-2">{{ __('Reactivate subscription') }}</h3>
+                    <p class="text-sm text-slate-500 mb-4">{{ __('Starts a brand-new billing period — for a subscription that has fully lapsed.') }}</p>
+                    <form method="POST" action="{{ route('admin.companies.reactivate-subscription', $company) }}" class="space-y-2">
+                        @csrf
+                        <select name="plan_id" required class="w-full rounded-lg border border-slate-200 text-sm">
+                            @foreach ($plans as $plan)
+                                <option value="{{ $plan->id }}">{{ $plan->name }}</option>
+                            @endforeach
+                        </select>
+                        <select name="billing_cycle" required class="w-full rounded-lg border border-slate-200 text-sm">
+                            <option value="monthly">{{ __('Monthly') }}</option>
+                            <option value="yearly">{{ __('Yearly') }}</option>
+                        </select>
+                        <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Reactivate') }}</button>
+                    </form>
+                </div>
+            @endif
+
+            <div class="bg-white rounded-xl border border-violet-100 p-6">
+                <h3 class="font-semibold text-slate-900 mb-2">{{ __('Comp account') }}</h3>
+                <p class="text-sm text-slate-500 mb-4">{{ __('Grants free/complimentary access — no payment record is created.') }}</p>
+                <form method="POST" action="{{ route('admin.companies.comp-account', $company) }}" class="space-y-2">
+                    @csrf
+                    <select name="plan_id" required class="w-full rounded-lg border border-slate-200 text-sm">
+                        @foreach ($plans as $plan)
+                            <option value="{{ $plan->id }}">{{ $plan->name }}</option>
+                        @endforeach
+                    </select>
+                    <input type="text" name="reason" placeholder="{{ __('Reason (optional)') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+                    <button type="submit" class="w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700" onclick="return confirm('{{ __('Grant this company a free comp account?') }}')">{{ __('Grant comp account') }}</button>
+                </form>
             </div>
         </div>
     </div>

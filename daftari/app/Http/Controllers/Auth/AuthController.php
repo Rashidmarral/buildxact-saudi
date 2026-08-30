@@ -121,10 +121,11 @@ class AuthController extends Controller
         // the platform's configured default trial plan (or, failing that,
         // the first active plan), matching the "no credit card required"
         // simplicity of the rest of the wizard.
-        $planId = Setting::get('signup_default_plan_id') ?: Plan::where('is_active', true)->orderBy('sort_order')->value('id');
+        $planId = Setting::get('signup_default_plan_id') ?: Plan::where('is_active', true)->where('is_public', true)->orderBy('sort_order')->value('id');
         abort_unless($planId, 500, 'No active plan is configured for new signups.');
+        $plan = Plan::findOrFail($planId);
 
-        $user = DB::transaction(function () use ($data, $planId) {
+        $user = DB::transaction(function () use ($data, $planId, $plan) {
             $slug = Str::slug($data['company_name']).'-'.Str::lower(Str::random(5));
 
             $company = Company::create([
@@ -134,7 +135,7 @@ class AuthController extends Controller
                 'industry' => $data['industry'],
                 'vat_number' => $data['vat_number'] ?? null,
                 'primary_customer_type' => $data['primary_customer_type'],
-                'trial_ends_at' => now()->addDays((int) Setting::get('trial_days', config('daftari.trial_days'))),
+                'trial_ends_at' => now()->addDays($plan->trialDays()),
                 'currency' => Setting::get('general_default_currency', config('daftari.default_currency')),
                 'locale' => Setting::get('general_default_language', config('app.locale')),
                 'timezone' => Setting::get('general_default_timezone', config('app.timezone')),

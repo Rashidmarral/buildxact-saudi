@@ -2,11 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\SubscriptionExpiringMail;
-use App\Models\Subscription;
-use App\Notifications\GenericNotification;
+use App\Services\Subscriptions\SubscriptionLifecycleService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
 
 class SendSubscriptionExpiringReminders extends Command
 {
@@ -14,40 +11,11 @@ class SendSubscriptionExpiringReminders extends Command
 
     protected $description = 'Email company owners once when their trial or subscription period is about to end, since renewals are not collected automatically';
 
-    /**
-     * How far ahead of the period end to warn. Subscriptions are billed
-     * manually (no auto-charge gateway wired up), so this is the only
-     * nudge an owner gets before access would lapse.
-     */
-    protected const DAYS_AHEAD = 3;
-
-    public function handle(): int
+    public function handle(SubscriptionLifecycleService $service): int
     {
-        $subscriptions = Subscription::withoutGlobalScopes()
-            ->whereIn('status', ['trialing', 'active'])
-            ->whereNotNull('current_period_end')
-            ->whereNull('expiry_reminder_sent_at')
-            ->where('current_period_end', '<=', now()->addDays(self::DAYS_AHEAD))
-            ->where('current_period_end', '>', now())
-            ->with('company', 'plan')
-            ->get()
-            ->filter(fn (Subscription $subscription) => $subscription->company?->owners()->exists());
+        $count = $service->sendTrialEndingReminders();
 
-        foreach ($subscriptions as $subscription) {
-            foreach ($subscription->company->owners as $owner) {
-                Mail::to($owner->email)->send(new SubscriptionExpiringMail($subscription));
-                $owner->notify(new GenericNotification(
-                    title: $subscription->isTrial() ? __('Your trial is ending soon') : __('Your subscription is renewing soon'),
-                    body: __(':plan · ends :date', ['plan' => $subscription->plan->name, 'date' => $subscription->current_period_end->format('Y-m-d')]),
-                    url: route('app.billing.index'),
-                    icon: 'clock',
-                ));
-            }
-
-            $subscription->update(['expiry_reminder_sent_at' => now()]);
-        }
-
-        $this->info("Sent {$subscriptions->count()} subscription-expiring reminder(s).");
+        $this->info("Sent {$count} subscription-expiring reminder(s).");
 
         return self::SUCCESS;
     }

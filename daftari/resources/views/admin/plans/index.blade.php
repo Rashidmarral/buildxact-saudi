@@ -16,6 +16,7 @@
                 <th class="px-6 py-3 font-medium">{{ __('Monthly') }}</th>
                 <th class="px-6 py-3 font-medium">{{ __('Yearly') }}</th>
                 <th class="px-6 py-3 font-medium">{{ __('Subscribers') }}</th>
+                <th class="px-6 py-3 font-medium">{{ __('Visibility') }}</th>
                 <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
                 <th class="px-6 py-3"></th>
             </tr>
@@ -27,6 +28,12 @@
                     <td class="px-6 py-3">SAR {{ number_format($plan->price_monthly, 0) }}</td>
                     <td class="px-6 py-3">SAR {{ number_format($plan->price_yearly, 0) }}</td>
                     <td class="px-6 py-3">{{ $plan->subscriptions()->count() }}</td>
+                    <td class="px-6 py-3">
+                        {{ $plan->is_public ? __('Public') : __('Private') }}
+                        @if ($plan->is_featured)
+                            <span class="ms-1 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{{ __('Featured') }}</span>
+                        @endif
+                    </td>
                     <td class="px-6 py-3">{{ $plan->is_active ? __('Active') : __('Hidden') }}</td>
                     <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
                         <a href="{{ route('admin.plans.edit', $plan) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>

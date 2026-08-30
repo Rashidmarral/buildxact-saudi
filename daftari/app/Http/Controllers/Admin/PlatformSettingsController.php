@@ -77,6 +77,12 @@ class PlatformSettingsController extends Controller
             'signup_default_plan_id' => Setting::get('signup_default_plan_id', ''),
             'support_email' => Setting::get('support_email', config('mail.from.address')),
 
+            // Subscription lifecycle (automatic rules)
+            'subscription_trial_reminder_days_before' => (int) Setting::get('subscription_trial_reminder_days_before', 3),
+            'subscription_grace_period_days' => (int) Setting::get('subscription_grace_period_days', 3),
+            'subscription_suspend_after_grace_days' => (int) Setting::get('subscription_suspend_after_grace_days', 4),
+            'subscription_cancel_after_suspended_days' => (int) Setting::get('subscription_cancel_after_suspended_days', 7),
+
             // Maintenance
             'maintenance_mode' => Setting::getBool('maintenance_mode'),
             'maintenance_message' => Setting::get('maintenance_message', ''),
@@ -203,6 +209,10 @@ class PlatformSettingsController extends Controller
             'signup_require_phone_verification' => ['nullable', 'boolean'],
             'signup_default_plan_id' => ['nullable', 'exists:plans,id'],
             'support_email' => ['required', 'email', 'max:255'],
+            'subscription_trial_reminder_days_before' => ['required', 'integer', 'min:1', 'max:30'],
+            'subscription_grace_period_days' => ['required', 'integer', 'min:0', 'max:90'],
+            'subscription_suspend_after_grace_days' => ['required', 'integer', 'min:0', 'max:90'],
+            'subscription_cancel_after_suspended_days' => ['required', 'integer', 'min:0', 'max:365'],
         ]);
 
         Setting::set('trial_days', (string) $data['trial_days']);
@@ -211,6 +221,10 @@ class PlatformSettingsController extends Controller
         Setting::set('general_allow_registrations', $request->boolean('general_allow_registrations') ? '1' : '0');
         Setting::set('signup_require_email_verification', $request->boolean('signup_require_email_verification') ? '1' : '0');
         Setting::set('signup_require_phone_verification', $request->boolean('signup_require_phone_verification') ? '1' : '0');
+        Setting::set('subscription_trial_reminder_days_before', (string) $data['subscription_trial_reminder_days_before']);
+        Setting::set('subscription_grace_period_days', (string) $data['subscription_grace_period_days']);
+        Setting::set('subscription_suspend_after_grace_days', (string) $data['subscription_suspend_after_grace_days']);
+        Setting::set('subscription_cancel_after_suspended_days', (string) $data['subscription_cancel_after_suspended_days']);
 
         AuditLog::record('settings.update_signup', null, __('Updated signup settings'));
 

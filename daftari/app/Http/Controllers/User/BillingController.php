@@ -21,7 +21,7 @@ class BillingController extends Controller
     {
         $company = Auth::user()->company;
         $subscription = $company->activeSubscription();
-        $plans = Plan::where('is_active', true)->orderBy('sort_order')->get();
+        $plans = Plan::where('is_active', true)->where('is_public', true)->orderBy('sort_order')->get();
         $payments = $company->payments()->latest('paid_at')->latest('id')->paginate(15);
 
         $tab = in_array($request->query('tab'), ['overview', 'plans', 'addons'], true) ? $request->query('tab') : 'overview';

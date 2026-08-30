@@ -139,7 +139,7 @@ class Company extends Model
     public function activeSubscription(): ?Subscription
     {
         return $this->subscriptions()
-            ->whereIn('status', ['trialing', 'active'])
+            ->whereIn('status', Subscription::NON_TERMINAL_STATUSES)
             ->latest('id')
             ->first();
     }

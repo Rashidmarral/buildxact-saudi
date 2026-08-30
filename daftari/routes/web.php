@@ -478,6 +478,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('companies/{company}/cancel-subscription', [CompanyController::class, 'cancelSubscription'])->name('companies.cancel-subscription');
         Route::post('companies/{company}/resume-subscription', [CompanyController::class, 'resumeSubscription'])->name('companies.resume-subscription');
         Route::post('companies/{company}/reset-settings', [CompanyController::class, 'resetSettings'])->name('companies.reset-settings');
+        Route::post('companies/{company}/upgrade-plan', [CompanyController::class, 'upgradePlan'])->name('companies.upgrade-plan');
+        Route::post('companies/{company}/downgrade-plan', [CompanyController::class, 'downgradePlan'])->name('companies.downgrade-plan');
+        Route::post('companies/{company}/add-grace-period', [CompanyController::class, 'addGracePeriod'])->name('companies.add-grace-period');
+        Route::post('companies/{company}/pause-subscription', [CompanyController::class, 'pauseSubscription'])->name('companies.pause-subscription');
+        Route::post('companies/{company}/reactivate-subscription', [CompanyController::class, 'reactivateSubscription'])->name('companies.reactivate-subscription');
+        Route::post('companies/{company}/comp-account', [CompanyController::class, 'compAccount'])->name('companies.comp-account');
     });
 
     Route::middleware('admin.permission:companies')->group(function () {

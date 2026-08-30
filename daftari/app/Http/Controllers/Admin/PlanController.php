@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Currency;
 use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -18,7 +19,7 @@ class PlanController extends Controller
 
     public function create()
     {
-        return view('admin.plans.form', ['plan' => new Plan]);
+        return view('admin.plans.form', ['plan' => new Plan, 'currencies' => $this->activeCurrencyCodes()]);
     }
 
     public function store(Request $request)
@@ -32,7 +33,7 @@ class PlanController extends Controller
 
     public function edit(Plan $plan)
     {
-        return view('admin.plans.form', compact('plan'));
+        return view('admin.plans.form', ['plan' => $plan, 'currencies' => $this->activeCurrencyCodes()]);
     }
 
     public function update(Request $request, Plan $plan)
@@ -54,11 +55,21 @@ class PlanController extends Controller
         return redirect()->route('admin.plans.index')->with('status', __('Plan deleted.'));
     }
 
+    private function activeCurrencyCodes(): array
+    {
+        $codes = Currency::query()->active()->orderBy('sort_order')->pluck('code')->all();
+
+        return $codes ?: ['SAR'];
+    }
+
     private function validated(Request $request): array
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'currency' => ['required', 'string', 'size:3'],
+            'trial_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'price_monthly' => ['required', 'numeric', 'min:0'],
             'price_yearly' => ['required', 'numeric', 'min:0'],
             'price_monthly_original' => ['nullable', 'numeric', 'min:0'],
@@ -80,6 +91,8 @@ class PlanController extends Controller
             ? array_values(array_filter(array_map('trim', explode("\n", $data['features']))))
             : [];
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['is_public'] = $request->boolean('is_public', true);
+        $data['is_featured'] = $request->boolean('is_featured', false);
 
         foreach (array_values(Plan::FEATURE_KEYS) as $column) {
             $data[$column] = $request->boolean($column);

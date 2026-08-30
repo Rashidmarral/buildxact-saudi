@@ -21,7 +21,7 @@ class HomeController extends Controller
 
     public function pricing()
     {
-        $plans = Plan::where('is_active', true)->orderBy('sort_order')->get();
+        $plans = Plan::where('is_active', true)->where('is_public', true)->orderBy('sort_order')->get();
 
         return view('site.pricing', compact('plans'));
     }

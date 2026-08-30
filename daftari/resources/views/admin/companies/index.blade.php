@@ -18,6 +18,8 @@
                     'suspended' => __('Suspended'),
                     'cancelled' => __('Cancelled'),
                     'past_due' => __('Past due'),
+                    'grace_period' => __('Grace period'),
+                    'sub_suspended' => __('Subscription suspended'),
                     'paid' => __('Paid'),
                 ] as $value => $label)
                     <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
@@ -100,13 +102,7 @@
                     <td class="px-4 py-3">{{ $sub?->plan?->name ?? '—' }}</td>
                     <td class="px-4 py-3">
                         @if ($sub)
-                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold
-                                {{ match($sub->status) {
-                                    'active' => 'bg-emerald-50 text-emerald-700',
-                                    'trialing' => 'bg-amber-50 text-amber-700',
-                                    'cancelled' => 'bg-slate-100 text-slate-500',
-                                    default => 'bg-red-50 text-red-600',
-                                } }}">{{ ucfirst($sub->status) }}</span>
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $sub->statusBadgeClasses() }}">{{ $sub->statusLabel() }}</span>
                         @else
                             <span class="text-slate-400">—</span>
                         @endif
