@@ -176,7 +176,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // User panel
-Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'company.active', 'verified', 'phone.verified'])->group(function () {
+Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'company.active', 'verified', 'phone.verified', 'demo.guard'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard');
 
     Route::get('search', [GlobalSearchController::class, 'search'])->name('search');

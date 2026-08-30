@@ -13,6 +13,7 @@ use App\Services\Coupons\CouponService;
 use App\Services\MpdfRenderer;
 use App\Services\Payments\PaymentCheckoutService;
 use App\Services\Payments\PaymentSettlementService;
+use App\Support\DemoMode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -142,6 +143,14 @@ class BillingController extends Controller
         }
 
         if ($gateway) {
+            // The only branch that actually moves money through a real
+            // payment provider (PaymentCheckoutService::start() below
+            // redirects to a live gateway checkout page) — see
+            // App\Support\DemoMode. Bank-transfer (handled above, never
+            // touches a gateway) and the free/manual path further down
+            // stay available in demo mode since neither charges anything.
+            abort_if($company->isDemo(), 422, DemoMode::realPayments());
+
             $subscription = Subscription::create([
                 'company_id' => $company->id,
                 'plan_id' => $plan->id,

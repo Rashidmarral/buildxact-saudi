@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\ZatcaQrGenerator;
+use App\Support\DemoMode;
 use Illuminate\Support\Str;
 
 /**
@@ -143,6 +144,20 @@ class ZatcaSyncService
             return $log;
         }
 
+        // Never make the real outbound call for a demo company, even one
+        // that's (hypothetically) fully onboarded — see App\Support\DemoMode.
+        // Checked here rather than only in the controller so the scheduled
+        // sync command (ZatcaSyncInvoices) is covered too, not just the
+        // interactive "Sync now" button.
+        if ($company->isDemo()) {
+            $log->update([
+                'status' => 'failed',
+                'error_message' => DemoMode::zatcaSubmissions(),
+            ]);
+
+            return $log;
+        }
+
         if ($qrPng) {
             $invoice->update(['qr_code' => $qrPng]);
         }
@@ -222,6 +237,15 @@ class ZatcaSyncService
             $log->update([
                 'status' => 'failed',
                 'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
+            ]);
+
+            return $log;
+        }
+
+        if ($company->isDemo()) {
+            $log->update([
+                'status' => 'failed',
+                'error_message' => DemoMode::zatcaSubmissions(),
             ]);
 
             return $log;

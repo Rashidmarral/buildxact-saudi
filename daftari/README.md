@@ -50,11 +50,28 @@ Visit `http://localhost:8000`.
 |---|---|---|
 | Platform admin | `admin@daftari.local` | `Admin@12345` |
 | Demo company owner | `owner@daftari.local` | `Demo@12345` |
+| Demo accountant | `accountant@daftari.local` | `Demo@12345` |
+| Demo salesperson | `sales@daftari.local` | `Demo@12345` |
 
 The demo company ("Al Rashid Trading Co.") comes pre-loaded with a client, an item, a
 partially-paid invoice, and an expense — so the user panel isn't empty on first login. Demo data
 is only seeded automatically when `APP_ENV=local` (or `testing`); set `SEED_DEMO=true` in `.env`
 to force it in another environment.
+
+### Demo mode
+
+The demo company is flagged `is_demo` and runs in a safe sandbox: deletions, real payment
+processing, and real ZATCA submissions are all refused for it (a "DEMO MODE" banner is shown
+throughout the app while logged into it), so it's safe to leave publicly reachable. Manage the
+demo company's data with two documented Artisan commands, either of which is always safe to run
+against a live database — both only ever touch the company flagged `is_demo`, never any real
+customer's data:
+
+```bash
+php artisan demo:install          # create/refresh the demo company and all of its sample data
+php artisan demo:install --fresh  # same, but wipe any existing demo data first
+php artisan demo:reset            # permanently delete the demo company and everything in it
+```
 
 ## Running on MySQL (production)
 

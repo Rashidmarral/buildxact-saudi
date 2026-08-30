@@ -19,7 +19,7 @@ class Company extends Model
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
-        'currency', 'locale', 'timezone', 'status', 'trial_ends_at', 'default_branch_id',
+        'currency', 'locale', 'timezone', 'status', 'is_demo', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
         'po_approval_threshold', 'expense_approval_threshold',
@@ -74,6 +74,7 @@ class Company extends Model
     {
         return [
             'trial_ends_at' => 'datetime',
+            'is_demo' => 'boolean',
             'zatca_sync_b2b' => 'boolean',
             'zatca_sync_b2c' => 'boolean',
             'zatca_private_key' => 'encrypted',
@@ -369,6 +370,18 @@ class Company extends Model
     public function isSuspended(): bool
     {
         return $this->status === 'suspended';
+    }
+
+    /**
+     * True for the shared sandbox/demo company (Module 23) — never true
+     * for a real customer's account. Checked by
+     * App\Http\Middleware\PreventDemoDestruction and the payment/ZATCA
+     * guards in BillingController/ZatcaSyncService/ZatcaController to
+     * keep the demo account safe regardless of its own status/settings.
+     */
+    public function isDemo(): bool
+    {
+        return (bool) $this->is_demo;
     }
 
     public function zatcaInvoiceLogs(): HasMany

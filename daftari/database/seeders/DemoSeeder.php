@@ -41,6 +41,22 @@ use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
+/**
+ * Builds (or refreshes) the one shared demo company and every module's
+ * sample data for it — company, users, customers, suppliers, products,
+ * invoices, expenses, payments. There is no separate "reports" seed step:
+ * every report in the app (Sales, P&L, VAT return, Balance Sheet, ...) is
+ * computed live from this same transactional data, nothing is
+ * pre-materialized, so reports are automatically populated once the rest
+ * of this runs.
+ *
+ * Entirely self-contained and idempotent: every row here is scoped to the
+ * one company created below (found/created by its fixed slug), so
+ * re-running this never touches any other company's data. Invoked via
+ * `php artisan demo:install` (see App\Console\Commands\InstallDemoData for
+ * the documented, easy-to-run wrapper) or directly with
+ * `php artisan db:seed --class=DemoSeeder`.
+ */
 class DemoSeeder extends Seeder
 {
     public function run(): void
@@ -63,6 +79,10 @@ class DemoSeeder extends Seeder
                 'email' => 'owner@daftari.local',
                 'currency' => 'SAR',
                 'status' => 'active',
+                // Module 23: marks this company as the shared, safe demo
+                // account — see App\Support\DemoMode and
+                // PreventDemoDestruction. Never set on a real customer.
+                'is_demo' => true,
                 'trial_ends_at' => now()->addDays(config('daftari.trial_days')),
             ]
         );
@@ -85,6 +105,29 @@ class DemoSeeder extends Seeder
                 'status' => 'active',
             ]
         );
+
+        // Two more demo team members (not just the owner) — Module 23 asks
+        // for "demo users", plural — each attached to one of the system
+        // roles Role::seedSystemRoles() just created, so their permission
+        // sets are real and immediately usable for demoing Roles &
+        // Permissions itself, not just extra login rows.
+        $accountantRole = Role::where('company_id', $company->id)->where('slug', 'accountant')->first();
+        $accountantUser = User::updateOrCreate(
+            ['email' => 'accountant@daftari.local'],
+            ['company_id' => $company->id, 'name' => 'Lama Al Zahrani', 'password' => Hash::make('Demo@12345'), 'role' => 'member', 'status' => 'active']
+        );
+        if ($accountantRole) {
+            $accountantUser->roles()->sync([$accountantRole->id]);
+        }
+
+        $salesRole = Role::where('company_id', $company->id)->where('slug', 'sales')->first();
+        $salesUser = User::updateOrCreate(
+            ['email' => 'sales@daftari.local'],
+            ['company_id' => $company->id, 'name' => 'Omar Al Ghamdi', 'password' => Hash::make('Demo@12345'), 'role' => 'member', 'status' => 'active']
+        );
+        if ($salesRole) {
+            $salesUser->roles()->sync([$salesRole->id]);
+        }
 
         $plan = Plan::where('slug', 'professional')->first();
         if ($plan && ! $company->subscriptions()->exists()) {

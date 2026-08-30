@@ -18,6 +18,9 @@
                 <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $company->status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
                     {{ $company->status === 'active' ? __('Active') : __('Suspended') }}
                 </span>
+                @if ($company->isDemo())
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700">{{ __('Demo') }}</span>
+                @endif
                 @if ($subscription)
                     <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $subscription->statusBadgeClasses() }}">{{ $subscription->statusLabel() }}</span>
                     @if ($subscription->is_comp)

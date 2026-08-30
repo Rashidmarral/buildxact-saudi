@@ -10,6 +10,7 @@ use App\Services\Zatca\ZatcaCryptoService;
 use App\Services\Zatca\ZatcaSyncService;
 use App\Services\Zatca\ZatcaXadesSigner;
 use App\Services\Zatca\ZatcaXmlGenerator;
+use App\Support\DemoMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -108,6 +109,10 @@ class ZatcaController extends Controller
     {
         $company = Auth::user()->company;
 
+        if ($company->isDemo()) {
+            return back()->with('error', DemoMode::zatcaSubmissions());
+        }
+
         if (! $company->isZatcaReady()) {
             return back()->with('error', __('Your company profile is missing information ZATCA requires (VAT number, CR number, or National Address). Complete the readiness checklist below, then generate the CSR.'));
         }
@@ -134,6 +139,10 @@ class ZatcaController extends Controller
         $company = Auth::user()->company;
 
         $request->validate(['otp' => ['required', 'string', 'max:20']]);
+
+        if ($company->isDemo()) {
+            return back()->with('error', DemoMode::zatcaSubmissions());
+        }
 
         if (! $company->zatca_csr) {
             return back()->with('error', __('Generate a CSR first.'));
@@ -167,6 +176,10 @@ class ZatcaController extends Controller
     public function runComplianceCheck(ZatcaSyncService $sync, ZatcaCryptoService $crypto, ZatcaXmlGenerator $xml, ZatcaApiClient $api, ZatcaXadesSigner $signer): RedirectResponse
     {
         $company = Auth::user()->company;
+
+        if ($company->isDemo()) {
+            return back()->with('error', DemoMode::zatcaSubmissions());
+        }
 
         if (! $company->zatca_compliance_csid || ! $company->zatca_compliance_secret) {
             return back()->with('error', __('Issue a compliance CSID first.'));
@@ -263,6 +276,10 @@ class ZatcaController extends Controller
     public function issueProductionCsid(ZatcaApiClient $api): RedirectResponse
     {
         $company = Auth::user()->company;
+
+        if ($company->isDemo()) {
+            return back()->with('error', DemoMode::zatcaSubmissions());
+        }
 
         // Normally gated on 'compliance_verified', but also allow retrying
         // from 'onboarded' with no zatca_production_csid yet — a state

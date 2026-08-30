@@ -307,6 +307,13 @@
                 </div>
             </header>
 
+            @if ($company?->isDemo())
+                <div class="flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2 text-sm font-semibold text-white print:hidden">
+                    @include('partials.icon', ['name' => 'support', 'class' => 'h-4 w-4'])
+                    {{ __('DEMO MODE') }} — {{ __('This is a shared sample account. Deletions, real payments, and ZATCA submissions are disabled.') }}
+                </div>
+            @endif
+
             @if (session('impersonator_id'))
                 <div class="flex items-center justify-between bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-2 text-sm text-white print:hidden">
                     <span class="flex items-center gap-2">
