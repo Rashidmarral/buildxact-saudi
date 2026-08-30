@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\PasswordConfirmationController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
+use App\Http\Controllers\Admin\ZatcaController as AdminZatcaController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
@@ -500,6 +501,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     // full access to a company's data.
     Route::middleware(['role:super_admin', 'password.confirm.admin'])->group(function () {
         Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
+    });
+
+    Route::middleware('admin.permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
+        Route::get('/', [AdminZatcaController::class, 'index'])->name('index');
+        Route::get('logs', [AdminZatcaController::class, 'logs'])->name('logs');
+        Route::get('logs/{type}/{log}', [AdminZatcaController::class, 'showLog'])->name('logs.show');
+        Route::get('logs/{type}/{log}/xml', [AdminZatcaController::class, 'downloadXml'])->name('logs.xml');
+
+        Route::middleware('password.confirm.admin')->group(function () {
+            Route::post('logs/{type}/{log}/retry', [AdminZatcaController::class, 'retry'])->name('logs.retry');
+            Route::post('companies/{company}/test-connection', [AdminZatcaController::class, 'testConnection'])->name('companies.test-connection');
+            Route::post('companies/{company}/reset-onboarding', [AdminZatcaController::class, 'resetOnboarding'])->name('companies.reset-onboarding');
+        });
     });
 
     Route::middleware('admin.permission:plans')->group(function () {

@@ -36,6 +36,12 @@ class AdminNav
                 'visible' => fn (User $user) => $user->hasAdminPermission('companies'),
             ],
             [
+                'route' => 'admin.zatca.index',
+                'label' => __('ZATCA'),
+                'icon' => 'zatca',
+                'visible' => fn (User $user) => $user->hasAdminPermission('zatca'),
+            ],
+            [
                 'route' => 'admin.plans.index',
                 'label' => __('Plans'),
                 'icon' => 'plans',

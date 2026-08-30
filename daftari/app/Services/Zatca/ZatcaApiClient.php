@@ -104,4 +104,44 @@ class ZatcaApiClient
             'Accept-Language' => 'en',
         ])->withBasicAuth($csid, $secret)->timeout(30);
     }
+
+    /**
+     * A network-level reachability check against the given environment's
+     * real ZATCA gateway host — DNS/TLS/routing only. ZATCA's integration
+     * guide does not publish a lightweight "ping"/health-check business
+     * endpoint, so this deliberately does NOT invent one or simulate a
+     * compliance/clearance call (which would have real side effects: it
+     * would consume a live submission attempt and could disturb the
+     * company's PIH hash chain or compliance-check quota). It requests the
+     * gateway's base path unauthenticated and treats ANY HTTP response —
+     * even an error status like 404/401 — as proof the host is reachable;
+     * only a connection-level failure (DNS, TLS, timeout) counts as
+     * unreachable.
+     *
+     * @return array{reachable: bool, http_status: ?int, latency_ms: ?float, error: ?string}
+     */
+    public function testConnection(string $environment): array
+    {
+        $start = microtime(true);
+
+        try {
+            $response = Http::withHeaders(['Accept-Version' => 'V2'])
+                ->timeout(15)
+                ->get($this->baseUrl($environment));
+
+            return [
+                'reachable' => true,
+                'http_status' => $response->status(),
+                'latency_ms' => round((microtime(true) - $start) * 1000, 1),
+                'error' => null,
+            ];
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return [
+                'reachable' => false,
+                'http_status' => null,
+                'latency_ms' => round((microtime(true) - $start) * 1000, 1),
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
 }

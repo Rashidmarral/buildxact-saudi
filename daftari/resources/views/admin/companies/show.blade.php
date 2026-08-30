@@ -595,6 +595,9 @@
 
     {{-- ============ ZATCA ============ --}}
     <div x-show="tab === 'zatca'" x-cloak class="space-y-6">
+        @if (auth()->user()->hasAdminPermission('zatca'))
+            <a href="{{ route('admin.zatca.logs', ['company_id' => $company->id]) }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline">{{ __('Open full ZATCA integration logs for this company') }} →</a>
+        @endif
         <div class="grid sm:grid-cols-2 gap-6">
             <div class="bg-white rounded-xl border border-slate-100 p-6">
                 <h3 class="font-semibold text-slate-900 mb-4">{{ __('Connection status') }}</h3>

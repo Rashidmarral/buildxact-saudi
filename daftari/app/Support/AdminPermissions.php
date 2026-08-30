@@ -23,6 +23,7 @@ class AdminPermissions
             'plans' => __('Plans'),
             'coupons' => __('Coupons'),
             'payments' => __('Payments'),
+            'zatca' => __('ZATCA'),
             'activity' => __('Activity log'),
         ];
     }
@@ -35,7 +36,7 @@ class AdminPermissions
     public static function systemRolePresets(): array
     {
         return [
-            'support' => ['companies', 'activity'],
+            'support' => ['companies', 'zatca', 'activity'],
             'billing' => ['payments', 'plans', 'coupons'],
             'read_only' => self::keys(),
         ];
