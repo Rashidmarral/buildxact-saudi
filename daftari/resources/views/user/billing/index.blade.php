@@ -168,6 +168,14 @@
             'has_zatca_phase2' => __('ZATCA Phase 2 integration'),
         ];
     @endphp
+    <div x-data="{ couponCode: '{{ old('coupon_code', '') }}' }">
+        <div class="mb-6 bg-white rounded-xl border border-slate-100 p-4 max-w-sm">
+            <label class="block text-sm font-medium text-slate-700">{{ __('Have a coupon code?') }}</label>
+            <input type="text" x-model="couponCode" placeholder="{{ __('e.g. SAVE20') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm uppercase focus:border-brand-500 focus:ring-brand-500">
+            @error('coupon_code')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
     <div class="grid md:grid-cols-3 gap-6">
         @foreach ($plans as $plan)
             <div class="bg-white rounded-xl border {{ $subscription && $subscription->plan_id === $plan->id ? 'border-brand-500 ring-1 ring-brand-500' : 'border-slate-100' }} p-6">
@@ -198,6 +206,7 @@
                 <form method="POST" action="{{ route('app.billing.upgrade') }}" class="mt-4 space-y-2">
                     @csrf
                     <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                    <input type="hidden" name="coupon_code" x-model="couponCode">
                     <select name="billing_cycle" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="monthly">{{ __('Monthly') }}</option>
                         <option value="yearly">{{ __('Yearly') }}</option>
@@ -217,6 +226,7 @@
                 </form>
             </div>
         @endforeach
+    </div>
     </div>
 @else
     <div class="bg-white rounded-xl border border-slate-100 p-6">

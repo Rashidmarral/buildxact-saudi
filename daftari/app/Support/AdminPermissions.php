@@ -21,6 +21,7 @@ class AdminPermissions
         return [
             'companies' => __('Companies'),
             'plans' => __('Plans'),
+            'coupons' => __('Coupons'),
             'payments' => __('Payments'),
             'activity' => __('Activity log'),
         ];
@@ -35,7 +36,7 @@ class AdminPermissions
     {
         return [
             'support' => ['companies', 'activity'],
-            'billing' => ['payments', 'plans'],
+            'billing' => ['payments', 'plans', 'coupons'],
             'read_only' => self::keys(),
         ];
     }

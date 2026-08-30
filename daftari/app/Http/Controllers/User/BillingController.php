@@ -4,10 +4,12 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Coupon;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Coupons\CouponService;
 use App\Services\MpdfRenderer;
 use App\Services\Payments\PaymentCheckoutService;
 use App\Services\Payments\PaymentSettlementService;
@@ -71,18 +73,41 @@ class BillingController extends Controller
         return view('user.billing.index', compact('company', 'subscription', 'plans', 'payments', 'tab', 'usage', 'enabledProviders'));
     }
 
-    public function upgrade(Request $request, PaymentCheckoutService $checkout, PaymentSettlementService $settlement)
+    public function upgrade(Request $request, PaymentCheckoutService $checkout, PaymentSettlementService $settlement, CouponService $coupons)
     {
         $data = $request->validate([
             'plan_id' => ['required', 'exists:plans,id'],
             'billing_cycle' => ['required', 'in:monthly,yearly'],
             'provider' => ['nullable', 'string'],
+            'coupon_code' => ['nullable', 'string', 'max:50'],
         ]);
 
         $company = Auth::user()->company;
         $plan = Plan::findOrFail($data['plan_id']);
         $periodEnd = $data['billing_cycle'] === 'yearly' ? now()->addYear() : now()->addMonth();
-        $amount = $plan->priceFor($data['billing_cycle']);
+        $originalAmount = $plan->priceFor($data['billing_cycle']);
+        $amount = $originalAmount;
+        $discountAmount = 0.0;
+        $coupon = null;
+
+        // Optional: absent coupon_code means every line below behaves
+        // exactly as before this module — $amount stays $originalAmount
+        // and no coupon/redemption code runs at all.
+        if (! empty($data['coupon_code'])) {
+            $coupon = Coupon::where('code', strtoupper(trim($data['coupon_code'])))->first();
+
+            if (! $coupon) {
+                return back()->withErrors(['coupon_code' => __('This coupon code does not exist.')]);
+            }
+
+            $validation = $coupons->validate($coupon, $company, $plan, $originalAmount);
+
+            if (! $validation['valid']) {
+                return back()->withErrors(['coupon_code' => $validation['errors'][0]]);
+            }
+
+            [$amount, $discountAmount] = $coupons->priceWithCoupon($coupon, $company, $plan, $originalAmount);
+        }
 
         $gateway = ! empty($data['provider'])
             ? PaymentGateway::whereNull('company_id')->where('provider', $data['provider'])->where('is_enabled', true)->first()
@@ -106,6 +131,10 @@ class BillingController extends Controller
                 'status' => 'pending',
                 'method' => PaymentGateway::BANK_TRANSFER,
             ]);
+
+            if ($coupon) {
+                $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $payment, Auth::id());
+            }
 
             AuditLog::record('subscription.checkout_started', $subscription, __('Started offline bank-transfer payment for :plan plan', ['plan' => $plan->name]));
 
@@ -139,7 +168,7 @@ class BillingController extends Controller
             // has nothing to show for it. PaymentSettlementService updates
             // this same row to 'paid' on success; the webhook handler
             // updates it to 'failed'/'cancelled' otherwise.
-            $company->payments()->create([
+            $onlinePayment = $company->payments()->create([
                 'subscription_id' => $subscription->id,
                 'plan_id' => $plan->id,
                 'amount' => $amount,
@@ -149,12 +178,16 @@ class BillingController extends Controller
                 'payment_transaction_id' => $transaction->id,
             ]);
 
+            if ($coupon) {
+                $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $onlinePayment, Auth::id());
+            }
+
             AuditLog::record('subscription.checkout_started', $subscription, __('Started online payment for :plan plan via :provider', ['plan' => $plan->name, 'provider' => $gateway->provider]));
 
             return redirect()->away($transaction->checkout_url);
         }
 
-        $payment = DB::transaction(function () use ($company, $plan, $data, $periodEnd) {
+        $payment = DB::transaction(function () use ($company, $plan, $data, $periodEnd, $amount, $originalAmount, $discountAmount, $coupon, $coupons) {
             $subscription = Subscription::create([
                 'company_id' => $company->id,
                 'plan_id' => $plan->id,
@@ -167,15 +200,21 @@ class BillingController extends Controller
             // PAYMENT_GATEWAY=manual is a stub: it records the charge as paid
             // immediately. Used when the platform admin hasn't enabled any
             // real gateway (online or offline bank transfer) yet.
-            return $company->payments()->create([
+            $payment = $company->payments()->create([
                 'subscription_id' => $subscription->id,
                 'plan_id' => $plan->id,
-                'amount' => $plan->priceFor($data['billing_cycle']),
+                'amount' => $amount,
                 'currency' => $company->currency,
                 'status' => 'paid',
                 'method' => config('daftari.payment_gateway'),
                 'paid_at' => now(),
             ]);
+
+            if ($coupon) {
+                $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $payment, Auth::id());
+            }
+
+            return $payment;
         });
 
         $settlement->sendSubscriptionReceipt($payment);

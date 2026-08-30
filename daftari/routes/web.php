@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\PlatformDocumentController;
@@ -501,6 +502,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
 
     Route::middleware('admin.permission:plans')->group(function () {
         Route::resource('plans', PlanController::class)->except(['show']);
+    });
+
+    Route::middleware('admin.permission:coupons')->group(function () {
+        Route::resource('coupons', CouponController::class);
     });
 
     Route::middleware('admin.permission:payments')->group(function () {
