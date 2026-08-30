@@ -133,6 +133,22 @@ class BillingController extends Controller
                 route('app.billing.index')
             );
 
+            // Created up front (status pending), same as the bank-transfer
+            // branch above — otherwise a failed/abandoned online checkout
+            // never has a Payment record at all, and the Payments module
+            // has nothing to show for it. PaymentSettlementService updates
+            // this same row to 'paid' on success; the webhook handler
+            // updates it to 'failed'/'cancelled' otherwise.
+            $company->payments()->create([
+                'subscription_id' => $subscription->id,
+                'plan_id' => $plan->id,
+                'amount' => $amount,
+                'currency' => $company->currency,
+                'status' => 'pending',
+                'method' => $gateway->provider,
+                'payment_transaction_id' => $transaction->id,
+            ]);
+
             AuditLog::record('subscription.checkout_started', $subscription, __('Started online payment for :plan plan via :provider', ['plan' => $plan->name, 'provider' => $gateway->provider]));
 
             return redirect()->away($transaction->checkout_url);

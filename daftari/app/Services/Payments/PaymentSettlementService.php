@@ -40,16 +40,33 @@ class PaymentSettlementService
         $subscription->update(['status' => 'active']);
 
         $company = $subscription->company;
-        $payment = $company->payments()->create([
-            'subscription_id' => $subscription->id,
-            'plan_id' => $subscription->plan_id,
-            'amount' => $transaction->amount,
-            'currency' => $transaction->currency,
-            'status' => 'paid',
-            'method' => $transaction->provider,
-            'reference' => $transaction->provider_reference,
-            'paid_at' => now(),
-        ]);
+
+        // The checkout path (BillingController::upgrade()) creates this
+        // Payment up front as 'pending' so a failed/abandoned attempt still
+        // has a record — settle it in place. Fall back to creating one for
+        // any transaction that predates that (defensive, not expected in
+        // practice).
+        $payment = Payment::withoutGlobalScopes()->where('payment_transaction_id', $transaction->id)->first();
+
+        if ($payment) {
+            $payment->update([
+                'status' => 'paid',
+                'reference' => $transaction->provider_reference,
+                'paid_at' => now(),
+            ]);
+        } else {
+            $payment = $company->payments()->create([
+                'subscription_id' => $subscription->id,
+                'plan_id' => $subscription->plan_id,
+                'amount' => $transaction->amount,
+                'currency' => $transaction->currency,
+                'status' => 'paid',
+                'method' => $transaction->provider,
+                'reference' => $transaction->provider_reference,
+                'payment_transaction_id' => $transaction->id,
+                'paid_at' => now(),
+            ]);
+        }
 
         $this->sendSubscriptionReceipt($payment);
     }

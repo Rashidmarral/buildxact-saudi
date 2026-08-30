@@ -505,7 +505,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
 
     Route::middleware('admin.permission:payments')->group(function () {
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::post('payments/manual', [PaymentController::class, 'storeManual'])->name('payments.manual');
+        Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
+        Route::get('payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
         Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
+        Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])->name('payments.retry');
         Route::post('payments/{payment}/confirm-bank-transfer', [PaymentController::class, 'confirmBankTransfer'])->name('payments.confirm-bank-transfer');
     });
 

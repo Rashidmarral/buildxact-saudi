@@ -63,8 +63,9 @@ class AuditLog extends Model
      * stamps company_id so the entry shows up on that company's own
      * Activity page; platform-admin actions (actor has no company_id, or
      * none is authenticated) leave company_id null UNLESS the subject is a
-     * Company (or $companyId is given explicitly) — a super admin acting
-     * on a specific tenant should still surface on that tenant's own
+     * Company, carries its own company_id column (Subscription, Payment,
+     * ...), or $companyId is given explicitly — a super admin acting on
+     * a specific tenant should still surface on that tenant's own
      * Activity feed, not just the platform-wide one.
      *
      * $old/$new capture the before/after state of whatever changed (plain
@@ -83,7 +84,9 @@ class AuditLog extends Model
     ): self {
         $actor = $actorId !== null ? User::find($actorId) : auth()->user();
 
-        $companyId ??= $actor?->company_id ?? ($subject instanceof Company ? $subject->id : null);
+        $companyId ??= $actor?->company_id
+            ?? ($subject instanceof Company ? $subject->id : null)
+            ?? $subject?->getAttribute('company_id');
 
         $request = app()->bound('request') ? request() : null;
 
