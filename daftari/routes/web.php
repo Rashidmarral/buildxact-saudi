@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\PasswordConfirmationController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
+use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\ZatcaController as AdminZatcaController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\DemoLoginController;
@@ -78,6 +79,7 @@ use App\Http\Controllers\User\PaymentGatewayController;
 use App\Http\Controllers\User\ApprovalSettingsController;
 use App\Http\Controllers\User\SmsSettingsController;
 use App\Http\Controllers\User\WhatsappSettingsController;
+use App\Http\Controllers\User\TicketController;
 use App\Http\Controllers\User\WebhookController;
 use App\Http\Controllers\User\ZatcaController;
 use Illuminate\Support\Facades\Route;
@@ -461,6 +463,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('reset', [ZatcaController::class, 'resetOnboarding'])->name('reset');
         Route::post('sync', [ZatcaController::class, 'sync'])->name('sync');
     });
+
+    Route::middleware('permission:support')->prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/', [TicketController::class, 'index'])->name('index');
+        Route::get('create', [TicketController::class, 'create'])->name('create');
+        Route::post('/', [TicketController::class, 'store'])->name('store');
+        Route::get('{ticket}', [TicketController::class, 'show'])->name('show');
+        Route::post('{ticket}/reply', [TicketController::class, 'reply'])->name('reply');
+        Route::get('attachments/{attachment}', [TicketController::class, 'downloadAttachment'])->name('attachments.download');
+    });
 });
 
 // Platform admin panel
@@ -514,6 +525,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
             Route::post('companies/{company}/test-connection', [AdminZatcaController::class, 'testConnection'])->name('companies.test-connection');
             Route::post('companies/{company}/reset-onboarding', [AdminZatcaController::class, 'resetOnboarding'])->name('companies.reset-onboarding');
         });
+    });
+
+    Route::middleware('admin.permission:tickets')->prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/', [AdminTicketController::class, 'index'])->name('index');
+        Route::get('{ticket}', [AdminTicketController::class, 'show'])->name('show');
+        Route::post('{ticket}/reply', [AdminTicketController::class, 'reply'])->name('reply');
+        Route::post('{ticket}/note', [AdminTicketController::class, 'addNote'])->name('note');
+        Route::post('{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
+        Route::post('{ticket}/priority', [AdminTicketController::class, 'changePriority'])->name('priority');
+        Route::post('{ticket}/status', [AdminTicketController::class, 'changeStatus'])->name('status');
+        Route::get('attachments/{attachment}', [AdminTicketController::class, 'downloadAttachment'])->name('attachments.download');
     });
 
     Route::middleware('admin.permission:plans')->group(function () {

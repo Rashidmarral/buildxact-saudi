@@ -151,6 +151,7 @@
                 </details>
 
                 @include('partials.nav-item', ['route' => 'app.zatca.dashboard', 'label' => __('ZATCA'), 'icon' => 'zatca'])
+                @include('partials.nav-item', ['route' => 'app.tickets.index', 'label' => __('Support'), 'icon' => 'support'])
                 @include('partials.nav-item', ['route' => 'app.billing.index', 'label' => __('Billing'), 'icon' => 'billing'])
                 @if (auth()->user()->isOwner())
                     <div class="my-2 border-t border-white/5"></div>

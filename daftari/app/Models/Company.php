@@ -376,6 +376,11 @@ class Company extends Model
         return $this->hasMany(ZatcaInvoiceLog::class);
     }
 
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
     public function invoiceTemplates(): HasMany
     {
         return $this->hasMany(InvoiceTemplate::class);
