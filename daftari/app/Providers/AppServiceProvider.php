@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Setting;
+use App\Support\DbOverlayTranslationLoader;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -15,7 +16,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Wraps the framework's file-based translation loader (JSON/PHP
+        // lang files) with one that lets an admin-entered Translation row
+        // override any given key — see DbOverlayTranslationLoader. Using
+        // extend() rather than replacing the binding outright means this
+        // works correctly whether 'translation.loader' gets resolved before
+        // or after this call (Illuminate\Translation\TranslationServiceProvider
+        // is deferred, so it's usually the latter).
+        $this->app->extend('translation.loader', fn ($loader) => new DbOverlayTranslationLoader($loader));
     }
 
     /**

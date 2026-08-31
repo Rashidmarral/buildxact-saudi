@@ -12,7 +12,9 @@ use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PasswordConfirmationController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\CurrencyController;
+use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
+use App\Http\Controllers\Admin\TranslationController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\ZatcaController as AdminZatcaController;
 use App\Http\Controllers\Auth\AuthController;
@@ -612,5 +614,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::resource('certificates', PlatformDocumentController::class)->only(['index', 'store', 'destroy']);
 
         Route::resource('currencies', CurrencyController::class)->except(['show']);
+
+        Route::get('translations', [TranslationController::class, 'index'])->name('translations.index');
+        Route::post('translations', [TranslationController::class, 'update'])->name('translations.update');
+
+        Route::prefix('cms')->name('cms.')->group(function () {
+            Route::get('/', [CmsController::class, 'index'])->name('pages.index');
+            Route::get('{page}', [CmsController::class, 'show'])->name('pages.show');
+            Route::post('{page}/sections', [CmsController::class, 'storeSection'])->name('sections.store');
+            Route::get('sections/{section}/edit', [CmsController::class, 'editSection'])->name('sections.edit');
+            Route::put('sections/{section}', [CmsController::class, 'updateSection'])->name('sections.update');
+            Route::delete('sections/{section}', [CmsController::class, 'destroySection'])->name('sections.destroy');
+            Route::post('sections/{section}/move', [CmsController::class, 'moveSection'])->name('sections.move');
+        });
     });
 });

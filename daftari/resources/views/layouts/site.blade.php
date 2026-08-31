@@ -158,6 +158,19 @@
                 </ul>
             </div>
         </div>
+        @php($__socialSection = \App\Models\CmsSection::query()->where('page', 'contact')->where('type', 'social_links')->where('is_active', true)->with(['items' => fn ($q) => $q->where('is_active', true)])->first())
+        @if ($__socialSection && $__socialSection->items->isNotEmpty())
+            <div class="border-t border-slate-200 py-5 flex flex-wrap items-center justify-center gap-3">
+                @foreach ($__socialSection->items as $__socialItem)
+                    <a href="{{ $__socialItem->meta['url'] ?? '#' }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-brand-700">
+                        @if ($__socialItem->icon)
+                            <span>{{ $__socialItem->icon }}</span>
+                        @endif
+                        {{ $__socialItem->title() }}
+                    </a>
+                @endforeach
+            </div>
+        @endif
         <div class="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
             &copy; {{ now()->year }} {{ $__branding['name'] }}. {{ __('All rights reserved.') }}
         </div>

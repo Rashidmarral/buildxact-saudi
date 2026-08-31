@@ -96,6 +96,18 @@ class AdminNav
                 'visible' => fn (User $user) => $user->isSuperAdmin(),
             ],
             [
+                'route' => 'admin.cms.pages.index',
+                'label' => __('Website CMS'),
+                'icon' => 'templates',
+                'visible' => fn (User $user) => $user->isSuperAdmin(),
+            ],
+            [
+                'route' => 'admin.translations.index',
+                'label' => __('Languages'),
+                'icon' => 'globe',
+                'visible' => fn (User $user) => $user->isSuperAdmin(),
+            ],
+            [
                 'route' => 'admin.settings.edit',
                 'label' => __('Platform settings'),
                 'icon' => 'settings',

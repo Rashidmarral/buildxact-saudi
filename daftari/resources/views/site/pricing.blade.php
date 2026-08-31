@@ -3,8 +3,11 @@
 @section('title', __('Pricing') . ' · Daftari')
 
 @section('content')
+@php
+    $heroSection = \App\Models\CmsSection::forPage('pricing')->firstWhere('type', 'hero');
+@endphp
 <section class="mx-auto max-w-4xl px-6 py-16 text-center">
-    <h1 class="text-4xl font-extrabold text-slate-900">{{ __('Simple, transparent pricing') }}</h1>
+    <h1 class="text-4xl font-extrabold text-slate-900">{{ $heroSection?->title() ?: __('Simple, transparent pricing') }}</h1>
     <p class="mt-4 text-lg text-slate-600">{{ __('All prices in SAR. Cancel anytime. Every plan starts with a :days-day free trial.', ['days' => config('daftari.trial_days')]) }}</p>
 
     <div class="mt-8 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1" id="cycle-toggle">

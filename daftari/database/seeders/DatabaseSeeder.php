@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             AdminSeeder::class,
             AdminRoleSeeder::class,
+            CmsContentSeeder::class,
         ]);
 
         // RealCompanySeeder deliberately isn't called here (Module 25 —
