@@ -164,6 +164,10 @@
                     <li><a href="{{ route('compliance') }}" class="hover:text-brand-700">{{ __('Compliance') }}</a></li>
                     <li><a href="{{ route('certificates') }}" class="hover:text-brand-700">{{ __('Certificates') }}</a></li>
                     <li><a href="{{ route('glossary') }}" class="hover:text-brand-700">{{ __('Glossary') }}</a></li>
+                    @php($__footerPages = \App\Models\CmsPage::query()->where('is_system', false)->where('is_active', true)->where('show_in_footer', true)->orderBy('sort_order')->get())
+                    @foreach ($__footerPages as $__footerPage)
+                        <li><a href="{{ $__footerPage->publicUrl() }}" class="hover:text-brand-700">{{ $__footerPage->name() }}</a></li>
+                    @endforeach
                 </ul>
             </div>
             <div>

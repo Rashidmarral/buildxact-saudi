@@ -46,14 +46,49 @@ class CmsSection extends Model
     public const IMAGE_TYPES = ['hero', 'text', 'cta'];
 
     /**
-     * Friendly label for a PAGES entry — every value works with ucfirst()
-     * except 'global', which isn't a real page name a visitor would
-     * recognize.
+     * site_header/site_footer only make sense on the 'global' pseudo-page
+     * (layouts/site.blade.php looks them up by type there specifically);
+     * every other type is a normal page content block and doesn't belong
+     * on 'global', which has no site/*.blade.php view looping its sections.
      */
-    public static function pageLabel(string $page): string
+    public const GLOBAL_ONLY_TYPES = ['site_header', 'site_footer'];
+
+    /**
+     * The section types selectable in the "add a section" picker for a
+     * given page — see the GLOBAL_ONLY_TYPES docblock. Enforced here so
+     * Admin\CmsController::storeSection can reuse it server-side instead
+     * of trusting whatever the form's <select> happened to offer.
+     */
+    public static function allowedTypesForPage(string $page): array
     {
-        return $page === 'global' ? __('Site-wide (Header & Footer)') : ucfirst($page);
+        return $page === 'global'
+            ? self::GLOBAL_ONLY_TYPES
+            : array_values(array_diff(array_keys(self::TYPES), self::GLOBAL_ONLY_TYPES));
     }
+
+    /**
+     * Icon name (from partials/icon.blade.php) + gradient accent for a
+     * section type, purely cosmetic — used by the admin section-list cards
+     * to make each block visually scannable at a glance.
+     */
+    public static function typeMeta(string $type): array
+    {
+        return self::TYPE_META[$type] ?? ['icon' => 'templates', 'accent' => 'from-slate-500 to-slate-600'];
+    }
+
+    private const TYPE_META = [
+        'hero' => ['icon' => 'sparkle', 'accent' => 'from-brand-500 to-emerald-500'],
+        'text' => ['icon' => 'clipboard', 'accent' => 'from-slate-500 to-slate-600'],
+        'stats' => ['icon' => 'trend-up', 'accent' => 'from-sky-500 to-blue-500'],
+        'feature_grid' => ['icon' => 'items', 'accent' => 'from-violet-500 to-purple-500'],
+        'testimonials' => ['icon' => 'team', 'accent' => 'from-teal-500 to-cyan-500'],
+        'faq' => ['icon' => 'support', 'accent' => 'from-indigo-500 to-violet-500'],
+        'contact_info' => ['icon' => 'globe', 'accent' => 'from-amber-500 to-orange-500'],
+        'social_links' => ['icon' => 'branches', 'accent' => 'from-cyan-500 to-sky-500'],
+        'cta' => ['icon' => 'arrow-right', 'accent' => 'from-rose-500 to-red-500'],
+        'site_header' => ['icon' => 'alert', 'accent' => 'from-amber-500 to-yellow-500'],
+        'site_footer' => ['icon' => 'building', 'accent' => 'from-slate-500 to-slate-700'],
+    ];
 
     protected $fillable = [
         'page', 'type', 'sort_order', 'is_active',

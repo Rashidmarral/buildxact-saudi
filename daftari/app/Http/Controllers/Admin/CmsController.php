@@ -4,16 +4,19 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\CmsPage;
 use App\Models\CmsSection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
  * "Website CMS" — lets a super admin manage the content blocks (hero, stats,
  * feature grid, testimonials, FAQ, contact info, social links, CTA banner)
  * that make up each public marketing page, without touching Blade files or
- * deploying. See App\Models\CmsSection for the fixed set of block types and
+ * deploying — including adding brand new pages (see App\Models\CmsPage).
+ * See App\Models\CmsSection for the fixed set of block types and
  * App\Models\CmsSectionItem for a section's repeatable rows (feature cards,
  * FAQ entries, ...), which this controller syncs by delete-then-recreate on
  * every save — the same pattern ItemController uses for alt units.
@@ -27,7 +30,7 @@ class CmsController extends Controller
 
     public function show(string $page)
     {
-        abort_unless(in_array($page, CmsSection::PAGES, true), 404);
+        $cmsPage = CmsPage::query()->where('slug', $page)->firstOrFail();
 
         $sections = CmsSection::query()
             ->where('page', $page)
@@ -37,18 +40,99 @@ class CmsController extends Controller
 
         return view('admin.cms.show', [
             'page' => $page,
-            'pages' => CmsSection::PAGES,
+            'cmsPage' => $cmsPage,
+            'pages' => CmsPage::query()->orderBy('sort_order')->get(),
             'sections' => $sections,
-            'types' => array_keys(CmsSection::TYPES),
+            'types' => CmsSection::allowedTypesForPage($page),
         ]);
+    }
+
+    public function storePage(Request $request)
+    {
+        $data = $request->validate([
+            'name_en' => ['required', 'string', 'max:100'],
+            'name_ar' => ['nullable', 'string', 'max:100'],
+            'slug' => [
+                'nullable', 'string', 'max:60', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/',
+                Rule::notIn(CmsPage::RESERVED_SLUGS),
+                Rule::unique('cms_pages', 'slug'),
+            ],
+            'show_in_footer' => ['nullable', 'boolean'],
+        ], [
+            'slug.regex' => __('Use lowercase letters, numbers, and hyphens only (e.g. our-story).'),
+        ]);
+
+        $slug = ($data['slug'] ?? null) ?: Str::slug($data['name_en']);
+
+        if ($slug === '' || in_array($slug, CmsPage::RESERVED_SLUGS, true) || CmsPage::query()->where('slug', $slug)->exists()) {
+            return back()->withErrors(['slug' => __('That page address is already taken or reserved — try a different name or set a custom address.')])->withInput();
+        }
+
+        $maxOrder = (int) CmsPage::query()->max('sort_order');
+
+        $cmsPage = CmsPage::create([
+            'slug' => $slug,
+            'name_en' => $data['name_en'],
+            'name_ar' => $data['name_ar'] ?? null,
+            'is_system' => false,
+            'is_active' => true,
+            'show_in_footer' => $request->boolean('show_in_footer'),
+            'sort_order' => $maxOrder + 1,
+        ]);
+
+        AuditLog::record('cms.page.create', null, __('Created a new page: :name', ['name' => $cmsPage->name_en]));
+
+        return redirect()->route('admin.cms.pages.show', $cmsPage->slug)->with('status', __('Page created — add sections below to build it.'));
+    }
+
+    public function updatePage(Request $request, CmsPage $cmsPage)
+    {
+        abort_if($cmsPage->is_system, 403, __('Built-in pages can\'t be renamed or removed.'));
+
+        $data = $request->validate([
+            'name_en' => ['required', 'string', 'max:100'],
+            'name_ar' => ['nullable', 'string', 'max:100'],
+            'show_in_footer' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $cmsPage->update([
+            'name_en' => $data['name_en'],
+            'name_ar' => $data['name_ar'] ?? null,
+            'show_in_footer' => $request->boolean('show_in_footer'),
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        AuditLog::record('cms.page.update', null, __('Updated page: :name', ['name' => $cmsPage->name_en]));
+
+        return redirect()->route('admin.cms.pages.show', $cmsPage->slug)->with('status', __('Page settings saved.'));
+    }
+
+    public function destroyPage(CmsPage $cmsPage)
+    {
+        abort_if($cmsPage->is_system, 403, __('Built-in pages can\'t be renamed or removed.'));
+
+        foreach (CmsSection::query()->where('page', $cmsPage->slug)->get() as $section) {
+            if ($section->image_path) {
+                Storage::disk('public')->delete($section->image_path);
+            }
+            $section->delete();
+        }
+
+        $name = $cmsPage->name_en;
+        $cmsPage->delete();
+
+        AuditLog::record('cms.page.delete', null, __('Removed page: :name', ['name' => $name]));
+
+        return redirect()->route('admin.cms.pages.show', 'home')->with('status', __('Page removed.'));
     }
 
     public function storeSection(Request $request, string $page)
     {
-        abort_unless(in_array($page, CmsSection::PAGES, true), 404);
+        $cmsPage = CmsPage::query()->where('slug', $page)->firstOrFail();
 
         $data = $request->validate([
-            'type' => ['required', Rule::in(array_keys(CmsSection::TYPES))],
+            'type' => ['required', Rule::in(CmsSection::allowedTypesForPage($page))],
         ]);
 
         $nextOrder = (int) CmsSection::query()->where('page', $page)->max('sort_order') + 1;

@@ -5,7 +5,7 @@
 @section('content')
 <div class="mb-6 flex items-center justify-between">
     <div>
-        <a href="{{ route('admin.cms.pages.show', $section->page) }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ \App\Models\CmsSection::pageLabel($section->page) }}</a>
+        <a href="{{ route('admin.cms.pages.show', $section->page) }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ \App\Models\CmsPage::where('slug', $section->page)->first()?->name() ?? ucfirst($section->page) }}</a>
         <h1 class="mt-1 text-xl font-bold text-slate-900">{{ str_replace('_', ' ', ucfirst($section->type)) }} {{ __('section') }}</h1>
     </div>
 </div>

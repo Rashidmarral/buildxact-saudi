@@ -30,6 +30,7 @@ use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Site\CmsPageController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
@@ -119,6 +120,7 @@ Route::get('/certificates', [HomeController::class, 'certificates'])->name('cert
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit');
 Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
+Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('cms-page.show');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
 Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('filepath', '.*')->name('files.show');
 
@@ -620,6 +622,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
 
         Route::prefix('cms')->name('cms.')->group(function () {
             Route::get('/', [CmsController::class, 'index'])->name('pages.index');
+            Route::post('pages', [CmsController::class, 'storePage'])->name('pages.store');
+            Route::put('pages/{cmsPage:slug}', [CmsController::class, 'updatePage'])->name('pages.update');
+            Route::delete('pages/{cmsPage:slug}', [CmsController::class, 'destroyPage'])->name('pages.destroy');
             Route::get('{page}', [CmsController::class, 'show'])->name('pages.show');
             Route::post('{page}/sections', [CmsController::class, 'storeSection'])->name('sections.store');
             Route::get('sections/{section}/edit', [CmsController::class, 'editSection'])->name('sections.edit');
