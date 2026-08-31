@@ -98,6 +98,41 @@
         @apply transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-card-hover;
     }
 
+    /* Minimal typography for CmsSection/CmsSectionItem rich-text body
+       fields (see App\Support\RichText) — no @tailwindcss/typography
+       dependency, just enough to space and style the handful of tags the
+       sanitizer allows through (p, b/strong, i/em, u, a, ul/ol/li). */
+    .prose-cms p + p {
+        @apply mt-4;
+    }
+    .prose-cms a {
+        @apply text-brand-700 underline decoration-brand-200 underline-offset-2 hover:decoration-brand-500;
+    }
+    .prose-cms ul {
+        @apply mt-4 list-disc space-y-1 ps-5;
+    }
+    .prose-cms ol {
+        @apply mt-4 list-decimal space-y-1 ps-5;
+    }
+
+    /* Admin rich-text editor (resources/views/partials/rich-text-editor.blade.php) */
+    .rte-btn {
+        @apply flex h-7 w-7 items-center justify-center rounded-md text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800;
+    }
+    .rte-editable ul {
+        @apply list-disc ps-5;
+    }
+    .rte-editable ol {
+        @apply list-decimal ps-5;
+    }
+    .rte-editable a {
+        @apply text-brand-700 underline;
+    }
+    .rte-editable:empty:before {
+        content: attr(data-placeholder);
+        @apply text-slate-400;
+    }
+
     .btn-shine {
         position: relative;
         overflow: hidden;

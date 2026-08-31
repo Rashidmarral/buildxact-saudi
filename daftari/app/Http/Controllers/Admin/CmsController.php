@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CmsPage;
 use App\Models\CmsSection;
+use App\Support\RichText;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -58,6 +59,7 @@ class CmsController extends Controller
                 Rule::unique('cms_pages', 'slug'),
             ],
             'show_in_footer' => ['nullable', 'boolean'],
+            'show_in_menu' => ['nullable', 'boolean'],
         ], [
             'slug.regex' => __('Use lowercase letters, numbers, and hyphens only (e.g. our-story).'),
         ]);
@@ -77,6 +79,7 @@ class CmsController extends Controller
             'is_system' => false,
             'is_active' => true,
             'show_in_footer' => $request->boolean('show_in_footer'),
+            'show_in_menu' => $request->boolean('show_in_menu'),
             'sort_order' => $maxOrder + 1,
         ]);
 
@@ -93,6 +96,7 @@ class CmsController extends Controller
             'name_en' => ['required', 'string', 'max:100'],
             'name_ar' => ['nullable', 'string', 'max:100'],
             'show_in_footer' => ['nullable', 'boolean'],
+            'show_in_menu' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -100,6 +104,7 @@ class CmsController extends Controller
             'name_en' => $data['name_en'],
             'name_ar' => $data['name_ar'] ?? null,
             'show_in_footer' => $request->boolean('show_in_footer'),
+            'show_in_menu' => $request->boolean('show_in_menu'),
             'is_active' => $request->boolean('is_active'),
         ]);
 
@@ -185,6 +190,9 @@ class CmsController extends Controller
             'items.*.body_en' => ['nullable', 'string', 'max:5000'],
             'items.*.body_ar' => ['nullable', 'string', 'max:5000'],
             'items.*.url' => ['nullable', 'string', 'max:255'],
+            'items.*.image' => ['nullable', 'image', 'max:2048'],
+            'items.*.existing_image' => ['nullable', 'string'],
+            'items.*.remove_image' => ['nullable', 'boolean'],
         ]);
 
         $section->fill([
@@ -195,8 +203,8 @@ class CmsController extends Controller
             'title_ar' => $data['title_ar'] ?? null,
             'subtitle_en' => $data['subtitle_en'] ?? null,
             'subtitle_ar' => $data['subtitle_ar'] ?? null,
-            'body_en' => $data['body_en'] ?? null,
-            'body_ar' => $data['body_ar'] ?? null,
+            'body_en' => RichText::sanitize($data['body_en'] ?? null),
+            'body_ar' => RichText::sanitize($data['body_ar'] ?? null),
             'link_url' => $data['link_url'] ?? null,
             'link_text_en' => $data['link_text_en'] ?? null,
             'link_text_ar' => $data['link_text_ar'] ?? null,
@@ -218,6 +226,18 @@ class CmsController extends Controller
         $section->save();
 
         if ($section->hasItems()) {
+            // Items are wiped and recreated from the submitted array on every
+            // save (simplest way to also apply drag-reordering) rather than
+            // diffed row-by-row, so any image file whose row isn't present in
+            // the resubmission — removed, or replaced by a fresh upload —
+            // would otherwise leak on disk forever. existing_image is only
+            // trusted when it matches one of the section's own current item
+            // paths, so a crafted field value can't repoint an item at an
+            // arbitrary storage path.
+            $allowedExistingImages = $section->items()->pluck('image_path')->filter()->all();
+            $oldImagePaths = $allowedExistingImages;
+            $keptImagePaths = [];
+
             $section->items()->delete();
 
             foreach ($data['items'] ?? [] as $i => $item) {
@@ -225,18 +245,40 @@ class CmsController extends Controller
                     continue;
                 }
 
+                $imagePath = in_array($item['existing_image'] ?? null, $allowedExistingImages, true)
+                    ? $item['existing_image']
+                    : null;
+
+                if ($request->boolean("items.{$i}.remove_image")) {
+                    $imagePath = null;
+                }
+
+                if ($request->hasFile("items.{$i}.image")) {
+                    $imagePath = $request->file("items.{$i}.image")->store('cms', 'public');
+                }
+
+                if ($imagePath) {
+                    $keptImagePaths[] = $imagePath;
+                }
+
                 $section->items()->create([
                     'sort_order' => $i,
                     'is_active' => true,
                     'icon' => $item['icon'] ?? null,
+                    'image_path' => $imagePath,
                     'title_en' => $item['title_en'] ?? null,
                     'title_ar' => $item['title_ar'] ?? null,
                     'subtitle_en' => $item['subtitle_en'] ?? null,
                     'subtitle_ar' => $item['subtitle_ar'] ?? null,
-                    'body_en' => $item['body_en'] ?? null,
-                    'body_ar' => $item['body_ar'] ?? null,
+                    'body_en' => RichText::sanitize($item['body_en'] ?? null),
+                    'body_ar' => RichText::sanitize($item['body_ar'] ?? null),
                     'meta' => filled($item['url'] ?? null) ? ['url' => $item['url']] : null,
                 ]);
+            }
+
+            $orphanedImages = array_diff($oldImagePaths, $keptImagePaths);
+            if ($orphanedImages) {
+                Storage::disk('public')->delete($orphanedImages);
             }
         }
 

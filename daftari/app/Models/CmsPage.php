@@ -27,7 +27,7 @@ class CmsPage extends Model
     ];
 
     protected $fillable = [
-        'slug', 'name_en', 'name_ar', 'is_system', 'is_active', 'show_in_footer', 'sort_order',
+        'slug', 'name_en', 'name_ar', 'is_system', 'is_active', 'show_in_footer', 'show_in_menu', 'sort_order',
     ];
 
     protected function casts(): array
@@ -36,6 +36,7 @@ class CmsPage extends Model
             'is_system' => 'boolean',
             'is_active' => 'boolean',
             'show_in_footer' => 'boolean',
+            'show_in_menu' => 'boolean',
         ];
     }
 

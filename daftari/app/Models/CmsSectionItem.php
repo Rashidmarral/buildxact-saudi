@@ -48,6 +48,14 @@ class CmsSectionItem extends Model
         return $this->localized('body');
     }
 
+    /**
+     * @see \App\Support\RichText::toHtml()
+     */
+    public function bodyHtml(): ?string
+    {
+        return \App\Support\RichText::toHtml($this->body());
+    }
+
     private function localized(string $field): ?string
     {
         $locale = app()->getLocale();

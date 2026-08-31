@@ -14,7 +14,8 @@
         "laravel/tinker": "^2.9",
         "mpdf/mpdf": "^8.2",
         "phpseclib/phpseclib": "^3.0",
-        "sentry/sentry-laravel": "^4.27"
+        "sentry/sentry-laravel": "^4.27",
+        "symfony/html-sanitizer": "^7.4"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

@@ -256,6 +256,95 @@ class CmsContentSeeder extends Seeder
             'subtitle_en' => 'Subscription accounting & VAT e-invoicing for Saudi businesses.',
             'subtitle_ar' => 'محاسبة بالاشتراك وفوترة إلكترونية لضريبة القيمة المضافة للشركات السعودية.',
         ]);
+
+        $this->seedMainNav();
+        $this->seedFooterLinks();
+    }
+
+    /**
+     * Mirrors the add_header_nav_and_footer_links_cms_blocks data migration,
+     * which carries this same content to an existing install — keep both in
+     * sync.
+     */
+    private function seedMainNav(): void
+    {
+        $nav = $this->section('global', 'main_nav', 3);
+
+        $links = [
+            ['Features', 'المزايا', 'features'],
+            ['Pricing', 'الأسعار', 'pricing'],
+            ['Compliance', 'الامتثال', 'compliance'],
+            ['About', 'من نحن', 'about'],
+            ['Contact', 'تواصل معنا', 'contact'],
+        ];
+
+        foreach ($links as $i => [$tEn, $tAr, $routeName]) {
+            $this->item($nav, $i + 1, [
+                'title_en' => $tEn,
+                'title_ar' => $tAr,
+                'meta' => ['url' => route($routeName, [], false)],
+            ]);
+        }
+    }
+
+    private function seedFooterLinks(): void
+    {
+        $columns = [
+            'Product' => [
+                'ar' => 'المنتج',
+                'links' => [
+                    ['Features', 'المزايا', 'features'],
+                    ['Pricing', 'الأسعار', 'pricing'],
+                ],
+            ],
+            'Tools' => [
+                'ar' => 'الأدوات',
+                'links' => [
+                    ['All accounting tools', 'جميع أدوات المحاسبة', 'tools.index'],
+                    ['VAT calculator', 'حاسبة ضريبة القيمة المضافة', 'tools.vat'],
+                    ['Zakat calculator', 'حاسبة الزكاة', 'tools.zakat'],
+                    ['GOSI calculator', 'حاسبة التأمينات الاجتماعية', 'tools.gosi'],
+                    ['Invoice generator', 'مولّد الفواتير', 'tools.invoice-generator'],
+                ],
+            ],
+            'Resources' => [
+                'ar' => 'الموارد',
+                'links' => [
+                    ['Compliance', 'الامتثال', 'compliance'],
+                    ['Certificates', 'الشهادات', 'certificates'],
+                    ['Glossary', 'المعجم', 'glossary'],
+                ],
+            ],
+            'Company' => [
+                'ar' => 'الشركة',
+                'links' => [
+                    ['About', 'من نحن', 'about'],
+                    ['Contact', 'تواصل معنا', 'contact'],
+                    ['Terms', 'الشروط', ['legal', 'terms']],
+                    ['Privacy', 'الخصوصية', ['legal', 'privacy']],
+                ],
+            ],
+        ];
+
+        $order = 3;
+        foreach ($columns as $titleEn => $column) {
+            $order++;
+
+            $section = $this->section('global', 'footer_links', $order, [
+                'title_en' => $titleEn,
+                'title_ar' => $column['ar'],
+            ]);
+
+            foreach ($column['links'] as $i => [$tEn, $tAr, $route]) {
+                $url = is_array($route) ? route($route[0], $route[1], false) : route($route, [], false);
+
+                $this->item($section, $i + 1, [
+                    'title_en' => $tEn,
+                    'title_ar' => $tAr,
+                    'meta' => ['url' => $url],
+                ]);
+            }
+        }
     }
 
     private function section(string $page, string $type, int $order, array $attrs = []): CmsSection

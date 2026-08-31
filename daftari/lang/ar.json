@@ -3398,5 +3398,20 @@
     "year": "سنة",
     "you@example.com": "you@example.com",
     "— Select —": "— اختر —",
-    "•••••••• (configured — leave blank to keep)": "•••••••• (مُعد — اتركه فارغًا للإبقاء عليه)"
+    "•••••••• (configured — leave blank to keep)": "•••••••• (مُعد — اتركه فارغًا للإبقاء عليه)",
+    "Show a link to this page in the header menu": "عرض رابط لهذه الصفحة في قائمة الرأس",
+    "Arabic content": "المحتوى العربي",
+    "English content": "المحتوى الإنجليزي",
+    "Drag the handle to reorder.": "اسحب المقبض لإعادة الترتيب.",
+    "Drag to reorder": "اسحب لإعادة الترتيب",
+    "View live page": "عرض الصفحة المباشرة",
+    "Bold": "غامق",
+    "Italic": "مائل",
+    "Bullet list": "قائمة نقطية",
+    "Numbered list": "قائمة مرقّمة",
+    "Insert link": "إدراج رابط",
+    "Enter a link URL:": "أدخل رابط الوصلة:",
+    "Write the body content…": "اكتب محتوى النص…",
+    "Value (English) — e.g. an email or phone number": "القيمة (بالإنجليزية) — مثل بريد إلكتروني أو رقم هاتف",
+    "Value (Arabic)": "القيمة (بالعربية)"
 }

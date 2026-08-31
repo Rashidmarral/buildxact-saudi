@@ -21,7 +21,7 @@
                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700 text-sm font-bold">{{ $i + 1 }}</span>
                 @endif
                 <h3 class="mt-4 font-semibold text-slate-900">{{ $item->title() }}</h3>
-                <p class="mt-2 text-sm text-slate-500">{{ $item->body() }}</p>
+                <div class="prose-cms mt-2 text-sm text-slate-500">{!! $item->bodyHtml() !!}</div>
             </div>
         @endforeach
     </div>

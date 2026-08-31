@@ -30,6 +30,7 @@
         </div>
     @endif
 
+    @php($__mainNav = \App\Models\CmsSection::globalBlock('main_nav'))
     <header class="sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
             <a href="{{ route('home') }}" class="flex items-center gap-2 text-xl font-bold text-brand-800">
@@ -40,12 +41,14 @@
                 @endif
                 {{ $__branding['name'] }}
             </a>
+            @php($__menuPages = \App\Models\CmsPage::query()->where('is_system', false)->where('is_active', true)->where('show_in_menu', true)->orderBy('sort_order')->get())
             <nav class="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-                <a href="{{ route('features') }}" class="transition-colors hover:text-brand-700">{{ __('Features') }}</a>
-                <a href="{{ route('pricing') }}" class="transition-colors hover:text-brand-700">{{ __('Pricing') }}</a>
-                <a href="{{ route('compliance') }}" class="transition-colors hover:text-brand-700">{{ __('Compliance') }}</a>
-                <a href="{{ route('about') }}" class="transition-colors hover:text-brand-700">{{ __('About') }}</a>
-                <a href="{{ route('contact') }}" class="transition-colors hover:text-brand-700">{{ __('Contact') }}</a>
+                @foreach ($__mainNav?->items ?? [] as $__navItem)
+                    <a href="{{ $__navItem->meta['url'] ?? '#' }}" class="transition-colors hover:text-brand-700">{{ $__navItem->title() }}</a>
+                @endforeach
+                @foreach ($__menuPages as $__menuPage)
+                    <a href="{{ $__menuPage->publicUrl() }}" class="transition-colors hover:text-brand-700">{{ $__menuPage->name() }}</a>
+                @endforeach
                 <div class="group relative">
                     <button type="button" class="flex items-center gap-1 transition-colors hover:text-brand-700">
                         {{ __('Free Tools & Templates') }}
@@ -85,11 +88,12 @@
 
         <div x-show="mobileOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="border-t border-slate-100 bg-white px-6 py-4 md:hidden" style="display:none">
             <nav class="flex flex-col gap-1 text-sm font-medium text-slate-600">
-                <a href="{{ route('features') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Features') }}</a>
-                <a href="{{ route('pricing') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Pricing') }}</a>
-                <a href="{{ route('compliance') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Compliance') }}</a>
-                <a href="{{ route('about') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('About') }}</a>
-                <a href="{{ route('contact') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Contact') }}</a>
+                @foreach ($__mainNav?->items ?? [] as $__navItem)
+                    <a href="{{ $__navItem->meta['url'] ?? '#' }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ $__navItem->title() }}</a>
+                @endforeach
+                @foreach ($__menuPages as $__menuPage)
+                    <a href="{{ $__menuPage->publicUrl() }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ $__menuPage->name() }}</a>
+                @endforeach
                 <a href="{{ route('tools.index') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Free Tools & Templates') }}</a>
                 <a href="{{ route('certificates') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Certificates') }}</a>
                 <a href="{{ route('glossary') }}" class="rounded-lg px-3 py-2.5 hover:bg-slate-50">{{ __('Glossary') }}</a>
@@ -141,44 +145,23 @@
                     </ul>
                 @endif
             </div>
-            <div>
-                <h4 class="font-semibold text-slate-700">{{ __('Product') }}</h4>
-                <ul class="mt-3 space-y-2 text-slate-500">
-                    <li><a href="{{ route('features') }}" class="hover:text-brand-700">{{ __('Features') }}</a></li>
-                    <li><a href="{{ route('pricing') }}" class="hover:text-brand-700">{{ __('Pricing') }}</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="font-semibold text-slate-700">{{ __('Tools') }}</h4>
-                <ul class="mt-3 space-y-2 text-slate-500">
-                    <li><a href="{{ route('tools.index') }}" class="hover:text-brand-700">{{ __('All accounting tools') }}</a></li>
-                    <li><a href="{{ route('tools.vat') }}" class="hover:text-brand-700">{{ __('VAT calculator') }}</a></li>
-                    <li><a href="{{ route('tools.zakat') }}" class="hover:text-brand-700">{{ __('Zakat calculator') }}</a></li>
-                    <li><a href="{{ route('tools.gosi') }}" class="hover:text-brand-700">{{ __('GOSI calculator') }}</a></li>
-                    <li><a href="{{ route('tools.invoice-generator') }}" class="hover:text-brand-700">{{ __('Invoice generator') }}</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="font-semibold text-slate-700">{{ __('Resources') }}</h4>
-                <ul class="mt-3 space-y-2 text-slate-500">
-                    <li><a href="{{ route('compliance') }}" class="hover:text-brand-700">{{ __('Compliance') }}</a></li>
-                    <li><a href="{{ route('certificates') }}" class="hover:text-brand-700">{{ __('Certificates') }}</a></li>
-                    <li><a href="{{ route('glossary') }}" class="hover:text-brand-700">{{ __('Glossary') }}</a></li>
-                    @php($__footerPages = \App\Models\CmsPage::query()->where('is_system', false)->where('is_active', true)->where('show_in_footer', true)->orderBy('sort_order')->get())
-                    @foreach ($__footerPages as $__footerPage)
-                        <li><a href="{{ $__footerPage->publicUrl() }}" class="hover:text-brand-700">{{ $__footerPage->name() }}</a></li>
-                    @endforeach
-                </ul>
-            </div>
-            <div>
-                <h4 class="font-semibold text-slate-700">{{ __('Company') }}</h4>
-                <ul class="mt-3 space-y-2 text-slate-500">
-                    <li><a href="{{ route('about') }}" class="hover:text-brand-700">{{ __('About') }}</a></li>
-                    <li><a href="{{ route('contact') }}" class="hover:text-brand-700">{{ __('Contact') }}</a></li>
-                    <li><a href="{{ route('legal', 'terms') }}" class="hover:text-brand-700">{{ __('Terms') }}</a></li>
-                    <li><a href="{{ route('legal', 'privacy') }}" class="hover:text-brand-700">{{ __('Privacy') }}</a></li>
-                </ul>
-            </div>
+            @php($__footerColumns = \App\Models\CmsSection::query()->where('page', 'global')->where('type', 'footer_links')->where('is_active', true)->orderBy('sort_order')->with(['items' => fn ($q) => $q->where('is_active', true)])->get())
+            @php($__footerPages = \App\Models\CmsPage::query()->where('is_system', false)->where('is_active', true)->where('show_in_footer', true)->orderBy('sort_order')->get())
+            @foreach ($__footerColumns as $__footerColumn)
+                <div>
+                    <h4 class="font-semibold text-slate-700">{{ $__footerColumn->title() }}</h4>
+                    <ul class="mt-3 space-y-2 text-slate-500">
+                        @foreach ($__footerColumn->items as $__footerLink)
+                            <li><a href="{{ $__footerLink->meta['url'] ?? '#' }}" class="hover:text-brand-700">{{ $__footerLink->title() }}</a></li>
+                        @endforeach
+                        @if ($__footerColumn->title_en === 'Resources')
+                            @foreach ($__footerPages as $__footerPage)
+                                <li><a href="{{ $__footerPage->publicUrl() }}" class="hover:text-brand-700">{{ $__footerPage->name() }}</a></li>
+                            @endforeach
+                        @endif
+                    </ul>
+                </div>
+            @endforeach
         </div>
         @php($__socialSection = \App\Models\CmsSection::query()->where('page', 'contact')->where('type', 'social_links')->where('is_active', true)->with(['items' => fn ($q) => $q->where('is_active', true)])->first())
         @if ($__socialSection && $__socialSection->items->isNotEmpty())

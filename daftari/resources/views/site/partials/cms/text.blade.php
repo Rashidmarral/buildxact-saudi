@@ -7,14 +7,8 @@
                 @if ($section->title())
                     <h2 class="text-3xl font-extrabold text-slate-900">{{ $section->title() }}</h2>
                 @endif
-                @if ($section->body())
-                    <div class="mt-5 space-y-4 text-lg text-slate-600">
-                        @foreach (explode("\n\n", $section->body()) as $paragraph)
-                            @if (trim($paragraph) !== '')
-                                <p>{{ $paragraph }}</p>
-                            @endif
-                        @endforeach
-                    </div>
+                @if ($section->bodyHtml())
+                    <div class="prose-cms mt-5 text-lg text-slate-600">{!! $section->bodyHtml() !!}</div>
                 @endif
             </div>
             <div class="order-2 relative {{ $imageFirst ? 'lg:order-1' : 'lg:order-2' }}">
@@ -27,14 +21,8 @@
             @if ($section->title())
                 <h2 class="text-3xl font-extrabold text-slate-900">{{ $section->title() }}</h2>
             @endif
-            @if ($section->body())
-                <div class="mt-5 space-y-4 text-lg text-slate-600">
-                    @foreach (explode("\n\n", $section->body()) as $paragraph)
-                        @if (trim($paragraph) !== '')
-                            <p>{{ $paragraph }}</p>
-                        @endif
-                    @endforeach
-                </div>
+            @if ($section->bodyHtml())
+                <div class="prose-cms mt-5 text-lg text-slate-600">{!! $section->bodyHtml() !!}</div>
             @endif
         </div>
     @endif

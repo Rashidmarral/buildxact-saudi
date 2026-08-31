@@ -37,6 +37,8 @@ class CmsSection extends Model
         'cta' => false,
         'site_header' => false,
         'site_footer' => false,
+        'main_nav' => true,
+        'footer_links' => true,
     ];
 
     /**
@@ -51,7 +53,7 @@ class CmsSection extends Model
      * every other type is a normal page content block and doesn't belong
      * on 'global', which has no site/*.blade.php view looping its sections.
      */
-    public const GLOBAL_ONLY_TYPES = ['site_header', 'site_footer'];
+    public const GLOBAL_ONLY_TYPES = ['site_header', 'site_footer', 'main_nav', 'footer_links'];
 
     /**
      * The section types selectable in the "add a section" picker for a
@@ -88,6 +90,8 @@ class CmsSection extends Model
         'cta' => ['icon' => 'arrow-right', 'accent' => 'from-rose-500 to-red-500'],
         'site_header' => ['icon' => 'alert', 'accent' => 'from-amber-500 to-yellow-500'],
         'site_footer' => ['icon' => 'building', 'accent' => 'from-slate-500 to-slate-700'],
+        'main_nav' => ['icon' => 'menu', 'accent' => 'from-brand-500 to-blue-500'],
+        'footer_links' => ['icon' => 'clipboard', 'accent' => 'from-indigo-500 to-blue-600'],
     ];
 
     protected $fillable = [
@@ -116,6 +120,15 @@ class CmsSection extends Model
     public function badge(): ?string
     {
         return $this->localized('badge');
+    }
+
+    /**
+     * @see \App\Support\RichText::toHtml() for what this actually does and
+     * why body() alone isn't render-safe.
+     */
+    public function bodyHtml(): ?string
+    {
+        return \App\Support\RichText::toHtml($this->body());
     }
 
     public function title(): ?string

@@ -33,10 +33,14 @@
                 </div>
                 @error('slug')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </div>
-            <div class="flex items-end">
+            <div class="flex flex-wrap items-end gap-x-6 gap-y-2">
                 <label class="flex items-center gap-2 text-sm text-slate-600">
                     <input type="checkbox" name="show_in_footer" value="1" checked class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                     {{ __('Show a link to this page in the site footer') }}
+                </label>
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" name="show_in_menu" value="1" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                    {{ __('Show a link to this page in the header menu') }}
                 </label>
             </div>
             <div class="flex items-center gap-3 md:col-span-2">
@@ -97,6 +101,10 @@
                     <label class="flex items-center gap-2 text-sm text-slate-600">
                         <input type="checkbox" name="show_in_footer" value="1" @checked($cmsPage->show_in_footer) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                         {{ __('Show a link to this page in the site footer') }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-600">
+                        <input type="checkbox" name="show_in_menu" value="1" @checked($cmsPage->show_in_menu) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        {{ __('Show a link to this page in the header menu') }}
                     </label>
                 </div>
                 <div class="md:col-span-2">

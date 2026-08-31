@@ -15,6 +15,37 @@ document.addEventListener('alpine:init', () => {
         }, { threshold: 0.12 });
         observer.observe(el);
     });
+
+    // Minimal rich-text editor for Website CMS body fields (Admin\CmsController
+    // sanitizes on save via App\Support\RichText — this is only the input side).
+    // Backed by document.execCommand: deprecated in spec but still universally
+    // supported for these five basic commands in every evergreen browser, and
+    // reimplementing bold/italic/list toggling against the Selection API from
+    // scratch isn't worth it for an admin-only editor with this narrow a
+    // command set. Works on both statically-rendered instances and ones
+    // injected later by admin/cms/edit.blade.php's item-repeater JS, since
+    // Alpine auto-initializes x-data elements added to the DOM after boot.
+    Alpine.data('richTextEditor', (initialHtml, linkPromptText) => ({
+        init() {
+            this.$refs.editable.innerHTML = initialHtml || '';
+        },
+        exec(command) {
+            this.$refs.editable.focus();
+            document.execCommand(command, false, null);
+            this.sync();
+        },
+        link() {
+            const url = window.prompt(linkPromptText);
+            if (url) {
+                this.$refs.editable.focus();
+                document.execCommand('createLink', false, url);
+                this.sync();
+            }
+        },
+        sync() {
+            this.$refs.textarea.value = this.$refs.editable.innerHTML;
+        },
+    }));
 });
 
 window.Alpine = Alpine;
