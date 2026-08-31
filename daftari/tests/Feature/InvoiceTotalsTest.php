@@ -158,4 +158,21 @@ class InvoiceTotalsTest extends TestCase
 
         $this->assertSame(['S', 'Z'], array_slice($matches[1], 0, 2));
     }
+
+    /**
+     * Regression: generateComplianceSample() builds its single sample line
+     * as a stdClass stand-in (no real InvoiceItem/CreditNoteItem exists for
+     * a compliance-check call), which fatalled once taxCategoryCode() got
+     * a strict InvoiceItem|CreditNoteItem type hint for tax-rate-aware
+     * classification. This is the exact call ZatcaController::complianceCheck()
+     * makes for every declared invoice-type/document-type combination.
+     */
+    public function test_compliance_sample_xml_generates_without_error_for_a_plain_stdclass_line(): void
+    {
+        $xml = (new ZatcaXmlGenerator())->generateComplianceSample(
+            $this->company, '388', '0200000', null, 'compliance-test-uuid', 1, now()
+        );
+
+        $this->assertStringContainsString('<cbc:ID>S</cbc:ID>', $xml);
+    }
 }

@@ -373,7 +373,7 @@ class ZatcaXmlGenerator
         }
         $root->appendChild($paymentMeans);
 
-        $sampleItem = (object) ['vat_rate' => 15.0, 'vat_amount' => 0.60];
+        $sampleItem = (object) ['vat_rate' => 15.0, 'vat_amount' => 0.60, 'taxRate' => null];
         $this->appendDualTaxTotal($doc, $root, 0.60, [$sampleItem], fn () => 4.00);
 
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
@@ -611,8 +611,11 @@ class ZatcaXmlGenerator
      * uses the line's linked TaxRate (Settings → Tax rates) when one is
      * set, and only falls back to the old "0% ⇒ zero-rated" guess for
      * lines created before tax rate management existed (tax_rate_id null).
+     * The compliance-check sample line (generateComplianceSample()) is a
+     * stdClass stand-in with taxRate forced to null, so it also falls
+     * through to that guess.
      */
-    private function taxCategoryCode(InvoiceItem|CreditNoteItem $item): string
+    private function taxCategoryCode(InvoiceItem|CreditNoteItem|\stdClass $item): string
     {
         return match ($item->taxRate?->type) {
             TaxRate::TYPE_EXEMPT => 'E',
