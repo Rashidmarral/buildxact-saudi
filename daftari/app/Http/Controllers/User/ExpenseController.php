@@ -14,6 +14,7 @@ use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ExpenseController extends Controller
@@ -47,15 +48,21 @@ class ExpenseController extends Controller
         $requiresApproval = $company->expenseRequiresApproval((float) $data['gross_amount']);
         $data['status'] = $requiresApproval ? 'pending_approval' : 'approved';
 
-        $expense = Expense::create($data);
+        $expense = DB::transaction(function () use ($data, $requiresApproval, $ledger) {
+            $expense = Expense::create($data);
+
+            if (! $requiresApproval) {
+                $ledger->postExpense($expense);
+            }
+
+            return $expense;
+        });
 
         if ($requiresApproval) {
             $this->notifyApprovers($expense);
 
             return redirect()->route('app.expenses.index')->with('status', __('Expense submitted for approval.'));
         }
-
-        $ledger->postExpense($expense);
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense recorded.'));
     }
@@ -75,25 +82,30 @@ class ExpenseController extends Controller
     {
         $data = $this->validated($request);
         $data = $this->withComputedAmounts($data);
-        $expense->update($data);
 
-        // Still awaiting approval — nothing was ever posted, so there's
-        // nothing to repost either; the approve action does that once.
-        if ($expense->status === 'approved') {
-            $ledger->deletePosting($expense->company, 'expense', $expense->id);
-            $ledger->postExpense($expense);
-        }
+        DB::transaction(function () use ($expense, $data, $ledger) {
+            $expense->update($data);
+
+            // Still awaiting approval — nothing was ever posted, so there's
+            // nothing to repost either; the approve action does that once.
+            if ($expense->status === 'approved') {
+                $ledger->deletePosting($expense->company, 'expense', $expense->id);
+                $ledger->postExpense($expense);
+            }
+        });
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense updated.'));
     }
 
     public function destroy(Expense $expense, LedgerPostingService $ledger)
     {
-        if ($expense->status === 'approved') {
-            $ledger->reverse($expense->company, 'expense', $expense->id, __('Expense deleted'));
-        }
+        DB::transaction(function () use ($expense, $ledger) {
+            if ($expense->status === 'approved') {
+                $ledger->reverse($expense->company, 'expense', $expense->id, __('Expense deleted'));
+            }
 
-        $expense->delete();
+            $expense->delete();
+        });
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense deleted.'));
     }
@@ -103,8 +115,10 @@ class ExpenseController extends Controller
         abort_unless(Auth::user()->hasPermission('approvals'), 403);
         abort_unless($expense->status === 'pending_approval', 404);
 
-        $expense->update(['status' => 'approved', 'approved_by' => Auth::id(), 'approved_at' => now()]);
-        $ledger->postExpense($expense);
+        DB::transaction(function () use ($expense, $ledger) {
+            $expense->update(['status' => 'approved', 'approved_by' => Auth::id(), 'approved_at' => now()]);
+            $ledger->postExpense($expense);
+        });
 
         AuditLog::record('expense.approve', $expense, __('Approved expense of :amount :currency', ['amount' => number_format($expense->gross_amount, 2), 'currency' => $expense->company->currency]));
 

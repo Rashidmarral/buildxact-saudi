@@ -119,6 +119,25 @@ class CouponService
         ?int $actorId = null,
     ): CouponRedemption {
         return DB::transaction(function () use ($coupon, $company, $originalAmount, $discountAmount, $subscription, $payment, $actorId) {
+            // validate() above already checked the usage limits, but as a
+            // plain SELECT with no locking it can't stop two simultaneous
+            // checkouts both passing the check before either redemption
+            // row exists (TOCTOU) — lock the coupon row here and recheck
+            // authoritatively, inside the same transaction the redemption
+            // itself commits in, so this is the one place the limit is
+            // actually enforced.
+            $coupon = Coupon::where('id', $coupon->id)->lockForUpdate()->firstOrFail();
+
+            $companyRedemptionCount = CouponRedemption::where('coupon_id', $coupon->id)->where('company_id', $company->id)->count();
+
+            if ($coupon->max_uses !== null && $coupon->redemptions()->count() >= $coupon->max_uses) {
+                throw new \RuntimeException(__('This coupon has reached its maximum number of uses.'));
+            }
+
+            if ($coupon->max_uses_per_company !== null && $companyRedemptionCount >= $coupon->max_uses_per_company) {
+                throw new \RuntimeException(__('This company has already used this coupon the maximum number of times.'));
+            }
+
             $redemption = CouponRedemption::create([
                 'coupon_id' => $coupon->id,
                 'company_id' => $company->id,

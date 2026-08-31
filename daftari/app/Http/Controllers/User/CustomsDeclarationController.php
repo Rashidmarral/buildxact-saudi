@@ -8,6 +8,7 @@ use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class CustomsDeclarationController extends Controller
@@ -38,21 +39,25 @@ class CustomsDeclarationController extends Controller
         $data['vat_amount'] = round($base * $rate / 100, 2);
         $data['created_by'] = Auth::id();
 
-        $declaration = CustomsDeclaration::create($data);
+        DB::transaction(function () use ($data, $billIds, $ledger) {
+            $declaration = CustomsDeclaration::create($data);
 
-        if (! empty($billIds)) {
-            $declaration->bills()->sync($billIds);
-        }
+            if (! empty($billIds)) {
+                $declaration->bills()->sync($billIds);
+            }
 
-        $ledger->postCustomsDeclaration($declaration);
+            $ledger->postCustomsDeclaration($declaration);
+        });
 
         return redirect()->route('app.customs-declarations.index')->with('status', __('Customs declaration recorded.'));
     }
 
     public function destroy(CustomsDeclaration $customsDeclaration, LedgerPostingService $ledger)
     {
-        $ledger->reverse($customsDeclaration->company, 'customs_declaration', $customsDeclaration->id, __('Customs declaration deleted'));
-        $customsDeclaration->delete();
+        DB::transaction(function () use ($customsDeclaration, $ledger) {
+            $ledger->reverse($customsDeclaration->company, 'customs_declaration', $customsDeclaration->id, __('Customs declaration deleted'));
+            $customsDeclaration->delete();
+        });
 
         return redirect()->route('app.customs-declarations.index')->with('status', __('Customs declaration deleted.'));
     }

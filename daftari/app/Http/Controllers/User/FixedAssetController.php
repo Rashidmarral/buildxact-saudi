@@ -13,6 +13,7 @@ use App\Services\Accounting\AssetDepreciationService;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class FixedAssetController extends Controller
@@ -51,26 +52,30 @@ class FixedAssetController extends Controller
         $data['created_by'] = Auth::id();
         $data['account_id'] = $data['account_id'] ?? AccountMapping::resolve($company->id, 'FIXED_ASSETS_DEFAULT')?->id;
 
-        $asset = FixedAsset::create($data);
+        $asset = DB::transaction(function () use ($data, $company, $ledger) {
+            $asset = FixedAsset::create($data);
 
-        $fixedAssetsAccount = Account::find($asset->account_id) ?? AccountMapping::resolve($company->id, 'FIXED_ASSETS_DEFAULT');
-        $creditAccount = $asset->bank_account_id
-            ? AccountMapping::resolve($company->id, $asset->bankAccount->type === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK')
-            : AccountMapping::resolve($company->id, 'ACCOUNTS_PAYABLE');
+            $fixedAssetsAccount = Account::find($asset->account_id) ?? AccountMapping::resolve($company->id, 'FIXED_ASSETS_DEFAULT');
+            $creditAccount = $asset->bank_account_id
+                ? AccountMapping::resolve($company->id, $asset->bankAccount->type === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK')
+                : AccountMapping::resolve($company->id, 'ACCOUNTS_PAYABLE');
 
-        if ($fixedAssetsAccount && $creditAccount) {
-            $ledger->post(
-                $company,
-                'fixed_asset',
-                $asset->id,
-                __('Acquired :name (:code)', ['name' => $asset->name, 'code' => $asset->asset_code]),
-                $asset->acquisition_date,
-                [
-                    ['account_id' => $fixedAssetsAccount->id, 'debit' => (float) $asset->acquisition_cost],
-                    ['account_id' => $creditAccount->id, 'credit' => (float) $asset->acquisition_cost],
-                ]
-            );
-        }
+            if ($fixedAssetsAccount && $creditAccount) {
+                $ledger->post(
+                    $company,
+                    'fixed_asset',
+                    $asset->id,
+                    __('Acquired :name (:code)', ['name' => $asset->name, 'code' => $asset->asset_code]),
+                    $asset->acquisition_date,
+                    [
+                        ['account_id' => $fixedAssetsAccount->id, 'debit' => (float) $asset->acquisition_cost],
+                        ['account_id' => $creditAccount->id, 'credit' => (float) $asset->acquisition_cost],
+                    ]
+                );
+            }
+
+            return $asset;
+        });
 
         AuditLog::record('fixed_asset.create', $asset, __('Registered fixed asset :code', ['code' => $asset->asset_code]));
 
@@ -139,20 +144,22 @@ class FixedAssetController extends Controller
             }
         }
 
-        $ledger->post(
-            $company,
-            'fixed_asset_disposal',
-            $fixedAsset->id,
-            __('Disposed :name (:code)', ['name' => $fixedAsset->name, 'code' => $fixedAsset->asset_code]),
-            new \DateTime($data['disposed_at']),
-            $lines
-        );
+        DB::transaction(function () use ($ledger, $company, $fixedAsset, $data, $lines, $proceeds) {
+            $ledger->post(
+                $company,
+                'fixed_asset_disposal',
+                $fixedAsset->id,
+                __('Disposed :name (:code)', ['name' => $fixedAsset->name, 'code' => $fixedAsset->asset_code]),
+                new \DateTime($data['disposed_at']),
+                $lines
+            );
 
-        $fixedAsset->update([
-            'status' => 'disposed',
-            'disposed_at' => $data['disposed_at'],
-            'disposal_proceeds' => $proceeds,
-        ]);
+            $fixedAsset->update([
+                'status' => 'disposed',
+                'disposed_at' => $data['disposed_at'],
+                'disposal_proceeds' => $proceeds,
+            ]);
+        });
 
         AuditLog::record('fixed_asset.dispose', $fixedAsset, __('Disposed fixed asset :code', ['code' => $fixedAsset->asset_code]));
 

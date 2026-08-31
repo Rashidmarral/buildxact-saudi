@@ -89,6 +89,51 @@ class DemoModeTest extends TestCase
         $this->assertDatabaseMissing('clients', ['id' => $client->id]);
     }
 
+    /**
+     * Commercial audit finding: void/cancel/revoke actions are routed as
+     * POST, not DELETE, so PreventDemoDestruction's original DELETE-only
+     * check never caught them even though they're just as destructive
+     * (they reverse a posted journal entry and permanently change a
+     * document's status). Covered here via Invoice::cancel(); the fix
+     * matches by route-name suffix, so it applies identically to every
+     * other *.void/*.cancel/*.revoke action across the app.
+     */
+    public function test_a_void_style_action_is_blocked_for_a_demo_company(): void
+    {
+        $company = $this->makeCompany(['is_demo' => true]);
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Demo Client']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id,
+            'invoice_number' => 'INV-'.uniqid(), 'type' => 'standard', 'status' => 'sent',
+            'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+        ]);
+
+        $response = $this->actingAs($owner)->post(route('app.invoices.cancel', $invoice));
+
+        $response->assertSessionHasErrors('demo');
+        $invoice->refresh();
+        $this->assertSame('sent', $invoice->status);
+    }
+
+    public function test_a_void_style_action_still_works_for_a_regular_company(): void
+    {
+        $company = $this->makeCompany(['is_demo' => false]);
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Real Client']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id,
+            'invoice_number' => 'INV-'.uniqid(), 'type' => 'standard', 'status' => 'sent',
+            'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+        ]);
+
+        $response = $this->actingAs($owner)->post(route('app.invoices.cancel', $invoice));
+
+        $response->assertSessionDoesntHaveErrors('demo');
+        $invoice->refresh();
+        $this->assertSame('cancelled', $invoice->status);
+    }
+
     // ---------------------------------------------------------------
     // 2. Real payment processing
     // ---------------------------------------------------------------

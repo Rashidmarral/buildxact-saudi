@@ -222,8 +222,10 @@ class CreditNoteController extends Controller
             return back();
         }
 
-        $ledger->reverse($creditNote->company, 'credit_note', $creditNote->id, __('Credit note :number voided', ['number' => $creditNote->credit_note_number]));
-        $creditNote->update(['status' => 'void']);
+        DB::transaction(function () use ($creditNote, $ledger) {
+            $ledger->reverse($creditNote->company, 'credit_note', $creditNote->id, __('Credit note :number voided', ['number' => $creditNote->credit_note_number]));
+            $creditNote->update(['status' => 'void']);
+        });
 
         return back()->with('status', __('Credit note voided.'));
     }

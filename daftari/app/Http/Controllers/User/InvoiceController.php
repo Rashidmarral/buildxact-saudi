@@ -401,7 +401,7 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and cannot be cancelled directly — issue a credit note instead, which correctly notifies ZATCA of the adjustment.')]);
         }
 
-        DB::transaction(function () use ($invoice) {
+        DB::transaction(function () use ($invoice, $ledger) {
             if ($invoice->stock_deducted) {
                 $this->applyStock($invoice, 1);
                 $invoice->stock_deducted = false;
@@ -409,9 +409,9 @@ class InvoiceController extends Controller
 
             $invoice->status = 'cancelled';
             $invoice->save();
-        });
 
-        $ledger->reverse($invoice->company, 'invoice', $invoice->id, __('Invoice :number cancelled', ['number' => $invoice->invoice_number]));
+            $ledger->reverse($invoice->company, 'invoice', $invoice->id, __('Invoice :number cancelled', ['number' => $invoice->invoice_number]));
+        });
 
         AuditLog::record('invoice.cancel', $invoice, __('Cancelled invoice :number', ['number' => $invoice->invoice_number]));
 
@@ -429,11 +429,13 @@ class InvoiceController extends Controller
 
         $wasPaid = $invoice->status === 'paid';
 
-        $payment = $invoice->invoicePayments()->create($data);
-        $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
-        $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
-        $invoice->save();
-        $ledger->postInvoicePayment($payment);
+        DB::transaction(function () use ($invoice, $data, $ledger) {
+            $payment = $invoice->invoicePayments()->create($data);
+            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+            $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+            $invoice->save();
+            $ledger->postInvoicePayment($payment);
+        });
 
         if ($invoice->status === 'paid' && ! $wasPaid) {
             Webhook::trigger($invoice->company_id, 'invoice.paid', $this->webhookPayload($invoice));
@@ -476,7 +478,7 @@ class InvoiceController extends Controller
             return;
         }
 
-        DB::transaction(function () use ($invoice) {
+        DB::transaction(function () use ($invoice, $ledger) {
             $invoice->update(['status' => 'sent']);
 
             if ($invoice->warehouse_id && ! $invoice->stock_deducted) {
@@ -484,9 +486,9 @@ class InvoiceController extends Controller
                 $invoice->stock_deducted = true;
                 $invoice->save();
             }
-        });
 
-        $ledger->postInvoiceIssued($invoice);
+            $ledger->postInvoiceIssued($invoice);
+        });
 
         AuditLog::record('invoice.send', $invoice, __('Sent invoice :number', ['number' => $invoice->invoice_number]));
 

@@ -57,7 +57,7 @@ class ReceiptVoucherController extends Controller
     {
         $data = $this->validated($request);
 
-        $voucher = DB::transaction(function () use ($data) {
+        $voucher = DB::transaction(function () use ($data, $ledger) {
             $company = Auth::user()->company;
             $invoicePaymentId = null;
 
@@ -75,7 +75,7 @@ class ReceiptVoucherController extends Controller
                 $invoicePaymentId = $payment->id;
             }
 
-            return ReceiptVoucher::create([
+            $voucher = ReceiptVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
@@ -98,9 +98,11 @@ class ReceiptVoucherController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'status' => 'issued',
             ]);
-        });
 
-        $ledger->postReceiptVoucher($voucher);
+            $ledger->postReceiptVoucher($voucher);
+
+            return $voucher;
+        });
 
         return redirect()->route('app.receipt-vouchers.show', $voucher)->with('status', __('Receipt voucher created.'));
     }
@@ -120,7 +122,7 @@ class ReceiptVoucherController extends Controller
             return back();
         }
 
-        DB::transaction(function () use ($receiptVoucher) {
+        DB::transaction(function () use ($receiptVoucher, $ledger) {
             if ($receiptVoucher->invoice_payment_id && $receiptVoucher->invoice) {
                 $invoice = $receiptVoucher->invoice;
                 $invoice->invoicePayments()->where('id', $receiptVoucher->invoice_payment_id)->delete();
@@ -130,9 +132,9 @@ class ReceiptVoucherController extends Controller
             }
 
             $receiptVoucher->update(['status' => 'void']);
-        });
 
-        $ledger->reverse($receiptVoucher->company, 'receipt_voucher', $receiptVoucher->id, __('Receipt voucher :number voided', ['number' => $receiptVoucher->voucher_number]));
+            $ledger->reverse($receiptVoucher->company, 'receipt_voucher', $receiptVoucher->id, __('Receipt voucher :number voided', ['number' => $receiptVoucher->voucher_number]));
+        });
 
         return back()->with('status', __('Receipt voucher voided.'));
     }

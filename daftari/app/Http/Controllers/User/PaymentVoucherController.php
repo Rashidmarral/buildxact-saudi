@@ -59,7 +59,7 @@ class PaymentVoucherController extends Controller
     {
         $data = $this->validated($request);
 
-        $voucher = DB::transaction(function () use ($data) {
+        $voucher = DB::transaction(function () use ($data, $ledger) {
             $company = Auth::user()->company;
             $billPaymentId = null;
 
@@ -76,7 +76,7 @@ class PaymentVoucherController extends Controller
                 $billPaymentId = $payment->id;
             }
 
-            return PaymentVoucher::create([
+            $voucher = PaymentVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
@@ -100,9 +100,11 @@ class PaymentVoucherController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'status' => 'issued',
             ]);
-        });
 
-        $ledger->postPaymentVoucher($voucher);
+            $ledger->postPaymentVoucher($voucher);
+
+            return $voucher;
+        });
 
         return redirect()->route('app.payment-vouchers.show', $voucher)->with('status', __('Payment voucher created.'));
     }
@@ -122,7 +124,7 @@ class PaymentVoucherController extends Controller
             return back();
         }
 
-        DB::transaction(function () use ($paymentVoucher) {
+        DB::transaction(function () use ($paymentVoucher, $ledger) {
             if ($paymentVoucher->bill_payment_id && $paymentVoucher->bill) {
                 $bill = $paymentVoucher->bill;
                 $bill->billPayments()->where('id', $paymentVoucher->bill_payment_id)->delete();
@@ -131,9 +133,9 @@ class PaymentVoucherController extends Controller
             }
 
             $paymentVoucher->update(['status' => 'void']);
-        });
 
-        $ledger->reverse($paymentVoucher->company, 'payment_voucher', $paymentVoucher->id, __('Payment voucher :number voided', ['number' => $paymentVoucher->voucher_number]));
+            $ledger->reverse($paymentVoucher->company, 'payment_voucher', $paymentVoucher->id, __('Payment voucher :number voided', ['number' => $paymentVoucher->voucher_number]));
+        });
 
         return back()->with('status', __('Payment voucher voided.'));
     }

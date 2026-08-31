@@ -28,7 +28,7 @@ class StockAdjustmentController extends Controller
     {
         $data = $this->validated($request);
 
-        $adjustment = DB::transaction(function () use ($data) {
+        $adjustment = DB::transaction(function () use ($data, $ledger) {
             $adjustment = StockAdjustment::create([
                 'item_id' => $data['item_id'],
                 'warehouse_id' => $data['warehouse_id'],
@@ -41,11 +41,10 @@ class StockAdjustmentController extends Controller
             ]);
 
             $this->applyToStock($adjustment, 1);
+            $ledger->postStockAdjustment($adjustment);
 
             return $adjustment;
         });
-
-        $ledger->postStockAdjustment($adjustment);
 
         return redirect()->route('app.stock-adjustments.index')->with('status', __('Stock adjustment recorded.'));
     }
@@ -56,12 +55,11 @@ class StockAdjustmentController extends Controller
             return back();
         }
 
-        DB::transaction(function () use ($stockAdjustment) {
+        DB::transaction(function () use ($stockAdjustment, $ledger) {
             $this->applyToStock($stockAdjustment, -1);
             $stockAdjustment->update(['status' => 'revoked']);
+            $ledger->reverse($stockAdjustment->company, 'stock_adjustment', $stockAdjustment->id, __('Stock adjustment revoked: :item', ['item' => $stockAdjustment->item->name]));
         });
-
-        $ledger->reverse($stockAdjustment->company, 'stock_adjustment', $stockAdjustment->id, __('Stock adjustment revoked: :item', ['item' => $stockAdjustment->item->name]));
 
         return back()->with('status', __('Stock adjustment revoked.'));
     }

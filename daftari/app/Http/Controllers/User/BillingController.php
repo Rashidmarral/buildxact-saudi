@@ -134,7 +134,17 @@ class BillingController extends Controller
             ]);
 
             if ($coupon) {
-                $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $payment, Auth::id());
+                // redeem() re-checks the usage limit under a row lock (see
+                // its own docblock) — the earlier validate() call is a
+                // fast user-facing check, not the authoritative one, so a
+                // failure here means two simultaneous checkouts raced past
+                // it. The subscription/payment above are still valid on
+                // their own; only the discount doesn't apply.
+                try {
+                    $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $payment, Auth::id());
+                } catch (\RuntimeException) {
+                    //
+                }
             }
 
             AuditLog::record('subscription.checkout_started', $subscription, __('Started offline bank-transfer payment for :plan plan', ['plan' => $plan->name]));
@@ -188,7 +198,13 @@ class BillingController extends Controller
             ]);
 
             if ($coupon) {
-                $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $onlinePayment, Auth::id());
+                // See the bank-transfer branch above for why this can
+                // legitimately fail and why that's not fatal here.
+                try {
+                    $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $onlinePayment, Auth::id());
+                } catch (\RuntimeException) {
+                    //
+                }
             }
 
             AuditLog::record('subscription.checkout_started', $subscription, __('Started online payment for :plan plan via :provider', ['plan' => $plan->name, 'provider' => $gateway->provider]));
@@ -220,7 +236,13 @@ class BillingController extends Controller
             ]);
 
             if ($coupon) {
-                $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $payment, Auth::id());
+                // See the bank-transfer branch above for why this can
+                // legitimately fail and why that's not fatal here.
+                try {
+                    $coupons->redeem($coupon, $company, $originalAmount, $discountAmount, $subscription, $payment, Auth::id());
+                } catch (\RuntimeException) {
+                    //
+                }
             }
 
             return $payment;

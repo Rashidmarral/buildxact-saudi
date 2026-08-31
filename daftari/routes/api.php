@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 // App\Http\Controllers\User\ApiTokenController). 'api.limit' meters and
 // enforces the company's "API calls" plan limit (Module 07) once here,
 // rather than in each controller action below.
-Route::middleware(['auth:sanctum', 'api.limit', 'abilities:read'])->prefix('v1')->name('api.v1.')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api', 'api.limit', 'abilities:read'])->prefix('v1')->name('api.v1.')->group(function () {
     Route::get('/me', function (Request $request) {
         $user = $request->user();
 
@@ -42,6 +42,6 @@ Route::middleware(['auth:sanctum', 'api.limit', 'abilities:read'])->prefix('v1')
     });
 });
 
-Route::middleware(['auth:sanctum', 'api.limit', 'abilities:write', 'permission:clients'])->prefix('v1')->name('api.v1.')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api', 'api.limit', 'abilities:write', 'permission:clients'])->prefix('v1')->name('api.v1.')->group(function () {
     Route::post('/clients', [ClientApiController::class, 'store'])->name('clients.store');
 });

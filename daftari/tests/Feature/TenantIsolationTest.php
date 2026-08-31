@@ -2,8 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Bill;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\Expense;
+use App\Models\Invoice;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -60,5 +64,77 @@ class TenantIsolationTest extends TestCase
         $response = $this->actingAs($ownerA)->get("/app/clients/{$clientB->id}/edit");
 
         $response->assertNotFound();
+    }
+
+    public function test_a_company_user_cannot_view_another_companys_bill_by_id(): void
+    {
+        $companyA = Company::create(['name' => 'Company A', 'slug' => 'company-a-'.uniqid(), 'status' => 'active']);
+        $companyB = Company::create(['name' => 'Company B', 'slug' => 'company-b-'.uniqid(), 'status' => 'active']);
+
+        $ownerA = User::factory()->create(['role' => 'owner', 'company_id' => $companyA->id, 'status' => 'active']);
+        $supplierB = Supplier::create(['company_id' => $companyB->id, 'name' => 'Supplier of Company B']);
+        $billB = Bill::create([
+            'company_id' => $companyB->id,
+            'supplier_id' => $supplierB->id,
+            'bill_number' => 'BILL-'.uniqid(),
+            'status' => 'draft',
+            'bill_date' => now()->toDateString(),
+            'subtotal' => 100,
+            'vat_total' => 15,
+            'total' => 115,
+        ]);
+
+        $response = $this->actingAs($ownerA)->get(route('app.bills.show', $billB));
+
+        $response->assertNotFound();
+    }
+
+    public function test_a_company_user_cannot_view_another_companys_expense_by_id(): void
+    {
+        $companyA = Company::create(['name' => 'Company A', 'slug' => 'company-a-'.uniqid(), 'status' => 'active']);
+        $companyB = Company::create(['name' => 'Company B', 'slug' => 'company-b-'.uniqid(), 'status' => 'active']);
+
+        $ownerA = User::factory()->create(['role' => 'owner', 'company_id' => $companyA->id, 'status' => 'active']);
+        $expenseB = Expense::create([
+            'company_id' => $companyB->id,
+            'vendor_name' => 'Vendor of Company B',
+            'description' => 'Some expense',
+            'amount' => 100,
+            'gross_amount' => 115,
+            'vat_amount' => 15,
+            'expense_date' => now()->toDateString(),
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($ownerA)->get(route('app.expenses.edit', $expenseB));
+
+        $response->assertNotFound();
+    }
+
+    public function test_a_company_users_invoice_list_never_shows_another_companys_invoices(): void
+    {
+        $companyA = Company::create(['name' => 'Company A', 'slug' => 'company-a-'.uniqid(), 'status' => 'active']);
+        $companyB = Company::create(['name' => 'Company B', 'slug' => 'company-b-'.uniqid(), 'status' => 'active']);
+
+        $ownerA = User::factory()->create(['role' => 'owner', 'company_id' => $companyA->id, 'status' => 'active']);
+        $clientA = Client::create(['company_id' => $companyA->id, 'name' => 'Client of Company A']);
+        $clientB = Client::create(['company_id' => $companyB->id, 'name' => 'Client of Company B']);
+
+        $invoiceA = Invoice::create([
+            'company_id' => $companyA->id, 'client_id' => $clientA->id,
+            'invoice_number' => 'A-VISIBLE-'.uniqid(), 'type' => 'standard', 'status' => 'draft',
+            'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+        ]);
+        Invoice::create([
+            'company_id' => $companyB->id, 'client_id' => $clientB->id,
+            'invoice_number' => 'B-HIDDEN-'.uniqid(), 'type' => 'standard', 'status' => 'draft',
+            'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+        ]);
+
+        $response = $this->actingAs($ownerA)->get(route('app.invoices.index'));
+
+        $response->assertOk()
+            ->assertSee($invoiceA->invoice_number)
+            ->assertDontSee('B-HIDDEN');
     }
 }

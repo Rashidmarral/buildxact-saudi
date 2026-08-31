@@ -60,6 +60,17 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($key);
         });
+
+        // The public API (routes/api.php) is otherwise only gated by
+        // EnsureWithinApiLimit, a per-company *monthly* usage cap tied to
+        // the plan — nothing stopped a single leaked or malicious token
+        // from hammering it at unlimited requests/second within that
+        // monthly budget. Keyed by the authenticated user (a Sanctum
+        // token always resolves one), not IP, so multiple staff sharing
+        // an office connection don't throttle each other.
+        RateLimiter::for('api', function ($request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
     }
 
     /**

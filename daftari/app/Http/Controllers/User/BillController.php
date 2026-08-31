@@ -170,8 +170,15 @@ class BillController extends Controller
     public function post(Bill $bill, LedgerPostingService $ledger)
     {
         if ($bill->status === 'draft') {
-            $bill->update(['status' => 'posted']);
-            $ledger->postBillPosted($bill);
+            // The status flip and its journal entry must land together —
+            // if postBillPosted() throws after the status update alone had
+            // already committed, the bill would read "posted" with no
+            // matching GL entry, silently corrupting the books.
+            DB::transaction(function () use ($bill, $ledger) {
+                $bill->update(['status' => 'posted']);
+                $ledger->postBillPosted($bill);
+            });
+
             AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
         }
 
@@ -180,8 +187,10 @@ class BillController extends Controller
 
     public function void(Bill $bill, LedgerPostingService $ledger)
     {
-        $bill->update(['status' => 'void']);
-        $ledger->reverse($bill->company, 'bill', $bill->id, __('Bill :number voided', ['number' => $bill->bill_number]));
+        DB::transaction(function () use ($bill, $ledger) {
+            $bill->update(['status' => 'void']);
+            $ledger->reverse($bill->company, 'bill', $bill->id, __('Bill :number voided', ['number' => $bill->bill_number]));
+        });
 
         AuditLog::record('bill.void', $bill, __('Voided bill :number', ['number' => $bill->bill_number]));
 

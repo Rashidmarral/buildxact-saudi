@@ -8,6 +8,7 @@ use App\Models\BankTransfer;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class BankTransferController extends Controller
@@ -38,8 +39,12 @@ class BankTransferController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $transfer = BankTransfer::create($data + ['created_by' => Auth::id()]);
-        $ledger->postBankTransfer($transfer);
+        $transfer = DB::transaction(function () use ($data, $ledger) {
+            $transfer = BankTransfer::create($data + ['created_by' => Auth::id()]);
+            $ledger->postBankTransfer($transfer);
+
+            return $transfer;
+        });
 
         return redirect()->route('app.bank-transfers.index')->with('status', __('Transfer recorded.'));
     }

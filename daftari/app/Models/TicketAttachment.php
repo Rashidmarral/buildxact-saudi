@@ -31,7 +31,10 @@ class TicketAttachment extends Model
      */
     public static function validationRules(): array
     {
-        return ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx,txt,zip', 'max:10240'];
+        // No 'zip' — an archive's real contents aren't inspected by the
+        // mimes: check, so it's the one extension here that could smuggle
+        // a disguised executable past this whitelist.
+        return ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx,txt', 'max:10240'];
     }
 
     protected $fillable = [

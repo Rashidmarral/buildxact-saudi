@@ -201,8 +201,10 @@ class PurchaseReturnController extends Controller
             return back();
         }
 
-        $ledger->reverse($purchaseReturn->company, 'purchase_return', $purchaseReturn->id, __('Purchase return :number voided', ['number' => $purchaseReturn->return_number]));
-        $purchaseReturn->update(['status' => 'void']);
+        DB::transaction(function () use ($purchaseReturn, $ledger) {
+            $ledger->reverse($purchaseReturn->company, 'purchase_return', $purchaseReturn->id, __('Purchase return :number voided', ['number' => $purchaseReturn->return_number]));
+            $purchaseReturn->update(['status' => 'void']);
+        });
 
         return back()->with('status', __('Purchase return voided.'));
     }
