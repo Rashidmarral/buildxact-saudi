@@ -25,8 +25,8 @@
             @foreach ($plans as $plan)
                 <tr class="border-b border-slate-50 last:border-0">
                     <td class="px-6 py-3 font-medium text-slate-800">{{ $plan->name }}</td>
-                    <td class="px-6 py-3">SAR {{ number_format($plan->price_monthly, 0) }}</td>
-                    <td class="px-6 py-3">SAR {{ number_format($plan->price_yearly, 0) }}</td>
+                    <td class="px-6 py-3">{{ \App\Support\Money::format($plan->price_monthly, $plan->currency) }}</td>
+                    <td class="px-6 py-3">{{ \App\Support\Money::format($plan->price_yearly, $plan->currency) }}</td>
                     <td class="px-6 py-3">{{ $plan->subscriptions()->count() }}</td>
                     <td class="px-6 py-3">
                         {{ $plan->is_public ? __('Public') : __('Private') }}

@@ -575,9 +575,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
 
     Route::middleware('admin.permission:payments')->group(function () {
         Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
-        Route::post('payments/manual', [PaymentController::class, 'storeManual'])->name('payments.manual');
         Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
         Route::get('payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
+    });
+
+    // Refunding, retrying, confirming, or fabricating a payment changes real
+    // money-record state and a subscription's active/active status — the
+    // same re-auth step required for the comparable-blast-radius Company
+    // actions above (suspend, change-plan, impersonate).
+    Route::middleware(['admin.permission:payments', 'password.confirm.admin'])->group(function () {
+        Route::post('payments/manual', [PaymentController::class, 'storeManual'])->name('payments.manual');
         Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
         Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])->name('payments.retry');
         Route::post('payments/{payment}/confirm-bank-transfer', [PaymentController::class, 'confirmBankTransfer'])->name('payments.confirm-bank-transfer');
@@ -611,7 +618,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('settings/system/{action}', [PlatformSettingsController::class, 'runSystemAction'])->name('settings.system.run');
 
         Route::get('settings/payment-gateways', [AdminPaymentGatewaySettingsController::class, 'index'])->name('settings.payment-gateways');
-        Route::post('settings/payment-gateways/{provider}', [AdminPaymentGatewaySettingsController::class, 'update'])->name('settings.payment-gateways.update');
+        // Live gateway API/webhook secrets decide where subscription money
+        // flows — same re-auth requirement as the payment-mutation routes
+        // above.
+        Route::middleware('password.confirm.admin')->post('settings/payment-gateways/{provider}', [AdminPaymentGatewaySettingsController::class, 'update'])->name('settings.payment-gateways.update');
 
         Route::resource('certificates', PlatformDocumentController::class)->only(['index', 'store', 'destroy']);
 

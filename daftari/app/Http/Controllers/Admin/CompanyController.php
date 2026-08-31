@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\CompanyOverride;
+use App\Models\Currency;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\Subscription;
@@ -560,7 +561,7 @@ class CompanyController extends Controller
     public function resetSettings(Company $company)
     {
         $defaults = [
-            'currency' => 'SAR', 'locale' => 'en', 'timezone' => config('app.timezone'),
+            'currency' => Currency::default()?->code ?? 'SAR', 'locale' => 'en', 'timezone' => config('app.timezone'),
             'primary_customer_type' => 'mixed', 'negative_number_format' => 'minus',
             'po_approval_threshold' => null, 'expense_approval_threshold' => null,
             'invoice_prefix' => 'INV', 'next_invoice_number' => 1,

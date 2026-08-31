@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminRole;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -50,6 +51,10 @@ class AdminUserController extends Controller
             $admin->adminRoles()->sync($data['admin_role_ids'] ?? []);
         }
 
+        AuditLog::record('admin.create', null, __('Added admin :name (:email) as :type', [
+            'name' => $admin->name, 'email' => $admin->email, 'type' => $data['admin_type'],
+        ]));
+
         return back()->with('status', __('Admin added.'));
     }
 
@@ -63,7 +68,11 @@ class AdminUserController extends Controller
             return back()->withErrors(['user' => __('You cannot remove yourself.')]);
         }
 
+        $name = $user->name;
+        $email = $user->email;
         $user->delete();
+
+        AuditLog::record('admin.delete', null, __('Removed admin :name (:email)', ['name' => $name, 'email' => $email]));
 
         return back()->with('status', __('Admin removed.'));
     }

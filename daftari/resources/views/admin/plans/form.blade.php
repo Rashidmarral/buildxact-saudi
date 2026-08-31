@@ -52,7 +52,7 @@
                 <p class="text-xs text-slate-400 mt-1">{{ __('Leave blank to use the platform-wide trial length.') }}</p>
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700">{{ __('Monthly price (SAR)') }}</label>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Monthly price') }}</label>
                 <input type="number" step="0.01" min="0" name="price_monthly" value="{{ old('price_monthly', $plan->price_monthly) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
@@ -61,7 +61,7 @@
                 <p class="text-xs text-slate-400 mt-1">{{ __('Shown struck through on the pricing page. Leave blank to hide.') }}</p>
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700">{{ __('Yearly price (SAR)') }}</label>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Yearly price') }}</label>
                 <input type="number" step="0.01" min="0" name="price_yearly" value="{{ old('price_yearly', $plan->price_yearly) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>

@@ -191,10 +191,12 @@ class PaymentController extends Controller
             return back()->withErrors(['payment' => __('This payment is not awaiting confirmation.')]);
         }
 
-        $payment->update(['status' => 'paid', 'paid_at' => now()]);
+        DB::transaction(function () use ($payment) {
+            $payment->update(['status' => 'paid', 'paid_at' => now()]);
 
-        $subscription = Subscription::withoutGlobalScopes()->find($payment->subscription_id);
-        $subscription?->update(['status' => 'active']);
+            $subscription = Subscription::withoutGlobalScopes()->find($payment->subscription_id);
+            $subscription?->update(['status' => 'active']);
+        });
 
         $settlement->sendSubscriptionReceipt($payment);
 

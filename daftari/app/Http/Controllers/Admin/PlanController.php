@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Currency;
 use App\Models\Plan;
 use Illuminate\Http\Request;
@@ -10,6 +11,17 @@ use Illuminate\Support\Str;
 
 class PlanController extends Controller
 {
+    /**
+     * Fields worth recording on create/update — the pricing/limit columns
+     * that actually change what a company can do or gets billed, not every
+     * column on the model.
+     */
+    private const AUDITED_FIELDS = [
+        'name', 'currency', 'price_monthly', 'price_yearly', 'trial_days',
+        'max_users', 'max_invoices_per_month', 'max_customers', 'max_suppliers',
+        'is_active', 'is_public',
+    ];
+
     public function index()
     {
         $plans = Plan::orderBy('sort_order')->get();
@@ -26,7 +38,9 @@ class PlanController extends Controller
     {
         $data = $this->validated($request);
         $data['slug'] = Str::slug($data['name']);
-        Plan::create($data);
+        $plan = Plan::create($data);
+
+        AuditLog::record('plan.create', $plan, __('Created plan :name', ['name' => $plan->name]), new: $plan->only(self::AUDITED_FIELDS));
 
         return redirect()->route('admin.plans.index')->with('status', __('Plan created.'));
     }
@@ -38,8 +52,12 @@ class PlanController extends Controller
 
     public function update(Request $request, Plan $plan)
     {
+        $old = $plan->only(self::AUDITED_FIELDS);
+
         $data = $this->validated($request);
         $plan->update($data);
+
+        AuditLog::record('plan.update', $plan, __('Updated plan :name', ['name' => $plan->name]), old: $old, new: $plan->only(self::AUDITED_FIELDS));
 
         return redirect()->route('admin.plans.index')->with('status', __('Plan updated.'));
     }
@@ -50,7 +68,11 @@ class PlanController extends Controller
             return back()->withErrors(['plan' => __('This plan has active subscribers and cannot be deleted. Deactivate it instead.')]);
         }
 
+        $name = $plan->name;
+        $old = $plan->only(self::AUDITED_FIELDS);
         $plan->delete();
+
+        AuditLog::record('plan.delete', null, __('Deleted plan :name', ['name' => $name]), old: $old);
 
         return redirect()->route('admin.plans.index')->with('status', __('Plan deleted.'));
     }

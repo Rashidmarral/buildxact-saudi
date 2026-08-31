@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminRole;
+use App\Models\AuditLog;
 use App\Support\AdminPermissions;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,11 @@ class AdminRoleController extends Controller
     {
         $data = $this->validated($request);
 
-        AdminRole::create($data);
+        $adminRole = AdminRole::create($data);
+
+        AuditLog::record('admin_role.create', null, __('Created admin role :name with permissions: :permissions', [
+            'name' => $adminRole->name, 'permissions' => implode(', ', $adminRole->permissions) ?: __('none'),
+        ]), new: $adminRole->only(['name', 'slug', 'permissions']));
 
         return back()->with('status', __('Admin role created.'));
     }
@@ -33,7 +38,13 @@ class AdminRoleController extends Controller
             return back()->withErrors(['admin_role' => __('System admin roles cannot be edited.')]);
         }
 
+        $old = $adminRole->only(['name', 'slug', 'permissions']);
+
         $adminRole->update($this->validated($request, $adminRole));
+
+        AuditLog::record('admin_role.update', null, __('Updated admin role :name — permissions now: :permissions', [
+            'name' => $adminRole->name, 'permissions' => implode(', ', $adminRole->permissions) ?: __('none'),
+        ]), old: $old, new: $adminRole->only(['name', 'slug', 'permissions']));
 
         return back()->with('status', __('Admin role updated.'));
     }
@@ -44,7 +55,10 @@ class AdminRoleController extends Controller
             return back()->withErrors(['admin_role' => __('System admin roles cannot be deleted.')]);
         }
 
+        $old = $adminRole->only(['name', 'slug', 'permissions']);
         $adminRole->delete();
+
+        AuditLog::record('admin_role.delete', null, __('Deleted admin role :name', ['name' => $old['name']]), old: $old);
 
         return back()->with('status', __('Admin role deleted.'));
     }

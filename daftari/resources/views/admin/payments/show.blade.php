@@ -22,7 +22,7 @@
                     <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">{{ __('Confirm transfer') }}</button>
                 </form>
             @endif
-            @if ($payment->status === 'failed' && $payment->subscription_id && in_array($payment->method, ['moyasar', 'hyperpay', 'tap', 'paytabs'], true))
+            @if ($payment->status === 'failed' && $payment->subscription_id && in_array($payment->method, \App\Models\PaymentGateway::PROVIDERS, true))
                 <form method="POST" action="{{ route('admin.payments.retry', $payment) }}" onsubmit="return confirm('{{ __('Start a new payment attempt for this subscription?') }}')">
                     @csrf
                     <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Retry failed payment') }}</button>

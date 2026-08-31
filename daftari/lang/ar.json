@@ -3413,5 +3413,7 @@
     "Enter a link URL:": "أدخل رابط الوصلة:",
     "Write the body content…": "اكتب محتوى النص…",
     "Value (English) — e.g. an email or phone number": "القيمة (بالإنجليزية) — مثل بريد إلكتروني أو رقم هاتف",
-    "Value (Arabic)": "القيمة (بالعربية)"
+    "Value (Arabic)": "القيمة (بالعربية)",
+    "Monthly price": "السعر الشهري",
+    "Yearly price": "السعر السنوي"
 }
