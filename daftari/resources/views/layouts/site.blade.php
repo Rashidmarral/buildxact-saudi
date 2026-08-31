@@ -12,7 +12,24 @@
     @php($__branding = \App\Support\PlatformBranding::all())
     @include('partials.branding-overrides')
 </head>
+@php($__siteHeader = \App\Models\CmsSection::globalBlock('site_header'))
 <body class="bg-white text-slate-800 antialiased" x-data="{ mobileOpen: false }">
+    @if ($__siteHeader && ($__siteHeader->title() || $__siteHeader->badge()))
+        <div class="relative overflow-hidden bg-gradient-to-r from-brand-600 to-brand-700 px-6 py-2.5 text-center text-sm text-white">
+            <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                @if ($__siteHeader->badge())
+                    <span class="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">{{ $__siteHeader->badge() }}</span>
+                @endif
+                @if ($__siteHeader->title())
+                    <span class="font-medium">{{ $__siteHeader->title() }}</span>
+                @endif
+                @if ($__siteHeader->linkText())
+                    <a href="{{ $__siteHeader->link_url ?: route('pricing') }}" class="font-semibold underline decoration-white/50 underline-offset-2 hover:decoration-white">{{ $__siteHeader->linkText() }}</a>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <header class="sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
             <a href="{{ route('home') }}" class="flex items-center gap-2 text-xl font-bold text-brand-800">
@@ -108,7 +125,8 @@
                     @endif
                     {{ $__branding['name'] }}
                 </div>
-                <p class="mt-3 text-slate-500">{{ __('Subscription accounting & VAT e-invoicing for Saudi businesses.') }}</p>
+                @php($__siteFooter = \App\Models\CmsSection::globalBlock('site_footer'))
+                <p class="mt-3 text-slate-500">{{ $__siteFooter?->subtitle() ?: __('Subscription accounting & VAT e-invoicing for Saudi businesses.') }}</p>
                 @if ($__branding['vat_number'] || $__branding['cr_number'] || $__branding['address'])
                     <ul class="mt-3 space-y-1 text-xs text-slate-400">
                         @if ($__branding['vat_number'])

@@ -10,7 +10,7 @@
 <div class="mb-6 flex flex-wrap gap-2 border-b border-slate-100 pb-4">
     @foreach ($pages as $p)
         <a href="{{ route('admin.cms.pages.show', $p) }}" class="rounded-lg px-3.5 py-2 text-sm font-semibold {{ $p === $page ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50' }}">
-            {{ __(ucfirst($p)) }}
+            {{ \App\Models\CmsSection::pageLabel($p) }}
         </a>
     @endforeach
 </div>

@@ -54,18 +54,43 @@
     </div>
 </section>
 @else
-<section class="mx-auto max-w-4xl px-6 py-16 {{ in_array($section->page, ['contact']) ? 'text-center' : '' }}">
-    @if ($section->badge())
-        <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-100">{{ $section->badge() }}</span>
-    @endif
-    @if ($section->title())
-        <h1 class="mt-4 text-4xl font-extrabold text-slate-900">{{ $section->title() }}</h1>
-    @endif
-    @if ($section->subtitle())
-        <p class="mt-4 text-lg text-slate-600">{{ $section->subtitle() }}</p>
-    @endif
+<section x-data x-reveal class="relative overflow-hidden">
+    <div class="pointer-events-none absolute -top-20 start-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-brand-100/50 blur-3xl"></div>
+
     @if ($section->image_path)
-        <img src="{{ \Illuminate\Support\Facades\Storage::url($section->image_path) }}" alt="" class="mt-8 w-full rounded-2xl border border-slate-100">
+        @php($imageFirst = $section->image_position === 'left')
+        <div class="relative mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 lg:grid-cols-2">
+            <div class="order-1 {{ $imageFirst ? 'lg:order-2' : 'lg:order-1' }} {{ in_array($section->page, ['contact']) ? 'text-center lg:text-start' : '' }}">
+                @if ($section->badge())
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-100">{{ $section->badge() }}</span>
+                @endif
+                @if ($section->title())
+                    <h1 class="mt-4 text-4xl font-extrabold tracking-tight text-slate-900">{{ $section->title() }}</h1>
+                @endif
+                @if ($section->subtitle())
+                    <p class="mt-4 text-lg text-slate-600">{{ $section->subtitle() }}</p>
+                @endif
+                @if ($section->linkText())
+                    <a href="{{ $section->link_url ?: route('register') }}" class="btn-shine mt-6 inline-block rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white shadow-card transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-card-hover">{{ $section->linkText() }}</a>
+                @endif
+            </div>
+            <div class="order-2 relative {{ $imageFirst ? 'lg:order-1' : 'lg:order-2' }}">
+                <img src="{{ \Illuminate\Support\Facades\Storage::url($section->image_path) }}" alt="" class="w-full rounded-2xl border border-slate-100 shadow-card-hover">
+                <div class="absolute -bottom-4 -z-10 h-full w-full rounded-2xl bg-brand-100/50 {{ $imageFirst ? '-start-4' : '-end-4' }}"></div>
+            </div>
+        </div>
+    @else
+        <div class="relative mx-auto max-w-4xl px-6 py-16 {{ in_array($section->page, ['contact']) ? 'text-center' : '' }}">
+            @if ($section->badge())
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-100">{{ $section->badge() }}</span>
+            @endif
+            @if ($section->title())
+                <h1 class="mt-4 text-4xl font-extrabold text-slate-900">{{ $section->title() }}</h1>
+            @endif
+            @if ($section->subtitle())
+                <p class="mt-4 text-lg text-slate-600">{{ $section->subtitle() }}</p>
+            @endif
+        </div>
     @endif
 </section>
 @endif

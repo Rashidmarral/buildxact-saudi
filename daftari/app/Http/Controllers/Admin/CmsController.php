@@ -90,6 +90,7 @@ class CmsController extends Controller
             'link_text_en' => ['nullable', 'string', 'max:100'],
             'link_text_ar' => ['nullable', 'string', 'max:100'],
             'image' => ['nullable', 'image', 'max:4096'],
+            'image_position' => ['nullable', Rule::in(['left', 'right'])],
             'remove_image' => ['nullable', 'boolean'],
             'items' => ['nullable', 'array'],
             'items.*.icon' => ['nullable', 'string', 'max:50'],
@@ -115,6 +116,7 @@ class CmsController extends Controller
             'link_url' => $data['link_url'] ?? null,
             'link_text_en' => $data['link_text_en'] ?? null,
             'link_text_ar' => $data['link_text_ar'] ?? null,
+            'image_position' => $data['image_position'] ?? 'right',
         ]);
 
         if ($request->boolean('remove_image') && $section->image_path) {

@@ -1,15 +1,41 @@
 @if ($section->title() || $section->body())
-<section class="mx-auto max-w-4xl px-6 py-16">
-    @if ($section->title())
-        <h1 class="text-4xl font-extrabold text-slate-900">{{ $section->title() }}</h1>
-    @endif
-    @if ($section->body())
-        <div class="mt-6 space-y-4 text-lg text-slate-600">
-            @foreach (explode("\n\n", $section->body()) as $paragraph)
-                @if (trim($paragraph) !== '')
-                    <p>{{ $paragraph }}</p>
+<section x-data x-reveal class="mx-auto max-w-6xl px-6 py-16">
+    @if ($section->image_path)
+        @php($imageFirst = $section->image_position === 'left')
+        <div class="grid items-center gap-12 lg:grid-cols-2">
+            <div class="order-1 {{ $imageFirst ? 'lg:order-2' : 'lg:order-1' }}">
+                @if ($section->title())
+                    <h2 class="text-3xl font-extrabold text-slate-900">{{ $section->title() }}</h2>
                 @endif
-            @endforeach
+                @if ($section->body())
+                    <div class="mt-5 space-y-4 text-lg text-slate-600">
+                        @foreach (explode("\n\n", $section->body()) as $paragraph)
+                            @if (trim($paragraph) !== '')
+                                <p>{{ $paragraph }}</p>
+                            @endif
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+            <div class="order-2 relative {{ $imageFirst ? 'lg:order-1' : 'lg:order-2' }}">
+                <img src="{{ \Illuminate\Support\Facades\Storage::url($section->image_path) }}" alt="" class="w-full rounded-2xl border border-slate-100 shadow-card-hover">
+                <div class="absolute -bottom-4 -z-10 h-full w-full rounded-2xl bg-brand-100/50 {{ $imageFirst ? '-start-4' : '-end-4' }}"></div>
+            </div>
+        </div>
+    @else
+        <div class="mx-auto max-w-4xl">
+            @if ($section->title())
+                <h2 class="text-3xl font-extrabold text-slate-900">{{ $section->title() }}</h2>
+            @endif
+            @if ($section->body())
+                <div class="mt-5 space-y-4 text-lg text-slate-600">
+                    @foreach (explode("\n\n", $section->body()) as $paragraph)
+                        @if (trim($paragraph) !== '')
+                            <p>{{ $paragraph }}</p>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
         </div>
     @endif
 </section>

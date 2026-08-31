@@ -5,7 +5,7 @@
 @section('content')
 <div class="mb-6 flex items-center justify-between">
     <div>
-        <a href="{{ route('admin.cms.pages.show', $section->page) }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ __(ucfirst($section->page)) }}</a>
+        <a href="{{ route('admin.cms.pages.show', $section->page) }}" class="text-sm text-slate-500 hover:text-slate-700">&larr; {{ \App\Models\CmsSection::pageLabel($section->page) }}</a>
         <h1 class="mt-1 text-xl font-bold text-slate-900">{{ str_replace('_', ' ', ucfirst($section->type)) }} {{ __('section') }}</h1>
     </div>
 </div>
@@ -20,7 +20,7 @@
         </label>
     </div>
 
-    @if (in_array($section->type, ['hero']))
+    @if (in_array($section->type, ['hero', 'site_header']))
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('Badge (small pill above the title, optional)') }}</label>
             <div class="mt-1.5 grid gap-4 md:grid-cols-2">
@@ -31,13 +31,17 @@
     @endif
 
     <div class="rounded-xl border border-slate-100 bg-white p-6">
-        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('Title') }}</label>
-        <div class="mt-1.5 grid gap-4 md:grid-cols-2">
-            <input type="text" name="title_en" value="{{ old('title_en', $section->title_en) }}" placeholder="{{ __('English') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-            <input type="text" name="title_ar" value="{{ old('title_ar', $section->title_ar) }}" dir="rtl" placeholder="{{ __('Arabic') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-        </div>
+        @unless ($section->type === 'site_footer')
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('Title') }}</label>
+            <div class="mt-1.5 grid gap-4 md:grid-cols-2">
+                <input type="text" name="title_en" value="{{ old('title_en', $section->title_en) }}" placeholder="{{ __('English') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" name="title_ar" value="{{ old('title_ar', $section->title_ar) }}" dir="rtl" placeholder="{{ __('Arabic') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+        @endunless
 
-        <label class="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('Subtitle') }}</label>
+        <label class="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {{ $section->type === 'site_footer' ? __('Footer tagline') : __('Subtitle') }}
+        </label>
         <div class="mt-1.5 grid gap-4 md:grid-cols-2">
             <textarea name="subtitle_en" rows="2" placeholder="{{ __('English') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ old('subtitle_en', $section->subtitle_en) }}</textarea>
             <textarea name="subtitle_ar" rows="2" dir="rtl" placeholder="{{ __('Arabic') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ old('subtitle_ar', $section->subtitle_ar) }}</textarea>
@@ -53,7 +57,7 @@
         @endif
     </div>
 
-    @if (in_array($section->type, ['hero', 'cta']))
+    @if (in_array($section->type, ['hero', 'cta', 'site_header']))
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('Button (optional)') }}</label>
             <div class="mt-1.5 grid gap-4 md:grid-cols-3">
@@ -64,7 +68,7 @@
         </div>
     @endif
 
-    @if (in_array($section->type, ['hero']))
+    @if (in_array($section->type, \App\Models\CmsSection::IMAGE_TYPES))
         <div class="rounded-xl border border-slate-100 bg-white p-6">
             <label class="block text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('Image (optional)') }}</label>
             @if ($section->image_path)
@@ -77,6 +81,16 @@
                 </div>
             @endif
             <input type="file" name="image" accept="image/*" class="mt-2 block w-full text-sm">
+
+            <label class="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-400">{{ __('Image position') }}</label>
+            <div class="mt-1.5 flex gap-2">
+                @foreach (['left' => __('Left of content'), 'right' => __('Right of content')] as $value => $label)
+                    <label class="flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm {{ old('image_position', $section->image_position) === $value ? 'border-brand-500 bg-brand-50 text-brand-700 font-semibold' : 'border-slate-200 text-slate-600' }}">
+                        <input type="radio" name="image_position" value="{{ $value }}" @checked(old('image_position', $section->image_position) === $value) class="sr-only">
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
         </div>
     @endif
 
