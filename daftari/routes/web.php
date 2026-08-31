@@ -480,8 +480,19 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('{invoiceTemplate}/make-default', [InvoiceTemplateController::class, 'makeDefault'])->name('make-default');
     });
 
-    Route::middleware(['permission:zatca', 'feature:zatca_phase2'])->prefix('zatca')->name('zatca.')->group(function () {
+    // The dashboard and the top-level mode switch are reachable by every
+    // company regardless of plan — Disabled/Phase 1 are meaningful choices
+    // even without the zatca_phase2 plan feature, and a company needs to
+    // be able to see (and select) that its plan doesn't include Phase 2
+    // rather than 404 outright. Everything that actually talks to ZATCA
+    // (the onboarding wizard's steps, sync settings, manual sync) stays
+    // behind the feature gate below, same as before.
+    Route::middleware('permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
         Route::get('/', [ZatcaController::class, 'dashboard'])->name('dashboard');
+        Route::put('mode', [ZatcaController::class, 'updateMode'])->name('mode.update');
+    });
+
+    Route::middleware(['permission:zatca', 'feature:zatca_phase2'])->prefix('zatca')->name('zatca.')->group(function () {
         Route::put('settings', [ZatcaController::class, 'updateSettings'])->name('settings.update');
         Route::post('csr', [ZatcaController::class, 'generateCsr'])->name('csr');
         Route::post('compliance-csid', [ZatcaController::class, 'issueComplianceCsid'])->name('compliance-csid');

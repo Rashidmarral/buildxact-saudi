@@ -3415,5 +3415,21 @@
     "Value (English) — e.g. an email or phone number": "القيمة (بالإنجليزية) — مثل بريد إلكتروني أو رقم هاتف",
     "Value (Arabic)": "القيمة (بالعربية)",
     "Monthly price": "السعر الشهري",
-    "Yearly price": "السعر السنوي"
+    "Yearly price": "السعر السنوي",
+    "Integration mode": "وضع التكامل",
+    "Choose how much ZATCA integration is active for this company. Changing mode never deletes stored credentials — switch back to Phase 2 and onboarding resumes where it left off.": "اختر مستوى التكامل مع هيئة الزكاة والضريبة والجمارك المفعّل لهذه المنشأة. تغيير الوضع لا يحذف بيانات الاعتماد المخزّنة أبدًا — عند الرجوع إلى المرحلة الثانية يُستأنف الإعداد من حيث توقف.",
+    "No ZATCA QR or Phase 2 submission.": "لا يوجد رمز QR لهيئة الزكاة والضريبة ولا إرسال للمرحلة الثانية.",
+    "Phase 1 — QR only": "المرحلة الأولى — رمز QR فقط",
+    "Adds the required QR code to every invoice. No API calls to ZATCA.": "يضيف رمز QR المطلوب إلى كل فاتورة. دون أي اتصال ببرمجيات هيئة الزكاة والضريبة.",
+    "Phase 2 — FATOORA": "المرحلة الثانية — فاتورة",
+    "Signed submissions, clearance, reporting, and the full onboarding wizard below.": "إرسال موقّع، وتخليص، وإبلاغ، ومعالج الإعداد الكامل أدناه.",
+    "Requires a plan upgrade": "يتطلب ترقية الباقة",
+    "Save mode": "حفظ الوضع",
+    "ZATCA integration is disabled.": "تكامل هيئة الزكاة والضريبة معطّل.",
+    "Invoices and credit notes are issued without a QR code, and nothing is submitted to ZATCA. Switch to Phase 1 to add the required QR code, or Phase 2 for full compliance.": "تُصدر الفواتير وإشعارات الدائن دون رمز QR، ولا يُرسل شيء إلى هيئة الزكاة والضريبة. بدّل إلى المرحلة الأولى لإضافة رمز QR المطلوب، أو المرحلة الثانية للامتثال الكامل.",
+    "Phase 1 — every invoice already gets a QR code.": "المرحلة الأولى — تحصل كل فاتورة بالفعل على رمز QR.",
+    "No credentials, onboarding, or API calls are needed for Phase 1. Switch to Phase 2 (FATOORA) when you're ready for real-time clearance and reporting.": "لا حاجة لبيانات اعتماد أو إعداد أو اتصال ببرمجيات في المرحلة الأولى. بدّل إلى المرحلة الثانية (فاتورة) عندما تكون جاهزًا للتخليص والإبلاغ اللحظي.",
+    "Phase 2 isn't included in your current plan — upgrade to unlock it.": "المرحلة الثانية غير مشمولة في باقتك الحالية — رقّي باقتك لتفعيلها.",
+    "Phase 2 (FATOORA) requires a plan that includes ZATCA Phase 2 — upgrade your plan to enable it.": "المرحلة الثانية (فاتورة) تتطلب باقة تشمل المرحلة الثانية لهيئة الزكاة والضريبة — رقّي باقتك لتفعيلها.",
+    "ZATCA integration mode updated.": "تم تحديث وضع تكامل هيئة الزكاة والضريبة."
 }

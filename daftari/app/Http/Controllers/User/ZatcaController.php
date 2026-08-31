@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
@@ -15,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class ZatcaController extends Controller
@@ -22,6 +24,19 @@ class ZatcaController extends Controller
     public function dashboard(Request $request)
     {
         $company = Auth::user()->company;
+        $mode = $company->zatcaIntegrationMode();
+
+        // The onboarding wizard, sync logs, and sync settings are only
+        // meaningful once Phase 2 is actually the selected mode — skip
+        // building them for Disabled/Phase 1 rather than running five
+        // queries the view won't render anything from.
+        if ($mode !== Company::ZATCA_MODE_PHASE2) {
+            return view('user.zatca.dashboard', [
+                'company' => $company,
+                'mode' => $mode,
+                'canUsePhase2' => $company->hasFeature('zatca_phase2'),
+            ]);
+        }
 
         $logs = ZatcaInvoiceLog::with('invoice')
             ->where('company_id', $company->id)
@@ -46,6 +61,8 @@ class ZatcaController extends Controller
 
         return view('user.zatca.dashboard', [
             'company' => $company,
+            'mode' => $mode,
+            'canUsePhase2' => true,
             'logs' => $logs,
             'creditNoteLogs' => $creditNoteLogs,
             'stats' => $stats,
@@ -54,6 +71,31 @@ class ZatcaController extends Controller
             'environments' => ZatcaApiClient::BASE_URLS,
             'readiness' => $company->zatcaReadinessChecklist(),
         ]);
+    }
+
+    /**
+     * The top-level Disabled / Phase 1 / Phase 2 switch — reachable
+     * regardless of plan (see routes/web.php) so a company without the
+     * zatca_phase2 feature can still see and choose between Disabled and
+     * Phase 1. Selecting Phase 2 itself still requires the plan feature;
+     * rejected server-side, not just hidden in the view, since the radio
+     * value is otherwise just another form field.
+     */
+    public function updateMode(Request $request): RedirectResponse
+    {
+        $company = Auth::user()->company;
+
+        $data = $request->validate([
+            'zatca_integration_mode' => ['required', Rule::in(Company::ZATCA_MODES)],
+        ]);
+
+        if ($data['zatca_integration_mode'] === Company::ZATCA_MODE_PHASE2 && ! $company->hasFeature('zatca_phase2')) {
+            return back()->withErrors(['zatca_integration_mode' => __('Phase 2 (FATOORA) requires a plan that includes ZATCA Phase 2 — upgrade your plan to enable it.')]);
+        }
+
+        $company->update(['zatca_integration_mode' => $data['zatca_integration_mode']]);
+
+        return back()->with('status', __('ZATCA integration mode updated.'));
     }
 
     public function updateSettings(Request $request): RedirectResponse

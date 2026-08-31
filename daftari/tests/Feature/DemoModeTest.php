@@ -196,6 +196,7 @@ class DemoModeTest extends TestCase
             'zatca_onboarding_status' => 'onboarded',
             'zatca_production_csid' => self::TEST_CSID,
             'zatca_production_secret' => 'secret-value',
+            'zatca_integration_mode' => 'phase2',
         ]);
     }
 

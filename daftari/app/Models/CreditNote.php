@@ -68,13 +68,15 @@ class CreditNote extends Model
         $this->vat_total = $items->sum('vat_amount');
         $this->total = $this->subtotal + $this->vat_total;
 
-        $this->qr_code = ZatcaQrGenerator::generate(
-            $this->company->name,
-            (string) $this->company->vat_number,
-            $this->issue_date ?? now(),
-            (float) $this->total,
-            (float) $this->vat_total
-        );
+        $this->qr_code = $this->company->isZatcaQrEnabled()
+            ? ZatcaQrGenerator::generate(
+                $this->company->name,
+                (string) $this->company->vat_number,
+                $this->issue_date ?? now(),
+                (float) $this->total,
+                (float) $this->vat_total
+            )
+            : null;
 
         $this->save();
     }

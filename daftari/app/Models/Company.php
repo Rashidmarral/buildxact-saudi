@@ -10,6 +10,24 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Company extends Model
 {
+    /**
+     * Top-level ZATCA integration switch (see the add_zatca_integration_
+     * mode_to_companies_table migration): 'disabled' turns off even the
+     * always-on Phase 1 QR; 'phase1' is the historical default (QR on
+     * every invoice, no ZATCA API calls); 'phase2' is required for the
+     * onboarding wizard and any real clearance/reporting submission —
+     * see isZatcaOnboarded(), the single choke point every sync path
+     * (jobs, ZatcaSyncService, the scheduled command) already goes
+     * through.
+     */
+    public const ZATCA_MODE_DISABLED = 'disabled';
+
+    public const ZATCA_MODE_PHASE1 = 'phase1';
+
+    public const ZATCA_MODE_PHASE2 = 'phase2';
+
+    public const ZATCA_MODES = [self::ZATCA_MODE_DISABLED, self::ZATCA_MODE_PHASE1, self::ZATCA_MODE_PHASE2];
+
     protected $fillable = [
         'name', 'name_ar', 'organization_size', 'industry', 'slug', 'vat_number', 'cr_number', 'address', 'city',
         'building_number', 'street_name', 'district', 'postal_code', 'additional_number',
@@ -23,7 +41,7 @@ class Company extends Model
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
         'po_approval_threshold', 'expense_approval_threshold',
-        'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c',
+        'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_csr', 'zatca_private_key',
         'zatca_compliance_request_id', 'zatca_compliance_csid', 'zatca_compliance_secret',
         'zatca_production_request_id', 'zatca_production_csid', 'zatca_production_secret',
@@ -469,7 +487,26 @@ class Company extends Model
     {
         return $this->zatca_onboarding_status === 'onboarded'
             && (bool) $this->zatca_production_csid
-            && $this->hasFeature('zatca_phase2');
+            && $this->hasFeature('zatca_phase2')
+            && $this->zatcaIntegrationMode() === self::ZATCA_MODE_PHASE2;
+    }
+
+    /**
+     * Falls back to 'phase1' (not 'disabled') for a null/empty column —
+     * the historical, always-on-QR behavior every company had before this
+     * switch existed, so a row that predates the backfill (or a test
+     * factory that doesn't set it) never silently loses its QR code.
+     */
+    public function zatcaIntegrationMode(): string
+    {
+        return in_array($this->zatca_integration_mode, self::ZATCA_MODES, true)
+            ? $this->zatca_integration_mode
+            : self::ZATCA_MODE_PHASE1;
+    }
+
+    public function isZatcaQrEnabled(): bool
+    {
+        return $this->zatcaIntegrationMode() !== self::ZATCA_MODE_DISABLED;
     }
 
     /**

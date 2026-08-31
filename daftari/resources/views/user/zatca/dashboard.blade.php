@@ -8,7 +8,7 @@
     $steps = ['not_started', 'csr_generated', 'compliance_pending', 'compliance_verified', 'onboarded'];
     $stepIndex = array_search($status, $steps, true);
     $stepIndex = $stepIndex === false ? 0 : $stepIndex;
-    $isReady = collect($readiness)->every(fn ($check) => $check['ok']);
+    $isReady = $mode === 'phase2' ? collect($readiness)->every(fn ($check) => $check['ok']) : false;
     // A company can be flagged 'onboarded' without ever actually holding a
     // production CSID — the status onboarding used to set from the
     // compliance CSID alone, before this step existed. Step 4 needs to
@@ -32,6 +32,54 @@
         </span>
     @endif
 </div>
+
+<div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+    <h3 class="font-semibold text-slate-900 mb-1">{{ __('Integration mode') }}</h3>
+    <p class="text-xs text-slate-500 mb-4">{{ __('Choose how much ZATCA integration is active for this company. Changing mode never deletes stored credentials — switch back to Phase 2 and onboarding resumes where it left off.') }}</p>
+
+    <form method="POST" action="{{ route('app.zatca.mode.update') }}">
+        @csrf
+        @method('PUT')
+        <div class="grid sm:grid-cols-3 gap-3">
+            @foreach ([
+                'disabled' => ['label' => __('Disabled'), 'hint' => __('No ZATCA QR or Phase 2 submission.'), 'icon' => 'close'],
+                'phase1' => ['label' => __('Phase 1 — QR only'), 'hint' => __('Adds the required QR code to every invoice. No API calls to ZATCA.'), 'icon' => 'clipboard'],
+                'phase2' => ['label' => __('Phase 2 — FATOORA'), 'hint' => __('Signed submissions, clearance, reporting, and the full onboarding wizard below.'), 'icon' => 'zatca'],
+            ] as $value => $option)
+                @php
+                    $disabled = $value === 'phase2' && ! $canUsePhase2;
+                @endphp
+                <label class="relative flex flex-col gap-2 rounded-xl border p-4 {{ $disabled ? 'cursor-not-allowed opacity-60 border-slate-200' : 'cursor-pointer' }} {{ ! $disabled && $mode === $value ? 'border-brand-500 bg-brand-50/60 ring-1 ring-brand-500' : 'border-slate-200 hover:border-slate-300' }}">
+                    <input type="radio" name="zatca_integration_mode" value="{{ $value }}" @checked($mode === $value) @disabled($disabled) onchange="this.form.requestSubmit()" class="absolute end-3 top-3 h-4 w-4 text-brand-600 focus:ring-brand-500">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                        @include('partials.icon', ['name' => $option['icon'], 'class' => 'h-4 w-4'])
+                    </span>
+                    <span class="font-semibold text-slate-900">{{ $option['label'] }}</span>
+                    <span class="text-xs text-slate-500">{{ $option['hint'] }}</span>
+                    @if ($disabled)
+                        <span class="text-xs font-semibold text-amber-600">{{ __('Requires a plan upgrade') }}</span>
+                    @endif
+                </label>
+            @endforeach
+        </div>
+        <noscript><button type="submit" class="mt-3 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save mode') }}</button></noscript>
+    </form>
+</div>
+
+@if ($mode === 'disabled')
+    <div class="bg-white rounded-xl border border-slate-100 p-8 text-center">
+        <p class="font-semibold text-slate-800">{{ __('ZATCA integration is disabled.') }}</p>
+        <p class="mt-1 text-sm text-slate-500">{{ __('Invoices and credit notes are issued without a QR code, and nothing is submitted to ZATCA. Switch to Phase 1 to add the required QR code, or Phase 2 for full compliance.') }}</p>
+    </div>
+@elseif ($mode === 'phase1')
+    <div class="bg-white rounded-xl border border-slate-100 p-8 text-center">
+        <p class="font-semibold text-slate-800">{{ __('Phase 1 — every invoice already gets a QR code.') }}</p>
+        <p class="mt-1 text-sm text-slate-500">{{ __('No credentials, onboarding, or API calls are needed for Phase 1. Switch to Phase 2 (FATOORA) when you\'re ready for real-time clearance and reporting.') }}</p>
+        @unless ($canUsePhase2)
+            <p class="mt-3 text-xs text-amber-600">{{ __('Phase 2 isn\'t included in your current plan — upgrade to unlock it.') }}</p>
+        @endunless
+    </div>
+@else
 
 <div class="grid sm:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -318,4 +366,5 @@
         </div>
     </div>
 </div>
+@endif
 @endsection
