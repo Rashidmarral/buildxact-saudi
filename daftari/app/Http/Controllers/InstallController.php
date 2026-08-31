@@ -294,6 +294,16 @@ class InstallController extends Controller
             'APP_TIMEZONE' => $app['timezone'],
             'APP_LOCALE' => $app['locale'],
             'DEFAULT_CURRENCY' => $app['currency'],
+            // A buyer running this wizard is going live, not developing —
+            // .env.example ships APP_ENV=local/APP_DEBUG=true for a
+            // zero-friction local quick-start, but leaving those on a
+            // real deployment means Laravel's debug error pages (full
+            // stack traces, env values) are publicly reachable. Only
+            // written to the file, not runtime-applied to config() below
+            // — switching app.env mid-request is unsupported and would
+            // affect how the rest of *this* request's own errors render.
+            'APP_ENV' => 'production',
+            'APP_DEBUG' => 'false',
         ]);
 
         // Apply the same values to the already-booted config for the rest

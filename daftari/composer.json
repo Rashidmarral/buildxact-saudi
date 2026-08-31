@@ -1,10 +1,10 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "daftari/daftari",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "Daftari — a subscription-based VAT invoicing & accounting SaaS platform for Saudi Arabia, built on Laravel.",
+    "keywords": ["laravel", "invoicing", "accounting", "saas", "zatca", "saudi-arabia"],
+    "license": "proprietary",
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",

@@ -122,7 +122,7 @@ writes to the gitignored `.env` file on disk.
 |---|---|
 | `TRIAL_DAYS` | Length of the free trial offered at signup (default 14) |
 | `DEFAULT_CURRENCY` | Currency new companies are set up with (default `SAR`) |
-| `PAYMENT_GATEWAY` | Placeholder for a real Saudi payment gateway integration (see below) |
+| `PAYMENT_GATEWAY` | Fallback default (`manual`) before any real gateway is configured — actual gateway credentials (Moyasar/HyperPay/Tap/PayTabs) are configured per-install from Admin → Payment Gateway Settings, not via `.env` |
 | `SEED_DEMO` | Set `true` to force-seed demo data outside the `local`/`testing` environments |
 
 ## Project structure
@@ -148,8 +148,16 @@ database/migrations, database/seeders
 resources/views/
   layouts/    site / auth / app (user panel) / admin
   site/, auth/, user/, admin/   Blade views per area
-lang/         en.json / ar.json — string-keyed translations, used via __('English text')
+lang/ar.json  String-keyed Arabic translations, used via __('English text') — English is the
+              literal source text (Laravel's default-locale fallback), so there's no separate
+              en.json
 ```
+
+This project structure sketch predates most of the application — see
+[`docs/codecanyon/DOCUMENTATION.md`](docs/codecanyon/DOCUMENTATION.md) for what's actually
+built today (accounting/ledgers, inventory, purchasing, ZATCA Phase 2, subscriptions/plans,
+webhooks, a public API, and considerably more than the marketing-site-plus-invoicing scope this
+structure sketch describes).
 
 ## Data model / multi-tenancy
 
@@ -175,36 +183,29 @@ upgrades/downgrades); **payments** records each charge. `BillingController::upgr
 plan changes happen today, and it simulates a successful charge — see below for wiring up a real
 gateway.
 
-## ZATCA-style QR codes
+## ZATCA e-invoicing
 
-Every tax invoice embeds a QR code (`App\Services\ZatcaQrGenerator`) built from the standard
-TLV (tag-length-value) fields used by ZATCA Phase-1 simplified e-invoices: seller name, VAT
-number, timestamp, invoice total, and VAT total — base64-encoded, then rendered as a scannable
-PNG via `endroid/qr-code`. Full ZATCA **Phase 2** compliance (cryptographic stamps, XML/UBL
-invoice format, real-time clearance with ZATCA's API) is a substantially larger integration and
-is not implemented — see "What's out of scope" below.
+Every tax invoice embeds a QR code (`App\Services\ZatcaQrGenerator`) — the base TLV
+(tag-length-value) fields every invoice carries (seller name, VAT number, timestamp, invoice
+total, VAT total), extended with ZATCA Phase 2's cryptographic-stamp fields once a company has
+completed onboarding. Full Phase 2 compliance is implemented: UBL XML generation, PIH hash
+chaining, XAdES digital signing, and real-time clearance/reporting submission to ZATCA's API —
+see [`docs/codecanyon/DOCUMENTATION.md`](docs/codecanyon/DOCUMENTATION.md#11-zatca-e-invoicing-compliance)
+for the full onboarding flow. This has not been certified by ZATCA; verify against ZATCA's
+current requirements before relying on it for real VAT compliance.
 
-## What's intentionally out of scope for this build
+## Full documentation
 
-This build focuses on standing up the three-part platform (marketing site → subscription → user
-panel; admin panel to run it) with the core invoicing workflow (client → item → invoice → VAT
-report) fully working end to end, so it's a real foundation to extend rather than a mockup.
-Notable gaps to be aware of before going to production:
+[`docs/codecanyon/DOCUMENTATION.md`](docs/codecanyon/DOCUMENTATION.md) covers installation,
+configuration, the database, admin/company setup, plans, payments, email, storage, ZATCA, the
+API, webhooks, cron, queues, backups, translation, RTL, customization, troubleshooting, and
+updating — this README is a quick orientation, that document is the complete reference.
 
-- **Payment gateway**: `PAYMENT_GATEWAY=manual` is a stub. For Saudi Arabia, wire up
-  [Moyasar](https://moyasar.com), [HyperPay](https://hyperpay.com), [PayTabs](https://paytabs.com),
-  or [Tap](https://tap.company) in `BillingController::upgrade()` (currently it just records a
-  "paid" payment immediately).
-- **ZATCA Phase 2 e-invoicing**: see above — only the Phase-1-style QR code is implemented.
-- **Email**: no transactional email (welcome email, invoice delivery, password reset) is wired
-  up yet — plug in a provider (e.g. an SMTP relay) via Laravel's mail config. Team-member invites
-  currently show the temporary password directly in the UI as a placeholder for "send this by
-  email."
-- **Password reset flow**: not implemented; an admin can only re-invite via the Team page.
-- **PDF export**: invoices use a print-friendly view (`window.print()` → "Save as PDF" in the
-  browser) rather than a server-rendered PDF library.
-- **Legal pages**: Terms of Service and Privacy Policy are clearly-labeled placeholders — have
-  them reviewed by legal counsel before launch.
+Payment gateways (Moyasar, HyperPay, Tap, PayTabs), transactional email, password reset, and
+PDF export are all implemented — see the linked documentation sections for how to configure
+each rather than treating them as unfinished. The one deliberately-left placeholder is the
+**Terms of Service / Privacy Policy** marketing pages — have them reviewed by legal counsel
+before launch, since their content is generic placeholder copy, not a real legal document.
 
 ## Security notes
 
