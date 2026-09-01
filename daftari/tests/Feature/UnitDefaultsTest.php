@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Item;
 use App\Models\Plan;
 use App\Models\Unit;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -66,6 +67,39 @@ class UnitDefaultsTest extends TestCase
 
         $this->assertNotNull($company);
         $this->assertGreaterThan(0, Unit::where('company_id', $company->id)->count());
+    }
+
+    /**
+     * The item form's base-unit dropdown ships with a first option reading
+     * "None (defaults to Piece / PCE)" — that promise only holds if
+     * something actually assigns Piece when the field is left blank.
+     * Before this fix, leaving it on "None" (the default state) silently
+     * saved base_unit_id as null, so the item's unit picker on invoice/
+     * quotation/bill/PO forms stayed permanently disabled even though the
+     * company had units configured.
+     */
+    public function test_creating_an_item_without_picking_a_base_unit_defaults_to_the_companys_piece_unit(): void
+    {
+        $company = Company::create(['name' => 'Item Default Co.', 'slug' => 'item-default-'.uniqid()]);
+        Unit::seedDefaults($company->id);
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $response = $this->actingAs($owner)->post(route('app.items.store'), [
+            'name' => 'No Unit Chosen Item',
+            'item_type' => 'physical',
+            'unit_price' => 50,
+            'vat_rate' => 15,
+            // base_unit_id intentionally omitted, matching the form's "None" default
+        ]);
+
+        $response->assertRedirect(route('app.items.index'));
+
+        $item = Item::where('company_id', $company->id)->where('name', 'No Unit Chosen Item')->first();
+        $pce = Unit::where('company_id', $company->id)->where('code', 'PCE')->first();
+
+        $this->assertNotNull($item);
+        $this->assertNotNull($item->base_unit_id);
+        $this->assertSame($pce->id, $item->base_unit_id);
     }
 
     public function test_items_without_a_base_unit_can_be_backfilled_from_a_legacy_unit_code(): void

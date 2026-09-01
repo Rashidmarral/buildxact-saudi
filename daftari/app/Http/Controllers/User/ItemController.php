@@ -180,6 +180,7 @@ class ItemController extends Controller
                     'company_id' => $companyId,
                     'unit' => 'unit',
                     'unit_code' => 'PCE',
+                    'base_unit_id' => Unit::where('company_id', $companyId)->where('code', 'PCE')->value('id'),
                     'is_active' => true,
                     'track_inventory' => false,
                 ]);
@@ -246,6 +247,18 @@ class ItemController extends Controller
         $data['track_inventory'] = $data['item_type'] === 'physical' && $request->boolean('track_inventory');
 
         $baseUnit = ! empty($data['base_unit_id']) ? Unit::find($data['base_unit_id']) : null;
+
+        // The form's "None (defaults to Piece / PCE)" option only holds
+        // that promise if something here actually assigns Piece — left
+        // as null, the item never gets a base_unit_id, and the unit
+        // picker on invoice/quotation/bill/PO forms stays permanently
+        // disabled for it (it only enables once the selected item has at
+        // least one unit).
+        if (! $baseUnit) {
+            $baseUnit = Unit::where('company_id', $companyId)->where('code', 'PCE')->first();
+            $data['base_unit_id'] = $baseUnit?->id;
+        }
+
         $data['unit'] = $baseUnit->name ?? 'unit';
         $data['unit_code'] = $baseUnit ? ($baseUnit->code ?: 'PCE') : 'PCE';
 
