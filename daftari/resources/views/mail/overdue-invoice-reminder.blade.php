@@ -1,9 +1,23 @@
 @component('mail::message')
+@if ($tier >= 3)
+# {{ __('Final notice') }}
+
+{{ __('Dear :name,', ['name' => $client->name]) }}
+
+{{ __('Invoice :number from :company is now :days day(s) past its due date and remains unpaid despite earlier reminders. Please settle this balance immediately to avoid further action.', ['number' => $invoice->invoice_number, 'company' => $company->name, 'days' => $daysOverdue]) }}
+@elseif ($tier === 2)
+# {{ __('Overdue notice') }}
+
+{{ __('Dear :name,', ['name' => $client->name]) }}
+
+{{ __('Invoice :number from :company is now :days day(s) overdue. This is a second reminder — please arrange payment as soon as possible.', ['number' => $invoice->invoice_number, 'company' => $company->name, 'days' => $daysOverdue]) }}
+@else
 # {{ __('Payment reminder') }}
 
 {{ __('Dear :name,', ['name' => $client->name]) }}
 
 {{ __('This is a friendly reminder that invoice :number from :company is now :days day(s) past its due date.', ['number' => $invoice->invoice_number, 'company' => $company->name, 'days' => $daysOverdue]) }}
+@endif
 
 @component('mail::table')
 | | |

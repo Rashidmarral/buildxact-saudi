@@ -18,7 +18,7 @@ class Invoice extends Model
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'project_id', 'created_by', 'invoice_number', 'type',
         'status', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'retention_rate', 'retention_amount',
         'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes', 'qr_code', 'bank_account_id', 'warehouse_id', 'stock_deducted',
-        'last_reminder_sent_at', 'approved_by', 'approved_at', 'rejection_reason',
+        'last_reminder_sent_at', 'last_reminder_tier', 'approved_by', 'approved_at', 'rejection_reason',
     ];
 
     protected function casts(): array
@@ -28,6 +28,7 @@ class Invoice extends Model
             'due_date' => 'date',
             'stock_deducted' => 'boolean',
             'last_reminder_sent_at' => 'datetime',
+            'last_reminder_tier' => 'integer',
             'approved_at' => 'datetime',
         ];
     }
@@ -50,6 +51,11 @@ class Invoice extends Model
             && $this->due_date
             && $this->due_date->isPast()
             && $this->balanceDue() > 0.0;
+    }
+
+    public function daysOverdue(): int
+    {
+        return $this->due_date ? max(0, (int) $this->due_date->diffInDays(now(), true)) : 0;
     }
 
     public function client(): BelongsTo

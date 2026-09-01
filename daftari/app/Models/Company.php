@@ -44,7 +44,7 @@ class Company extends Model
         'primary_customer_type', 'negative_number_format',
         'vat_makes_exempt_supplies', 'vat_recovery_percentage',
         'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
-        'invoice_approval_threshold', 'quotation_approval_threshold',
+        'invoice_approval_threshold', 'quotation_approval_threshold', 'invoice_dunning_enabled',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_common_name', 'zatca_organization_unit_name',
         'zatca_business_category', 'zatca_csr', 'zatca_private_key',
@@ -93,6 +93,7 @@ class Company extends Model
         'zatca_sync_b2b' => true,
         'zatca_sync_b2c' => true,
         'zatca_onboarding_status' => 'not_started',
+        'invoice_dunning_enabled' => true,
     ];
 
     protected function casts(): array
@@ -115,6 +116,7 @@ class Company extends Model
             'expense_approval_threshold' => 'decimal:2',
             'invoice_approval_threshold' => 'decimal:2',
             'quotation_approval_threshold' => 'decimal:2',
+            'invoice_dunning_enabled' => 'boolean',
             'accounting_lock_date' => 'date',
         ];
     }

@@ -492,6 +492,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
         Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
         Route::post('settings/approvals/lock-date', [ApprovalSettingsController::class, 'updateLockDate'])->name('settings.approvals.lock-date');
+        Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
     });
 
     Route::middleware('permission:settings')->prefix('settings/custom-fields')->name('settings.custom-fields.')->group(function () {

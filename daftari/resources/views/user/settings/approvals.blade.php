@@ -36,6 +36,20 @@
     </form>
 
     <div>
+        <h2 class="text-lg font-semibold text-slate-900">{{ __('Overdue invoice reminders') }}</h2>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Automatically email clients an escalating reminder — friendly at 7 days overdue, firmer at 14, a final notice at 30 — for as long as an invoice stays unpaid.') }}</p>
+    </div>
+
+    <form method="POST" action="{{ route('app.settings.approvals.dunning') }}" class="bg-white rounded-xl border border-slate-100 p-6">
+        @csrf
+        <label class="flex items-center gap-3">
+            <input type="checkbox" name="invoice_dunning_enabled" value="1" @checked($company->invoice_dunning_enabled) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+            <span class="text-sm font-medium text-slate-700">{{ __('Send automated overdue-invoice reminders') }}</span>
+        </label>
+        <button type="submit" class="mt-4 rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
+    </form>
+
+    <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Accounting period lock') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Once a period is closed and reported, prevent any invoice, bill, expense, payment, or journal entry from being posted with a date on or before the lock date — across every module.') }}</p>
     </div>

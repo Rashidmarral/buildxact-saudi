@@ -42,6 +42,28 @@ class ApprovalSettingsController extends Controller
     }
 
     /**
+     * Audit finding MEDIUM-13: lets a company opt out of the automated
+     * overdue-invoice dunning ladder entirely (e.g. if they handle
+     * collections manually or through a different channel).
+     */
+    public function updateDunning(Request $request)
+    {
+        $company = Auth::user()->company;
+
+        $company->update(['invoice_dunning_enabled' => $request->boolean('invoice_dunning_enabled')]);
+
+        AuditLog::record(
+            'company.invoice_dunning_update',
+            null,
+            $company->invoice_dunning_enabled
+                ? __('Enabled automated overdue-invoice reminders')
+                : __('Disabled automated overdue-invoice reminders')
+        );
+
+        return back()->with('status', __('Reminder settings saved.'));
+    }
+
+    /**
      * Nothing posts a journal entry dated on or before this date once it's
      * set — LedgerPostingService::post() enforces it for every module.
      * Gated behind the same "settings" permission as the rest of this
