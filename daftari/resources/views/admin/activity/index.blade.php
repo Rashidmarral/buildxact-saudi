@@ -20,7 +20,12 @@
                 @foreach ($logs as $log)
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="px-6 py-3 text-slate-500">{{ $log->created_at->format('Y-m-d H:i') }}</td>
-                        <td class="px-6 py-3">{{ $log->admin?->name ?? __('System') }}</td>
+                        <td class="px-6 py-3">
+                            {{ $log->admin?->name ?? __('System') }}
+                            @if ($log->impersonatedUser)
+                                <span class="block text-xs text-amber-600">{{ __('as :name', ['name' => $log->impersonatedUser->name]) }}</span>
+                            @endif
+                        </td>
                         <td class="px-6 py-3"><code class="text-xs text-slate-500">{{ $log->action }}</code></td>
                         <td class="px-6 py-3 text-slate-700">{{ $log->description ?? '—' }}</td>
                     </tr>

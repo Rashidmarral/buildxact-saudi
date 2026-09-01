@@ -5,6 +5,7 @@ use App\Exceptions\PeriodLockedException;
 use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureCompanyActive;
+use App\Http\Middleware\EnsureImpersonationNotExpired;
 use App\Http\Middleware\EnsurePasswordConfirmed;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsurePhoneVerified;
@@ -64,6 +65,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'password.confirm.admin' => EnsurePasswordConfirmed::class,
             'api.limit' => EnsureWithinApiLimit::class,
             'demo.guard' => PreventDemoDestruction::class,
+            'impersonation.timeout' => EnsureImpersonationNotExpired::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

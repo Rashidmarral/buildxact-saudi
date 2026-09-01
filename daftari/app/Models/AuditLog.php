@@ -25,7 +25,7 @@ class AuditLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'company_id', 'admin_user_id', 'action', 'subject_type', 'subject_id', 'description',
+        'company_id', 'admin_user_id', 'impersonated_user_id', 'action', 'subject_type', 'subject_id', 'description',
         'old_value', 'new_value', 'ip_address', 'user_agent', 'created_at',
     ];
 
@@ -41,6 +41,11 @@ class AuditLog extends Model
     public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_user_id');
+    }
+
+    public function impersonatedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'impersonated_user_id');
     }
 
     public function company(): BelongsTo
@@ -84,7 +89,28 @@ class AuditLog extends Model
     ): self {
         $actor = $actorId !== null ? User::find($actorId) : auth()->user();
 
-        $companyId ??= $actor?->company_id
+        // Impersonation swaps Auth::user() to the target for the rest of
+        // the session (see Admin\CompanyController::impersonate()), so any
+        // call here that didn't explicitly pass $actorId would otherwise
+        // silently misattribute every action taken while impersonating to
+        // the tenant user rather than the admin actually behind the
+        // keyboard. Detect that case and record the true actor plus who
+        // was being impersonated. Excludes the impersonate() call itself:
+        // it sets session('impersonator_id') one line before swapping
+        // Auth::user(), so at that call site both ids are still equal.
+        $impersonatedUserId = null;
+        $impersonatedCompanyId = null;
+        if ($actorId === null && app()->bound('session')) {
+            $impersonatorId = session('impersonator_id');
+            if ($impersonatorId && $impersonatorId != $actor?->id) {
+                $impersonatedUserId = $actor?->id;
+                $impersonatedCompanyId = $actor?->company_id;
+                $actor = User::withoutGlobalScopes()->find($impersonatorId);
+            }
+        }
+
+        $companyId ??= $impersonatedCompanyId
+            ?? $actor?->company_id
             ?? ($subject instanceof Company ? $subject->id : null)
             ?? $subject?->getAttribute('company_id');
 
@@ -93,6 +119,7 @@ class AuditLog extends Model
         return self::create([
             'company_id' => $companyId,
             'admin_user_id' => $actor?->id,
+            'impersonated_user_id' => $impersonatedUserId,
             'action' => $action,
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),

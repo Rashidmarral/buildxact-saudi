@@ -608,7 +608,7 @@ class CompanyController extends Controller
             return back()->withErrors(['company' => __('This company has no users to impersonate.')]);
         }
 
-        session(['impersonator_id' => Auth::id()]);
+        session(['impersonator_id' => Auth::id(), 'impersonation_started_at' => now()->timestamp]);
         AuditLog::record('company.impersonate', $company, __('Started impersonating :name as :user', ['name' => $company->name, 'user' => $target->email]));
 
         Auth::login($target);

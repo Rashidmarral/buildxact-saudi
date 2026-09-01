@@ -20,6 +20,7 @@ class ImpersonationController extends Controller
     public function stop(Request $request)
     {
         $adminId = $request->session()->pull('impersonator_id');
+        $request->session()->forget('impersonation_started_at');
 
         if (! $adminId || ! ($admin = User::withoutGlobalScopes()->find($adminId)) || ! $admin->isSuperAdmin()) {
             abort(403);
