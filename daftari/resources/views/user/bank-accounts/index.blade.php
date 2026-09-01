@@ -28,6 +28,7 @@
                 <span class="inline-block mt-2 rounded-full bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-1">{{ __('Inactive') }}</span>
             @endunless
             <div class="mt-4 flex gap-3 text-xs">
+                <a href="{{ route('app.bank-reconciliations.index', $account) }}" class="text-brand-700 hover:underline">{{ __('Reconcile') }}</a>
                 <a href="{{ route('app.bank-accounts.edit', $account) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
                 <form method="POST" action="{{ route('app.bank-accounts.destroy', $account) }}" onsubmit="return confirm('{{ __('Delete this account?') }}')">
                     @csrf @method('DELETE')

@@ -34,6 +34,11 @@ class BankAccount extends Model
         return $this->hasMany(PaymentVoucher::class);
     }
 
+    public function reconciliations(): HasMany
+    {
+        return $this->hasMany(BankReconciliation::class);
+    }
+
     public function currentBalance(): float
     {
         $received = $this->receiptVouchers()->where('status', 'issued')->sum('amount');

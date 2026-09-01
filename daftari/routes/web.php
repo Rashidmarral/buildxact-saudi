@@ -38,6 +38,7 @@ use App\Http\Controllers\User\AccountingHealthController;
 use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
 use App\Http\Controllers\User\ApiTokenController;
 use App\Http\Controllers\User\BankAccountController;
+use App\Http\Controllers\User\BankReconciliationController;
 use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
 use App\Http\Controllers\User\BillingController;
@@ -352,6 +353,16 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
         Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->name('payment-vouchers.pdf');
         Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
+
+        Route::get('bank-accounts/{bankAccount}/reconciliations', [BankReconciliationController::class, 'index'])->name('bank-reconciliations.index');
+        Route::get('bank-accounts/{bankAccount}/reconciliations/create', [BankReconciliationController::class, 'create'])->name('bank-reconciliations.create');
+        Route::post('bank-accounts/{bankAccount}/reconciliations', [BankReconciliationController::class, 'store'])->name('bank-reconciliations.store');
+        Route::get('bank-reconciliations/{bankReconciliation}', [BankReconciliationController::class, 'show'])->name('bank-reconciliations.show');
+        Route::post('bank-reconciliations/{bankReconciliation}/import', [BankReconciliationController::class, 'import'])->name('bank-reconciliations.import');
+        Route::post('bank-reconciliations/{bankReconciliation}/complete', [BankReconciliationController::class, 'complete'])->name('bank-reconciliations.complete');
+        Route::delete('bank-reconciliations/{bankReconciliation}', [BankReconciliationController::class, 'destroy'])->name('bank-reconciliations.destroy');
+        Route::post('bank-statement-lines/{bankStatementLine}/match', [BankReconciliationController::class, 'match'])->name('bank-statement-lines.match');
+        Route::post('bank-statement-lines/{bankStatementLine}/unmatch', [BankReconciliationController::class, 'unmatch'])->name('bank-statement-lines.unmatch');
     });
 
     Route::middleware('permission:purchases')->group(function () {
