@@ -10,8 +10,10 @@ use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Item;
+use App\Models\ItemStock;
 use App\Models\Supplier;
 use App\Models\TaxRate;
+use App\Models\Warehouse;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use App\Support\Currencies;
@@ -67,6 +69,7 @@ class BillController extends Controller
             'bill' => new Bill(['bill_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString(), 'currency' => $company->currency, 'exchange_rate' => 1]),
             'suppliers' => Supplier::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'warehouses' => Warehouse::orderBy('name')->get(),
             'currencies' => Currencies::catalog(),
             'nextNumberPreview' => $company->bill_prefix.'-'.str_pad((string) $company->next_bill_number, 5, '0', STR_PAD_LEFT),
         ]);
@@ -83,6 +86,7 @@ class BillController extends Controller
             $bill = Bill::create([
                 'supplier_id' => $data['supplier_id'],
                 'branch_id' => $company->default_branch_id,
+                'warehouse_id' => $data['warehouse_id'] ?? null,
                 'created_by' => Auth::id(),
                 'bill_number' => $company->nextBillNumber(),
                 'supplier_reference' => $data['supplier_reference'] ?? null,
@@ -104,8 +108,7 @@ class BillController extends Controller
         AuditLog::record('bill.create', $bill, __('Created bill :number', ['number' => $bill->bill_number]));
 
         if ($postImmediately) {
-            $bill->update(['status' => 'posted']);
-            $ledger->postBillPosted($bill);
+            $this->postAndReceiveStock($bill, $ledger);
             AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
         }
 
@@ -171,14 +174,7 @@ class BillController extends Controller
     public function post(Bill $bill, LedgerPostingService $ledger)
     {
         if ($bill->status === 'draft') {
-            // The status flip and its journal entry must land together —
-            // if postBillPosted() throws after the status update alone had
-            // already committed, the bill would read "posted" with no
-            // matching GL entry, silently corrupting the books.
-            DB::transaction(function () use ($bill, $ledger) {
-                $bill->update(['status' => 'posted']);
-                $ledger->postBillPosted($bill);
-            });
+            $this->postAndReceiveStock($bill, $ledger);
 
             AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
         }
@@ -189,13 +185,61 @@ class BillController extends Controller
     public function void(Bill $bill, LedgerPostingService $ledger)
     {
         DB::transaction(function () use ($bill, $ledger) {
-            $bill->update(['status' => 'void']);
+            if ($bill->stock_received) {
+                $this->applyStock($bill, -1);
+                $bill->stock_received = false;
+            }
+
+            $bill->status = 'void';
+            $bill->save();
+
             $ledger->reverse($bill->company, 'bill', $bill->id, __('Bill :number voided', ['number' => $bill->bill_number]));
         });
 
         AuditLog::record('bill.void', $bill, __('Voided bill :number', ['number' => $bill->bill_number]));
 
         return back()->with('status', __('Bill voided.'));
+    }
+
+    /**
+     * Commercial audit finding: posting a bill capitalized cost to the
+     * ledger but never touched physical stock — the only way ItemStock
+     * ever increased was a disconnected manual Stock Adjustment. Status
+     * flip, ledger posting, and the stock receipt now happen in one
+     * transaction, matching how InvoiceController::doSend() deducts stock
+     * alongside posting revenue — if any step throws, none of them stick.
+     */
+    private function postAndReceiveStock(Bill $bill, LedgerPostingService $ledger): void
+    {
+        DB::transaction(function () use ($bill, $ledger) {
+            $bill->update(['status' => 'posted']);
+            $ledger->postBillPosted($bill);
+
+            if ($bill->warehouse_id && ! $bill->stock_received) {
+                $this->applyStock($bill, 1);
+                $bill->update(['stock_received' => true]);
+            }
+        });
+    }
+
+    private function applyStock(Bill $bill, int $direction): void
+    {
+        $bill->loadMissing('items.item');
+
+        foreach ($bill->items as $line) {
+            if (! $line->item || ! $line->item->track_inventory) {
+                continue;
+            }
+
+            $stock = ItemStock::firstOrCreate(
+                ['item_id' => $line->item_id, 'warehouse_id' => $bill->warehouse_id],
+                ['quantity' => 0]
+            );
+
+            $baseQuantity = $line->item->baseQuantityFor((float) $line->quantity, $line->unit_id);
+
+            $stock->increment('quantity', $baseQuantity * $direction);
+        }
     }
 
     public function storeAttachment(Request $request, Bill $bill)
@@ -250,6 +294,7 @@ class BillController extends Controller
 
         return $request->validate([
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
+            'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
             'supplier_reference' => ['nullable', 'string', 'max:255'],
             'bill_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:bill_date'],

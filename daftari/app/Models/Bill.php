@@ -14,9 +14,10 @@ class Bill extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'supplier_id', 'branch_id', 'created_by', 'bill_number',
+        'company_id', 'supplier_id', 'branch_id', 'warehouse_id', 'created_by', 'bill_number',
         'supplier_reference', 'status', 'bill_date', 'due_date', 'subtotal',
         'discount_total', 'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes',
+        'stock_received',
     ];
 
     protected function casts(): array
@@ -24,6 +25,7 @@ class Bill extends Model
         return [
             'bill_date' => 'date',
             'due_date' => 'date',
+            'stock_received' => 'boolean',
         ];
     }
 
@@ -35,6 +37,11 @@ class Bill extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function items(): HasMany

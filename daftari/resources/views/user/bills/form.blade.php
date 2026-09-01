@@ -86,6 +86,14 @@ $company = auth()->user()->company;
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
             <div class="flex items-center gap-3">
+                @if ($warehouses->isNotEmpty())
+                    <select name="warehouse_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">{{ __('No stock receipt') }}</option>
+                        @foreach ($warehouses as $warehouse)
+                            <option value="{{ $warehouse->id }}" @selected(old('warehouse_id', $bill->warehouse_id) == $warehouse->id)>{{ $warehouse->code }} — {{ $warehouse->name }}</option>
+                        @endforeach
+                    </select>
+                @endif
                 <button type="button" id="scan-line-barcode" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Scan barcode') }}</button>
                 <button type="button" id="add-row" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add line') }}</button>
             </div>
