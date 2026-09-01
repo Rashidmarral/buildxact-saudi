@@ -134,6 +134,31 @@ class LedgerPostingService
         return AccountMapping::resolve($company->id, $key);
     }
 
+    /**
+     * A missing *required* account mapping used to make a post*() method
+     * quietly return null before ever calling post() — the caller (e.g.
+     * InvoiceController::doSend()) never checks that return value, and the
+     * status flip + posting call sit in the same DB::transaction(), so
+     * nothing rolled back: the invoice was marked sent, stock deducted,
+     * with zero journal entry ever created. Throwing here instead lets
+     * post()'s own transaction (and the caller's, since this runs inside
+     * it) actually roll back, matching how an unbalanced entry is already
+     * handled. Optional/conditional lines (e.g. VAT_INPUT on an expense
+     * with no VAT) are intentionally not required here — omitting those
+     * safely trips post()'s own balance check instead.
+     */
+    private function requireAccounts(array $accounts, string $context): void
+    {
+        $missing = array_keys(array_filter($accounts, fn ($account) => $account === null));
+
+        if ($missing) {
+            throw new \RuntimeException(
+                "Cannot post {$context}: missing required account mapping(s) [".implode(', ', $missing).']. '
+                .'Configure them in Settings > Semantic Account Mappings.'
+            );
+        }
+    }
+
     private function bankOrCashAccount(Company $company, string $bankAccountType): ?Account
     {
         return $this->account($company, $bankAccountType === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK');
@@ -150,9 +175,7 @@ class LedgerPostingService
         $vatOutput = $this->account($company, 'VAT_OUTPUT');
         $discounts = $this->account($company, 'DEFAULT_SALES_DISCOUNTS');
 
-        if (! $ar || ! $revenue || ! $vatOutput) {
-            return null;
-        }
+        $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'invoice');
 
         // The Chart of Accounts is always kept in the company's base
         // currency, so a foreign-currency invoice is converted through its
@@ -201,9 +224,7 @@ class LedgerPostingService
         $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
         $vatOutput = $this->account($company, 'VAT_OUTPUT');
 
-        if (! $ar || ! $revenue || ! $vatOutput) {
-            return null;
-        }
+        $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'credit note');
 
         $lines = [
             ['account_id' => $revenue->id, 'debit' => $creditNote->subtotal, 'memo' => $creditNote->credit_note_number],
@@ -221,9 +242,7 @@ class LedgerPostingService
         $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
         $cashOrBank = $this->account($company, $payment->method === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK');
 
-        if (! $ar || ! $cashOrBank) {
-            return null;
-        }
+        $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank], 'invoice payment');
 
         $baseAmount = round((float) $payment->amount * ((float) $invoice->exchange_rate ?: 1.0), 2);
 
@@ -239,10 +258,6 @@ class LedgerPostingService
         $bankAccount = $voucher->bankAccount;
         $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount->type) : null;
 
-        if (! $cashOrBank) {
-            return null;
-        }
-
         // An explicit counter account on the voucher always wins (e.g. the
         // user knows this receipt should be credited to a specific account).
         // Otherwise: linked to an invoice settles Accounts Receivable;
@@ -252,9 +267,7 @@ class LedgerPostingService
                 ? $this->account($company, 'ACCOUNTS_RECEIVABLE')
                 : $this->account($company, 'OTHER_INCOME_DEFAULT'));
 
-        if (! $counterpart) {
-            return null;
-        }
+        $this->requireAccounts(['DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank, 'counterpart' => $counterpart], 'receipt voucher');
 
         return $this->post($company, 'receipt_voucher', $voucher->id, __('Receipt voucher :number', ['number' => $voucher->voucher_number]), $voucher->date, [
             ['account_id' => $cashOrBank->id, 'debit' => $voucher->amount],
@@ -271,9 +284,7 @@ class LedgerPostingService
         $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
         $vatInput = $this->account($company, 'VAT_INPUT');
 
-        if (! $ap || ! $expenseAccount || ! $vatInput) {
-            return null;
-        }
+        $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap, 'DEFAULT_OPERATING_EXPENSES' => $expenseAccount, 'VAT_INPUT' => $vatInput], 'bill');
 
         // Converted to the company's base currency the same way as
         // postInvoiceIssued() — see the note there on why total is
@@ -300,9 +311,7 @@ class LedgerPostingService
         $ap = $this->account($company, 'ACCOUNTS_PAYABLE');
         $cashOrBank = $this->account($company, $payment->method === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK');
 
-        if (! $ap || ! $cashOrBank) {
-            return null;
-        }
+        $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap, 'DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank], 'bill payment');
 
         $baseAmount = round((float) $payment->amount * ((float) $bill->exchange_rate ?: 1.0), 2);
 
@@ -325,9 +334,7 @@ class LedgerPostingService
         $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
         $vatInput = $this->account($company, 'VAT_INPUT');
 
-        if (! $ap || ! $expenseAccount || ! $vatInput) {
-            return null;
-        }
+        $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap, 'DEFAULT_OPERATING_EXPENSES' => $expenseAccount, 'VAT_INPUT' => $vatInput], 'purchase return');
 
         $lines = [
             ['account_id' => $ap->id, 'debit' => $purchaseReturn->total, 'memo' => $purchaseReturn->return_number],
@@ -344,10 +351,6 @@ class LedgerPostingService
         $bankAccount = $voucher->bankAccount;
         $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount->type) : null;
 
-        if (! $cashOrBank) {
-            return null;
-        }
-
         // An explicit counter account on the voucher always wins. Otherwise:
         // linked to a bill or expense settles Accounts Payable (the bill or
         // the expense already posted its own accrual); anything else is a
@@ -357,9 +360,7 @@ class LedgerPostingService
                 ? $this->account($company, 'ACCOUNTS_PAYABLE')
                 : $this->account($company, 'DEFAULT_OPERATING_EXPENSES'));
 
-        if (! $counterpart) {
-            return null;
-        }
+        $this->requireAccounts(['DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank, 'counterpart' => $counterpart], 'payment voucher');
 
         return $this->post($company, 'payment_voucher', $voucher->id, __('Payment voucher :number', ['number' => $voucher->voucher_number]), $voucher->date, [
             ['account_id' => $counterpart->id, 'debit' => $voucher->amount],
@@ -373,10 +374,6 @@ class LedgerPostingService
         $expenseAccount = $expense->account ?? $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
         $vatInput = $this->account($company, 'VAT_INPUT');
 
-        if (! $expenseAccount) {
-            return null;
-        }
-
         // Paid immediately from a financial account when one is chosen;
         // otherwise recorded as an accrued payable, to be settled later by
         // a Payment Voucher referencing this expense.
@@ -385,9 +382,7 @@ class LedgerPostingService
             ? $this->bankOrCashAccount($company, $bankAccount->type)
             : $this->account($company, 'ACCOUNTS_PAYABLE');
 
-        if (! $counterpart) {
-            return null;
-        }
+        $this->requireAccounts(['expense account' => $expenseAccount, 'counterpart' => $counterpart], 'expense');
 
         $lines = [
             ['account_id' => $expenseAccount->id, 'debit' => $expense->amount, 'memo' => $expense->vendor_name],
@@ -408,9 +403,7 @@ class LedgerPostingService
         $customsPayable = $this->account($company, 'CUSTOMS_PAYABLE');
         $dutyExpense = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
 
-        if (! $customsPayable) {
-            return null;
-        }
+        $this->requireAccounts(['CUSTOMS_PAYABLE' => $customsPayable], 'customs declaration');
 
         $lines = [];
 
@@ -442,9 +435,7 @@ class LedgerPostingService
         $inventory = $this->account($company, 'INVENTORY_ASSET');
         $adjustmentAccount = $this->account($company, 'INVENTORY_ADJUSTMENT');
 
-        if (! $inventory || ! $adjustmentAccount) {
-            return null;
-        }
+        $this->requireAccounts(['INVENTORY_ASSET' => $inventory, 'INVENTORY_ADJUSTMENT' => $adjustmentAccount], 'stock adjustment');
 
         $value = round((float) $adjustment->quantity * (float) ($adjustment->item->unit_price ?? 0), 2);
 
@@ -483,9 +474,7 @@ class LedgerPostingService
         $fromAccount = $this->bankOrCashAccount($company, $from->type);
         $toAccount = $this->bankOrCashAccount($company, $to->type);
 
-        if (! $fromAccount || ! $toAccount) {
-            return null;
-        }
+        $this->requireAccounts(['from account' => $fromAccount, 'to account' => $toAccount], 'bank transfer');
 
         return $this->post($company, 'bank_transfer', $transfer->id, __('Transfer :from -> :to', ['from' => $from->name, 'to' => $to->name]), $transfer->date, [
             ['account_id' => $toAccount->id, 'debit' => $transfer->amount],

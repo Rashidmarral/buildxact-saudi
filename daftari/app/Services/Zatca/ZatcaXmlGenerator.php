@@ -87,12 +87,14 @@ class ZatcaXmlGenerator
 
         $this->appendDualTaxTotal($doc, $root, (float) $invoice->vat_total, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
 
+        $docCurrency = $invoice->currency ?: 'SAR';
+
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $invoice->total);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', $invoice->discount_total);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $invoice->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', $invoice->discount_total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total, $docCurrency);
         $root->appendChild($monetaryTotal);
 
         foreach ($invoice->items as $index => $item) {
@@ -101,13 +103,13 @@ class ZatcaXmlGenerator
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
             $qty->setAttribute('unitCode', $item->unit?->code ?: ($item->item?->unit_code ?: 'PCE'));
             $lineNet = $item->quantity * $item->unit_price;
-            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet);
+            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet, $docCurrency);
 
             // KSA-11 (line VAT amount) and KSA-12 (line amount with VAT,
             // i.e. net + VAT) — BR-KSA-51 requires both on every line.
             $lineTax = $doc->createElement('cac:TaxTotal');
-            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $item->vat_amount);
-            $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', $lineNet + (float) $item->vat_amount);
+            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $item->vat_amount, $docCurrency);
+            $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', $lineNet + (float) $item->vat_amount, $docCurrency);
             $line->appendChild($lineTax);
 
             $itemEl = $doc->createElement('cac:Item');
@@ -122,7 +124,7 @@ class ZatcaXmlGenerator
             $line->appendChild($itemEl);
 
             $price = $doc->createElement('cac:Price');
-            $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price);
+            $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price, $docCurrency);
             $line->appendChild($price);
 
             $root->appendChild($line);
@@ -224,11 +226,13 @@ class ZatcaXmlGenerator
 
         $this->appendDualTaxTotal($doc, $root, (float) $creditNote->vat_total, $creditNote->items, fn ($item) => $item->quantity * $item->unit_price);
 
+        $docCurrency = $creditNote->currency ?: 'SAR';
+
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $creditNote->subtotal);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $creditNote->subtotal);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $creditNote->total);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $creditNote->total);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $creditNote->subtotal, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $creditNote->subtotal, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $creditNote->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $creditNote->total, $docCurrency);
         $root->appendChild($monetaryTotal);
 
         foreach ($creditNote->items as $index => $item) {
@@ -237,11 +241,11 @@ class ZatcaXmlGenerator
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
             $qty->setAttribute('unitCode', $item->unit?->code ?: ($item->invoiceItem?->item?->unit_code ?: 'PCE'));
             $lineNet = $item->quantity * $item->unit_price;
-            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet);
+            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet, $docCurrency);
 
             $lineTax = $doc->createElement('cac:TaxTotal');
-            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $item->vat_amount);
-            $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', $lineNet + (float) $item->vat_amount);
+            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $item->vat_amount, $docCurrency);
+            $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', $lineNet + (float) $item->vat_amount, $docCurrency);
             $line->appendChild($lineTax);
 
             $itemEl = $doc->createElement('cac:Item');
@@ -256,7 +260,7 @@ class ZatcaXmlGenerator
             $line->appendChild($itemEl);
 
             $price = $doc->createElement('cac:Price');
-            $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price);
+            $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price, $docCurrency);
             $line->appendChild($price);
 
             $root->appendChild($line);
@@ -633,10 +637,20 @@ class ZatcaXmlGenerator
         return $el;
     }
 
-    private function appendAmount(DOMDocument $doc, \DOMElement $parent, string $tag, float $amount): \DOMElement
+    /**
+     * $currency defaults to SAR — correct for the two document-level
+     * cac:TaxTotal blocks (bare + breakdown) and cac:TaxSubtotal, which
+     * per ZATCA's dual-currency profile are always expressed in
+     * TaxCurrencyCode (hardcoded SAR above, since accounting is always
+     * kept in SAR here) regardless of the invoice's own currency. Every
+     * other monetary amount — LegalMonetaryTotal, line amounts, Price —
+     * must instead match cbc:DocumentCurrencyCode, so those call sites
+     * pass the invoice/credit-note's actual currency explicitly.
+     */
+    private function appendAmount(DOMDocument $doc, \DOMElement $parent, string $tag, float $amount, string $currency = 'SAR'): \DOMElement
     {
         $el = $this->append($doc, $parent, $tag, number_format($amount, 2, '.', ''));
-        $el->setAttribute('currencyID', 'SAR');
+        $el->setAttribute('currencyID', $currency);
 
         return $el;
     }

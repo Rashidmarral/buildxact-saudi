@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesReportPeriod;
 use App\Models\Account;
+use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Client;
 use App\Models\Expense;
@@ -15,6 +16,8 @@ use App\Models\InvoicePayment;
 use App\Models\Item;
 use App\Models\Salesperson;
 use App\Models\Supplier;
+use App\Models\Warehouse;
+use App\Support\Money;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,35 +28,119 @@ class ReportController extends Controller
 {
     use ExportsCsv, ResolvesReportPeriod;
 
+    /**
+     * A proper three-way tax report: Output Tax (Sales/Invoices), Input Tax
+     * (Purchases/Bills), and Expense Tax (Expenses) — the earlier version
+     * only ever looked at Invoices and Expenses, silently omitting Bills
+     * (Purchases) from input VAT entirely, and only supported a single
+     * month/year rather than a real date range or per-tab transaction
+     * listing. Net tax position = output tax minus both input categories,
+     * matching how a real VAT return nets output against all recoverable
+     * input VAT (purchases and expenses alike).
+     */
     public function vat(Request $request)
     {
-        $month = $request->integer('month') ?: now()->month;
-        $year = $request->integer('year') ?: now()->year;
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $tab = in_array($request->query('tab'), ['sales', 'purchases', 'expenses'], true) ? $request->query('tab') : 'sales';
 
-        $invoices = Invoice::whereMonth('issue_date', $month)
-            ->whereYear('issue_date', $year)
+        $salesRows = Invoice::with('client', 'warehouse')
+            ->whereBetween('issue_date', [$period['from'], $period['to']])
             ->whereNotIn('status', ['draft', 'cancelled'])
+            ->when($request->filled('warehouse_id'), fn ($q) => $q->where('warehouse_id', $request->query('warehouse_id')))
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->query('client_id')))
+            ->orderByDesc('issue_date')
             ->get();
 
-        $expenses = Expense::whereMonth('expense_date', $month)
-            ->whereYear('expense_date', $year)
+        $purchaseRows = Bill::with('supplier')
+            ->whereBetween('bill_date', [$period['from'], $period['to']])
+            ->whereNotIn('status', ['draft', 'void'])
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->query('supplier_id')))
+            ->orderByDesc('bill_date')
             ->get();
 
-        $outputVat = $invoices->sum('vat_total');
-        $inputVat = $expenses->sum('vat_amount');
+        $expenseRows = Expense::with('category')
+            ->whereBetween('expense_date', [$period['from'], $period['to']])
+            ->where('status', '!=', 'rejected')
+            ->orderByDesc('expense_date')
+            ->get();
+
+        $outputTax = (float) $salesRows->sum('vat_total');
+        $inputTaxPurchases = (float) $purchaseRows->sum('vat_total');
+        $expenseTax = (float) $expenseRows->sum('vat_amount');
+
+        $summary = [
+            'outputTax' => $outputTax,
+            'netSalesExclTax' => (float) $salesRows->sum('subtotal'),
+            'inputTaxPurchases' => $inputTaxPurchases,
+            'netPurchasesExclTax' => (float) $purchaseRows->sum('subtotal'),
+            'expenseTax' => $expenseTax,
+            'totalExpenses' => (float) $expenseRows->sum(fn ($e) => $e->gross_amount ?? $e->amount),
+            'netTaxPosition' => $outputTax - $inputTaxPurchases - $expenseTax,
+        ];
+
+        if ($request->query('export') === 'csv') {
+            return $this->vatCsvExport($tab, $salesRows, $purchaseRows, $expenseRows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = Pdf::loadView('user.reports.pdf.vat', [
+                'company' => $company, 'period' => $period, 'tab' => $tab, 'locale' => App::getLocale(),
+                'salesRows' => $salesRows, 'purchaseRows' => $purchaseRows, 'expenseRows' => $expenseRows,
+            ] + $summary);
+
+            return $pdf->download('tax-report-'.$tab.'.pdf');
+        }
 
         return view('user.reports.vat', [
-            'company' => Auth::user()->company,
-            'month' => $month,
-            'year' => $year,
-            'salesTotal' => $invoices->sum('subtotal'),
-            'outputVat' => $outputVat,
-            'purchasesTotal' => $expenses->sum('amount'),
-            'inputVat' => $inputVat,
-            'netVatDue' => $outputVat - $inputVat,
-            'invoiceCount' => $invoices->count(),
-            'expenseCount' => $expenses->count(),
-        ]);
+            'company' => $company,
+            'period' => $period,
+            'tab' => $tab,
+            'salesRows' => $salesRows,
+            'purchaseRows' => $purchaseRows,
+            'expenseRows' => $expenseRows,
+            'clients' => Client::orderBy('name')->get(),
+            'suppliers' => Supplier::orderBy('name')->get(),
+            'warehouses' => Warehouse::orderBy('name')->get(),
+        ] + $summary);
+    }
+
+    private function vatCsvExport(string $tab, $salesRows, $purchaseRows, $expenseRows)
+    {
+        return match ($tab) {
+            'purchases' => $this->csvResponse('tax-report-purchases.csv',
+                [__('Date'), __('Reference'), __('Supplier'), __('Tax Number'), __('Net Amount Excl. Tax'), __('Discount'), __('Tax Amount'), __('Total Amount'), __('Payment Status')],
+                $purchaseRows->map(fn (Bill $b) => [
+                    $b->bill_date?->format('Y-m-d'), $b->bill_number, $b->supplier->name ?? '', $b->supplier->vat_number ?? '',
+                    number_format((float) $b->subtotal, 2, '.', ''), number_format((float) $b->discount_total, 2, '.', ''),
+                    number_format((float) $b->vat_total, 2, '.', ''), number_format((float) $b->total, 2, '.', ''),
+                    $this->paymentStatusLabel((float) $b->amount_paid, (float) $b->total),
+                ])),
+            'expenses' => $this->csvResponse('tax-report-expenses.csv',
+                [__('Date'), __('Reference'), __('Vendor'), __('Category'), __('Net Amount Excl. Tax'), __('Tax Amount'), __('Total Amount'), __('Status')],
+                $expenseRows->map(fn (Expense $e) => [
+                    $e->expense_date?->format('Y-m-d'), $e->reference, $e->vendor_name, $e->category->name ?? '',
+                    number_format((float) $e->amount, 2, '.', ''), number_format((float) $e->vat_amount, 2, '.', ''),
+                    number_format((float) ($e->gross_amount ?? $e->amount), 2, '.', ''), ucfirst((string) $e->status),
+                ])),
+            default => $this->csvResponse('tax-report-sales.csv',
+                [__('Date'), __('Reference'), __('Customer'), __('Tax Number'), __('Net Amount Excl. Tax'), __('Discount'), __('Tax Amount'), __('Total Amount'), __('Payment Status')],
+                $salesRows->map(fn (Invoice $i) => [
+                    $i->issue_date?->format('Y-m-d'), $i->invoice_number, $i->client->name ?? '', $i->client->vat_number ?? '',
+                    number_format((float) $i->subtotal, 2, '.', ''), number_format((float) $i->discount_total, 2, '.', ''),
+                    number_format((float) $i->vat_total, 2, '.', ''), number_format((float) $i->total, 2, '.', ''),
+                    $this->paymentStatusLabel((float) $i->amount_paid, (float) $i->total),
+                ])),
+        };
+    }
+
+    private function paymentStatusLabel(float $amountPaid, float $total): string
+    {
+        if ($total > 0 && $amountPaid >= $total) {
+            return __('Paid');
+        }
+
+        return $amountPaid > 0 ? __('Partial') : __('Unpaid');
     }
 
     public function trialBalance(Request $request)

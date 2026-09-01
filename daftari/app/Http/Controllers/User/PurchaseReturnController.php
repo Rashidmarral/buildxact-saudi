@@ -5,7 +5,6 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Bill;
-use App\Models\BillItem;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Services\Accounting\LedgerPostingService;
@@ -125,8 +124,16 @@ class PurchaseReturnController extends Controller
             ]);
 
             foreach ($data['items'] as $row) {
+                // Scoped through the already-validated (company-owned)
+                // $bill rather than BillItem::find() directly — bill_items
+                // carries no company_id of its own, so an unscoped find()
+                // would happily return another company's line item for a
+                // guessed sequential id (only unit_id would actually leak;
+                // amounts/description here are attacker-supplied either
+                // way, but the read itself is a real cross-tenant boundary
+                // violation this closes).
                 $sourceLine = ! empty($row['bill_item_id'])
-                    ? BillItem::find($row['bill_item_id'])
+                    ? $bill->items()->find($row['bill_item_id'])
                     : null;
 
                 $item = new PurchaseReturnItem([

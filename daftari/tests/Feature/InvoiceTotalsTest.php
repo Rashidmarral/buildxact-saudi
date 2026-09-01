@@ -175,4 +175,40 @@ class InvoiceTotalsTest extends TestCase
 
         $this->assertStringContainsString('<cbc:ID>S</cbc:ID>', $xml);
     }
+
+    /**
+     * Commercial audit finding B4: appendAmount() hardcoded currencyID="SAR"
+     * on every monetary amount regardless of the invoice's actual currency
+     * — DocumentCurrencyCode was correctly set to e.g. "USD", but every
+     * LineExtensionAmount/TaxExclusiveAmount/TaxInclusiveAmount/
+     * PayableAmount/PriceAmount/line TaxAmount still said currencyID="SAR",
+     * an internally-contradictory (and per UBL/ZATCA rules, invalid) XML
+     * document for any company invoicing in a foreign currency. Only the
+     * document-level dual TaxTotal (TaxCurrencyCode, always SAR here since
+     * accounting stays in SAR) is meant to differ.
+     */
+    public function test_zatca_xml_amounts_use_the_invoices_own_currency_not_a_hardcoded_sar(): void
+    {
+        $invoice = $this->makeInvoice();
+        $invoice->currency = 'USD';
+        $invoice->save();
+        $this->addLine($invoice, 1, 100, 15, null, 0);
+
+        $invoice->refresh();
+        $invoice->recalculateTotals();
+        $invoice->load('items.taxRate', 'company', 'client');
+
+        $xml = (new ZatcaXmlGenerator())->generate($invoice, '0100000', null, 'test-uuid-currency', 1);
+
+        $this->assertStringContainsString('<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>', $xml);
+        $this->assertStringContainsString('currencyID="USD"', $xml);
+
+        // The dual document-level TaxTotal blocks stay SAR — TaxCurrencyCode
+        // is hardcoded SAR (accounting is always kept in SAR here) — so
+        // some SAR-tagged amounts remain, just not the invoice's own ones.
+        $this->assertStringContainsString('<cbc:TaxCurrencyCode>SAR</cbc:TaxCurrencyCode>', $xml);
+
+        preg_match('/<cac:LegalMonetaryTotal>.*?<\/cac:LegalMonetaryTotal>/s', $xml, $matches);
+        $this->assertStringNotContainsString('currencyID="SAR"', $matches[0]);
+    }
 }

@@ -8,7 +8,6 @@ use App\Models\AuditLog;
 use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
@@ -126,8 +125,13 @@ class CreditNoteController extends Controller
             ]);
 
             foreach ($data['items'] as $row) {
+                // Scoped through the already-validated (company-owned)
+                // $invoice rather than InvoiceItem::find() directly —
+                // invoice_items carries no company_id of its own, so an
+                // unscoped find() would happily return another company's
+                // line item for a guessed sequential id.
                 $sourceLine = ! empty($row['invoice_item_id'])
-                    ? InvoiceItem::find($row['invoice_item_id'])
+                    ? $invoice->items()->find($row['invoice_item_id'])
                     : null;
 
                 $item = new CreditNoteItem([
@@ -220,6 +224,15 @@ class CreditNoteController extends Controller
     {
         if ($creditNote->status === 'void') {
             return back();
+        }
+
+        // Commercial audit finding A7: unlike Invoice::cancel(), void() had
+        // no ZATCA-lock guard — a credit note already cleared/reported to
+        // ZATCA (an immutable tax record) could still be voided in-app,
+        // reversing its GL entry while ZATCA's own record of it stays
+        // unchanged, silently disagreeing with the books.
+        if ($creditNote->isZatcaSynced()) {
+            return back()->withErrors(['credit_note' => __('This credit note has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be voided.')]);
         }
 
         DB::transaction(function () use ($creditNote, $ledger) {
