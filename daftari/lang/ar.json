@@ -3465,5 +3465,9 @@
     "Unpaid": "غير مدفوع",
     "No sales in this period.": "لا توجد مبيعات في هذه الفترة.",
     "No purchases in this period.": "لا توجد مشتريات في هذه الفترة.",
-    "This credit note has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be voided.": "تم تخليص/الإبلاغ عن إشعار الدائن هذا لدى هيئة الزكاة والضريبة وأصبح الآن جزءًا من سجل ضريبي غير قابل للتعديل — لا يمكن إلغاؤه بعد الآن."
+    "This credit note has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be voided.": "تم تخليص/الإبلاغ عن إشعار الدائن هذا لدى هيئة الزكاة والضريبة وأصبح الآن جزءًا من سجل ضريبي غير قابل للتعديل — لا يمكن إلغاؤه بعد الآن.",
+    "System accounts cannot be deactivated.": "لا يمكن إلغاء تفعيل الحسابات النظامية.",
+    "This account has journal entries posted to it and cannot be deactivated.": "يحتوي هذا الحساب على قيود مُرحّلة إليه ولا يمكن إلغاء تفعيله.",
+    "This account is used in an account mapping. Repoint the mapping before deactivating it.": "هذا الحساب مستخدم في أحد الربط المحاسبي. أعد توجيه الربط قبل إلغاء تفعيله.",
+    "This role requires a(n) :type account — the selected account is a(n) :actual account.": "يتطلب هذا الدور حساباً من نوع :type — الحساب المحدد من نوع :actual."
 }

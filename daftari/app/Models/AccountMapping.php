@@ -16,10 +16,19 @@ class AccountMapping extends Model
      * Every business key the ledger posting service (LedgerPostingService)
      * looks up by name, and the system-account code it defaults to. Labels
      * mirror the "Account Mappings" section wording.
+     *
+     * allowed_type is derived from that same default account's own type in
+     * Account::systemAccounts() — a single source of truth, rather than a
+     * second hardcoded type list that could silently drift out of sync —
+     * and is what AccountController::updateMapping() enforces (commercial
+     * audit finding A4: previously any account of any type, including an
+     * inactive one, could be pointed at any semantic key — e.g. mapping
+     * VAT Output, which the posting engine credits as a liability, to an
+     * expense account, corrupting every report built on account type).
      */
     public static function catalog(): array
     {
-        return [
+        $entries = [
             'ACCOUNTS_PAYABLE' => ['label' => 'Accounts payable (suppliers)', 'default_code' => '2000'],
             'ACCOUNTS_RECEIVABLE' => ['label' => 'Accounts receivable (customers)', 'default_code' => '1200'],
             'AR_RETENTION' => ['label' => 'AR — retention', 'default_code' => '1250'],
@@ -48,6 +57,14 @@ class AccountMapping extends Model
             'VAT_OUTPUT_RCM' => ['label' => 'VAT output — reverse charge', 'default_code' => '2110'],
             'ZAKAT_TAX_DEFAULT' => ['label' => 'Zakat / income tax (default)', 'default_code' => '5300'],
         ];
+
+        $typeByCode = collect(Account::systemAccounts())->pluck('type', 'code');
+
+        foreach ($entries as $key => &$meta) {
+            $meta['allowed_type'] = $typeByCode[$meta['default_code']] ?? null;
+        }
+
+        return $entries;
     }
 
     public static function seedDefaults(int $companyId): void

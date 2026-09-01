@@ -83,16 +83,24 @@
     <div class="divide-y divide-slate-50">
         @foreach ($mappingCatalog as $key => $meta)
             @php($current = $mappings[$key]->account_id ?? null)
+            @php($compatibleAccounts = $meta['allowed_type'] ? $activeAccounts->where('type', $meta['allowed_type']) : $activeAccounts)
             <form method="POST" action="{{ route('app.accounts.mappings.update') }}" class="flex items-center justify-between gap-4 py-3">
                 @csrf
                 <input type="hidden" name="key" value="{{ $key }}">
                 <div>
                     <p class="text-sm font-semibold text-slate-800">{{ __($meta['label']) }}</p>
                     <p class="text-xs text-slate-400">{{ $meta['default_code'] }} — {{ $key }}</p>
+                    @if ($meta['allowed_type'])
+                        <span class="inline-block mt-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{{ $typeLabels[$meta['allowed_type']] }}</span>
+                    @endif
                 </div>
                 <div class="flex items-center gap-2">
                     <select name="account_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                        @foreach ($activeAccounts as $acc)
+                        {{-- Only accounts of the role's own type are listed —
+                             the server independently rejects a mismatched
+                             type/inactive account regardless (a crafted POST
+                             could otherwise bypass this <select>). --}}
+                        @foreach ($compatibleAccounts as $acc)
                             <option value="{{ $acc->id }}" @selected($current === $acc->id)>{{ $acc->code }} - {{ $acc->name }}</option>
                         @endforeach
                     </select>

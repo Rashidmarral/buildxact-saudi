@@ -83,8 +83,32 @@ class AccountController extends Controller
         return back()->with('status', __('Account updated.'));
     }
 
+    /**
+     * Commercial audit finding A1: this used to unconditionally flip
+     * is_active, contradicting the page's own copy ("System accounts and
+     * required mappings cannot be deactivated once used") — nothing
+     * actually enforced that. Deactivating a mapped or in-use account
+     * doesn't stop new postings (AccountMapping::resolve() doesn't check
+     * is_active), it just makes the account vanish from every report that
+     * filters on is_active (Trial Balance, Balance Sheet, Income
+     * Statement, Zakat) while the posting keeps accumulating there —
+     * silently unbalancing what those reports show. Mirrors destroy()'s
+     * existing guards.
+     */
     public function deactivate(Account $account): RedirectResponse
     {
+        if ($account->is_system) {
+            return back()->withErrors(['account' => __('System accounts cannot be deactivated.')]);
+        }
+
+        if ($account->journalEntryLines()->exists()) {
+            return back()->withErrors(['account' => __('This account has journal entries posted to it and cannot be deactivated.')]);
+        }
+
+        if (Auth::user()->company->accountMappings()->where('account_id', $account->id)->exists()) {
+            return back()->withErrors(['account' => __('This account is used in an account mapping. Repoint the mapping before deactivating it.')]);
+        }
+
         $account->update(['is_active' => false]);
 
         return back()->with('status', __('Account deactivated.'));
@@ -120,8 +144,23 @@ class AccountController extends Controller
     {
         $data = $request->validate([
             'key' => ['required', Rule::in(array_keys(AccountMapping::catalog()))],
-            'account_id' => ['required', Rule::exists('accounts', 'id')->where('company_id', Auth::user()->company_id)],
+            // is_active is enforced here, not just by the <select> only
+            // listing $activeAccounts in the view — a crafted POST could
+            // otherwise point a mapping at an inactive account.
+            'account_id' => ['required', Rule::exists('accounts', 'id')->where('company_id', Auth::user()->company_id)->where('is_active', true)],
         ]);
+
+        // Commercial audit finding A4: nothing previously stopped mapping
+        // a semantic role to an account of the wrong type — e.g. VAT
+        // Output (which the posting engine always credits as a liability)
+        // pointed at an expense account — silently corrupting Trial
+        // Balance, Balance Sheet, and every report built on account type.
+        $allowedType = AccountMapping::catalog()[$data['key']]['allowed_type'] ?? null;
+        $account = Account::where('company_id', Auth::user()->company_id)->find($data['account_id']);
+
+        if ($allowedType && $account && $account->type !== $allowedType) {
+            return back()->withErrors(['account_id' => __('This role requires a(n) :type account — the selected account is a(n) :actual account.', ['type' => $allowedType, 'actual' => $account->type])]);
+        }
 
         Auth::user()->company->accountMappings()->updateOrCreate(
             ['key' => $data['key']],

@@ -7,6 +7,7 @@ use App\Support\LimitRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\DB;
 
 class Company extends Model
 {
@@ -228,43 +229,67 @@ class Company extends Model
         return $subscription->plan->hasFeature($key);
     }
 
+    /**
+     * Commercial audit finding A8: every next*Number() method used to read
+     * its counter column from the already-loaded PHP model, then call
+     * increment() (an atomic `col = col + 1` in SQL, but issued after the
+     * read that produced the *displayed* number). Two requests that both
+     * loaded the company before either committed could read the same
+     * counter value and hand out the same document number — the DB-side
+     * increments would still both apply, just one higher than the other,
+     * leaving a gap and a duplicate instead of a clean sequence.
+     *
+     * lockForUpdate() re-reads the counter fresh and blocks any other
+     * transaction trying to do the same until this one commits, so
+     * concurrent saves are serialized on this row instead of racing.
+     * Every caller already wraps its next*Number() call in its own
+     * DB::transaction() (invoice/bill/etc. creation), so this join the
+     * same transaction rather than opening a separate one.
+     */
+    private function nextSequenceNumber(string $column): int
+    {
+        return DB::transaction(function () use ($column) {
+            $current = (int) self::query()->whereKey($this->id)->lockForUpdate()->value($column);
+
+            self::query()->whereKey($this->id)->update([$column => $current + 1]);
+            $this->{$column} = $current + 1;
+
+            return $current;
+        });
+    }
+
     public function nextInvoiceNumber(): string
     {
-        $number = $this->invoice_prefix.'-'.str_pad((string) $this->next_invoice_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_invoice_number');
+        $number = $this->nextSequenceNumber('next_invoice_number');
 
-        return $number;
+        return $this->invoice_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextCreditNoteNumber(): string
     {
-        $number = $this->credit_note_prefix.'-'.str_pad((string) $this->next_credit_note_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_credit_note_number');
+        $number = $this->nextSequenceNumber('next_credit_note_number');
 
-        return $number;
+        return $this->credit_note_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextPurchaseReturnNumber(): string
     {
-        $number = $this->purchase_return_prefix.'-'.str_pad((string) $this->next_purchase_return_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_purchase_return_number');
+        $number = $this->nextSequenceNumber('next_purchase_return_number');
 
-        return $number;
+        return $this->purchase_return_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextQuotationNumber(string $type = 'quotation'): string
     {
         if ($type === 'proforma') {
-            $number = $this->proforma_prefix.'-'.str_pad((string) $this->next_proforma_number, 5, '0', STR_PAD_LEFT);
-            $this->increment('next_proforma_number');
+            $number = $this->nextSequenceNumber('next_proforma_number');
 
-            return $number;
+            return $this->proforma_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
         }
 
-        $number = $this->quotation_prefix.'-'.str_pad((string) $this->next_quotation_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_quotation_number');
+        $number = $this->nextSequenceNumber('next_quotation_number');
 
-        return $number;
+        return $this->quotation_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function quotations(): HasMany
@@ -315,50 +340,44 @@ class Company extends Model
 
     public function nextReceiptNumber(): string
     {
-        $number = $this->receipt_prefix.'-'.str_pad((string) $this->next_receipt_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_receipt_number');
+        $number = $this->nextSequenceNumber('next_receipt_number');
 
-        return $number;
+        return $this->receipt_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextPaymentVoucherNumber(): string
     {
-        $number = $this->payment_voucher_prefix.'-'.str_pad((string) $this->next_payment_voucher_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_payment_voucher_number');
+        $number = $this->nextSequenceNumber('next_payment_voucher_number');
 
-        return $number;
+        return $this->payment_voucher_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextBillNumber(): string
     {
-        $number = $this->bill_prefix.'-'.str_pad((string) $this->next_bill_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_bill_number');
+        $number = $this->nextSequenceNumber('next_bill_number');
 
-        return $number;
+        return $this->bill_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextPoNumber(): string
     {
-        $number = $this->po_prefix.'-'.str_pad((string) $this->next_po_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_po_number');
+        $number = $this->nextSequenceNumber('next_po_number');
 
-        return $number;
+        return $this->po_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextJournalNumber(): string
     {
-        $number = $this->journal_prefix.'-'.str_pad((string) $this->next_journal_number, 5, '0', STR_PAD_LEFT);
-        $this->increment('next_journal_number');
+        $number = $this->nextSequenceNumber('next_journal_number');
 
-        return $number;
+        return $this->journal_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextProjectCode(): string
     {
-        $number = $this->project_prefix.'_'.str_pad((string) $this->next_project_number, 6, '0', STR_PAD_LEFT);
-        $this->increment('next_project_number');
+        $number = $this->nextSequenceNumber('next_project_number');
 
-        return $number;
+        return $this->project_prefix.'_'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
     }
 
     public function projects(): HasMany
