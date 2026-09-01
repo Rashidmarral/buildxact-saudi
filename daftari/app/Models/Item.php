@@ -14,6 +14,8 @@ class Item extends Model
 
     public const CUSTOM_FIELD_ENTITY_TYPE = 'item';
 
+    public const TRACKING_TYPES = ['none', 'lot', 'serial'];
+
     public const UNIT_CODES = [
         'PCE' => 'Piece',
         'KGM' => 'Kilogram',
@@ -34,7 +36,7 @@ class Item extends Model
     protected $fillable = [
         'company_id', 'name', 'name_ar', 'description', 'sku', 'barcode', 'category',
         'expiry_date', 'item_type', 'unit', 'unit_code', 'image_path', 'base_unit_id',
-        'unit_price', 'purchase_price', 'vat_rate', 'is_active', 'track_inventory', 'reorder_point',
+        'unit_price', 'purchase_price', 'vat_rate', 'is_active', 'track_inventory', 'reorder_point', 'tracking_type',
     ];
 
     protected function casts(): array
@@ -49,6 +51,16 @@ class Item extends Model
     public function stocks(): HasMany
     {
         return $this->hasMany(ItemStock::class);
+    }
+
+    public function lots(): HasMany
+    {
+        return $this->hasMany(ItemLot::class);
+    }
+
+    public function isLotOrSerialTracked(): bool
+    {
+        return in_array($this->tracking_type, ['lot', 'serial'], true);
     }
 
     public function totalStock(): float

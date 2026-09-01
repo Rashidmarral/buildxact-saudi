@@ -299,6 +299,7 @@ class ItemController extends Controller
             'purchase_price' => ['nullable', 'numeric', 'min:0'],
             'vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'reorder_point' => ['nullable', 'numeric', 'min:0'],
+            'tracking_type' => ['nullable', 'in:none,lot,serial'],
             'image' => ['nullable', 'image', 'max:2048'],
             'alt_units' => ['nullable', 'array'],
             'alt_units.*.unit_id' => ['nullable', Rule::exists('units', 'id')->where('company_id', $companyId)],
@@ -312,6 +313,7 @@ class ItemController extends Controller
 
         $data['is_active'] = $request->boolean('is_active', true);
         $data['track_inventory'] = $data['item_type'] === 'physical' && $request->boolean('track_inventory');
+        $data['tracking_type'] = $data['track_inventory'] ? ($data['tracking_type'] ?? 'none') : 'none';
 
         $baseUnit = ! empty($data['base_unit_id']) ? Unit::find($data['base_unit_id']) : null;
 

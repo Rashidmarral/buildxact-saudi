@@ -79,6 +79,7 @@ use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\SalespersonController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\StockAdjustmentController;
+use App\Http\Controllers\User\ItemLotController;
 use App\Http\Controllers\User\StockTransferController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
@@ -441,6 +442,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'store']);
         Route::post('stock-transfers/{stockTransfer}/receive', [StockTransferController::class, 'receive'])->name('stock-transfers.receive');
         Route::post('stock-transfers/{stockTransfer}/reverse', [StockTransferController::class, 'reverse'])->name('stock-transfers.reverse');
+        Route::resource('item-lots', ItemLotController::class)->only(['index', 'store']);
+        Route::post('item-lots/{itemLot}/consume', [ItemLotController::class, 'consume'])->name('item-lots.consume');
         Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->name('inventory.valuation');
     });

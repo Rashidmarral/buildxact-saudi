@@ -126,6 +126,16 @@
                 {{ __('Track inventory for this item') }}
             </label>
         </div>
+
+        <div class="sm:col-span-2" id="tracking-type-wrap">
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Batch tracking') }}</label>
+            <select name="tracking_type" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="none" @selected(old('tracking_type', $item->tracking_type ?? 'none') === 'none')>{{ __('Not tracked') }}</option>
+                <option value="lot" @selected(old('tracking_type', $item->tracking_type ?? 'none') === 'lot')>{{ __('Lot/batch number') }}</option>
+                <option value="serial" @selected(old('tracking_type', $item->tracking_type ?? 'none') === 'serial')>{{ __('Serial number (one unit per lot)') }}</option>
+            </select>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Receive and consume specific lots/serials from the Lots & Serials page once enabled here.') }}</p>
+        </div>
     </div>
 
     @include('partials.custom-fields')
@@ -142,13 +152,22 @@
     const physicalRadio = document.getElementById('type-physical');
     const trackWrap = document.getElementById('track-inventory-wrap');
     const trackCheckbox = trackWrap.querySelector('input[name="track_inventory"]');
+    const trackingTypeWrap = document.getElementById('tracking-type-wrap');
+    const trackingTypeSelect = trackingTypeWrap.querySelector('select[name="tracking_type"]');
 
     function sync() {
         const isPhysical = physicalRadio.checked;
         trackWrap.classList.toggle('opacity-40', ! isPhysical);
         trackWrap.classList.toggle('pointer-events-none', ! isPhysical);
         if (! isPhysical) trackCheckbox.checked = false;
+
+        const canTrackLots = isPhysical && trackCheckbox.checked;
+        trackingTypeWrap.classList.toggle('opacity-40', ! canTrackLots);
+        trackingTypeWrap.classList.toggle('pointer-events-none', ! canTrackLots);
+        if (! canTrackLots) trackingTypeSelect.value = 'none';
     }
+
+    trackCheckbox.addEventListener('change', sync);
 
     serviceRadio.addEventListener('change', sync);
     physicalRadio.addEventListener('change', sync);
