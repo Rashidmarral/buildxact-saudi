@@ -83,29 +83,65 @@ class ExpenseController extends Controller
         $data = $this->validated($request);
         $data = $this->withComputedAmounts($data);
 
-        DB::transaction(function () use ($expense, $data, $ledger) {
+        $wasPosted = $expense->status === 'approved';
+        $old = ['gross_amount' => $expense->gross_amount, 'tax_category' => $expense->tax_category, 'expense_date' => $expense->expense_date?->toDateString()];
+
+        DB::transaction(function () use ($expense, $data, $ledger, $wasPosted) {
             $expense->update($data);
 
             // Still awaiting approval — nothing was ever posted, so there's
             // nothing to repost either; the approve action does that once.
-            if ($expense->status === 'approved') {
+            // The ledger keys a posting by (source_type, source_id), so an
+            // in-place correction has to clear the old entry before the
+            // corrected one can be posted under the same key — unlike a
+            // void/cancel, there is no way to keep the original entry
+            // alongside a reversal here. AuditLog is the durable record of
+            // what changed.
+            if ($wasPosted) {
                 $ledger->deletePosting($expense->company, 'expense', $expense->id);
                 $ledger->postExpense($expense);
             }
         });
+
+        AuditLog::record(
+            'expense.update',
+            $expense,
+            __('Updated expense of :amount :currency:reposted', [
+                'amount' => number_format($expense->gross_amount, 2),
+                'currency' => $expense->company->currency,
+                'reposted' => $wasPosted ? __(' (ledger entry reversed and reposted)') : '',
+            ]),
+            old: $old,
+            new: ['gross_amount' => $expense->gross_amount, 'tax_category' => $expense->tax_category, 'expense_date' => $expense->expense_date?->toDateString()],
+        );
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense updated.'));
     }
 
     public function destroy(Expense $expense, LedgerPostingService $ledger)
     {
-        DB::transaction(function () use ($expense, $ledger) {
-            if ($expense->status === 'approved') {
+        $wasPosted = $expense->status === 'approved';
+        $amount = $expense->gross_amount;
+        $currency = $expense->company->currency;
+
+        DB::transaction(function () use ($expense, $ledger, $wasPosted) {
+            if ($wasPosted) {
                 $ledger->reverse($expense->company, 'expense', $expense->id, __('Expense deleted'));
             }
 
             $expense->delete();
         });
+
+        AuditLog::record(
+            'expense.delete',
+            null,
+            __('Deleted expense #:id of :amount :currency:reversed', [
+                'id' => $expense->id,
+                'amount' => number_format($amount, 2),
+                'currency' => $currency,
+                'reversed' => $wasPosted ? __(' (ledger entry reversed)') : '',
+            ]),
+        );
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense deleted.'));
     }
