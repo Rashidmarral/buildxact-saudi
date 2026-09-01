@@ -7,6 +7,7 @@ use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Bill;
+use App\Models\BillItem;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
@@ -53,6 +54,7 @@ class PurchaseOrderController extends Controller
             'draft' => PurchaseOrder::where('status', 'draft')->count(),
             'pending_approval' => PurchaseOrder::where('status', 'pending_approval')->count(),
             'approved' => PurchaseOrder::where('status', 'approved')->count(),
+            'partially_billed' => PurchaseOrder::where('status', 'partially_billed')->count(),
             'converted' => PurchaseOrder::where('status', 'converted')->count(),
             'void' => PurchaseOrder::where('status', 'void')->count(),
         ];
@@ -116,7 +118,7 @@ class PurchaseOrderController extends Controller
 
     public function show(PurchaseOrder $purchaseOrder)
     {
-        $purchaseOrder->load('items', 'supplier', 'convertedBill', 'attachments');
+        $purchaseOrder->load('items.billItems.bill', 'supplier', 'bills', 'attachments');
 
         $template = $purchaseOrder->company->defaultTemplateFor('purchase_order');
 
@@ -213,61 +215,129 @@ class PurchaseOrderController extends Controller
 
     public function void(PurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->status !== 'converted') {
+        // Blocked once any bill has been raised against this order
+        // (partially or fully billed) — voiding it at that point would
+        // leave real bills pointing at a cancelled order.
+        if (! in_array($purchaseOrder->status, ['converted', 'partially_billed'], true)) {
             $purchaseOrder->update(['status' => 'void']);
         }
 
         return back()->with('status', __('Purchase order voided.'));
     }
 
-    public function convertToBill(PurchaseOrder $purchaseOrder)
+    /**
+     * A purchase order can be delivered — and therefore billed — across
+     * several shipments, not just all at once. This shows the remaining
+     * (ordered minus already-billed) quantity per line, defaulting the
+     * bill quantity to whatever's left; storeBill() below enforces that a
+     * bill can never claim more than a line's remaining quantity.
+     */
+    public function billForm(PurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->status === 'converted') {
-            return back()->withErrors(['purchase_order' => __('This purchase order has already been converted.')]);
+        if (! in_array($purchaseOrder->status, ['approved', 'partially_billed'], true)) {
+            return back()->withErrors(['purchase_order' => __('This purchase order is not open for billing.')]);
         }
 
-        if ($purchaseOrder->status === 'pending_approval') {
-            return back()->withErrors(['purchase_order' => __('This purchase order is still awaiting approval.')]);
+        $purchaseOrder->load('items');
+
+        if ($purchaseOrder->isFullyBilled()) {
+            return back()->withErrors(['purchase_order' => __('This purchase order has already been fully billed.')]);
         }
 
-        $bill = DB::transaction(function () use ($purchaseOrder) {
+        $company = Auth::user()->company;
+
+        return view('user.purchase-orders.bill-form', [
+            'order' => $purchaseOrder,
+            'warehouses' => \App\Models\Warehouse::orderBy('name')->get(),
+            'nextNumberPreview' => $company->bill_prefix.'-'.str_pad((string) $company->next_bill_number, 5, '0', STR_PAD_LEFT),
+        ]);
+    }
+
+    public function storeBill(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        if (! in_array($purchaseOrder->status, ['approved', 'partially_billed'], true)) {
+            return back()->withErrors(['purchase_order' => __('This purchase order is not open for billing.')]);
+        }
+
+        $companyId = Auth::user()->company_id;
+
+        $data = $request->validate([
+            'bill_date' => ['required', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:bill_date'],
+            'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.purchase_order_item_id' => ['required', Rule::exists('purchase_order_items', 'id')],
+            'items.*.description' => ['required', 'string', 'max:255'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $rows = array_values(array_filter($data['items'], fn ($row) => (float) $row['quantity'] > 0));
+
+        if (empty($rows)) {
+            return back()->withErrors(['items' => __('Bill at least one line item.')])->withInput();
+        }
+
+        $purchaseOrder->load('items');
+        $poItemsById = $purchaseOrder->items->keyBy('id');
+
+        foreach ($rows as $row) {
+            $poItem = $poItemsById->get((int) $row['purchase_order_item_id']);
+
+            if (! $poItem || (float) $row['quantity'] - $poItem->remainingQuantity() > 0.01) {
+                return back()->withErrors(['items' => __('One or more lines bill more than the remaining ordered quantity.')])->withInput();
+            }
+        }
+
+        $bill = DB::transaction(function () use ($purchaseOrder, $data, $rows) {
             $company = Auth::user()->company;
 
             $bill = Bill::create([
                 'supplier_id' => $purchaseOrder->supplier_id,
                 'branch_id' => $purchaseOrder->branch_id ?? $company->default_branch_id,
+                'warehouse_id' => $data['warehouse_id'] ?? null,
+                'purchase_order_id' => $purchaseOrder->id,
                 'created_by' => Auth::id(),
                 'bill_number' => $company->nextBillNumber(),
                 'status' => 'draft',
-                'bill_date' => now()->toDateString(),
-                'due_date' => now()->addDays(30)->toDateString(),
-                'discount_total' => $purchaseOrder->discount_total,
+                'bill_date' => $data['bill_date'],
+                'due_date' => $data['due_date'] ?? null,
                 'currency' => $company->currency,
                 'notes' => $purchaseOrder->notes,
             ]);
 
-            foreach ($purchaseOrder->items as $sort => $poItem) {
-                $bill->items()->create([
+            foreach ($rows as $sort => $row) {
+                $poItem = $purchaseOrder->items->firstWhere('id', (int) $row['purchase_order_item_id']);
+
+                $line = new BillItem([
+                    'bill_id' => $bill->id,
                     'item_id' => $poItem->item_id,
                     'unit_id' => $poItem->unit_id,
-                    'description' => $poItem->description,
-                    'quantity' => $poItem->quantity,
-                    'unit_price' => $poItem->unit_price,
-                    'vat_rate' => $poItem->vat_rate,
-                    'vat_amount' => $poItem->vat_amount,
-                    'line_total' => $poItem->line_total,
+                    'purchase_order_item_id' => $poItem->id,
+                    'description' => $row['description'],
+                    'quantity' => $row['quantity'],
+                    'unit_price' => $row['unit_price'],
+                    'vat_rate' => $row['vat_rate'],
                     'sort_order' => $sort,
                 ]);
+                $line->recalculate();
+                $line->save();
             }
 
             $bill->recalculateTotals();
 
-            $purchaseOrder->update(['status' => 'converted', 'converted_bill_id' => $bill->id]);
+            $purchaseOrder->update([
+                'status' => $purchaseOrder->fresh(['items.billItems.bill'])->isFullyBilled() ? 'converted' : 'partially_billed',
+                'converted_bill_id' => $bill->id,
+            ]);
 
             return $bill;
         });
 
-        return redirect()->route('app.bills.show', $bill)->with('status', __('Purchase order converted to bill.'));
+        AuditLog::record('purchase_order.bill', $purchaseOrder, __('Billed purchase order :number (:bill)', ['number' => $purchaseOrder->po_number, 'bill' => $bill->bill_number]));
+
+        return redirect()->route('app.bills.show', $bill)->with('status', __('Bill created from purchase order.'));
     }
 
     public function storeAttachment(Request $request, PurchaseOrder $purchaseOrder)

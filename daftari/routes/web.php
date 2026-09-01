@@ -397,7 +397,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
             Route::post('purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
             Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
-            Route::post('purchase-orders/{purchaseOrder}/convert', [PurchaseOrderController::class, 'convertToBill'])->name('purchase-orders.convert');
+            Route::get('purchase-orders/{purchaseOrder}/bill', [PurchaseOrderController::class, 'billForm'])->name('purchase-orders.bill-form');
+            Route::post('purchase-orders/{purchaseOrder}/bill', [PurchaseOrderController::class, 'storeBill'])->name('purchase-orders.bill-store');
             Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
             Route::delete('purchase-orders/{purchaseOrder}/attachments/{attachment}', [PurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
             Route::get('purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');

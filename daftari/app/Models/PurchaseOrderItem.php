@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PurchaseOrderItem extends Model
 {
@@ -25,6 +26,28 @@ class PurchaseOrderItem extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function billItems(): HasMany
+    {
+        return $this->hasMany(BillItem::class);
+    }
+
+    /**
+     * How much of this line has already been billed — void bills don't
+     * count, since a voided bill never actually received/committed to
+     * anything against the order.
+     */
+    public function billedQuantity(): float
+    {
+        return (float) $this->billItems()
+            ->whereHas('bill', fn ($q) => $q->where('status', '!=', 'void'))
+            ->sum('quantity');
+    }
+
+    public function remainingQuantity(): float
+    {
+        return max(0, round((float) $this->quantity - $this->billedQuantity(), 2));
     }
 
     public function recalculate(): void

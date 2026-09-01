@@ -53,6 +53,26 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderItem::class);
     }
 
+    /**
+     * Every bill raised against this order — a PO can be billed across
+     * several deliveries, not just the single converted_bill_id the
+     * one-shot conversion used to leave behind.
+     */
+    public function bills(): HasMany
+    {
+        return $this->hasMany(Bill::class);
+    }
+
+    public function isFullyBilled(): bool
+    {
+        return $this->items->every(fn (PurchaseOrderItem $item) => $item->remainingQuantity() <= 0.01);
+    }
+
+    public function hasAnyBilledQuantity(): bool
+    {
+        return $this->items->contains(fn (PurchaseOrderItem $item) => $item->billedQuantity() > 0.01);
+    }
+
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');

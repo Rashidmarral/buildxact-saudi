@@ -22,20 +22,14 @@
             </form>
             <button type="button" onclick="document.getElementById('po-reject-form').classList.toggle('hidden')" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reject') }}</button>
         @endif
-        @if ($order->status === 'approved')
-            <form method="POST" action="{{ route('app.purchase-orders.convert', $order) }}">
-                @csrf
-                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Convert to bill') }}</button>
-            </form>
+        @if (in_array($order->status, ['approved', 'partially_billed']))
+            <a href="{{ route('app.purchase-orders.bill-form', $order) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Bill this order') }}</a>
         @endif
-        @if (! in_array($order->status, ['converted', 'void']))
+        @if (! in_array($order->status, ['converted', 'partially_billed', 'void']))
             <form method="POST" action="{{ route('app.purchase-orders.void', $order) }}" onsubmit="return confirm('{{ __('Void this purchase order?') }}')">
                 @csrf
                 <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Void') }}</button>
             </form>
-        @endif
-        @if ($order->status === 'converted' && $order->convertedBill)
-            <a href="{{ route('app.bills.show', $order->convertedBill) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('View bill') }}</a>
         @endif
         <a href="{{ route('app.purchase-orders.pdf', $order) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
@@ -81,6 +75,42 @@
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
     @include('documents.print.body', ['doc' => $doc, 'company' => $order->company, 'template' => $template])
 </div>
+
+@if ($order->hasAnyBilledQuantity())
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mt-6 print:hidden">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Billing progress') }}</h3>
+        <table class="w-full text-sm mb-4">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2 font-medium">{{ __('Item') }}</th>
+                    <th class="py-2 font-medium text-right">{{ __('Ordered') }}</th>
+                    <th class="py-2 font-medium text-right">{{ __('Billed') }}</th>
+                    <th class="py-2 font-medium text-right">{{ __('Remaining') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($order->items as $item)
+                    <tr class="border-b border-slate-50 last:border-0">
+                        <td class="py-2">{{ $item->description }}</td>
+                        <td class="py-2 text-right">{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
+                        <td class="py-2 text-right">{{ rtrim(rtrim(number_format($item->billedQuantity(), 2), '0'), '.') }}</td>
+                        <td class="py-2 text-right">{{ rtrim(rtrim(number_format($item->remainingQuantity(), 2), '0'), '.') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        <h4 class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Bills raised') }}</h4>
+        <ul class="divide-y divide-slate-50">
+            @foreach ($order->bills as $bill)
+                <li class="flex items-center justify-between py-2 text-sm">
+                    <a href="{{ route('app.bills.show', $bill) }}" class="text-brand-700 hover:underline">{{ $bill->bill_number }}</a>
+                    <span class="text-slate-400">{{ $bill->bill_date->format('Y-m-d') }} &middot; {{ \App\Support\Money::format($bill->total) }}</span>
+                </li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
 <div class="bg-white rounded-xl border border-slate-100 p-6 mt-6 print:hidden">
     <div class="flex items-center justify-between mb-4">

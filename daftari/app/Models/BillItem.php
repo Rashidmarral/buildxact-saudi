@@ -8,13 +8,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BillItem extends Model
 {
     protected $fillable = [
-        'bill_id', 'item_id', 'unit_id', 'description', 'quantity', 'unit_price',
+        'bill_id', 'item_id', 'unit_id', 'purchase_order_item_id', 'description', 'quantity', 'unit_price',
         'vat_rate', 'vat_amount', 'line_total', 'sort_order',
     ];
 
     public function bill(): BelongsTo
     {
         return $this->belongsTo(Bill::class);
+    }
+
+    public function purchaseOrderItem(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderItem::class);
     }
 
     public function item(): BelongsTo

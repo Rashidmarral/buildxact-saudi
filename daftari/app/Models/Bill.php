@@ -14,7 +14,7 @@ class Bill extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'supplier_id', 'branch_id', 'warehouse_id', 'created_by', 'bill_number',
+        'company_id', 'supplier_id', 'branch_id', 'warehouse_id', 'purchase_order_id', 'created_by', 'bill_number',
         'supplier_reference', 'status', 'bill_date', 'due_date', 'subtotal',
         'discount_total', 'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes',
         'stock_received', 'wht_rate_id', 'wht_amount', 'wht_withheld',
@@ -44,6 +44,11 @@ class Bill extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 
     public function whtRate(): BelongsTo

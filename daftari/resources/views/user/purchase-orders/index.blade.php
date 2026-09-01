@@ -23,7 +23,8 @@
         'draft' => __('Draft') . " ({$counts['draft']})",
         'pending_approval' => __('Pending approval') . " ({$counts['pending_approval']})",
         'approved' => __('Approved') . " ({$counts['approved']})",
-        'converted' => __('Converted') . " ({$counts['converted']})",
+        'partially_billed' => __('Partially billed') . " ({$counts['partially_billed']})",
+        'converted' => __('Fully billed') . " ({$counts['converted']})",
         'void' => __('Void') . " ({$counts['void']})",
     ] as $value => $label)
         <a href="{{ route('app.purchase-orders.index', array_filter(['status' => $value ?: null])) }}"
