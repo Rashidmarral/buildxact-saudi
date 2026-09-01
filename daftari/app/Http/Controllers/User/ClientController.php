@@ -291,6 +291,7 @@ class ClientController extends Controller
             'additional_id_type' => ['nullable', 'in:national_id,iqama,passport,gcc_id'],
             'additional_id_number' => ['nullable', 'string', 'max:50'],
             'initial_balance' => ['nullable', 'numeric'],
+            'payment_terms_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', new SaudiPhoneNumber],
             'mobile' => ['nullable', 'string', new SaudiPhoneNumber],

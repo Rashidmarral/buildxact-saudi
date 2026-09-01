@@ -6,6 +6,11 @@
 @php
 $existingItems = $invoice->exists ? $invoice->items()->orderBy('sort_order')->get() : collect();
 $company = auth()->user()->company;
+$presetTermsDays = [0, 15, 30, 45, 60];
+$initialTermsDays = $invoice->exists && $invoice->issue_date && $invoice->due_date
+    ? (int) $invoice->issue_date->diffInDays($invoice->due_date)
+    : ($defaultPaymentTermsDays ?? 30);
+$initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (string) $initialTermsDays : 'custom';
 @endphp
 
 <div class="flex items-center justify-between mb-6">
@@ -57,7 +62,7 @@ $company = auth()->user()->company;
             <select name="client_id" id="pv-client" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a client') }}</option>
                 @foreach ($clients as $client)
-                    <option value="{{ $client->id }}" @selected(old('client_id', $invoice->client_id) == $client->id)>{{ $client->name }}</option>
+                    <option value="{{ $client->id }}" data-terms-days="{{ $client->payment_terms_days }}" @selected(old('client_id', $invoice->client_id) == $client->id)>{{ $client->name }}</option>
                 @endforeach
             </select>
         </div>
@@ -73,8 +78,19 @@ $company = auth()->user()->company;
             <input type="date" name="issue_date" id="pv-issue-date" value="{{ old('issue_date', optional($invoice->issue_date)->format('Y-m-d')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Payment terms') }}</label>
+            <select id="payment-terms" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="0" @selected($initialTermsPreset === '0')>{{ __('Due on receipt') }}</option>
+                <option value="15" @selected($initialTermsPreset === '15')>{{ __('Net 15') }}</option>
+                <option value="30" @selected($initialTermsPreset === '30')>{{ __('Net 30') }}</option>
+                <option value="45" @selected($initialTermsPreset === '45')>{{ __('Net 45') }}</option>
+                <option value="60" @selected($initialTermsPreset === '60')>{{ __('Net 60') }}</option>
+                <option value="custom" @selected($initialTermsPreset === 'custom')>{{ __('Custom') }}</option>
+            </select>
+        </div>
+        <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Due date') }}</label>
-            <input type="date" name="due_date" value="{{ old('due_date', optional($invoice->due_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="date" name="due_date" id="due-date" value="{{ old('due_date', optional($invoice->due_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Currency') }}</label>
@@ -416,6 +432,41 @@ document.getElementById('invoice-form').addEventListener('submit', (e) => {
         alert(@json(__('Add at least one line item.')));
     }
 });
+
+// Payment-terms preset: recomputes the due date from issue_date + N days
+// whenever the preset isn't "custom" — picking a different client (that
+// has its own terms override) or changing the issue date both retrigger
+// it, matching how the field would behave if it were server-computed.
+(function () {
+    const termsSelect = document.getElementById('payment-terms');
+    const dueDateInput = document.getElementById('due-date');
+    const issueDateInput = document.getElementById('pv-issue-date');
+    const clientSelect = document.getElementById('pv-client');
+
+    function applyTerms() {
+        if (termsSelect.value === 'custom' || !issueDateInput.value) return;
+        const issueDate = new Date(issueDateInput.value + 'T00:00:00');
+        issueDate.setDate(issueDate.getDate() + parseInt(termsSelect.value, 10));
+        dueDateInput.value = issueDate.toISOString().slice(0, 10);
+    }
+
+    termsSelect.addEventListener('change', applyTerms);
+    issueDateInput.addEventListener('change', applyTerms);
+    clientSelect.addEventListener('change', () => {
+        const opt = clientSelect.selectedOptions[0];
+        const days = opt ? opt.dataset.termsDays : '';
+        if (days) {
+            termsSelect.value = ['0', '15', '30', '45', '60'].includes(days) ? days : 'custom';
+            if (termsSelect.value === 'custom') {
+                const issueDate = new Date(issueDateInput.value + 'T00:00:00');
+                issueDate.setDate(issueDate.getDate() + parseInt(days, 10));
+                dueDateInput.value = issueDate.toISOString().slice(0, 10);
+            } else {
+                applyTerms();
+            }
+        }
+    });
+})();
 
 document.getElementById('save-menu-toggle').addEventListener('click', () => {
     document.getElementById('save-menu').classList.toggle('hidden');

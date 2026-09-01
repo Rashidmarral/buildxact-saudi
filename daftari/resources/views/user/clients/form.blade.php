@@ -79,6 +79,12 @@
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Payment terms (days)') }}</label>
+                <input type="number" min="0" max="365" name="payment_terms_days" value="{{ old('payment_terms_days', $client->payment_terms_days) }}" placeholder="{{ __('Use company default') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <p class="text-xs text-slate-400 mt-1">{{ __('Overrides the company default when suggesting a due date on new invoices for this client.') }}</p>
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Notes') }}</label>
                 <textarea name="notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $client->notes) }}</textarea>
             </div>

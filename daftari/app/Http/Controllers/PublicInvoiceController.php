@@ -19,7 +19,7 @@ class PublicInvoiceController extends Controller
      */
     public function show(int $id, string $token)
     {
-        $invoice = Invoice::withoutGlobalScopes()->with('items', 'client', 'bankAccount', 'company')->findOrFail($id);
+        $invoice = Invoice::withoutGlobalScopes()->with('items', 'client', 'bankAccount', 'company', 'installments')->findOrFail($id);
 
         abort_unless(hash_equals($invoice->public_token, $token), 404);
         abort_if($invoice->status === 'draft', 404);

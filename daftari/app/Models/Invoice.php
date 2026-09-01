@@ -93,6 +93,36 @@ class Invoice extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function installments(): HasMany
+    {
+        return $this->hasMany(InvoiceInstallment::class)->orderBy('due_date')->orderBy('sort_order');
+    }
+
+    /**
+     * Audit finding MEDIUM-16: a payment schedule is purely informational
+     * — payments still land as one running total against amount_paid (no
+     * per-installment allocation/FK), so "paid so far" per installment is
+     * derived here by walking the schedule in due-date order and applying
+     * amount_paid against each one until it runs out, oldest first.
+     */
+    public function installmentSchedule(): \Illuminate\Support\Collection
+    {
+        $remaining = (float) $this->amount_paid;
+
+        return $this->installments->map(function (InvoiceInstallment $installment) use (&$remaining) {
+            $paid = min((float) $installment->amount, max(0, $remaining));
+            $remaining -= $paid;
+
+            return (object) [
+                'installment' => $installment,
+                'paid_amount' => round($paid, 2),
+                'status' => $paid >= (float) $installment->amount - 0.01
+                    ? 'paid'
+                    : ($paid > 0 ? 'partial' : 'pending'),
+            ];
+        });
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

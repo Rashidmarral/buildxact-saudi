@@ -25,6 +25,36 @@
     @include('documents.print.body', ['doc' => $doc, 'company' => $company, 'template' => $template])
 </div>
 
+@if ($invoice->installments->isNotEmpty())
+    <div class="mt-6 rounded-xl border border-slate-100 bg-white p-6 print:hidden">
+        <h2 class="font-semibold text-slate-900 mb-4">{{ __('Payment schedule') }}</h2>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2">{{ __('Description') }}</th>
+                    <th class="py-2">{{ __('Due date') }}</th>
+                    <th class="py-2 text-end">{{ __('Amount') }}</th>
+                    <th class="py-2 text-end">{{ __('Status') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($invoice->installmentSchedule() as $row)
+                    <tr class="border-b border-slate-50 last:border-0">
+                        <td class="py-2">{{ $row->installment->description ?: __('Installment') }}</td>
+                        <td class="py-2">{{ $row->installment->due_date->format('Y-m-d') }}</td>
+                        <td class="py-2 text-end">{{ \App\Support\Money::format($row->installment->amount) }}</td>
+                        <td class="py-2 text-end">
+                            <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $row->status === 'paid' ? 'bg-emerald-50 text-emerald-700' : ($row->status === 'partial' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500') }}">
+                                {{ $row->status === 'paid' ? __('Paid') : ($row->status === 'partial' ? __('Partial') : __('Pending')) }}
+                            </span>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+@endif
+
 <div class="mt-6 print:hidden">
     @if ($invoice->balanceDue() <= 0.01)
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-5 text-center">

@@ -16,7 +16,7 @@ class Client extends Model
     protected $fillable = [
         'company_id', 'client_code', 'type', 'name', 'name_ar', 'contact_name',
         'is_vat_registered', 'vat_number', 'cr_number', 'additional_id_type',
-        'additional_id_number', 'initial_balance', 'email', 'phone', 'mobile',
+        'additional_id_number', 'initial_balance', 'payment_terms_days', 'email', 'phone', 'mobile',
         'street_name', 'building_number', 'district', 'city', 'state', 'country',
         'postal_code', 'notes',
     ];
@@ -26,6 +26,7 @@ class Client extends Model
         return [
             'is_vat_registered' => 'boolean',
             'initial_balance' => 'decimal:2',
+            'payment_terms_days' => 'integer',
         ];
     }
 

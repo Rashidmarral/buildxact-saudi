@@ -129,6 +129,7 @@ class InvoiceController extends Controller
             'warehouses' => Warehouse::orderBy('name')->get(),
             'currencies' => Currencies::catalog(),
             'nextNumberPreview' => $company->invoice_prefix.'-'.str_pad((string) $company->next_invoice_number, 5, '0', STR_PAD_LEFT),
+            'defaultPaymentTermsDays' => $company->default_payment_terms_days ?? 30,
         ]);
     }
 
@@ -191,7 +192,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load('items', 'client', 'invoicePayments', 'bankAccount', 'warehouse', 'attachments');
+        $invoice->load('items', 'client', 'invoicePayments', 'bankAccount', 'warehouse', 'attachments', 'installments');
         $template = $invoice->company->defaultTemplateFor('invoice');
         $whatsappEnabled = (bool) WhatsappConfig::where('is_enabled', true)->exists();
         $smsEnabled = (bool) SmsConfig::where('is_enabled', true)->exists();
@@ -382,6 +383,7 @@ class InvoiceController extends Controller
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
             'currencies' => Currencies::catalog(),
+            'defaultPaymentTermsDays' => $invoice->company->default_payment_terms_days ?? 30,
         ]);
     }
 
@@ -548,6 +550,58 @@ class InvoiceController extends Controller
         }
 
         return back()->with('status', __('Payment recorded.'));
+    }
+
+    /**
+     * Audit finding MEDIUM-16: lets a company split an invoice's total
+     * into a scheduled payment plan (e.g. deposit + balance, or monthly
+     * installments) shown to the client on both the internal show page and
+     * the public pay link. Deliberately informational only — payments
+     * still land as one running total against amount_paid the same as
+     * before (see Invoice::installmentSchedule(), which derives paid/
+     * pending per line from that total); this doesn't touch how a payment
+     * is recorded or which gateway checkout amount is charged.
+     */
+    public function storeInstallments(Request $request, Invoice $invoice)
+    {
+        $data = $request->validate([
+            'installments' => ['required', 'array', 'min:2'],
+            'installments.*.description' => ['nullable', 'string', 'max:255'],
+            'installments.*.due_date' => ['required', 'date'],
+            'installments.*.amount' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        $sum = round(collect($data['installments'])->sum('amount'), 2);
+
+        if (abs($sum - round((float) $invoice->total, 2)) > 0.01) {
+            return back()->withErrors(['installments' => __('The installment amounts must add up to the invoice total (:total).', ['total' => \App\Support\Money::format($invoice->total)])])->withInput();
+        }
+
+        DB::transaction(function () use ($invoice, $data) {
+            $invoice->installments()->delete();
+
+            foreach ($data['installments'] as $sort => $row) {
+                $invoice->installments()->create([
+                    'description' => $row['description'] ?? null,
+                    'due_date' => $row['due_date'],
+                    'amount' => $row['amount'],
+                    'sort_order' => $sort,
+                ]);
+            }
+        });
+
+        AuditLog::record('invoice.installments_set', $invoice, __('Set a :count-installment payment schedule on invoice :number', ['count' => count($data['installments']), 'number' => $invoice->invoice_number]));
+
+        return back()->with('status', __('Payment schedule saved.'));
+    }
+
+    public function destroyInstallments(Invoice $invoice)
+    {
+        $invoice->installments()->delete();
+
+        AuditLog::record('invoice.installments_cleared', $invoice, __('Removed the payment schedule from invoice :number', ['number' => $invoice->invoice_number]));
+
+        return back()->with('status', __('Payment schedule removed.'));
     }
 
     public function storeAttachment(Request $request, Invoice $invoice)

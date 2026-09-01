@@ -202,6 +202,127 @@
     @endif
 </div>
 
+@if ($invoice->status !== 'cancelled')
+    <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden" x-data="{ editing: {{ $invoice->installments->isEmpty() ? 'true' : 'false' }} }">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-slate-900">{{ __('Payment schedule') }}</h3>
+            @if ($invoice->installments->isNotEmpty())
+                <div class="flex items-center gap-3 text-sm">
+                    <button type="button" @click="editing = ! editing" class="font-semibold text-brand-700 hover:underline" x-text="editing ? '{{ __('Cancel') }}' : '{{ __('Edit schedule') }}'"></button>
+                    <form method="POST" action="{{ route('app.invoices.installments.destroy', $invoice) }}" onsubmit="return confirm('{{ __('Remove the payment schedule?') }}')">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                    </form>
+                </div>
+            @endif
+        </div>
+
+        @if ($invoice->installments->isNotEmpty())
+            <table class="w-full text-sm mb-2" x-show="! editing">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="py-2">{{ __('Description') }}</th>
+                        <th class="py-2">{{ __('Due date') }}</th>
+                        <th class="py-2 text-end">{{ __('Amount') }}</th>
+                        <th class="py-2 text-end">{{ __('Paid') }}</th>
+                        <th class="py-2 text-end">{{ __('Status') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($invoice->installmentSchedule() as $row)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="py-2">{{ $row->installment->description ?: __('Installment') }}</td>
+                            <td class="py-2">{{ $row->installment->due_date->format('Y-m-d') }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($row->installment->amount) }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($row->paid_amount) }}</td>
+                            <td class="py-2 text-end">
+                                <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $row->status === 'paid' ? 'bg-emerald-50 text-emerald-700' : ($row->status === 'partial' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500') }}">
+                                    {{ $row->status === 'paid' ? __('Paid') : ($row->status === 'partial' ? __('Partial') : __('Pending')) }}
+                                </span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @else
+            <p class="text-sm text-slate-500 mb-4" x-show="! editing">{{ __('No payment schedule set — the full balance is due as usual.') }}</p>
+        @endif
+
+        <div x-show="editing" x-cloak>
+            <p class="text-sm text-slate-500 mb-3">{{ __('Split the invoice total (:total) into a deposit/balance or a series of scheduled payments. The amounts must add up to the total.', ['total' => \App\Support\Money::format($invoice->total)]) }}</p>
+            <form method="POST" action="{{ route('app.invoices.installments.store', $invoice) }}" id="installments-form">
+                @csrf
+                <table class="w-full text-sm mb-3">
+                    <thead>
+                        <tr class="text-left text-slate-500 border-b border-slate-100">
+                            <th class="py-2 pe-3">{{ __('Description') }}</th>
+                            <th class="py-2 pe-3 w-40">{{ __('Due date') }}</th>
+                            <th class="py-2 pe-3 w-32">{{ __('Amount') }}</th>
+                            <th class="py-2 w-8"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="installments-body"></tbody>
+                </table>
+                <button type="button" id="add-installment-row" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add row') }}</button>
+                <div class="mt-3 flex items-center justify-between">
+                    <p class="text-sm" id="installments-sum-check"></p>
+                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save schedule') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const body = document.getElementById('installments-body');
+        if (! body) return;
+
+        const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
+        const INVOICE_TOTAL = {{ (float) $invoice->total }};
+        const EXISTING = {!! $invoice->installments->map(fn ($i) => ['description' => $i->description, 'due_date' => $i->due_date->format('Y-m-d'), 'amount' => (float) $i->amount])->values()->toJson() !!};
+        let rowIndex = 0;
+
+        function addRow(data) {
+            data = data || { description: '', due_date: '', amount: '' };
+            const i = rowIndex++;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="py-2 pe-3"><input type="text" name="installments[${i}][description]" value="${data.description || ''}" placeholder="{{ __('e.g. Deposit') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+                <td class="py-2 pe-3"><input type="date" name="installments[${i}][due_date]" value="${data.due_date}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+                <td class="py-2 pe-3"><input type="number" step="0.01" min="0.01" name="installments[${i}][amount]" data-role="amount" value="${data.amount}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+                <td class="py-2"><button type="button" data-role="remove" class="text-slate-400 hover:text-red-600">&times;</button></td>
+            `;
+            body.appendChild(tr);
+        }
+
+        function checkSum() {
+            const sum = [...body.querySelectorAll('[data-role="amount"]')].reduce((s, el) => s + (parseFloat(el.value) || 0), 0);
+            const el = document.getElementById('installments-sum-check');
+            const diff = Math.round((sum - INVOICE_TOTAL) * 100) / 100;
+            el.textContent = CURRENCY_SYMBOL + ' ' + sum.toFixed(2) + ' / ' + CURRENCY_SYMBOL + ' ' + INVOICE_TOTAL.toFixed(2);
+            el.className = 'text-sm ' + (Math.abs(diff) < 0.01 ? 'text-emerald-600' : 'text-red-600');
+        }
+
+        body.addEventListener('input', checkSum);
+        body.addEventListener('click', (e) => {
+            if (e.target.closest('[data-role="remove"]')) {
+                e.target.closest('tr').remove();
+                checkSum();
+            }
+        });
+        document.getElementById('add-installment-row').addEventListener('click', () => { addRow(); checkSum(); });
+
+        if (EXISTING.length) {
+            EXISTING.forEach(addRow);
+        } else {
+            addRow({ description: '{{ __('Deposit') }}', due_date: '{{ now()->toDateString() }}', amount: (INVOICE_TOTAL / 2).toFixed(2) });
+            addRow({ description: '{{ __('Balance') }}', due_date: '{{ now()->addDays(30)->toDateString() }}', amount: (INVOICE_TOTAL / 2).toFixed(2) });
+        }
+        checkSum();
+    })();
+    </script>
+@endif
+
 <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
     <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-slate-900">{{ __('Attachments') }}</h3>

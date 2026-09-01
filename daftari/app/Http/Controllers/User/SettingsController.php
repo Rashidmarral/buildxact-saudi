@@ -96,6 +96,7 @@ class SettingsController extends Controller
             'phone' => ['nullable', 'string', new SaudiPhoneNumber],
             'email' => ['nullable', 'email', 'max:255'],
             'invoice_prefix' => ['required', 'string', 'max:10'],
+            'default_payment_terms_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'primary_customer_type' => ['required', 'in:b2b,b2c,mixed'],
             'negative_number_format' => ['required', 'in:minus,parentheses'],
             'default_branch_id' => ['nullable', Rule::exists('branches', 'id')->where('company_id', $companyId)],

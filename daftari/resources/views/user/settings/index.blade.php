@@ -114,6 +114,11 @@
                     <input type="text" name="invoice_prefix" value="{{ old('invoice_prefix', $company->invoice_prefix) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Default payment terms (days)') }}</label>
+                    <input type="number" min="0" max="365" name="default_payment_terms_days" value="{{ old('default_payment_terms_days', $company->default_payment_terms_days) }}" placeholder="30" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <p class="text-xs text-slate-400 mt-1">{{ __('Used to suggest a due date on new invoices — e.g. 30 for Net 30. A client can override this on their own record.') }}</p>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-slate-700">{{ __('Primary customer type') }}</label>
                     <select name="primary_customer_type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         <option value="mixed" @selected(old('primary_customer_type', $company->primary_customer_type ?? 'mixed') === 'mixed')>{{ __('Mixed (both)') }}</option>
