@@ -3519,5 +3519,10 @@
     "credit notes": "إشعارات دائنة",
     "invoices": "فواتير",
     "purchase returns": "مرتجعات المشتريات",
-    "Cost of goods sold for :number": "تكلفة البضاعة المباعة لـ :number"
+    "Cost of goods sold for :number": "تكلفة البضاعة المباعة لـ :number",
+    "Documents": "المستندات",
+    "Security": "الأمان",
+    "Integrations": "التكاملات",
+    "Business Rules": "قواعد العمل",
+    "Company profile, security, integrations, and business rules.": "الملف التعريفي للشركة، والأمان، والتكاملات، وقواعد العمل."
 }
