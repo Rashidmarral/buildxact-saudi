@@ -43,25 +43,32 @@ class ZakatController extends Controller
         $data = $request->validate([
             'period_end_date' => ['required', 'date'],
             'rate_type' => ['required', Rule::in(['hijri', 'gregorian'])],
-            'equity_amount' => ['required', 'numeric'],
             'long_term_liabilities' => ['nullable', 'numeric', 'min:0'],
             'net_fixed_assets' => ['nullable', 'numeric', 'min:0'],
             'other_deductions' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        // Equity is never trusted from the request — it's always
+        // recomputed here from the real posted ledger as of the chosen
+        // date, the same figure the create form displayed. A user could
+        // otherwise submit any number they liked for the field the Zakat
+        // base is built on.
+        $asOf = Carbon::parse($data['period_end_date'])->endOfDay();
+        $equityAmount = $this->totalEquityAsOf(Auth::user()->company_id, $asOf);
+
         $longTermLiabilities = (float) ($data['long_term_liabilities'] ?? 0);
         $netFixedAssets = (float) ($data['net_fixed_assets'] ?? 0);
         $otherDeductions = (float) ($data['other_deductions'] ?? 0);
 
-        $zakatBase = max(0, $data['equity_amount'] + $longTermLiabilities - $netFixedAssets - $otherDeductions);
+        $zakatBase = max(0, $equityAmount + $longTermLiabilities - $netFixedAssets - $otherDeductions);
         $zakatDue = $zakatBase * ZakatCalculation::rate($data['rate_type']);
 
         $calculation = Auth::user()->company->zakatCalculations()->create([
             'created_by' => Auth::id(),
             'period_end_date' => $data['period_end_date'],
             'rate_type' => $data['rate_type'],
-            'equity_amount' => $data['equity_amount'],
+            'equity_amount' => $equityAmount,
             'long_term_liabilities' => $longTermLiabilities,
             'net_fixed_assets' => $netFixedAssets,
             'other_deductions' => $otherDeductions,

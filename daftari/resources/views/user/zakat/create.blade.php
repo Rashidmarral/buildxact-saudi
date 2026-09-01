@@ -30,8 +30,8 @@
 
         <div>
             <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Total equity (from your chart of accounts)') }}</label>
-            <input type="number" step="0.01" name="equity_amount" value="{{ old('equity_amount', $equity) }}" required class="w-full rounded-lg border border-slate-200 text-sm">
-            <p class="text-xs text-slate-400 mt-1">{{ __('Pulled automatically from your posted ledger — adjust if needed.') }}</p>
+            <p class="text-sm font-semibold text-slate-900">{{ number_format($equity, 2) }}</p>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Locked to your posted ledger as of the date above — it cannot be typed over. Change the date and refresh to recalculate.') }}</p>
         </div>
 
         <div>
