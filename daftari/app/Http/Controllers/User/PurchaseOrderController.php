@@ -272,7 +272,7 @@ class PurchaseOrderController extends Controller
 
     public function storeAttachment(Request $request, PurchaseOrder $purchaseOrder)
     {
-        $request->validate(['file' => ['required', 'file', 'max:10240']]);
+        $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
 
         $file = $request->file('file');
 
