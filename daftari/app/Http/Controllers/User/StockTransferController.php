@@ -29,6 +29,11 @@ class StockTransferController extends Controller
     {
         $data = $this->validated($request);
 
+        // Two-step transfer: stock leaves the source warehouse immediately
+        // (so it stops showing as available there) but doesn't land in the
+        // destination warehouse's stock until someone at that end confirms
+        // receive() — matching how a transfer between two physical
+        // locations actually works, instead of teleporting instantly.
         $transfer = DB::transaction(function () use ($data) {
             $fromStock = ItemStock::firstOrCreate(
                 ['item_id' => $data['item_id'], 'warehouse_id' => $data['from_warehouse_id']],
@@ -48,28 +53,33 @@ class StockTransferController extends Controller
                 'created_by' => Auth::id(),
                 'quantity' => $data['quantity'],
                 'date' => now()->toDateString(),
-                'status' => 'recorded',
+                'status' => 'in_transit',
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            $this->applyToStock($transfer, 1);
+            $fromStock->decrement('quantity', $transfer->quantity);
 
             return $transfer;
         });
 
-        AuditLog::record('stock_transfer.create', $transfer, __('Transferred :qty of :item from :from to :to', [
+        AuditLog::record('stock_transfer.create', $transfer, __('Transferred :qty of :item from :from to :to (in transit)', [
             'qty' => rtrim(rtrim(number_format($transfer->quantity, 2), '0'), '.'),
             'item' => $transfer->item->name,
             'from' => $transfer->fromWarehouse->name,
             'to' => $transfer->toWarehouse->name,
         ]));
 
-        return redirect()->route('app.stock-transfers.index')->with('status', __('Stock transfer recorded.'));
+        return redirect()->route('app.stock-transfers.index')->with('status', __('Stock transfer recorded — in transit to the destination warehouse.'));
     }
 
-    public function reverse(StockTransfer $stockTransfer)
+    /**
+     * Confirms the quantity actually arrived at the destination warehouse,
+     * adding it to that warehouse's stock. Only valid while in_transit —
+     * a completed or reversed transfer has nothing left to receive.
+     */
+    public function receive(StockTransfer $stockTransfer)
     {
-        if ($stockTransfer->status === 'reversed') {
+        if ($stockTransfer->status !== 'in_transit') {
             return back();
         }
 
@@ -79,35 +89,58 @@ class StockTransferController extends Controller
                 ['quantity' => 0]
             );
 
-            if ((float) $toStock->quantity < (float) $stockTransfer->quantity) {
-                throw ValidationException::withMessages([
-                    'quantity' => __('Cannot reverse — the destination warehouse no longer holds enough of this item (some may have since been sold or moved again).'),
-                ]);
+            $toStock->increment('quantity', $stockTransfer->quantity);
+            $stockTransfer->update(['status' => 'completed', 'received_at' => now(), 'received_by' => Auth::id()]);
+        });
+
+        AuditLog::record('stock_transfer.receive', $stockTransfer, __('Received :qty of :item at :to', [
+            'qty' => rtrim(rtrim(number_format($stockTransfer->quantity, 2), '0'), '.'),
+            'item' => $stockTransfer->item->name,
+            'to' => $stockTransfer->toWarehouse->name,
+        ]));
+
+        return back()->with('status', __('Stock transfer received.'));
+    }
+
+    public function reverse(StockTransfer $stockTransfer)
+    {
+        if ($stockTransfer->status === 'reversed') {
+            return back();
+        }
+
+        DB::transaction(function () use ($stockTransfer) {
+            $fromStock = ItemStock::firstOrCreate(
+                ['item_id' => $stockTransfer->item_id, 'warehouse_id' => $stockTransfer->from_warehouse_id],
+                ['quantity' => 0]
+            );
+
+            if ($stockTransfer->status === 'completed') {
+                // The quantity already landed at the destination — undo
+                // both legs, same as before receive() existed.
+                $toStock = ItemStock::firstOrCreate(
+                    ['item_id' => $stockTransfer->item_id, 'warehouse_id' => $stockTransfer->to_warehouse_id],
+                    ['quantity' => 0]
+                );
+
+                if ((float) $toStock->quantity < (float) $stockTransfer->quantity) {
+                    throw ValidationException::withMessages([
+                        'quantity' => __('Cannot reverse — the destination warehouse no longer holds enough of this item (some may have since been sold or moved again).'),
+                    ]);
+                }
+
+                $toStock->decrement('quantity', $stockTransfer->quantity);
             }
 
-            $this->applyToStock($stockTransfer, -1);
+            // While in_transit, the quantity only ever left the source —
+            // it was never added to the destination, so reversing it is
+            // just giving the source warehouse its stock back.
+            $fromStock->increment('quantity', $stockTransfer->quantity);
             $stockTransfer->update(['status' => 'reversed']);
         });
 
         AuditLog::record('stock_transfer.reverse', $stockTransfer, __('Reversed stock transfer of :item', ['item' => $stockTransfer->item->name]));
 
         return back()->with('status', __('Stock transfer reversed.'));
-    }
-
-    /**
-     * $direction 1 moves quantity from -> to (the original transfer);
-     * -1 undoes it by moving the same quantity back to -> from.
-     */
-    private function applyToStock(StockTransfer $transfer, int $direction): void
-    {
-        $fromWarehouseId = $direction === 1 ? $transfer->from_warehouse_id : $transfer->to_warehouse_id;
-        $toWarehouseId = $direction === 1 ? $transfer->to_warehouse_id : $transfer->from_warehouse_id;
-
-        $fromStock = ItemStock::firstOrCreate(['item_id' => $transfer->item_id, 'warehouse_id' => $fromWarehouseId], ['quantity' => 0]);
-        $toStock = ItemStock::firstOrCreate(['item_id' => $transfer->item_id, 'warehouse_id' => $toWarehouseId], ['quantity' => 0]);
-
-        $fromStock->decrement('quantity', $transfer->quantity);
-        $toStock->increment('quantity', $transfer->quantity);
     }
 
     private function validated(Request $request): array

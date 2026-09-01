@@ -439,6 +439,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'store']);
         Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
         Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'store']);
+        Route::post('stock-transfers/{stockTransfer}/receive', [StockTransferController::class, 'receive'])->name('stock-transfers.receive');
         Route::post('stock-transfers/{stockTransfer}/reverse', [StockTransferController::class, 'reverse'])->name('stock-transfers.reverse');
         Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->name('inventory.valuation');

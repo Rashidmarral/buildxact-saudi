@@ -239,7 +239,7 @@ class AccountingHealthController extends Controller
             'invoice.send', 'invoice.cancel', 'bill.create', 'bill.post', 'bill.void',
             'credit_note.create', 'debit_note.create', 'purchase_return.create', 'fixed_asset.create',
             'fixed_asset.dispose', 'budget.create', 'budget.activate', 'zakat.calculate',
-            'expense.approve', 'expense.reject', 'stock_transfer.create', 'stock_transfer.reverse',
+            'expense.approve', 'expense.reject', 'stock_transfer.create', 'stock_transfer.receive', 'stock_transfer.reverse',
         ];
     }
 }

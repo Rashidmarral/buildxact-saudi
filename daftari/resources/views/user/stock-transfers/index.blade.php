@@ -55,12 +55,23 @@
                         <td class="px-6 py-3">
                             @if ($transfer->status === 'reversed')
                                 <span class="inline-block rounded-full bg-red-50 text-red-600 text-xs font-medium px-2.5 py-1">{{ __('Reversed') }}</span>
+                            @elseif ($transfer->status === 'completed')
+                                <span class="inline-block rounded-full bg-emerald-50 text-emerald-600 text-xs font-medium px-2.5 py-1">{{ __('Completed') }}</span>
                             @else
-                                <span class="inline-block rounded-full bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1">{{ __('Recorded') }}</span>
+                                <span class="inline-block rounded-full bg-amber-50 text-amber-600 text-xs font-medium px-2.5 py-1">{{ __('In transit') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-3 text-right">
-                            @if ($transfer->status === 'recorded')
+                        <td class="px-6 py-3 text-right whitespace-nowrap">
+                            @if ($transfer->status === 'in_transit')
+                                <form method="POST" action="{{ route('app.stock-transfers.receive', $transfer) }}" class="inline">
+                                    @csrf
+                                    <button type="submit" class="text-emerald-600 hover:underline text-xs font-semibold me-3">{{ __('Receive') }}</button>
+                                </form>
+                                <form method="POST" action="{{ route('app.stock-transfers.reverse', $transfer) }}" onsubmit="return confirm('{{ __('Reverse this transfer?') }}')" class="inline">
+                                    @csrf
+                                    <button type="submit" class="text-red-600 hover:underline text-xs font-semibold">{{ __('Cancel') }}</button>
+                                </form>
+                            @elseif ($transfer->status === 'completed')
                                 <form method="POST" action="{{ route('app.stock-transfers.reverse', $transfer) }}" onsubmit="return confirm('{{ __('Reverse this transfer?') }}')">
                                     @csrf
                                     <button type="submit" class="text-red-600 hover:underline text-xs font-semibold">{{ __('Reverse') }}</button>

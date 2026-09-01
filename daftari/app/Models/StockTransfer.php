@@ -12,12 +12,17 @@ class StockTransfer extends Model
 
     protected $fillable = [
         'company_id', 'item_id', 'from_warehouse_id', 'to_warehouse_id', 'created_by',
-        'quantity', 'date', 'status', 'notes',
+        'quantity', 'date', 'status', 'received_at', 'received_by', 'notes',
     ];
 
     protected function casts(): array
     {
-        return ['date' => 'date'];
+        return ['date' => 'date', 'received_at' => 'datetime'];
+    }
+
+    public function receiver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'received_by');
     }
 
     public function item(): BelongsTo
