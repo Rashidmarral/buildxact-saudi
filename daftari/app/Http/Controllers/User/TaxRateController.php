@@ -15,6 +15,7 @@ class TaxRateController extends Controller
         return view('user.settings.tax-rates', [
             'taxRates' => TaxRate::orderByDesc('is_default')->orderBy('name')->get(),
             'types' => TaxRate::TYPES,
+            'company' => Auth::user()->company,
         ]);
     }
 
@@ -40,6 +41,31 @@ class TaxRateController extends Controller
         }
 
         return redirect()->route('app.tax-rates.index')->with('status', __('Tax rate updated.'));
+    }
+
+    /**
+     * Input VAT on general (non-directly-attributable) purchases is fully
+     * recoverable by default — correct for the vast majority of companies.
+     * A company that also makes VAT-exempt supplies opts into
+     * apportionment here; the recovery percentage is normally left blank
+     * so the VAT report computes it itself each period from the
+     * company's own exempt vs. taxable sales, the standard method — a
+     * manual override is only for a company that already knows its
+     * agreed recovery rate.
+     */
+    public function updateRecovery(Request $request)
+    {
+        $data = $request->validate([
+            'vat_makes_exempt_supplies' => ['nullable', 'boolean'],
+            'vat_recovery_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        Auth::user()->company->update([
+            'vat_makes_exempt_supplies' => $request->boolean('vat_makes_exempt_supplies'),
+            'vat_recovery_percentage' => $data['vat_recovery_percentage'] ?? null,
+        ]);
+
+        return redirect()->route('app.tax-rates.index')->with('status', __('VAT recovery settings saved.'));
     }
 
     public function destroy(TaxRate $taxRate)

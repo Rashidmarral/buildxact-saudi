@@ -11,12 +11,15 @@ use App\Models\BillPayment;
 use App\Models\Client;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\Company;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\PaymentVoucher;
 use App\Models\InvoicePayment;
 use App\Models\Item;
 use App\Models\Salesperson;
 use App\Models\Supplier;
+use App\Models\TaxRate;
 use App\Models\Warehouse;
 use App\Support\Money;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -80,6 +83,9 @@ class ReportController extends Controller
             'netTaxPosition' => $outputTax - $inputTaxPurchases - $expenseTax,
         ];
 
+        $summary += $this->vatApportionment($company, $salesRows, $inputTaxPurchases + $expenseTax);
+        $summary['netTaxPosition'] = $outputTax - $summary['netRecoverableInputTax'];
+
         if ($request->query('export') === 'csv') {
             return $this->vatCsvExport($tab, $salesRows, $purchaseRows, $expenseRows);
         }
@@ -104,6 +110,59 @@ class ReportController extends Controller
             'suppliers' => Supplier::orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
         ] + $summary);
+    }
+
+    /**
+     * A company that only makes taxable (and zero-rated) supplies can
+     * recover 100% of its input VAT, which is what netTaxPosition always
+     * assumed. A company that also makes VAT-exempt supplies (opted in
+     * via Settings > Tax rates) can't recover the portion of its general
+     * input VAT attributable to that exempt output — the standard
+     * proportional-recovery method applies a recoverable ratio (taxable
+     * sales ÷ total sales) to input VAT that isn't directly tied to one
+     * specific sale. This app has no per-line attribution data for bills/
+     * expenses, so — until that exists — the ratio is applied to all of
+     * this period's input VAT (Purchases + Expenses combined), the same
+     * simplification most small businesses' bookkeeping already makes.
+     */
+    private function vatApportionment(Company $company, $salesRows, float $inputVatBeforeApportionment): array
+    {
+        $inputVatBeforeApportionment = round($inputVatBeforeApportionment, 2);
+
+        if (! $company->vat_makes_exempt_supplies) {
+            return [
+                'vatApportionmentEnabled' => false,
+                'exemptOutputSales' => 0.0,
+                'taxableOutputSales' => (float) $salesRows->sum('subtotal'),
+                'recoveryPercentage' => 100.0,
+                'inputVatBeforeApportionment' => $inputVatBeforeApportionment,
+                'nonRecoverableInputTax' => 0.0,
+                'netRecoverableInputTax' => $inputVatBeforeApportionment,
+            ];
+        }
+
+        $exemptOutputSales = (float) InvoiceItem::whereIn('invoice_id', $salesRows->pluck('id'))
+            ->whereHas('taxRate', fn ($q) => $q->where('type', TaxRate::TYPE_EXEMPT))
+            ->sum('line_total');
+
+        $taxableOutputSales = max(0, (float) $salesRows->sum('subtotal') - $exemptOutputSales);
+        $totalOutputSales = $taxableOutputSales + $exemptOutputSales;
+
+        $recoveryPercentage = $company->vat_recovery_percentage !== null
+            ? (float) $company->vat_recovery_percentage
+            : ($totalOutputSales > 0 ? round(($taxableOutputSales / $totalOutputSales) * 100, 2) : 100.0);
+
+        $netRecoverableInputTax = round($inputVatBeforeApportionment * ($recoveryPercentage / 100), 2);
+
+        return [
+            'vatApportionmentEnabled' => true,
+            'exemptOutputSales' => $exemptOutputSales,
+            'taxableOutputSales' => $taxableOutputSales,
+            'recoveryPercentage' => $recoveryPercentage,
+            'inputVatBeforeApportionment' => $inputVatBeforeApportionment,
+            'nonRecoverableInputTax' => round($inputVatBeforeApportionment - $netRecoverableInputTax, 2),
+            'netRecoverableInputTax' => $netRecoverableInputTax,
+        ];
     }
 
     private function vatCsvExport(string $tab, $salesRows, $purchaseRows, $expenseRows)

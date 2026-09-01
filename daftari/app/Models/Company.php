@@ -42,6 +42,7 @@ class Company extends Model
         'currency', 'locale', 'timezone', 'status', 'is_demo', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
+        'vat_makes_exempt_supplies', 'vat_recovery_percentage',
         'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
         'invoice_approval_threshold', 'quotation_approval_threshold',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
@@ -99,6 +100,8 @@ class Company extends Model
         return [
             'trial_ends_at' => 'datetime',
             'is_demo' => 'boolean',
+            'vat_makes_exempt_supplies' => 'boolean',
+            'vat_recovery_percentage' => 'decimal:2',
             'zatca_sync_b2b' => 'boolean',
             'zatca_sync_b2c' => 'boolean',
             'zatca_private_key' => 'encrypted',

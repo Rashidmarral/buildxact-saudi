@@ -73,6 +73,35 @@
     </div>
 </div>
 
+@if ($vatApportionmentEnabled)
+    <div class="bg-white rounded-xl border border-amber-200 p-5 mb-6">
+        <p class="text-xs font-semibold uppercase text-amber-700">{{ __('Input VAT apportionment (partial exemption)') }}</p>
+        <p class="mt-1 text-xs text-slate-500">{{ __('This company makes VAT-exempt supplies, so general input VAT is only partly recoverable — see Settings > Tax rates to change this.') }}</p>
+        <div class="mt-4 grid sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+            <div>
+                <p class="text-xs text-slate-400">{{ __('Taxable sales') }}</p>
+                <p class="font-semibold text-slate-900">{{ \App\Support\Money::format($taxableOutputSales) }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400">{{ __('Exempt sales') }}</p>
+                <p class="font-semibold text-slate-900">{{ \App\Support\Money::format($exemptOutputSales) }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400">{{ __('Recovery %') }}</p>
+                <p class="font-semibold text-slate-900">{{ number_format($recoveryPercentage, 2) }}%</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400">{{ __('Input VAT before apportionment') }}</p>
+                <p class="font-semibold text-slate-900">{{ \App\Support\Money::format($inputVatBeforeApportionment) }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400">{{ __('Non-recoverable input VAT') }}</p>
+                <p class="font-semibold text-red-600">{{ \App\Support\Money::format($nonRecoverableInputTax) }}</p>
+            </div>
+        </div>
+    </div>
+@endif
+
 <div class="border-b border-slate-200 mb-4 flex gap-6 print:hidden">
     @php($tabs = ['sales' => __('Output Tax (Sales)'), 'purchases' => __('Input Tax (Purchases)'), 'expenses' => __('Expense Tax')])
     @foreach ($tabs as $key => $label)

@@ -230,6 +230,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::get('items-import/template', [ItemController::class, 'importTemplate'])->name('items.import.template')->middleware('permission:items');
     Route::resource('units', UnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:items');
     Route::resource('tax-rates', TaxRateController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:settings');
+    Route::post('tax-rates-vat-recovery', [TaxRateController::class, 'updateRecovery'])->name('tax-rates.vat-recovery')->middleware('permission:settings');
     Route::resource('wht-rates', WhtRateController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:settings');
 
     Route::middleware('permission:invoices')->group(function () {

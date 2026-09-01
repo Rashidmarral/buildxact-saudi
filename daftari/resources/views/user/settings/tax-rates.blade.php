@@ -17,6 +17,25 @@
     </div>
 @endif
 
+<div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+    <h2 class="text-lg font-bold text-slate-900">{{ __('Input VAT recovery (partial exemption)') }}</h2>
+    <p class="text-sm text-slate-500 mt-1 mb-4">{{ __('Input VAT on general purchases is fully recoverable by default. If this company also makes VAT-exempt supplies (e.g. certain financial services, residential leasing), turn this on so the VAT report apportions general input VAT instead of treating all of it as recoverable.') }}</p>
+
+    <form method="POST" action="{{ route('app.tax-rates.vat-recovery') }}" class="space-y-4">
+        @csrf
+        <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="vat_makes_exempt_supplies" value="1" @checked($company->vat_makes_exempt_supplies) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+            {{ __('This company also makes VAT-exempt supplies') }}
+        </label>
+        <div class="max-w-xs">
+            <label class="block text-xs font-medium text-slate-500">{{ __('Recovery percentage override (optional)') }}</label>
+            <input type="number" step="0.01" min="0" max="100" name="vat_recovery_percentage" value="{{ old('vat_recovery_percentage', $company->vat_recovery_percentage) }}" placeholder="{{ __('Auto-computed from this period\'s sales') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <p class="mt-1 text-xs text-slate-400">{{ __('Leave blank to let the VAT report compute the recoverable ratio itself each period — taxable sales ÷ total sales, the standard method.') }}</p>
+        </div>
+        <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
+    </form>
+</div>
+
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($taxRates->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No tax rates yet.') }}</p>
