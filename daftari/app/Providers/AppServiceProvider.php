@@ -69,6 +69,25 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($key);
         });
 
+        // Unlike the login-time challenge above, this one confirms a TOTP
+        // code for an already-authenticated user turning 2FA on, so it can
+        // be keyed by their own id — no risk of one account's attempts
+        // exhausting another's.
+        RateLimiter::for('two-factor-confirm', function ($request) {
+            return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Guards the step-up re-authentication screen every dangerous admin
+        // action funnels through (password.confirm.admin middleware) —
+        // without this an attacker holding a hijacked admin session could
+        // brute-force the account's own password with no limit at all.
+        // Keyed by user+IP, matching login's reasoning.
+        RateLimiter::for('admin-password-confirm', function ($request) {
+            $key = ($request->user()?->id ?: 'guest').'|'.$request->ip();
+
+            return Limit::perMinute(5)->by($key);
+        });
+
         // The public API (routes/api.php) is otherwise only gated by
         // EnsureWithinApiLimit, a per-company *monthly* usage cap tied to
         // the plan — nothing stopped a single leaked or malicious token

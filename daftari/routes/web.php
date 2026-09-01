@@ -477,7 +477,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::delete('settings/documents/{attachment}', [SettingsController::class, 'destroyDocument'])->name('settings.documents.destroy')->middleware('permission:settings');
 
     Route::get('settings/two-factor', [TwoFactorController::class, 'show'])->name('settings.two-factor');
-    Route::post('settings/two-factor/confirm', [TwoFactorController::class, 'confirm'])->name('settings.two-factor.confirm');
+    Route::post('settings/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:two-factor-confirm')->name('settings.two-factor.confirm');
     Route::post('settings/two-factor/disable', [TwoFactorController::class, 'disable'])->name('settings.two-factor.disable');
     Route::post('settings/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('settings.two-factor.recovery-codes');
 
@@ -572,7 +572,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     // Deliberately outside password.confirm.admin — this is the screen
     // that satisfies it, so guarding it too would be an infinite redirect.
     Route::get('confirm-password', [PasswordConfirmationController::class, 'show'])->name('password.confirm');
-    Route::post('confirm-password', [PasswordConfirmationController::class, 'confirm'])->name('password.confirm.store');
+    Route::post('confirm-password', [PasswordConfirmationController::class, 'confirm'])->middleware('throttle:admin-password-confirm')->name('password.confirm.store');
 
     Route::middleware(['admin.permission:companies', 'password.confirm.admin'])->group(function () {
         Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
