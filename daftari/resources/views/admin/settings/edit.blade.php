@@ -246,6 +246,21 @@
             </div>
             <p class="text-xs text-slate-400">{{ __('Favicon here is the same setting as on the Platform Identity tab — uploading it in either place updates both.') }}</p>
 
+            <div class="pt-2 border-t border-slate-100">
+                <div class="flex items-center gap-4">
+                    @if ($branding['social_image_path'])
+                        <img src="{{ Storage::url($branding['social_image_path']) }}" alt="" class="h-12 w-20 rounded-lg object-cover border border-slate-200 bg-slate-50 p-1">
+                    @else
+                        <div class="h-12 w-20 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-[10px] text-center">{{ __('None') }}</div>
+                    @endif
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Social share image') }}</label>
+                        <input type="file" name="social_image" accept="image/png,image/jpeg,image/webp" class="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-600 hover:file:bg-slate-200">
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">{{ __('Shown as the preview image when the marketing site is shared on WhatsApp, LinkedIn, X, or Slack. Recommended size 1200×630px. Falls back to the platform logo if not set.') }}</p>
+            </div>
+
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Branding') }}</button>
         </form>
     </div>

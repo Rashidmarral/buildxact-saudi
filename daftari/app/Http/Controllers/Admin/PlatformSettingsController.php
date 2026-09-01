@@ -184,6 +184,7 @@ class PlatformSettingsController extends Controller
             'pdf_logo' => ['nullable', 'image', 'max:'.$maxKb],
             'email_logo' => ['nullable', 'image', 'max:'.$maxKb],
             'favicon' => ['nullable', 'image', 'mimes:png,ico,jpg,jpeg,webp', 'max:'.$maxKb],
+            'social_image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:'.$maxKb],
         ]);
 
         foreach (['branding_primary_color', 'branding_secondary_color', 'branding_sidebar_color'] as $key) {
@@ -194,6 +195,7 @@ class PlatformSettingsController extends Controller
         $this->replaceUpload($request, 'pdf_logo', 'branding_pdf_logo_path', 'branding');
         $this->replaceUpload($request, 'email_logo', 'branding_email_logo_path', 'branding');
         $this->replaceUpload($request, 'favicon', 'platform_favicon_path', 'platform');
+        $this->replaceUpload($request, 'social_image', 'branding_social_image_path', 'branding');
 
         AuditLog::record('settings.update_branding', null, __('Updated platform branding'));
 

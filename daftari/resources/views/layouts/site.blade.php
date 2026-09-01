@@ -3,14 +3,33 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', __('Daftari — Saudi VAT Invoicing & Accounting'))</title>
-    <meta name="description" content="{{ __('Daftari is a subscription accounting and VAT e-invoicing platform built for Saudi businesses — invoices, expenses, VAT reports, and ZATCA-ready QR codes.') }}">
+    @php($__pageTitle = trim($__env->yieldContent('title', __('Daftari — Saudi VAT Invoicing & Accounting'))))
+    @php($__pageDescription = __('Daftari is a subscription accounting and VAT e-invoicing platform built for Saudi businesses — invoices, expenses, VAT reports, and ZATCA-ready QR codes.'))
+    <title>{{ $__pageTitle }}</title>
+    <meta name="description" content="{{ $__pageDescription }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @php($__branding = \App\Support\PlatformBranding::all())
     @include('partials.branding-overrides')
+
+    {{-- Rich preview cards when this site is shared on WhatsApp, LinkedIn, X, or Slack. --}}
+    @php($__socialImage = $__branding['social_image_path'] ?: $__branding['logo_path'])
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ $__branding['name'] }}">
+    <meta property="og:title" content="{{ $__pageTitle }}">
+    <meta property="og:description" content="{{ $__pageDescription }}">
+    <meta property="og:url" content="{{ url()->current() }}">
+    @if ($__socialImage)
+        <meta property="og:image" content="{{ Storage::url($__socialImage) }}">
+    @endif
+    <meta name="twitter:card" content="{{ $__socialImage ? 'summary_large_image' : 'summary' }}">
+    <meta name="twitter:title" content="{{ $__pageTitle }}">
+    <meta name="twitter:description" content="{{ $__pageDescription }}">
+    @if ($__socialImage)
+        <meta name="twitter:image" content="{{ Storage::url($__socialImage) }}">
+    @endif
 </head>
 @php($__siteHeader = \App\Models\CmsSection::globalBlock('site_header'))
 <body class="bg-white text-slate-800 antialiased" x-data="{ mobileOpen: false }">

@@ -33,7 +33,9 @@ class WebhookController extends Controller
 
         AuditLog::record('webhook.create', $webhook, __('Registered webhook for :url', ['url' => $webhook->url]));
 
-        return redirect()->route('app.settings.webhooks.show', $webhook)->with('status', __('Webhook created.'));
+        return redirect()->route('app.settings.webhooks.show', $webhook)
+            ->with('status', __('Webhook created.'))
+            ->with('reveal_webhook_secret', true);
     }
 
     public function show(Webhook $webhook)
@@ -81,7 +83,9 @@ class WebhookController extends Controller
 
         AuditLog::record('webhook.regenerate_secret', $webhook, __('Regenerated signing secret for :url', ['url' => $webhook->url]));
 
-        return back()->with('status', __('Signing secret regenerated. Update your endpoint to verify with the new secret.'));
+        return back()
+            ->with('status', __('Signing secret regenerated. Update your endpoint to verify with the new secret.'))
+            ->with('reveal_webhook_secret', true);
     }
 
     public function sendTest(Webhook $webhook)

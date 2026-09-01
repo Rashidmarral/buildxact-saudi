@@ -44,7 +44,13 @@
     <div class="mt-6 pt-6 border-t border-slate-100">
         <h2 class="font-semibold text-slate-900 mb-1">{{ __('Signing secret') }}</h2>
         <p class="text-sm text-slate-500 mb-3">{{ __('Verify each delivery by computing an HMAC-SHA256 of the raw request body with this secret and comparing it to the X-Daftari-Signature header.') }}</p>
-        <code class="block break-all rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-mono text-slate-700">{{ $webhook->secret }}</code>
+        @if (session('reveal_webhook_secret'))
+            <code class="block break-all rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-mono text-slate-700">{{ $webhook->secret }}</code>
+            <p class="text-xs text-amber-600 mt-2">{{ __('This is shown in full only once — copy it now. If you lose it, regenerate a new one below.') }}</p>
+        @else
+            <code class="block break-all rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-mono text-slate-400">{{ str($webhook->secret)->substr(0, 6) }}{{ str_repeat('•', 24) }}{{ str($webhook->secret)->substr(-4) }}</code>
+            <p class="text-xs text-slate-400 mt-2">{{ __('Hidden after the first view. Regenerate to see the full value again.') }}</p>
+        @endif
         <form method="POST" action="{{ route('app.settings.webhooks.regenerate-secret', $webhook) }}" class="mt-3" onsubmit="return confirm('{{ __('Regenerate the signing secret? Your endpoint must be updated to verify with the new value.') }}')">
             @csrf
             <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Regenerate secret') }}</button>

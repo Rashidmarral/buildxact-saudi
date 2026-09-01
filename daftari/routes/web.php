@@ -435,9 +435,11 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::post('settings/two-factor/disable', [TwoFactorController::class, 'disable'])->name('settings.two-factor.disable');
     Route::post('settings/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('settings.two-factor.recovery-codes');
 
-    Route::get('settings/api-tokens', [ApiTokenController::class, 'index'])->name('settings.api-tokens');
-    Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
-    Route::delete('settings/api-tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+    Route::middleware('permission:settings')->group(function () {
+        Route::get('settings/api-tokens', [ApiTokenController::class, 'index'])->name('settings.api-tokens');
+        Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+        Route::delete('settings/api-tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+    });
 
     Route::middleware('permission:settings')->group(function () {
         Route::get('settings/webhooks', [WebhookController::class, 'index'])->name('settings.webhooks.index');
@@ -628,7 +630,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('settings/branding', [PlatformSettingsController::class, 'updateBranding'])->name('settings.branding');
         Route::post('settings/signup', [PlatformSettingsController::class, 'updateSignup'])->name('settings.signup.update');
         Route::post('settings/maintenance', [PlatformSettingsController::class, 'updateMaintenance'])->name('settings.maintenance.update');
-        Route::post('settings/storage', [PlatformSettingsController::class, 'updateStorage'])->name('settings.storage.update');
+        // Storage credentials decide where every tenant's uploaded files
+        // are written/read — same re-auth requirement as payment gateway
+        // secrets above, since a hijacked/left-open admin session
+        // shouldn't be able to repoint them without a fresh password.
+        Route::middleware('password.confirm.admin')->post('settings/storage', [PlatformSettingsController::class, 'updateStorage'])->name('settings.storage.update');
         Route::post('settings/system/{action}', [PlatformSettingsController::class, 'runSystemAction'])->name('settings.system.run');
 
         Route::get('settings/payment-gateways', [AdminPaymentGatewaySettingsController::class, 'index'])->name('settings.payment-gateways');

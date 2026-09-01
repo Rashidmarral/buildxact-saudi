@@ -27,6 +27,12 @@ class Webhook extends Model
         return [
             'events' => 'array',
             'is_active' => 'boolean',
+            // The app still needs the plaintext value to sign outbound
+            // deliveries (unlike an API token, which only needs to be
+            // hashed for verification) — 'encrypted' keeps it readable to
+            // the app while storing ciphertext in the database, matching
+            // SmsConfig/WhatsappConfig/PaymentGateway's credential columns.
+            'secret' => 'encrypted',
         ];
     }
 

@@ -33,6 +33,7 @@ class PlatformBranding
             'login_logo_path' => Setting::get('branding_login_logo_path'),
             'pdf_logo_path' => Setting::get('branding_pdf_logo_path'),
             'email_logo_path' => Setting::get('branding_email_logo_path'),
+            'social_image_path' => Setting::get('branding_social_image_path'),
             'primary_color' => Setting::get('branding_primary_color'),
             'secondary_color' => Setting::get('branding_secondary_color'),
             'sidebar_color' => Setting::get('branding_sidebar_color'),
