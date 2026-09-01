@@ -19,6 +19,7 @@ Schedule::command('zatca:sync-invoices --frequency=daily')->daily();
 Schedule::command('zatca:sync-invoices --frequency=weekly')->weekly();
 
 Schedule::command('invoices:send-overdue-reminders')->dailyAt('08:00');
+Schedule::command('quotations:expire')->dailyAt('00:15');
 Schedule::command('invoices:generate-recurring')->dailyAt('06:00');
 Schedule::command('expenses:generate-recurring')->dailyAt('06:15');
 Schedule::command('subscriptions:send-expiring-reminders')->dailyAt('07:00');

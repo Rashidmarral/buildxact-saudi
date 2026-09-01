@@ -2449,6 +2449,8 @@
     "Quotation marked as accepted.": "تم تحديد عرض السعر كمقبول.",
     "Quotation marked as issued.": "تم تحديد عرض السعر كمُصدر.",
     "Quotation marked as rejected.": "تم تحديد عرض السعر كمرفوض.",
+    "Quotation :number expired without a response and has been marked expired.": "انتهت صلاحية عرض السعر :number دون رد وتم تحديده كمنتهي الصلاحية.",
+    "Quotation expired": "انتهت صلاحية عرض السعر",
     "Quotation no.": "رقم عرض السعر",
     "Quotation number": "رقم عرض السعر",
     "Quotation rejected": "تم رفض عرض السعر",
