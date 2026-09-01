@@ -6,6 +6,7 @@
         'partially_paid' => 'bg-amber-50 text-amber-700',
         'overdue' => 'bg-red-50 text-red-700',
         'cancelled' => 'bg-slate-100 text-slate-400',
+        'pending_approval' => 'bg-amber-50 text-amber-700',
     ];
     $labels = [
         'draft' => __('Draft'),
@@ -14,6 +15,7 @@
         'partially_paid' => __('Partially paid'),
         'overdue' => __('Overdue'),
         'cancelled' => __('Cancelled'),
+        'pending_approval' => __('Pending approval'),
     ];
 @endphp
 <span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium {{ $colors[$status] ?? 'bg-slate-100 text-slate-600' }}">

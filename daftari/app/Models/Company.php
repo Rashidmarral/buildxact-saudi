@@ -42,6 +42,7 @@ class Company extends Model
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
         'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
+        'invoice_approval_threshold', 'quotation_approval_threshold',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_common_name', 'zatca_organization_unit_name',
         'zatca_business_category', 'zatca_csr', 'zatca_private_key',
@@ -106,6 +107,8 @@ class Company extends Model
             'zatca_last_sync_at' => 'datetime',
             'po_approval_threshold' => 'decimal:2',
             'expense_approval_threshold' => 'decimal:2',
+            'invoice_approval_threshold' => 'decimal:2',
+            'quotation_approval_threshold' => 'decimal:2',
             'accounting_lock_date' => 'date',
         ];
     }
@@ -326,6 +329,16 @@ class Company extends Model
     public function expenseRequiresApproval(float $amount): bool
     {
         return $this->expense_approval_threshold !== null && $amount >= (float) $this->expense_approval_threshold;
+    }
+
+    public function invoiceRequiresApproval(float $total): bool
+    {
+        return $this->invoice_approval_threshold !== null && $total >= (float) $this->invoice_approval_threshold;
+    }
+
+    public function quotationRequiresApproval(float $total): bool
+    {
+        return $this->quotation_approval_threshold !== null && $total >= (float) $this->quotation_approval_threshold;
     }
 
     public function formatNumber(float $amount, int $decimals = 2): string

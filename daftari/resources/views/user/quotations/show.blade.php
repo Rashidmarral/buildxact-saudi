@@ -15,6 +15,13 @@
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Mark as issued') }}</button>
             </form>
         @endif
+        @if ($quotation->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
+            <form method="POST" action="{{ route('app.quotations.approve-issuance', $quotation) }}">
+                @csrf
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Approve') }}</button>
+            </form>
+            <button type="button" onclick="document.getElementById('quotation-reject-issuance-form').classList.toggle('hidden')" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reject') }}</button>
+        @endif
         {{-- Editable any time it hasn't been converted into a real invoice yet — not just while still a draft. --}}
         @if ($quotation->status !== 'converted')
             <a href="{{ route('app.quotations.edit', $quotation) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
@@ -48,6 +55,20 @@
         <button onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Print / PDF') }}</button>
     </div>
 </div>
+
+@if ($quotation->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
+    <form id="quotation-reject-issuance-form" method="POST" action="{{ route('app.quotations.reject-issuance', $quotation) }}" class="hidden mb-6 max-w-md rounded-xl border border-red-100 bg-red-50 p-4 print:hidden">
+        @csrf
+        <label class="block text-xs font-medium text-red-700 mb-1">{{ __('Reason for rejection (optional)') }}</label>
+        <textarea name="approval_rejection_reason" rows="2" class="w-full rounded-lg border border-red-200 text-sm mb-3"></textarea>
+        <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">{{ __('Confirm rejection') }}</button>
+    </form>
+@endif
+@if ($quotation->status === 'draft' && $quotation->approval_rejection_reason)
+    <div class="mb-6 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700 print:hidden">
+        <span class="font-semibold">{{ __('Rejection reason:') }}</span> {{ $quotation->approval_rejection_reason }}
+    </div>
+@endif
 
 @php
     $doc = [

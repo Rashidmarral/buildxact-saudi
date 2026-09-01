@@ -234,6 +234,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:invoices')->group(function () {
         Route::resource('invoices', InvoiceController::class);
         Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+        Route::post('invoices/{invoice}/approve', [InvoiceController::class, 'approve'])->name('invoices.approve');
+        Route::post('invoices/{invoice}/reject', [InvoiceController::class, 'reject'])->name('invoices.reject');
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
         Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
         Route::post('invoices/{invoice}/attachments', [InvoiceController::class, 'storeAttachment'])->name('invoices.attachments.store');
@@ -260,6 +262,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware(['permission:quotations', 'feature:quotations'])->group(function () {
         Route::resource('quotations', QuotationController::class);
         Route::post('quotations/{quotation}/send', [QuotationController::class, 'send'])->name('quotations.send');
+        Route::post('quotations/{quotation}/approve-issuance', [QuotationController::class, 'approveIssuance'])->name('quotations.approve-issuance');
+        Route::post('quotations/{quotation}/reject-issuance', [QuotationController::class, 'rejectIssuance'])->name('quotations.reject-issuance');
         Route::post('quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
         Route::post('quotations/{quotation}/reject', [QuotationController::class, 'reject'])->name('quotations.reject');
         Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');

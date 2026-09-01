@@ -18,7 +18,7 @@ class Invoice extends Model
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'project_id', 'created_by', 'invoice_number', 'type',
         'status', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'retention_rate', 'retention_amount',
         'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes', 'qr_code', 'bank_account_id', 'warehouse_id', 'stock_deducted',
-        'last_reminder_sent_at',
+        'last_reminder_sent_at', 'approved_by', 'approved_at', 'rejection_reason',
     ];
 
     protected function casts(): array
@@ -28,6 +28,7 @@ class Invoice extends Model
             'due_date' => 'date',
             'stock_deducted' => 'boolean',
             'last_reminder_sent_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Mail\QuotationMail;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
@@ -15,6 +16,8 @@ use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Salesperson;
 use App\Models\TaxRate;
+use App\Models\User;
+use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -120,11 +123,16 @@ class QuotationController extends Controller
             return $quotation;
         });
 
+        $status = __('Quotation created.');
+
         if ($sendImmediately) {
-            $quotation->update(['status' => 'issued']);
+            $this->requestIssue($quotation);
+            $status = $quotation->fresh()->status === 'pending_approval'
+                ? __('Quotation created and submitted for approval.')
+                : __('Quotation created and issued.');
         }
 
-        return redirect()->route('app.quotations.show', $quotation)->with('status', $sendImmediately ? __('Quotation created and issued.') : __('Quotation created.'));
+        return redirect()->route('app.quotations.show', $quotation)->with('status', $status);
     }
 
     public function show(Quotation $quotation)
@@ -266,11 +274,51 @@ class QuotationController extends Controller
 
     public function send(Quotation $quotation)
     {
-        if ($quotation->status === 'draft') {
-            $quotation->update(['status' => 'issued']);
+        $this->requestIssue($quotation);
+
+        return back()->with('status', $quotation->fresh()->status === 'pending_approval'
+            ? __('Quotation submitted for approval.')
+            : __('Quotation marked as issued.'));
+    }
+
+    public function approveIssuance(Quotation $quotation)
+    {
+        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        abort_unless($quotation->status === 'pending_approval', 404);
+
+        $quotation->update(['status' => 'issued', 'approved_by' => Auth::id(), 'approved_at' => now()]);
+
+        AuditLog::record('quotation.approve', $quotation, __('Approved quotation :number', ['number' => $quotation->quotation_number]));
+
+        return back()->with('status', __('Quotation approved and issued.'));
+    }
+
+    public function rejectIssuance(Request $request, Quotation $quotation)
+    {
+        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        abort_unless($quotation->status === 'pending_approval', 404);
+
+        $data = $request->validate(['approval_rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $quotation->update([
+            'status' => 'draft',
+            'approved_by' => Auth::id(),
+            'approved_at' => now(),
+            'approval_rejection_reason' => $data['approval_rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('quotation.reject', $quotation, __('Rejected quotation :number', ['number' => $quotation->quotation_number]));
+
+        if ($quotation->created_by) {
+            User::find($quotation->created_by)?->notify(new GenericNotification(
+                title: __('Quotation rejected'),
+                body: __('Quotation :number was returned to draft for revision.', ['number' => $quotation->quotation_number]),
+                url: route('app.quotations.show', $quotation),
+                icon: 'quotations',
+            ));
         }
 
-        return back()->with('status', __('Quotation marked as issued.'));
+        return back()->with('status', __('Quotation rejected — returned to draft.'));
     }
 
     public function accept(Quotation $quotation)
@@ -336,6 +384,40 @@ class QuotationController extends Controller
         });
 
         return redirect()->route('app.invoices.show', $invoice)->with('status', __('Quotation converted to invoice.'));
+    }
+
+    /**
+     * The gate every "issue this quotation" path funnels through: above
+     * the company's quotation approval threshold, this parks it in
+     * pending_approval and notifies approvers instead of issuing it.
+     */
+    private function requestIssue(Quotation $quotation): void
+    {
+        if ($quotation->status !== 'draft') {
+            return;
+        }
+
+        if ($quotation->company->quotationRequiresApproval((float) $quotation->total)) {
+            $quotation->update(['status' => 'pending_approval']);
+            $this->notifyApprovers($quotation);
+
+            return;
+        }
+
+        $quotation->update(['status' => 'issued']);
+    }
+
+    private function notifyApprovers(Quotation $quotation): void
+    {
+        User::where('company_id', $quotation->company_id)
+            ->get()
+            ->filter(fn (User $user) => $user->hasPermission('approvals'))
+            ->each(fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Quotation awaiting approval'),
+                body: __(':amount :currency for :client', ['amount' => number_format($quotation->total, 2), 'currency' => $quotation->currency, 'client' => $quotation->client->name]),
+                url: route('app.quotations.show', $quotation),
+                icon: 'quotations',
+            )));
     }
 
     private function syncItems(Quotation $quotation, array $items): void

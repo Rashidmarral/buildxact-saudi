@@ -19,9 +19,11 @@ use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\SmsConfig;
 use App\Models\TaxRate;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\Webhook;
 use App\Models\WhatsappConfig;
+use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use App\Services\SmsService;
@@ -127,11 +129,16 @@ class InvoiceController extends Controller
 
         Webhook::trigger($invoice->company_id, 'invoice.created', $this->webhookPayload($invoice));
 
+        $status = __('Invoice created.');
+
         if ($sendImmediately) {
-            $this->doSend($invoice, $ledger);
+            $this->requestSend($invoice, $ledger);
+            $status = $invoice->fresh()->status === 'pending_approval'
+                ? __('Invoice created and submitted for approval.')
+                : __('Invoice created and sent.');
         }
 
-        return redirect()->route('app.invoices.show', $invoice)->with('status', $sendImmediately ? __('Invoice created and sent.') : __('Invoice created.'));
+        return redirect()->route('app.invoices.show', $invoice)->with('status', $status);
     }
 
     public function show(Invoice $invoice)
@@ -387,9 +394,52 @@ class InvoiceController extends Controller
 
     public function send(Invoice $invoice, LedgerPostingService $ledger)
     {
+        $this->requestSend($invoice, $ledger);
+
+        return back()->with('status', $invoice->fresh()->status === 'pending_approval'
+            ? __('Invoice submitted for approval.')
+            : __('Invoice marked as sent.'));
+    }
+
+    public function approve(Invoice $invoice, LedgerPostingService $ledger)
+    {
+        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        abort_unless($invoice->status === 'pending_approval', 404);
+
+        $invoice->update(['status' => 'draft', 'approved_by' => Auth::id(), 'approved_at' => now()]);
         $this->doSend($invoice, $ledger);
 
-        return back()->with('status', __('Invoice marked as sent.'));
+        AuditLog::record('invoice.approve', $invoice, __('Approved invoice :number', ['number' => $invoice->invoice_number]));
+
+        return back()->with('status', __('Invoice approved and sent.'));
+    }
+
+    public function reject(Request $request, Invoice $invoice)
+    {
+        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        abort_unless($invoice->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $invoice->update([
+            'status' => 'draft',
+            'approved_by' => Auth::id(),
+            'approved_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('invoice.reject', $invoice, __('Rejected invoice :number', ['number' => $invoice->invoice_number]));
+
+        if ($invoice->created_by) {
+            User::find($invoice->created_by)?->notify(new GenericNotification(
+                title: __('Invoice rejected'),
+                body: __('Invoice :number was returned to draft for revision.', ['number' => $invoice->invoice_number]),
+                url: route('app.invoices.show', $invoice),
+                icon: 'invoices',
+            ));
+        }
+
+        return back()->with('status', __('Invoice rejected — returned to draft.'));
     }
 
     public function cancel(Invoice $invoice, LedgerPostingService $ledger)
@@ -478,6 +528,43 @@ class InvoiceController extends Controller
         $attachment->delete();
 
         return back()->with('status', __('Attachment removed.'));
+    }
+
+    /**
+     * The gate every "send this invoice" path funnels through: above the
+     * company's invoice approval threshold, this parks it in
+     * pending_approval and notifies approvers instead of actually sending
+     * it — doSend() only ever runs once that's cleared (or was never
+     * required).
+     */
+    private function requestSend(Invoice $invoice, LedgerPostingService $ledger): void
+    {
+        if ($invoice->status !== 'draft') {
+            return;
+        }
+
+        if ($invoice->company->invoiceRequiresApproval((float) $invoice->total)) {
+            $invoice->update(['status' => 'pending_approval']);
+            $this->notifyApprovers($invoice);
+            AuditLog::record('invoice.submit_for_approval', $invoice, __('Submitted invoice :number for approval', ['number' => $invoice->invoice_number]));
+
+            return;
+        }
+
+        $this->doSend($invoice, $ledger);
+    }
+
+    private function notifyApprovers(Invoice $invoice): void
+    {
+        User::where('company_id', $invoice->company_id)
+            ->get()
+            ->filter(fn (User $user) => $user->hasPermission('approvals'))
+            ->each(fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Invoice awaiting approval'),
+                body: __(':amount :currency for :client', ['amount' => number_format($invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->client->name]),
+                url: route('app.invoices.show', $invoice),
+                icon: 'invoices',
+            )));
     }
 
     private function doSend(Invoice $invoice, LedgerPostingService $ledger): void

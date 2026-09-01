@@ -25,11 +25,15 @@ class ApprovalSettingsController extends Controller
         $data = $request->validate([
             'po_approval_threshold' => ['nullable', 'numeric', 'min:0'],
             'expense_approval_threshold' => ['nullable', 'numeric', 'min:0'],
+            'invoice_approval_threshold' => ['nullable', 'numeric', 'min:0'],
+            'quotation_approval_threshold' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         Auth::user()->company->update([
             'po_approval_threshold' => $data['po_approval_threshold'] ?: null,
             'expense_approval_threshold' => $data['expense_approval_threshold'] ?: null,
+            'invoice_approval_threshold' => $data['invoice_approval_threshold'] ?: null,
+            'quotation_approval_threshold' => $data['quotation_approval_threshold'] ?: null,
         ]);
 
         AuditLog::record('company.approval_thresholds_update', null, __('Updated approval thresholds'));

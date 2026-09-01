@@ -16,6 +16,7 @@ class Quotation extends Model
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
         'quotation_number', 'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total',
         'vat_total', 'total', 'currency', 'notes', 'bank_account_id',
+        'approved_by', 'approved_at', 'approval_rejection_reason',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class Quotation extends Model
         return [
             'issue_date' => 'date',
             'expiry_date' => 'date',
+            'approved_at' => 'datetime',
         ];
     }
 
