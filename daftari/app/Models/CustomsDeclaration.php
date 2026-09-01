@@ -14,12 +14,14 @@ class CustomsDeclaration extends Model
     protected $fillable = [
         'company_id', 'supplier_id', 'created_by', 'declaration_number', 'declaration_date',
         'port_of_entry', 'customs_value', 'customs_duty', 'vat_rate', 'vat_amount', 'sadad_reference',
+        'landed_cost_allocated_at',
     ];
 
     protected function casts(): array
     {
         return [
             'declaration_date' => 'date',
+            'landed_cost_allocated_at' => 'datetime',
         ];
     }
 

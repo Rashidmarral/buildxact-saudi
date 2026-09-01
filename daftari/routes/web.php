@@ -425,6 +425,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         });
 
         Route::resource('customs-declarations', CustomsDeclarationController::class)->only(['index', 'store', 'destroy']);
+        Route::post('customs-declarations/{customsDeclaration}/allocate-landed-cost', [CustomsDeclarationController::class, 'allocateLandedCost'])->name('customs-declarations.allocate-landed-cost');
 
         Route::middleware('feature:debit_notes')->group(function () {
             Route::get('purchase-returns/eligible-bills', [PurchaseReturnController::class, 'eligibleBills'])->name('purchase-returns.eligible-bills');

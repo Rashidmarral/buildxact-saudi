@@ -35,6 +35,7 @@
                     <th class="px-6 py-3 font-medium">{{ __('Supplier') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Customs value') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Import VAT') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Customs duty') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Linked bills') }}</th>
                     <th class="px-6 py-3"></th>
                 </tr>
@@ -48,9 +49,21 @@
                         <td class="px-6 py-3">{{ $declaration->supplier->name ?? '—' }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($declaration->customs_value) }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($declaration->vat_amount) }}</td>
+                        <td class="px-6 py-3">
+                            {{ \App\Support\Money::format($declaration->customs_duty) }}
+                            @if ($declaration->landed_cost_allocated_at)
+                                <span class="block text-xs text-emerald-600">{{ __('Landed cost allocated') }}</span>
+                            @endif
+                        </td>
                         <td class="px-6 py-3">{{ $declaration->bills->count() }}</td>
-                        <td class="px-6 py-3 text-right">
-                            <form method="POST" action="{{ route('app.customs-declarations.destroy', $declaration) }}" onsubmit="return confirm('{{ __('Delete this declaration?') }}')">
+                        <td class="px-6 py-3 text-right whitespace-nowrap">
+                            @if ($declaration->customs_duty > 0 && ! $declaration->landed_cost_allocated_at)
+                                <form method="POST" action="{{ route('app.customs-declarations.allocate-landed-cost', $declaration) }}" onsubmit="return confirm('{{ __('Allocate this declaration\'s customs duty across the linked bills\' item costs?') }}')" class="inline">
+                                    @csrf
+                                    <button type="submit" class="text-brand-700 hover:underline me-3">{{ __('Allocate landed cost') }}</button>
+                                </form>
+                            @endif
+                            <form method="POST" action="{{ route('app.customs-declarations.destroy', $declaration) }}" onsubmit="return confirm('{{ __('Delete this declaration?') }}')" class="inline">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
                             </form>

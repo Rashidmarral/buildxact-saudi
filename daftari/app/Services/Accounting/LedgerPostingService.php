@@ -583,6 +583,43 @@ class LedgerPostingService
         );
     }
 
+    /**
+     * Reclassifies $capitalizedAmount of a customs declaration's duty — the
+     * share attributable to tracked-inventory goods still on hand — from
+     * the operating-expense account postCustomsDeclaration() originally
+     * booked it to, over to Inventory Asset. A separate adjusting entry
+     * (source_type 'customs_declaration_landed_cost') rather than a
+     * reversal-and-repost of the original: the original entry stays intact
+     * as the historical record of what was declared, this one records the
+     * cost reallocation on top of it.
+     */
+    public function postLandedCostAllocation(CustomsDeclaration $declaration, float $capitalizedAmount): ?JournalEntry
+    {
+        $company = $declaration->company;
+
+        if ($capitalizedAmount <= 0) {
+            return null;
+        }
+
+        $inventoryAsset = $this->account($company, 'INVENTORY_ASSET');
+        $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
+        $this->requireAccounts(['INVENTORY_ASSET' => $inventoryAsset, 'DEFAULT_OPERATING_EXPENSES' => $expenseAccount], 'customs declaration (landed cost allocation)');
+
+        $lines = [
+            ['account_id' => $inventoryAsset->id, 'debit' => $capitalizedAmount],
+            ['account_id' => $expenseAccount->id, 'credit' => $capitalizedAmount],
+        ];
+
+        return $this->post(
+            $company,
+            'customs_declaration_landed_cost',
+            $declaration->id,
+            __('Landed cost allocated for customs declaration :number', ['number' => $declaration->declaration_number ?: '#'.$declaration->id]),
+            $declaration->declaration_date,
+            $lines
+        );
+    }
+
     // ---- Inventory ----------------------------------------------------
 
     public function postStockAdjustment(StockAdjustment $adjustment): ?JournalEntry
