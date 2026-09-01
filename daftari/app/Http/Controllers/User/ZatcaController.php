@@ -147,7 +147,7 @@ class ZatcaController extends Controller
         return back()->with('status', __('ZATCA sync settings saved.'));
     }
 
-    public function generateCsr(ZatcaCryptoService $crypto): RedirectResponse
+    public function generateCsr(Request $request, ZatcaCryptoService $crypto): RedirectResponse
     {
         $company = Auth::user()->company;
 
@@ -158,6 +158,21 @@ class ZatcaController extends Controller
         if (! $company->isZatcaReady()) {
             return back()->with('error', __('Your company profile is missing information ZATCA requires (VAT number, CR number, or National Address). Complete the readiness checklist below, then generate the CSR.'));
         }
+
+        // Common Name, Organization Unit Name, EGS Serial Number, and
+        // Business Category are ZATCA's own free-text organizational
+        // identifiers — they aren't derivable from anything else on the
+        // company record (Organization Unit in particular is a branch/
+        // group identifier, not the VAT number), so they're entered here
+        // per company and persisted before generating, rather than
+        // computed or hardcoded.
+        $data = $request->validate([
+            'zatca_common_name' => ['nullable', 'string', 'max:255'],
+            'zatca_organization_unit_name' => ['nullable', 'string', 'max:255'],
+            'zatca_egs_serial' => ['nullable', 'string', 'max:255'],
+            'zatca_business_category' => ['nullable', 'string', 'max:255'],
+        ]);
+        $company->update($data);
 
         try {
             $result = $crypto->generateCsr($company);

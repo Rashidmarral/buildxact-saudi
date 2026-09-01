@@ -3431,5 +3431,15 @@
     "No credentials, onboarding, or API calls are needed for Phase 1. Switch to Phase 2 (FATOORA) when you're ready for real-time clearance and reporting.": "لا حاجة لبيانات اعتماد أو إعداد أو اتصال ببرمجيات في المرحلة الأولى. بدّل إلى المرحلة الثانية (فاتورة) عندما تكون جاهزًا للتخليص والإبلاغ اللحظي.",
     "Phase 2 isn't included in your current plan — upgrade to unlock it.": "المرحلة الثانية غير مشمولة في باقتك الحالية — رقّي باقتك لتفعيلها.",
     "Phase 2 (FATOORA) requires a plan that includes ZATCA Phase 2 — upgrade your plan to enable it.": "المرحلة الثانية (فاتورة) تتطلب باقة تشمل المرحلة الثانية لهيئة الزكاة والضريبة — رقّي باقتك لتفعيلها.",
-    "ZATCA integration mode updated.": "تم تحديث وضع تكامل هيئة الزكاة والضريبة."
+    "ZATCA integration mode updated.": "تم تحديث وضع تكامل هيئة الزكاة والضريبة.",
+    "Common Name": "الاسم الشائع",
+    "A unique identifier for your solution/device. Defaults to your company name if left blank.": "معرف فريد لحلك/جهازك. يُستخدم اسم شركتك افتراضيًا إذا تُرك فارغًا.",
+    "Organization Unit Name": "اسم الوحدة التنظيمية",
+    "For VAT groups: enter the 10-digit TIN of the group member. For regular taxpayers: enter your branch name.": "لمجموعات ضريبة القيمة المضافة: أدخل الرقم الضريبي المكوّن من 10 أرقام لعضو المجموعة. لدافعي الضرائب العاديين: أدخل اسم فرعك.",
+    "EGS Serial Number": "الرقم التسلسلي لجهاز إنشاء الفواتير الإلكترونية",
+    "Uniquely identifies this device/solution to ZATCA. Defaults to an auto-generated value if left blank.": "يحدد هذا الجهاز/الحل بشكل فريد لهيئة الزكاة والضريبة والجمارك. تُستخدم قيمة يتم إنشاؤها تلقائيًا إذا تُرك فارغًا.",
+    "Business Category": "فئة النشاط التجاري",
+    "e.g. Retail, Construction, Services": "مثال: تجزئة، مقاولات، خدمات",
+    "Specify the sector in which invoices are issued.": "حدد القطاع الذي تُصدر فيه الفواتير.",
+    "Save & Generate CSR": "حفظ وإنشاء طلب توقيع الشهادة"
 }

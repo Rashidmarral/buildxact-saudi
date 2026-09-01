@@ -153,12 +153,40 @@
                     @if ($stepIndex >= 1)
                         <textarea readonly rows="3" class="mt-3 w-full rounded-lg border border-slate-200 text-xs font-mono text-slate-500 bg-slate-50">{{ $company->zatca_csr }}</textarea>
                     @else
-                        <form method="POST" action="{{ route('app.zatca.csr') }}" class="mt-3">
+                        <form method="POST" action="{{ route('app.zatca.csr') }}" class="mt-3 space-y-3">
                             @csrf
-                            <button type="submit" {{ $isReady ? '' : 'disabled' }} class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed">{{ __('Generate CSR') }}</button>
-                            @unless ($isReady)
-                                <span class="text-xs text-amber-600 ms-2">{{ __('Complete the readiness check above first.') }}</span>
-                            @endunless
+                            <div class="grid sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">{{ __('Common Name') }}</label>
+                                    <input type="text" name="zatca_common_name" value="{{ old('zatca_common_name', $company->zatca_common_name) }}" placeholder="{{ $company->name }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                    <p class="mt-1 text-xs text-slate-400">{{ __('A unique identifier for your solution/device. Defaults to your company name if left blank.') }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">{{ __('Organization Unit Name') }}</label>
+                                    <input type="text" name="zatca_organization_unit_name" value="{{ old('zatca_organization_unit_name', $company->zatca_organization_unit_name) }}" placeholder="{{ $company->name }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                    <p class="mt-1 text-xs text-slate-400">{{ __('For VAT groups: enter the 10-digit TIN of the group member. For regular taxpayers: enter your branch name.') }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">{{ __('EGS Serial Number') }}</label>
+                                    <input type="text" name="zatca_egs_serial" value="{{ old('zatca_egs_serial', $company->zatca_egs_serial) }}" placeholder="1-Daftari|2-1.0.0|3-{{ $company->id }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono focus:border-brand-500 focus:ring-brand-500">
+                                    <p class="mt-1 text-xs text-slate-400">{{ __('Uniquely identifies this device/solution to ZATCA. Defaults to an auto-generated value if left blank.') }}</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">{{ __('Business Category') }}</label>
+                                    <input type="text" name="zatca_business_category" value="{{ old('zatca_business_category', $company->zatca_business_category) }}" placeholder="{{ __('e.g. Retail, Construction, Services') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                    <p class="mt-1 text-xs text-slate-400">{{ __('Specify the sector in which invoices are issued.') }}</p>
+                                </div>
+                            </div>
+                            @error('zatca_common_name')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                            @error('zatca_organization_unit_name')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                            @error('zatca_egs_serial')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                            @error('zatca_business_category')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+                            <div>
+                                <button type="submit" {{ $isReady ? '' : 'disabled' }} class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed">{{ __('Save & Generate CSR') }}</button>
+                                @unless ($isReady)
+                                    <span class="text-xs text-amber-600 ms-2">{{ __('Complete the readiness check above first.') }}</span>
+                                @endunless
+                            </div>
                         </form>
                     @endif
                 </div>

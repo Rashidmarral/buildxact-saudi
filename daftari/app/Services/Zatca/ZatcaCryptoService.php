@@ -34,12 +34,27 @@ class ZatcaCryptoService
      */
     public function generateCsr(Company $company, array $options = []): array
     {
-        $egsSerial = $options['egs_serial'] ?? ('1-Daftari|2-1.0.0|3-'.$company->id);
+        // Every one of these is company-editable (Settings → ZATCA →
+        // onboarding) and stored on the company, not hardcoded here or
+        // recomputed from the VAT number — Common Name and Organization
+        // Unit Name are ZATCA's own free-text organizational identifiers,
+        // distinct from the VAT registration number (which is already
+        // carried separately as the UID field, see writeCsrConfig()).
+        // $options still wins when passed explicitly (e.g. the
+        // compliance-sample flow), for callers that don't go through a
+        // persisted company record at all.
+        $egsSerial = $options['egs_serial'] ?? ($company->zatca_egs_serial ?: ('1-Daftari|2-1.0.0|3-'.$company->id));
         $organizationName = $options['organization_name'] ?? $company->name;
-        $organizationUnit = $company->vat_number ?: '000000000000000';
-        $commonName = $options['common_name'] ?? ($company->vat_number ?: $company->name);
+        $organizationUnit = $options['organization_unit'] ?? ($company->zatca_organization_unit_name ?: $company->name);
+        $commonName = $options['common_name'] ?? ($company->zatca_common_name ?: $company->name);
+        // The VAT registration number is mandatory in the CSR's UID field
+        // regardless of what Organization Unit Name is set to — it's no
+        // longer the same value now that Organization Unit is its own
+        // user-editable field rather than being computed from the VAT
+        // number.
+        $vatNumber = $options['vat_number'] ?? ($company->vat_number ?: '000000000000000');
         $country = 'SA';
-        $businessCategory = $options['business_category'] ?? __('General');
+        $businessCategory = $options['business_category'] ?? ($company->zatca_business_category ?: __('General'));
         $addressLocation = $options['location'] ?? (trim(($company->street_name ?: $company->address).' '.$company->city) ?: 'Riyadh');
         $certificateTemplateName = self::CERT_TEMPLATE_NAMES[$company->zatca_environment] ?? self::CERT_TEMPLATE_NAMES['developer'];
 
@@ -64,7 +79,7 @@ class ZatcaCryptoService
 
         openssl_pkey_export($key, $privateKeyPem);
 
-        $configPath = $this->writeCsrConfig($egsSerial, $organizationUnit, $invoiceType, $addressLocation, $businessCategory, $certificateTemplateName);
+        $configPath = $this->writeCsrConfig($egsSerial, $vatNumber, $invoiceType, $addressLocation, $businessCategory, $certificateTemplateName);
 
         try {
             $dn = [
