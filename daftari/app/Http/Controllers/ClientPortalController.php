@@ -90,6 +90,16 @@ class ClientPortalController extends Controller
         return view('portal.invoices', ['client' => $client, 'invoices' => $invoices]);
     }
 
+    public function quotations(Request $request)
+    {
+        $client = $request->attributes->get('portalClient');
+        $quotations = $client->quotations()
+            ->whereNotIn('status', ['draft', 'pending_approval'])
+            ->latest('issue_date')->latest('id')->paginate(20);
+
+        return view('portal.quotations', ['client' => $client, 'quotations' => $quotations]);
+    }
+
     public function statement(Request $request)
     {
         $client = $request->attributes->get('portalClient');

@@ -28,6 +28,7 @@ use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PaymentWidgetController;
 use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicQuotationController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\CmsPageController;
@@ -132,6 +133,11 @@ Route::get('/pay/invoices/{id}/{token}', [PublicInvoiceController::class, 'show'
 Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->name('public.invoices.pdf');
 Route::get('/pay/invoices/{id}/{token}/pay/{provider}', [PublicInvoiceController::class, 'pay'])->name('public.invoices.pay');
 
+Route::get('/view/quotations/{id}/{token}', [PublicQuotationController::class, 'show'])->name('public.quotations.show');
+Route::get('/view/quotations/{id}/{token}/pdf', [PublicQuotationController::class, 'downloadPdf'])->name('public.quotations.pdf');
+Route::post('/view/quotations/{id}/{token}/accept', [PublicQuotationController::class, 'accept'])->name('public.quotations.accept');
+Route::post('/view/quotations/{id}/{token}/reject', [PublicQuotationController::class, 'reject'])->name('public.quotations.reject');
+
 // Client self-service portal — full invoice history and a running account
 // statement for a company's own clients, signed in via a one-time magic
 // link (Client records have no password). Viewing/paying one specific
@@ -146,6 +152,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::middleware('client.portal')->group(function () {
         Route::get('/', [ClientPortalController::class, 'dashboard'])->name('dashboard');
         Route::get('invoices', [ClientPortalController::class, 'invoices'])->name('invoices');
+        Route::get('quotations', [ClientPortalController::class, 'quotations'])->name('quotations');
         Route::get('statement', [ClientPortalController::class, 'statement'])->name('statement');
     });
 });

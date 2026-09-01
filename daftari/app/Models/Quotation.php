@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Str;
 
 class Quotation extends Model
 {
@@ -26,6 +27,37 @@ class Quotation extends Model
             'expiry_date' => 'date',
             'approved_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // The token that makes the client-portal "view & accept" link work
+        // — deliberately not mass-assignable, must only ever come from the
+        // server, mirroring Invoice::public_token.
+        static::creating(function (Quotation $quotation) {
+            if (empty($quotation->public_token)) {
+                $quotation->public_token = Str::random(40);
+            }
+        });
+    }
+
+    /**
+     * Whether a client should be able to see this on their public link/
+     * portal at all — a draft or pending-approval quotation hasn't been
+     * issued to them yet.
+     */
+    public function isPubliclyViewable(): bool
+    {
+        return ! in_array($this->status, ['draft', 'pending_approval'], true);
+    }
+
+    /**
+     * Whether the client can still accept/reject it — once converted,
+     * expired, or already decided, the decision is final.
+     */
+    public function isActionable(): bool
+    {
+        return $this->status === 'issued' && ! $this->isExpired();
     }
 
     public function client(): BelongsTo

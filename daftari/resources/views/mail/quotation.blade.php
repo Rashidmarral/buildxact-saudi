@@ -19,6 +19,10 @@
 
 {{ __('The full document is attached as a PDF.') }}
 
+@component('mail::button', ['url' => route('public.quotations.show', ['id' => $quotation->id, 'token' => $quotation->public_token])])
+{{ __('View & respond online') }}
+@endcomponent
+
 {{ __('Thank you for your business.') }}<br>
 {{ $company->name }}
 @endcomponent

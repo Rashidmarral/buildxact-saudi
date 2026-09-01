@@ -20,6 +20,7 @@
                 <nav class="flex items-center gap-4 text-sm font-medium text-slate-500">
                     <a href="{{ route('portal.dashboard') }}" class="hover:text-brand-700 {{ request()->routeIs('portal.dashboard') ? 'text-brand-700' : '' }}">{{ __('Dashboard') }}</a>
                     <a href="{{ route('portal.invoices') }}" class="hover:text-brand-700 {{ request()->routeIs('portal.invoices') ? 'text-brand-700' : '' }}">{{ __('Invoices') }}</a>
+                    <a href="{{ route('portal.quotations') }}" class="hover:text-brand-700 {{ request()->routeIs('portal.quotations') ? 'text-brand-700' : '' }}">{{ __('Quotes') }}</a>
                     <a href="{{ route('portal.statement') }}" class="hover:text-brand-700 {{ request()->routeIs('portal.statement') ? 'text-brand-700' : '' }}">{{ __('Statement') }}</a>
                     <form method="POST" action="{{ route('portal.logout') }}">
                         @csrf

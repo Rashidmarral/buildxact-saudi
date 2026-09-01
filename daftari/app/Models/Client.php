@@ -52,6 +52,11 @@ class Client extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function quotations(): HasMany
+    {
+        return $this->hasMany(Quotation::class);
+    }
+
     public function contacts(): HasMany
     {
         return $this->hasMany(ClientContact::class);
