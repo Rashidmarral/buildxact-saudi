@@ -36,4 +36,36 @@ class ApprovalSettingsController extends Controller
 
         return back()->with('status', __('Approval settings saved.'));
     }
+
+    /**
+     * Nothing posts a journal entry dated on or before this date once it's
+     * set — LedgerPostingService::post() enforces it for every module.
+     * Gated behind the same "settings" permission as the rest of this
+     * page, since moving the date backward (or clearing it) reopens a
+     * period that was presumably closed for a reason.
+     */
+    public function updateLockDate(Request $request)
+    {
+        $data = $request->validate([
+            'accounting_lock_date' => ['nullable', 'date'],
+        ]);
+
+        $company = Auth::user()->company;
+        $old = $company->accounting_lock_date?->toDateString();
+        $new = $data['accounting_lock_date'] ?: null;
+
+        $company->update(['accounting_lock_date' => $new]);
+
+        AuditLog::record(
+            'company.lock_date_update',
+            null,
+            $new
+                ? __('Locked the books through :date', ['date' => $new])
+                : __('Removed the accounting lock date'),
+            old: ['accounting_lock_date' => $old],
+            new: ['accounting_lock_date' => $new],
+        );
+
+        return back()->with('status', __('Lock date saved.'));
+    }
 }

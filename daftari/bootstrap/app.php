@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\PdfRenderingException;
+use App\Exceptions\PeriodLockedException;
 use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureCompanyActive;
@@ -70,6 +71,14 @@ return Application::configure(basePath: dirname(__DIR__))
             report($e);
 
             return back()->withErrors(['pdf' => $e->getMessage()]);
+        });
+
+        $exceptions->render(function (PeriodLockedException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return back()->withErrors(['period' => $e->getMessage()]);
         });
 
         $exceptions->render(function (ThrottleRequestsException $e, $request) {

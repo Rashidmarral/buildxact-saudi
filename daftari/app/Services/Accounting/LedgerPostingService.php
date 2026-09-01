@@ -2,6 +2,7 @@
 
 namespace App\Services\Accounting;
 
+use App\Exceptions\PeriodLockedException;
 use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\BankTransfer;
@@ -18,6 +19,7 @@ use App\Models\PaymentVoucher;
 use App\Models\PurchaseReturn;
 use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -44,6 +46,10 @@ class LedgerPostingService
 
         if ($this->alreadyPosted($company, $sourceType, $sourceId)) {
             return null;
+        }
+
+        if ($company->accounting_lock_date && Carbon::parse($date)->startOfDay()->lte($company->accounting_lock_date)) {
+            throw new PeriodLockedException(__('The books are locked through :date — this transaction falls inside a closed period and cannot be posted. Move the lock date forward in Settings to reopen it.', ['date' => $company->accounting_lock_date->format('Y-m-d')]));
         }
 
         $totalDebit = round(array_sum(array_map(fn ($l) => (float) ($l['debit'] ?? 0), $lines)), 2);

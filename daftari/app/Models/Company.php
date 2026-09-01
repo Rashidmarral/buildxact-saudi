@@ -41,7 +41,7 @@ class Company extends Model
         'currency', 'locale', 'timezone', 'status', 'is_demo', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
-        'po_approval_threshold', 'expense_approval_threshold',
+        'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_common_name', 'zatca_organization_unit_name',
         'zatca_business_category', 'zatca_csr', 'zatca_private_key',
@@ -106,6 +106,7 @@ class Company extends Model
             'zatca_last_sync_at' => 'datetime',
             'po_approval_threshold' => 'decimal:2',
             'expense_approval_threshold' => 'decimal:2',
+            'accounting_lock_date' => 'date',
         ];
     }
 
