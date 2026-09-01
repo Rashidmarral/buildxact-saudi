@@ -7,19 +7,20 @@ use App\Services\Zatca\ZatcaSyncService;
 use Illuminate\Console\Command;
 
 /**
- * Batch-syncs pending invoices and credit notes to ZATCA for every
- * onboarded company whose chosen sync frequency matches the given
+ * Batch-syncs pending invoices, credit notes, and debit notes to ZATCA for
+ * every onboarded company whose chosen sync frequency matches the given
  * --frequency option. "instant" syncing happens separately (dispatched
  * right when a document is issued, see SyncInvoiceToZatca /
- * SyncCreditNoteToZatca jobs) — this command only drives the batched
- * hourly/daily/weekly cadences. "manual" companies are never picked up
- * here; they only sync via the dashboard's "Sync now" button.
+ * SyncCreditNoteToZatca / SyncDebitNoteToZatca jobs) — this command only
+ * drives the batched hourly/daily/weekly cadences. "manual" companies are
+ * never picked up here; they only sync via the dashboard's "Sync now"
+ * button.
  */
 class ZatcaSyncInvoices extends Command
 {
     protected $signature = 'zatca:sync-invoices {--frequency=hourly : hourly, daily, or weekly}';
 
-    protected $description = 'Sync pending invoices and credit notes to ZATCA for companies on a matching scheduled sync frequency';
+    protected $description = 'Sync pending invoices, credit notes, and debit notes to ZATCA for companies on a matching scheduled sync frequency';
 
     public function handle(ZatcaSyncService $sync): int
     {
@@ -43,8 +44,9 @@ class ZatcaSyncInvoices extends Command
         foreach ($companies as $company) {
             $invoices = $sync->pendingInvoices($company);
             $creditNotes = $sync->pendingCreditNotes($company);
+            $debitNotes = $sync->pendingDebitNotes($company);
 
-            if ($invoices->isEmpty() && $creditNotes->isEmpty()) {
+            if ($invoices->isEmpty() && $creditNotes->isEmpty() && $debitNotes->isEmpty()) {
                 continue;
             }
 
@@ -58,6 +60,11 @@ class ZatcaSyncInvoices extends Command
 
             foreach ($creditNotes as $creditNote) {
                 $log = $sync->submitCreditNote($creditNote);
+                in_array($log->status, ['cleared', 'reported'], true) ? $cleared++ : $failed++;
+            }
+
+            foreach ($debitNotes as $debitNote) {
+                $log = $sync->submitDebitNote($debitNote);
                 in_array($log->status, ['cleared', 'reported'], true) ? $cleared++ : $failed++;
             }
 

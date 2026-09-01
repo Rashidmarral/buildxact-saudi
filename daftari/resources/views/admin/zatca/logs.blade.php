@@ -140,4 +140,47 @@
     </table>
 </div>
 <div class="mt-3">{{ $creditNoteLogs->links() }}</div>
+
+<h2 class="text-base font-semibold text-slate-900 mb-3 mt-8">{{ __('Debit notes') }}</h2>
+<div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-left text-slate-500 border-b border-slate-100 whitespace-nowrap">
+                <th class="px-6 py-3 font-medium">{{ __('Company') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Debit note') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('UUID') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Invoice type') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Submission date') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Status') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Error message') }}</th>
+                <th class="px-6 py-3"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($debitNoteLogs as $log)
+                <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 align-top">
+                    <td class="px-6 py-3">{{ $log->company?->name ?? '—' }}</td>
+                    <td class="px-4 py-3">{{ $log->debitNote?->debit_note_number ?? '#'.$log->debit_note_id }}</td>
+                    <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ \Illuminate\Support\Str::limit($log->request_uuid, 13) }}</td>
+                    <td class="px-4 py-3">{{ strtoupper($log->invoice_type) }} · {{ ucfirst($log->direction) }}</td>
+                    <td class="px-4 py-3">{{ $log->submitted_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $statusClasses[$log->status] ?? 'bg-slate-100 text-slate-500' }}">{{ ucfirst($log->status) }}</span></td>
+                    <td class="px-4 py-3 max-w-xs">
+                        @if ($log->error_message)
+                            <span class="text-red-600">{{ \Illuminate\Support\Str::limit($log->error_message, 60) }}</span>
+                        @else
+                            <span class="text-slate-400">—</span>
+                        @endif
+                    </td>
+                    <td class="px-6 py-3 text-right whitespace-nowrap">
+                        <a href="{{ route('admin.zatca.logs.show', ['type' => 'debit_note', 'log' => $log->id]) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="8" class="px-6 py-8 text-center text-slate-400">{{ __('No debit note submissions match these filters.') }}</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+<div class="mt-3">{{ $debitNoteLogs->links() }}</div>
 @endsection

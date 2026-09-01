@@ -11,6 +11,7 @@ use App\Models\BillPayment;
 use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\CustomsDeclaration;
+use App\Models\DebitNote;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
@@ -262,6 +263,31 @@ class LedgerPostingService
         ];
 
         return $this->post($company, 'credit_note', $creditNote->id, __('Credit note :number', ['number' => $creditNote->credit_note_number]), $creditNote->issue_date, $lines);
+    }
+
+    /**
+     * A debit note is the mirror image of a credit note: it raises what
+     * the customer owes rather than reducing it, so the lines are exactly
+     * postCreditNote()'s reversed (AR debited, revenue and VAT credited) —
+     * the same shape as postInvoiceIssued() without the retention/COGS
+     * handling a full invoice carries.
+     */
+    public function postDebitNote(DebitNote $debitNote): ?JournalEntry
+    {
+        $company = $debitNote->company;
+        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
+        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
+        $vatOutput = $this->account($company, 'VAT_OUTPUT');
+
+        $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'debit note');
+
+        $lines = [
+            ['account_id' => $ar->id, 'debit' => $debitNote->total, 'memo' => $debitNote->debit_note_number],
+            ['account_id' => $revenue->id, 'credit' => $debitNote->subtotal],
+            ['account_id' => $vatOutput->id, 'credit' => $debitNote->vat_total],
+        ];
+
+        return $this->post($company, 'debit_note', $debitNote->id, __('Debit note :number', ['number' => $debitNote->debit_note_number]), $debitNote->issue_date, $lines);
     }
 
     /**

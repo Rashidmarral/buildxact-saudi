@@ -4,9 +4,18 @@
 
 @section('content')
 @php
-    $reference = $type === 'invoice' ? ($document->invoice_number ?? '#'.$log->invoice_id) : ($document->credit_note_number ?? '#'.$log->credit_note_id);
+    $reference = match ($type) {
+        'invoice' => $document->invoice_number ?? '#'.$log->invoice_id,
+        'credit_note' => $document->credit_note_number ?? '#'.$log->credit_note_id,
+        'debit_note' => $document->debit_note_number ?? '#'.$log->debit_note_id,
+    };
     $statusClasses = ['cleared' => 'bg-emerald-50 text-emerald-700', 'reported' => 'bg-emerald-50 text-emerald-700', 'failed' => 'bg-red-50 text-red-700', 'queued' => 'bg-amber-50 text-amber-700'];
     $alreadyAccepted = $type === 'invoice' ? ($document?->isZatcaLocked() ?? false) : ($document?->isZatcaSynced() ?? false);
+    $typeLabel = match ($type) {
+        'invoice' => __('Invoice'),
+        'credit_note' => __('Credit note'),
+        'debit_note' => __('Debit note'),
+    };
 @endphp
 
 <div class="mb-4">
@@ -15,7 +24,7 @@
 
 <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
-        <h2 class="text-lg font-semibold text-slate-900">{{ $type === 'invoice' ? __('Invoice') : __('Credit note') }} {{ $reference }}</h2>
+        <h2 class="text-lg font-semibold text-slate-900">{{ $typeLabel }} {{ $reference }}</h2>
         <p class="text-sm text-slate-500">{{ $log->company?->name ?? __('Unknown company') }} · {{ ucfirst($log->environment) }} · {{ strtoupper($log->invoice_type) }} ({{ ucfirst($log->direction) }})</p>
     </div>
     <div class="flex items-center gap-3">

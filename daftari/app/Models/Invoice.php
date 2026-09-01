@@ -112,9 +112,19 @@ class Invoice extends Model
         return $this->hasMany(CreditNote::class);
     }
 
+    public function debitNotes(): HasMany
+    {
+        return $this->hasMany(DebitNote::class);
+    }
+
     public function creditedTotal(): float
     {
         return (float) $this->creditNotes()->where('status', 'issued')->sum('total');
+    }
+
+    public function debitedTotal(): float
+    {
+        return (float) $this->debitNotes()->where('status', 'issued')->sum('total');
     }
 
     public function remainingCreditableTotal(): float

@@ -34,6 +34,7 @@ class Company extends Model
         'building_number', 'street_name', 'district', 'postal_code', 'additional_number',
         'phone', 'email', 'logo_path', 'stamp_path', 'invoice_prefix', 'next_invoice_number',
         'credit_note_prefix', 'next_credit_note_number',
+        'debit_note_prefix', 'next_debit_note_number',
         'purchase_return_prefix', 'next_purchase_return_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
@@ -61,6 +62,8 @@ class Company extends Model
         'next_invoice_number' => 1,
         'credit_note_prefix' => 'CN',
         'next_credit_note_number' => 1,
+        'debit_note_prefix' => 'DN',
+        'next_debit_note_number' => 1,
         'purchase_return_prefix' => 'PR',
         'next_purchase_return_number' => 1,
         'quotation_prefix' => 'QTN',
@@ -274,6 +277,13 @@ class Company extends Model
         $number = $this->nextSequenceNumber('next_credit_note_number');
 
         return $this->credit_note_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function nextDebitNoteNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_debit_note_number');
+
+        return $this->debit_note_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextPurchaseReturnNumber(): string

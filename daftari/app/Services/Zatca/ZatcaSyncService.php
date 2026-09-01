@@ -4,8 +4,10 @@ namespace App\Services\Zatca;
 
 use App\Models\Company;
 use App\Models\CreditNote;
+use App\Models\DebitNote;
 use App\Models\Invoice;
 use App\Models\ZatcaCreditNoteLog;
+use App\Models\ZatcaDebitNoteLog;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\ZatcaQrGenerator;
 use App\Support\DemoMode;
@@ -43,6 +45,7 @@ class ZatcaSyncService
     {
         return ZatcaInvoiceLog::where('company_id', $company->id)->count()
             + ZatcaCreditNoteLog::where('company_id', $company->id)->count()
+            + ZatcaDebitNoteLog::where('company_id', $company->id)->count()
             + 1;
     }
 
@@ -94,6 +97,33 @@ class ZatcaSyncService
                     ->when(! $company->zatca_sync_b2c, fn ($q) => $q->where('type', '!=', 'simplified'));
             })
             ->whereDoesntHave('zatcaCreditNoteLogs', fn ($q) => $q->whereIn('status', ['cleared', 'reported']))
+            ->get();
+    }
+
+    /**
+     * A debit note follows the same B2B/B2C split as the invoice it raises
+     * a charge against, same as a credit note.
+     */
+    public function isB2bDebitNote(DebitNote $debitNote): bool
+    {
+        return $debitNote->invoice->type === 'standard';
+    }
+
+    /**
+     * Issued debit notes this company's sync settings say should go to
+     * ZATCA but have no successful (cleared/reported) log entry yet.
+     */
+    public function pendingDebitNotes(Company $company)
+    {
+        return DebitNote::where('company_id', $company->id)
+            ->where('status', 'issued')
+            ->where('currency', $company->currency)
+            ->with('invoice')
+            ->whereHas('invoice', function ($q) use ($company) {
+                $q->when(! $company->zatca_sync_b2b, fn ($q) => $q->where('type', '!=', 'standard'))
+                    ->when(! $company->zatca_sync_b2c, fn ($q) => $q->where('type', '!=', 'simplified'));
+            })
+            ->whereDoesntHave('zatcaDebitNoteLogs', fn ($q) => $q->whereIn('status', ['cleared', 'reported']))
             ->get();
     }
 
@@ -253,6 +283,99 @@ class ZatcaSyncService
 
         if ($qrPng) {
             $creditNote->update(['qr_code' => $qrPng]);
+        }
+
+        $xmlBase64 = base64_encode($xmlString);
+
+        try {
+            $response = $isB2b
+                ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
+                : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                $log->update([
+                    'status' => $isB2b ? 'cleared' : 'reported',
+                    'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
+                    'response_payload' => $response->body(),
+                    'cleared_at' => now(),
+                ]);
+                $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+            } else {
+                $log->update([
+                    'status' => 'failed',
+                    'response_payload' => $response->body(),
+                    'error_message' => Str::limit('HTTP '.$response->status().': '.$response->body(), 1000),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $log->update([
+                'status' => 'failed',
+                'error_message' => Str::limit($e->getMessage(), 1000),
+            ]);
+        }
+
+        return $log;
+    }
+
+    public function submitDebitNote(DebitNote $debitNote): ZatcaDebitNoteLog
+    {
+        $company = $debitNote->company;
+        $environment = $company->zatca_environment;
+        $isB2b = $this->isB2bDebitNote($debitNote);
+
+        $csid = $company->zatcaCsidFor();
+        $secret = $company->zatcaSecretFor();
+
+        $uuid = $this->xml->newUuid();
+        $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
+        $unsignedXml = $this->xml->generateForDebitNote($debitNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+        $invoiceHash = $this->signer->contentHash($unsignedXml);
+
+        $xmlString = $unsignedXml;
+        $qrPng = null;
+
+        if ($csid && $secret && $company->isZatcaOnboarded()) {
+            [$xmlString, $qrPng] = $this->buildSignedPayload(
+                $company, $unsignedXml, $invoiceHash, $csid,
+                $debitNote->issue_date, (float) $debitNote->total, (float) $debitNote->vat_total,
+            );
+        }
+
+        $log = ZatcaDebitNoteLog::create([
+            'company_id' => $company->id,
+            'debit_note_id' => $debitNote->id,
+            'environment' => $environment,
+            'invoice_type' => $isB2b ? 'b2b' : 'b2c',
+            'direction' => $isB2b ? 'clearance' : 'reporting',
+            'status' => 'queued',
+            'request_uuid' => $uuid,
+            'invoice_hash' => $invoiceHash,
+            'previous_invoice_hash' => $previousHash,
+            'xml_payload' => $xmlString,
+            'submitted_at' => now(),
+        ]);
+
+        if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
+            $log->update([
+                'status' => 'failed',
+                'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
+            ]);
+
+            return $log;
+        }
+
+        if ($company->isDemo()) {
+            $log->update([
+                'status' => 'failed',
+                'error_message' => DemoMode::zatcaSubmissions(),
+            ]);
+
+            return $log;
+        }
+
+        if ($qrPng) {
+            $debitNote->update(['qr_code' => $qrPng]);
         }
 
         $xmlBase64 = base64_encode($xmlString);

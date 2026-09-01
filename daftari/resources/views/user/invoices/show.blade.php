@@ -39,6 +39,9 @@
         @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid', 'overdue']) && $invoice->remainingCreditableTotal() > 0.01)
             <a href="{{ route('app.credit-notes.create') }}?invoice_id={{ $invoice->id }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Issue credit note') }}</a>
         @endif
+        @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid', 'overdue']))
+            <a href="{{ route('app.debit-notes.create') }}?invoice_id={{ $invoice->id }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Issue debit note') }}</a>
+        @endif
         @if (! in_array($invoice->status, ['draft', 'cancelled']) && ! $invoice->isZatcaLocked())
             <form method="POST" action="{{ route('app.invoices.cancel', $invoice) }}" onsubmit="return confirm('{{ __('Cancel this invoice?') }}')">
                 @csrf

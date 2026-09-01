@@ -49,6 +49,7 @@ use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\FixedAssetController;
 use App\Http\Controllers\User\ZakatController;
 use App\Http\Controllers\User\CreditNoteController;
+use App\Http\Controllers\User\DebitNoteController;
 use App\Http\Controllers\User\CustomFieldDefinitionController;
 use App\Http\Controllers\User\CustomsDeclarationController;
 use App\Http\Controllers\User\DashboardController;
@@ -251,6 +252,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('credit-notes/{creditNote}/void', [CreditNoteController::class, 'void'])->name('credit-notes.void');
         Route::get('credit-notes/{creditNote}/xml', [CreditNoteController::class, 'downloadXml'])->name('credit-notes.xml');
         Route::get('credit-notes/{creditNote}/pdf', [CreditNoteController::class, 'downloadPdf'])->name('credit-notes.pdf');
+
+        Route::get('debit-notes/eligible-invoices', [DebitNoteController::class, 'eligibleInvoices'])->name('debit-notes.eligible-invoices');
+        Route::resource('debit-notes', DebitNoteController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('debit-notes/{debitNote}/void', [DebitNoteController::class, 'void'])->name('debit-notes.void');
+        Route::get('debit-notes/{debitNote}/xml', [DebitNoteController::class, 'downloadXml'])->name('debit-notes.xml');
+        Route::get('debit-notes/{debitNote}/pdf', [DebitNoteController::class, 'downloadPdf'])->name('debit-notes.pdf');
 
         Route::middleware('feature:recurring_invoices')->group(function () {
             Route::resource('recurring-invoices', RecurringInvoiceController::class)->except(['show']);

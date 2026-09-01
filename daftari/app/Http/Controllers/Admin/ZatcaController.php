@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Subscription;
 use App\Models\ZatcaCreditNoteLog;
+use App\Models\ZatcaDebitNoteLog;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
 use App\Services\Zatca\ZatcaSyncService;
@@ -145,7 +146,13 @@ class ZatcaController extends Controller
                 ->with(['company:id,name', 'creditNote:id,credit_note_number'])
         )->latest('id')->paginate(20, ['*'], 'credit_note_page')->withQueryString();
 
-        return view('admin.zatca.logs', compact('invoiceLogs', 'creditNoteLogs', 'companies'));
+        $debitNoteLogs = $applyFilters(
+            ZatcaDebitNoteLog::withoutGlobalScopes()
+                ->select(['id', 'company_id', 'debit_note_id', 'environment', 'invoice_type', 'direction', 'status', 'request_uuid', 'error_message', 'submitted_at', 'cleared_at', 'created_at'])
+                ->with(['company:id,name', 'debitNote:id,debit_note_number'])
+        )->latest('id')->paginate(20, ['*'], 'debit_note_page')->withQueryString();
+
+        return view('admin.zatca.logs', compact('invoiceLogs', 'creditNoteLogs', 'debitNoteLogs', 'companies'));
     }
 
     public function showLog(string $type, int $log)
@@ -173,9 +180,11 @@ class ZatcaController extends Controller
 
         abort_if(! $logModel->xml_payload, 404);
 
-        $reference = $type === 'invoice'
-            ? ($document->invoice_number ?? "log-{$logModel->id}")
-            : ($document->credit_note_number ?? "log-{$logModel->id}");
+        $reference = match ($type) {
+            'invoice' => $document->invoice_number ?? "log-{$logModel->id}",
+            'credit_note' => $document->credit_note_number ?? "log-{$logModel->id}",
+            'debit_note' => $document->debit_note_number ?? "log-{$logModel->id}",
+        };
 
         return response($logModel->xml_payload, 200, [
             'Content-Type' => 'application/xml',
@@ -204,14 +213,22 @@ class ZatcaController extends Controller
             return back()->withErrors(['zatca' => __('This document has already been cleared or reported to ZATCA and cannot be resubmitted.')]);
         }
 
-        $newLog = $type === 'invoice' ? $sync->submit($document) : $sync->submitCreditNote($document);
+        $newLog = match ($type) {
+            'invoice' => $sync->submit($document),
+            'credit_note' => $sync->submitCreditNote($document),
+            'debit_note' => $sync->submitDebitNote($document),
+        };
         $accepted = in_array($newLog->status, ['cleared', 'reported'], true);
 
         AuditLog::record(
             'zatca.retry_submission',
             $logModel->company,
             __('Retried ZATCA submission for :type #:id (:company) — new status: :status', [
-                'type' => $type === 'invoice' ? __('invoice') : __('credit note'),
+                'type' => match ($type) {
+                    'invoice' => __('invoice'),
+                    'credit_note' => __('credit note'),
+                    'debit_note' => __('debit note'),
+                },
                 'id' => $document->id,
                 'company' => $logModel->company?->name,
                 'status' => $newLog->status,
@@ -290,11 +307,11 @@ class ZatcaController extends Controller
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Collection, 1: ?\App\Models\ZatcaInvoiceLog|?\App\Models\ZatcaCreditNoteLog}
+     * @return array{0: \Illuminate\Support\Collection, 1: ?\App\Models\ZatcaInvoiceLog|?\App\Models\ZatcaCreditNoteLog|?\App\Models\ZatcaDebitNoteLog}
      */
     private function resolveLog(string $type, int $id): array
     {
-        abort_unless(in_array($type, ['invoice', 'credit_note'], true), 404);
+        abort_unless(in_array($type, ['invoice', 'credit_note', 'debit_note'], true), 404);
 
         if ($type === 'invoice') {
             $log = ZatcaInvoiceLog::withoutGlobalScopes()->with(['company', 'invoice'])->findOrFail($id);
@@ -302,9 +319,15 @@ class ZatcaController extends Controller
             return [$log, $log->invoice];
         }
 
-        $log = ZatcaCreditNoteLog::withoutGlobalScopes()->with(['company', 'creditNote'])->findOrFail($id);
+        if ($type === 'credit_note') {
+            $log = ZatcaCreditNoteLog::withoutGlobalScopes()->with(['company', 'creditNote'])->findOrFail($id);
 
-        return [$log, $log->creditNote];
+            return [$log, $log->creditNote];
+        }
+
+        $log = ZatcaDebitNoteLog::withoutGlobalScopes()->with(['company', 'debitNote'])->findOrFail($id);
+
+        return [$log, $log->debitNote];
     }
 
     /**
@@ -326,7 +349,7 @@ class ZatcaController extends Controller
         $rejected = 0;
         $failedSubmissions = 0;
 
-        foreach ([ZatcaInvoiceLog::class, ZatcaCreditNoteLog::class] as $model) {
+        foreach ([ZatcaInvoiceLog::class, ZatcaCreditNoteLog::class, ZatcaDebitNoteLog::class] as $model) {
             $totalSubmitted += $model::withoutGlobalScopes()->count();
             $accepted += $model::withoutGlobalScopes()->whereIn('status', ['cleared', 'reported'])->count();
             $rejected += $model::withoutGlobalScopes()->where('status', 'failed')->where('error_message', 'like', 'HTTP %')->count();
@@ -359,7 +382,7 @@ class ZatcaController extends Controller
         $lastSuccessful = collect();
         $failedCounts = collect();
 
-        foreach ([ZatcaInvoiceLog::class, ZatcaCreditNoteLog::class] as $model) {
+        foreach ([ZatcaInvoiceLog::class, ZatcaCreditNoteLog::class, ZatcaDebitNoteLog::class] as $model) {
             $model::withoutGlobalScopes()
                 ->whereIn('company_id', $companyIds)
                 ->selectRaw("company_id, MAX(submitted_at) as last_submission, MAX(cleared_at) as last_successful, SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count")
@@ -412,6 +435,19 @@ class ZatcaController extends Controller
                 'created_at' => $log->created_at,
             ]);
 
-        return $invoiceErrors->concat($creditNoteErrors)->sortByDesc('created_at')->take($limit)->values();
+        $debitNoteErrors = ZatcaDebitNoteLog::withoutGlobalScopes()
+            ->where('status', 'failed')
+            ->with(['company:id,name', 'debitNote:id,debit_note_number'])
+            ->latest('id')->take($limit)->get()
+            ->map(fn ($log) => [
+                'company' => $log->company?->name,
+                'reference' => $log->debitNote?->debit_note_number ?? "#{$log->debit_note_id}",
+                'type' => 'debit_note',
+                'log_id' => $log->id,
+                'error' => $log->error_message,
+                'created_at' => $log->created_at,
+            ]);
+
+        return $invoiceErrors->concat($creditNoteErrors)->concat($debitNoteErrors)->sortByDesc('created_at')->take($limit)->values();
     }
 }

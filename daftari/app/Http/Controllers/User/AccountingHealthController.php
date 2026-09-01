@@ -7,6 +7,7 @@ use App\Models\AccountMapping;
 use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\CreditNote;
+use App\Models\DebitNote;
 use App\Models\Invoice;
 use App\Models\PurchaseReturn;
 use Illuminate\Support\Facades\Auth;
@@ -182,6 +183,17 @@ class AccountingHealthController extends Controller
             $issues[] = $this->missingPostingIssue($missingCreditNotes, __('credit notes'), route('app.credit-notes.index'));
         }
 
+        $missingDebitNotes = DebitNote::where('company_id', $companyId)
+            ->where('status', 'issued')
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('journal_entries')
+                ->whereColumn('journal_entries.source_id', 'debit_notes.id')
+                ->where('journal_entries.source_type', 'debit_note'))
+            ->count();
+
+        if ($missingDebitNotes > 0) {
+            $issues[] = $this->missingPostingIssue($missingDebitNotes, __('debit notes'), route('app.debit-notes.index'));
+        }
+
         $missingPurchaseReturns = PurchaseReturn::where('company_id', $companyId)
             ->where('status', 'issued')
             ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('journal_entries')
@@ -225,7 +237,7 @@ class AccountingHealthController extends Controller
     {
         return [
             'invoice.send', 'invoice.cancel', 'bill.create', 'bill.post', 'bill.void',
-            'credit_note.create', 'purchase_return.create', 'fixed_asset.create',
+            'credit_note.create', 'debit_note.create', 'purchase_return.create', 'fixed_asset.create',
             'fixed_asset.dispose', 'budget.create', 'budget.activate', 'zakat.calculate',
             'expense.approve', 'expense.reject', 'stock_transfer.create', 'stock_transfer.reverse',
         ];

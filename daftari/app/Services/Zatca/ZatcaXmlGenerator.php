@@ -4,6 +4,8 @@ namespace App\Services\Zatca;
 
 use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
+use App\Models\DebitNote;
+use App\Models\DebitNoteItem;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\TaxRate;
@@ -240,6 +242,135 @@ class ZatcaXmlGenerator
             $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
             $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
             $qty->setAttribute('unitCode', $item->unit?->code ?: ($item->invoiceItem?->item?->unit_code ?: 'PCE'));
+            $lineNet = $item->quantity * $item->unit_price;
+            $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet, $docCurrency);
+
+            $lineTax = $doc->createElement('cac:TaxTotal');
+            $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $item->vat_amount, $docCurrency);
+            $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', $lineNet + (float) $item->vat_amount, $docCurrency);
+            $line->appendChild($lineTax);
+
+            $itemEl = $doc->createElement('cac:Item');
+            $this->append($doc, $itemEl, 'cbc:Name', $item->description);
+            $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
+            $this->append($doc, $taxCategory, 'cbc:ID', $this->taxCategoryCode($item));
+            $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $item->vat_rate, 2, '.', ''));
+            $lineTaxScheme = $doc->createElement('cac:TaxScheme');
+            $this->append($doc, $lineTaxScheme, 'cbc:ID', 'VAT');
+            $taxCategory->appendChild($lineTaxScheme);
+            $itemEl->appendChild($taxCategory);
+            $line->appendChild($itemEl);
+
+            $price = $doc->createElement('cac:Price');
+            $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price, $docCurrency);
+            $line->appendChild($price);
+
+            $root->appendChild($line);
+        }
+
+        return $doc->saveXML();
+    }
+
+    /**
+     * Debit notes use the same UBL Invoice-2 schema as credit notes — only
+     * InvoiceTypeCode differs (383 instead of 381). They raise what the
+     * customer owes rather than reducing it, so the amounts here are
+     * additive on top of the original invoice rather than corrections
+     * against it, but they still carry the same mandatory BillingReference
+     * back to that invoice (BR-KSA-56) and continue the same Previous
+     * Invoice Hash chain.
+     */
+    public function generateForDebitNote(DebitNote $debitNote, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1): string
+    {
+        $doc = new DOMDocument('1.0', 'UTF-8');
+        $doc->formatOutput = false;
+
+        $root = $doc->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        $doc->appendChild($root);
+
+        $company = $debitNote->company;
+        $client = $debitNote->client;
+        $invoice = $debitNote->invoice;
+
+        $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
+        $this->append($doc, $root, 'cbc:ID', $debitNote->debit_note_number);
+        $this->append($doc, $root, 'cbc:UUID', $uuid);
+        $this->append($doc, $root, 'cbc:IssueDate', $debitNote->issue_date->format('Y-m-d'));
+        $this->append($doc, $root, 'cbc:IssueTime', $debitNote->created_at?->format('H:i:s') ?? now()->format('H:i:s'));
+
+        $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', '383');
+        $typeCode->setAttribute('name', $invoiceTypeName);
+
+        $this->append($doc, $root, 'cbc:DocumentCurrencyCode', $debitNote->currency ?: 'SAR');
+        $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
+
+        $originalLog = $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first();
+
+        $billingReference = $doc->createElement('cac:BillingReference');
+        $docRef = $doc->createElement('cac:InvoiceDocumentReference');
+        $this->append($doc, $docRef, 'cbc:ID', $invoice->invoice_number);
+        if ($originalLog?->request_uuid) {
+            $this->append($doc, $docRef, 'cbc:UUID', (string) $originalLog->request_uuid);
+        }
+        $billingReference->appendChild($docRef);
+        $root->appendChild($billingReference);
+
+        $root->appendChild($this->icvReference($doc, $icv));
+
+        if ($previousInvoiceHash) {
+            $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
+        }
+
+        $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
+            'name' => $company->name,
+            'vat_number' => $company->vat_number,
+            'id_scheme' => 'CRN',
+            'id_value' => $company->cr_number,
+            'street' => $company->street_name ?: $company->address,
+            'building_number' => $company->building_number,
+            'district' => $company->district,
+            'city' => $company->city,
+            'postal_code' => $company->postal_code,
+        ]));
+
+        $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
+            'name' => $client->name,
+            'vat_number' => $client->vat_number,
+            'street' => $client->street_name,
+            'building_number' => $client->building_number,
+            'district' => $client->district,
+            'city' => $client->city,
+            'postal_code' => $client->postal_code,
+        ]));
+
+        $delivery = $doc->createElement('cac:Delivery');
+        $this->append($doc, $delivery, 'cbc:ActualDeliveryDate', $debitNote->issue_date->format('Y-m-d'));
+        $root->appendChild($delivery);
+
+        // KSA-10 "Reason for issuing a Credit/Debit Note" (BR-KSA-17).
+        $paymentMeans = $doc->createElement('cac:PaymentMeans');
+        $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
+        $this->append($doc, $paymentMeans, 'cbc:InstructionNote', $debitNote->reason ?: 'Additional charge / correction');
+        $root->appendChild($paymentMeans);
+
+        $this->appendDualTaxTotal($doc, $root, (float) $debitNote->vat_total, $debitNote->items, fn ($item) => $item->quantity * $item->unit_price);
+
+        $docCurrency = $debitNote->currency ?: 'SAR';
+
+        $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $debitNote->subtotal, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $debitNote->subtotal, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $debitNote->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $debitNote->total, $docCurrency);
+        $root->appendChild($monetaryTotal);
+
+        foreach ($debitNote->items as $index => $item) {
+            $line = $doc->createElement('cac:InvoiceLine');
+            $this->append($doc, $line, 'cbc:ID', (string) ($index + 1));
+            $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', number_format((float) $item->quantity, 2, '.', ''));
+            $qty->setAttribute('unitCode', $item->unit?->code ?: 'PCE');
             $lineNet = $item->quantity * $item->unit_price;
             $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', $lineNet, $docCurrency);
 
@@ -619,7 +750,7 @@ class ZatcaXmlGenerator
      * stdClass stand-in with taxRate forced to null, so it also falls
      * through to that guess.
      */
-    private function taxCategoryCode(InvoiceItem|CreditNoteItem|\stdClass $item): string
+    private function taxCategoryCode(InvoiceItem|CreditNoteItem|DebitNoteItem|\stdClass $item): string
     {
         return match ($item->taxRate?->type) {
             TaxRate::TYPE_EXEMPT => 'E',

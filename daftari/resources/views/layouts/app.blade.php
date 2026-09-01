@@ -58,7 +58,7 @@
             <nav class="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3 py-4 text-sm">
                 @include('partials.nav-item', ['route' => 'app.dashboard', 'label' => __('Dashboard'), 'icon' => 'dashboard'])
 
-                @php($salesActive = request()->routeIs('app.quotations.*') || request()->routeIs('app.invoices.*') || request()->routeIs('app.recurring-invoices.*') || request()->routeIs('app.credit-notes.*') || request()->routeIs('app.clients.*') || request()->routeIs('app.salespersons.*'))
+                @php($salesActive = request()->routeIs('app.quotations.*') || request()->routeIs('app.invoices.*') || request()->routeIs('app.recurring-invoices.*') || request()->routeIs('app.credit-notes.*') || request()->routeIs('app.debit-notes.*') || request()->routeIs('app.clients.*') || request()->routeIs('app.salespersons.*'))
                 <details class="group" @if($salesActive) open @endif>
                     <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $salesActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
                         <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'sales', 'class' => 'h-[18px] w-[18px]'])</span>
@@ -70,6 +70,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.invoices.index', 'label' => __('Invoices')])
                         @include('partials.nav-subitem', ['route' => 'app.recurring-invoices.index', 'label' => __('Recurring Invoices')])
                         @include('partials.nav-subitem', ['route' => 'app.credit-notes.index', 'label' => __('Credit notes')])
+                        @include('partials.nav-subitem', ['route' => 'app.debit-notes.index', 'label' => __('Debit notes')])
                         @include('partials.nav-subitem', ['route' => 'app.clients.index', 'label' => __('Customers')])
                         @include('partials.nav-subitem', ['route' => 'app.salespersons.index', 'label' => __('Salespersons')])
                     </div>

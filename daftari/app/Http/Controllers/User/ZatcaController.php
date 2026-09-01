@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\ZatcaCreditNoteLog;
+use App\Models\ZatcaDebitNoteLog;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
 use App\Services\Zatca\ZatcaCryptoService;
@@ -48,6 +49,11 @@ class ZatcaController extends Controller
             ->latest('id')
             ->paginate(15, ['*'], 'credit_note_page');
 
+        $debitNoteLogs = ZatcaDebitNoteLog::with('debitNote')
+            ->where('company_id', $company->id)
+            ->latest('id')
+            ->paginate(15, ['*'], 'debit_note_page');
+
         $stats = [
             'cleared' => ZatcaInvoiceLog::where('company_id', $company->id)->where('status', 'cleared')->count(),
             'reported' => ZatcaInvoiceLog::where('company_id', $company->id)->where('status', 'reported')->count(),
@@ -58,6 +64,7 @@ class ZatcaController extends Controller
         $sync = app(ZatcaSyncService::class);
         $pendingCount = $sync->pendingInvoices($company)->count();
         $pendingCreditNoteCount = $sync->pendingCreditNotes($company)->count();
+        $pendingDebitNoteCount = $sync->pendingDebitNotes($company)->count();
 
         return view('user.zatca.dashboard', [
             'company' => $company,
@@ -65,9 +72,11 @@ class ZatcaController extends Controller
             'canUsePhase2' => true,
             'logs' => $logs,
             'creditNoteLogs' => $creditNoteLogs,
+            'debitNoteLogs' => $debitNoteLogs,
             'stats' => $stats,
             'pendingCount' => $pendingCount,
             'pendingCreditNoteCount' => $pendingCreditNoteCount,
+            'pendingDebitNoteCount' => $pendingDebitNoteCount,
             'environments' => ZatcaApiClient::BASE_URLS,
             'readiness' => $company->zatcaReadinessChecklist(),
         ]);
@@ -414,9 +423,10 @@ class ZatcaController extends Controller
 
         $invoices = $sync->pendingInvoices($company);
         $creditNotes = $sync->pendingCreditNotes($company);
+        $debitNotes = $sync->pendingDebitNotes($company);
 
-        if ($invoices->isEmpty() && $creditNotes->isEmpty()) {
-            return back()->with('status', __('No pending invoices or credit notes to sync.'));
+        if ($invoices->isEmpty() && $creditNotes->isEmpty() && $debitNotes->isEmpty()) {
+            return back()->with('status', __('No pending invoices, credit notes, or debit notes to sync.'));
         }
 
         $cleared = 0;
@@ -433,6 +443,15 @@ class ZatcaController extends Controller
 
         foreach ($creditNotes as $creditNote) {
             $log = $sync->submitCreditNote($creditNote);
+            if (in_array($log->status, ['cleared', 'reported'], true)) {
+                $cleared++;
+            } else {
+                $failed++;
+            }
+        }
+
+        foreach ($debitNotes as $debitNote) {
+            $log = $sync->submitDebitNote($debitNote);
             if (in_array($log->status, ['cleared', 'reported'], true)) {
                 $cleared++;
             } else {
