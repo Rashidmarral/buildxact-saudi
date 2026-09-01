@@ -3518,5 +3518,6 @@
     "bills": "فواتير المشتريات",
     "credit notes": "إشعارات دائنة",
     "invoices": "فواتير",
-    "purchase returns": "مرتجعات المشتريات"
+    "purchase returns": "مرتجعات المشتريات",
+    "Cost of goods sold for :number": "تكلفة البضاعة المباعة لـ :number"
 }

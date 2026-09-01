@@ -214,6 +214,29 @@ class LedgerPostingService
             $lines[] = ['account_id' => $discounts->id, 'debit' => $discountTotal];
         }
 
+        // Only relieve inventory when stock was actually deducted for this
+        // invoice (InvoiceController::doSend() sets stock_deducted only
+        // when a warehouse was selected and tracked-inventory lines exist)
+        // — otherwise there is no physical stock movement to match a COGS
+        // entry to. Cost is each item's standard cost (purchase_price),
+        // the same figure the Inventory Valuation report already uses, not
+        // whatever this particular invoice's line price was.
+        if ($invoice->stock_deducted) {
+            $invoice->loadMissing('items.item');
+            $cogsAmount = round((float) $invoice->items
+                ->filter(fn ($line) => $line->item?->track_inventory)
+                ->sum(fn ($line) => $line->item->baseQuantityFor((float) $line->quantity, $line->unit_id) * (float) ($line->item->purchase_price ?? 0)), 2);
+
+            if ($cogsAmount > 0) {
+                $cogs = $this->account($company, 'COGS_DEFAULT');
+                $inventoryAsset = $this->account($company, 'INVENTORY_ASSET');
+                $this->requireAccounts(['COGS_DEFAULT' => $cogs, 'INVENTORY_ASSET' => $inventoryAsset], 'invoice (COGS)');
+
+                $lines[] = ['account_id' => $cogs->id, 'debit' => $cogsAmount, 'memo' => __('Cost of goods sold for :number', ['number' => $invoice->invoice_number])];
+                $lines[] = ['account_id' => $inventoryAsset->id, 'credit' => $cogsAmount];
+            }
+        }
+
         return $this->post($company, 'invoice', $invoice->id, __('Invoice :number issued', ['number' => $invoice->invoice_number]), $invoice->issue_date, $lines);
     }
 
@@ -297,11 +320,39 @@ class LedgerPostingService
         $net = round($subtotal - $discountTotal, 2);
         $total = round($net + $vatTotal, 2);
 
-        return $this->post($company, 'bill', $bill->id, __('Bill :number posted', ['number' => $bill->bill_number]), $bill->bill_date, [
-            ['account_id' => $expenseAccount->id, 'debit' => $net],
-            ['account_id' => $vatInput->id, 'debit' => $vatTotal],
-            ['account_id' => $ap->id, 'credit' => $total],
-        ]);
+        // A line for a tracked-inventory item is a purchase of stock, not
+        // an expense — it belongs on the balance sheet as Inventory Asset
+        // until the item is sold (see postInvoiceIssued(), which relieves
+        // it to COGS at that point). The line-level split is done as a
+        // share of pre-discount, pre-VAT amounts so a header-level
+        // discount is prorated across both buckets rather than landing
+        // entirely on one.
+        $bill->loadMissing('items.item');
+        $trackedLineSubtotal = (float) $bill->items
+            ->filter(fn ($line) => $line->item?->track_inventory)
+            ->sum(fn ($line) => (float) $line->quantity * (float) $line->unit_price);
+        $lineSubtotal = (float) $bill->subtotal;
+        $trackedShare = $lineSubtotal > 0.005 ? min($trackedLineSubtotal / $lineSubtotal, 1.0) : 0.0;
+
+        $capitalized = round($net * $trackedShare, 2);
+        $expensed = round($net - $capitalized, 2);
+
+        $lines = [];
+
+        if ($capitalized > 0) {
+            $inventoryAsset = $this->account($company, 'INVENTORY_ASSET');
+            $this->requireAccounts(['INVENTORY_ASSET' => $inventoryAsset], 'bill (inventory capitalization)');
+            $lines[] = ['account_id' => $inventoryAsset->id, 'debit' => $capitalized];
+        }
+
+        if ($expensed > 0) {
+            $lines[] = ['account_id' => $expenseAccount->id, 'debit' => $expensed];
+        }
+
+        $lines[] = ['account_id' => $vatInput->id, 'debit' => $vatTotal];
+        $lines[] = ['account_id' => $ap->id, 'credit' => $total];
+
+        return $this->post($company, 'bill', $bill->id, __('Bill :number posted', ['number' => $bill->bill_number]), $bill->bill_date, $lines);
     }
 
     public function postBillPayment(BillPayment $payment): ?JournalEntry
