@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
@@ -19,7 +20,7 @@ use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
 {
-    use ExportsCsv, ImportsCsv;
+    use ExportsCsv, ImportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -40,7 +41,7 @@ class ItemController extends Controller
             );
         }
 
-        $items = $query->paginate(20);
+        $items = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.items.index', compact('items'));
     }

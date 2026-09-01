@@ -38,4 +38,8 @@
         </table>
     @endif
 </div>
+
+@unless ($stocks->isEmpty())
+    @include('partials.pagination', ['paginator' => $stocks])
+@endunless
 @endsection

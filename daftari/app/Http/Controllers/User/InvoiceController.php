@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Jobs\SyncInvoiceToZatca;
 use App\Mail\InvoiceMail;
 use App\Models\Attachment;
@@ -35,7 +36,7 @@ use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
 {
-    use ExportsCsv;
+    use ExportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -59,7 +60,7 @@ class InvoiceController extends Controller
             );
         }
 
-        $invoices = $query->paginate(20)->withQueryString();
+        $invoices = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.invoices.index', compact('invoices'));
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Mail\QuotationMail;
 use App\Models\Attachment;
@@ -24,7 +25,7 @@ use Illuminate\Validation\Rule;
 
 class QuotationController extends Controller
 {
-    use ExportsCsv;
+    use ExportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -49,7 +50,7 @@ class QuotationController extends Controller
             );
         }
 
-        $quotations = $query->paginate(20)->withQueryString();
+        $quotations = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         $counts = [
             'all' => Quotation::count(),

@@ -48,5 +48,5 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $suppliers->links() }}</div>
+@include('partials.pagination', ['paginator' => $suppliers])
 @endsection

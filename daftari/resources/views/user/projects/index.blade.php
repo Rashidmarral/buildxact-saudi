@@ -44,4 +44,6 @@
         </div>
     @endforelse
 </div>
+
+@include('partials.pagination', ['paginator' => $projects])
 @endsection

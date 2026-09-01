@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Client;
 use App\Models\Project;
 use Illuminate\Http\Request;
@@ -11,12 +12,15 @@ use Illuminate\Validation\Rule;
 
 class ProjectController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $projects = Project::with('client')
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->orderByDesc('id')
-            ->get();
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
 
         return view('user.projects.index', compact('projects'));
     }

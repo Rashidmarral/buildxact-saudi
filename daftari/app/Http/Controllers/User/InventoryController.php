@@ -3,16 +3,22 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
+use App\Models\Item;
 use App\Models\ItemStock;
+use Illuminate\Http\Request;
 
 class InventoryController extends Controller
 {
-    public function stock()
+    use ResolvesPerPage;
+
+    public function stock(Request $request)
     {
         $stocks = ItemStock::with('item', 'warehouse')
             ->whereHas('item', fn ($q) => $q->where('track_inventory', true))
-            ->get()
-            ->sortBy(fn ($stock) => $stock->item->name);
+            ->orderBy(Item::select('name')->whereColumn('items.id', 'item_stocks.item_id'))
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
 
         return view('user.inventory.stock', compact('stocks'));
     }

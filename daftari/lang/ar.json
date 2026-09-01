@@ -3528,5 +3528,7 @@
     "Hidden after the first view. Regenerate to see the full value again.": "يُخفى بعد أول عرض. أعد التوليد لرؤية القيمة الكاملة مرة أخرى.",
     "Shown as the preview image when the marketing site is shared on WhatsApp, LinkedIn, X, or Slack. Recommended size 1200×630px. Falls back to the platform logo if not set.": "تُعرض كصورة معاينة عند مشاركة الموقع التسويقي على واتساب أو لينكدإن أو إكس أو سلاك. المقاس الموصى به 1200×630 بكسل. يُستخدم شعار المنصة افتراضيًا إذا لم تُحدَّد.",
     "Social share image": "صورة المشاركة الاجتماعية",
-    "This is shown in full only once — copy it now. If you lose it, regenerate a new one below.": "تُعرض هذه القيمة كاملة مرة واحدة فقط — انسخها الآن. إذا فقدتها، أعد توليد قيمة جديدة أدناه."
+    "This is shown in full only once — copy it now. If you lose it, regenerate a new one below.": "تُعرض هذه القيمة كاملة مرة واحدة فقط — انسخها الآن. إذا فقدتها، أعد توليد قيمة جديدة أدناه.",
+    ":from–:to of :total": ":from–:to من :total",
+    "Per page": "لكل صفحة"
 }

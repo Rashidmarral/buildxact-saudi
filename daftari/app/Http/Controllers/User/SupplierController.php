@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Validator;
 
 class SupplierController extends Controller
 {
-    use ExportsCsv, ImportsCsv;
+    use ExportsCsv, ImportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -36,7 +37,7 @@ class SupplierController extends Controller
             );
         }
 
-        $suppliers = $query->paginate(20);
+        $suppliers = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.suppliers.index', compact('suppliers'));
     }
