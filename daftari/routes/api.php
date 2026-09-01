@@ -1,8 +1,13 @@
 <?php
 
+use App\Http\Controllers\Api\V1\BillApiController;
+use App\Http\Controllers\Api\V1\BillPaymentApiController;
 use App\Http\Controllers\Api\V1\ClientApiController;
 use App\Http\Controllers\Api\V1\InvoiceApiController;
+use App\Http\Controllers\Api\V1\InvoicePaymentApiController;
 use App\Http\Controllers\Api\V1\ItemApiController;
+use App\Http\Controllers\Api\V1\JournalEntryApiController;
+use App\Http\Controllers\Api\V1\ReportApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +44,24 @@ Route::middleware(['auth:sanctum', 'throttle:api', 'api.limit', 'abilities:read'
     Route::middleware('permission:invoices')->group(function () {
         Route::get('/invoices', [InvoiceApiController::class, 'index'])->name('invoices.index');
         Route::get('/invoices/{invoice}', [InvoiceApiController::class, 'show'])->name('invoices.show');
+        Route::get('/invoices/{invoice}/payments', [InvoicePaymentApiController::class, 'index'])->name('invoices.payments.index');
+    });
+
+    Route::middleware('permission:purchases')->group(function () {
+        Route::get('/bills', [BillApiController::class, 'index'])->name('bills.index');
+        Route::get('/bills/{bill}', [BillApiController::class, 'show'])->name('bills.show');
+        Route::get('/bills/{bill}/payments', [BillPaymentApiController::class, 'index'])->name('bills.payments.index');
+    });
+
+    Route::middleware('permission:accounting')->group(function () {
+        Route::get('/journal-entries', [JournalEntryApiController::class, 'index'])->name('journal-entries.index');
+        Route::get('/journal-entries/{journalEntry}', [JournalEntryApiController::class, 'show'])->name('journal-entries.show');
+    });
+
+    Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('/trial-balance', [ReportApiController::class, 'trialBalance'])->name('trial-balance');
+        Route::get('/balance-sheet', [ReportApiController::class, 'balanceSheet'])->name('balance-sheet');
+        Route::get('/income-statement', [ReportApiController::class, 'incomeStatement'])->name('income-statement');
     });
 });
 
