@@ -258,6 +258,20 @@ class LedgerPostingService
         return $this->post($company, 'credit_note', $creditNote->id, __('Credit note :number', ['number' => $creditNote->credit_note_number]), $creditNote->issue_date, $lines);
     }
 
+    /**
+     * Commercial audit finding: FX_GAINS/FX_LOSSES were mappable accounts
+     * with no code ever posting to them — every payment was converted at
+     * the invoice's own booked exchange_rate, so a real rate movement
+     * between issue and settlement was silently absorbed rather than
+     * recognized. Accounts Receivable is relieved at the rate it was
+     * booked at (what the invoice's own total represents in base
+     * currency); cash/bank records what was actually received at the
+     * payment's own rate. The difference is the realized gain or loss.
+     * When the payment carries no rate of its own (same-currency
+     * companies, the overwhelming majority here, or a payment recorded
+     * before this field existed) it defaults to the invoice's rate and
+     * the difference is exactly zero — no behavior change for those.
+     */
     public function postInvoicePayment(InvoicePayment $payment): ?JournalEntry
     {
         $invoice = $payment->invoice;
@@ -267,12 +281,20 @@ class LedgerPostingService
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank], 'invoice payment');
 
-        $baseAmount = round((float) $payment->amount * ((float) $invoice->exchange_rate ?: 1.0), 2);
+        $bookedRate = (float) $invoice->exchange_rate ?: 1.0;
+        $paymentRate = (float) ($payment->exchange_rate ?: $bookedRate);
 
-        return $this->post($company, 'invoice_payment', $payment->id, __('Payment received for :number', ['number' => $invoice->invoice_number]), $payment->paid_at, [
-            ['account_id' => $cashOrBank->id, 'debit' => $baseAmount],
-            ['account_id' => $ar->id, 'credit' => $baseAmount],
-        ]);
+        $arRelief = round((float) $payment->amount * $bookedRate, 2);
+        $cashReceived = round((float) $payment->amount * $paymentRate, 2);
+
+        $lines = [
+            ['account_id' => $cashOrBank->id, 'debit' => $cashReceived],
+            ['account_id' => $ar->id, 'credit' => $arRelief],
+        ];
+
+        $this->appendFxDifference($company, $lines, $cashReceived - $arRelief, 'invoice payment');
+
+        return $this->post($company, 'invoice_payment', $payment->id, __('Payment received for :number', ['number' => $invoice->invoice_number]), $payment->paid_at, $lines);
     }
 
     public function postReceiptVoucher(ReceiptVoucher $voucher): ?JournalEntry
@@ -355,6 +377,12 @@ class LedgerPostingService
         return $this->post($company, 'bill', $bill->id, __('Bill :number posted', ['number' => $bill->bill_number]), $bill->bill_date, $lines);
     }
 
+    /**
+     * Mirrors postInvoicePayment()'s FX treatment for the purchase side:
+     * Accounts Payable is relieved at the bill's own booked rate, cash/
+     * bank records what was actually paid at the payment's own rate, and
+     * the difference posts as a realized gain or loss.
+     */
     public function postBillPayment(BillPayment $payment): ?JournalEntry
     {
         $bill = $payment->bill;
@@ -364,12 +392,44 @@ class LedgerPostingService
 
         $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap, 'DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank], 'bill payment');
 
-        $baseAmount = round((float) $payment->amount * ((float) $bill->exchange_rate ?: 1.0), 2);
+        $bookedRate = (float) $bill->exchange_rate ?: 1.0;
+        $paymentRate = (float) ($payment->exchange_rate ?: $bookedRate);
 
-        return $this->post($company, 'bill_payment', $payment->id, __('Payment made for :number', ['number' => $bill->bill_number]), $payment->paid_at, [
-            ['account_id' => $ap->id, 'debit' => $baseAmount],
-            ['account_id' => $cashOrBank->id, 'credit' => $baseAmount],
-        ]);
+        $apRelief = round((float) $payment->amount * $bookedRate, 2);
+        $cashPaid = round((float) $payment->amount * $paymentRate, 2);
+
+        $lines = [
+            ['account_id' => $ap->id, 'debit' => $apRelief],
+            ['account_id' => $cashOrBank->id, 'credit' => $cashPaid],
+        ];
+
+        $this->appendFxDifference($company, $lines, $apRelief - $cashPaid, 'bill payment');
+
+        return $this->post($company, 'bill_payment', $payment->id, __('Payment made for :number', ['number' => $bill->bill_number]), $payment->paid_at, $lines);
+    }
+
+    /**
+     * Appends an FX_GAINS credit or FX_LOSSES debit line for the given
+     * base-currency difference — positive means a gain (more value than
+     * expected), negative a loss. A zero difference (same currency, or no
+     * payment-specific rate given) appends nothing, and post() already
+     * drops zero-amount lines regardless.
+     */
+    private function appendFxDifference(Company $company, array &$lines, float $difference, string $context): void
+    {
+        $difference = round($difference, 2);
+
+        if (abs($difference) <= self::TOLERANCE) {
+            return;
+        }
+
+        $key = $difference > 0 ? 'FX_GAINS' : 'FX_LOSSES';
+        $account = $this->account($company, $key);
+        $this->requireAccounts([$key => $account], $context.' (FX)');
+
+        $lines[] = $difference > 0
+            ? ['account_id' => $account->id, 'credit' => abs($difference)]
+            : ['account_id' => $account->id, 'debit' => abs($difference)];
     }
 
     /**

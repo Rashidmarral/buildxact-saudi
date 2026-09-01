@@ -3531,5 +3531,7 @@
     "This is shown in full only once — copy it now. If you lose it, regenerate a new one below.": "تُعرض هذه القيمة كاملة مرة واحدة فقط — انسخها الآن. إذا فقدتها، أعد توليد قيمة جديدة أدناه.",
     ":from–:to of :total": ":from–:to من :total",
     "Per page": "لكل صفحة",
-    "No stock receipt": "دون استلام مخزون"
+    "No stock receipt": "دون استلام مخزون",
+    "Defaults to the invoice's own rate — change it only if today's rate is different, to record the FX gain/loss.": "يُستخدم سعر الفاتورة نفسه افتراضيًا — غيّره فقط إذا كان سعر اليوم مختلفًا، لتسجيل ربح أو خسارة صرف العملة.",
+    "Exchange rate today": "سعر الصرف اليوم"
 }

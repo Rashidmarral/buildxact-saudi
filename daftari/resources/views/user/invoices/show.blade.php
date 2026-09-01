@@ -166,6 +166,13 @@
                 <label class="block text-xs font-medium text-slate-500">{{ __('Reference') }}</label>
                 <input type="text" name="reference" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
+            @if ($invoice->currency !== $invoice->company->currency)
+                <div>
+                    <label class="block text-xs font-medium text-slate-500">{{ __('Exchange rate today') }}</label>
+                    <input type="number" step="0.000001" min="0.000001" name="exchange_rate" value="{{ $invoice->exchange_rate }}" class="mt-1 w-28 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <p class="text-[11px] text-slate-400 mt-1">{{ __('Defaults to the invoice\'s own rate — change it only if today\'s rate is different, to record the FX gain/loss.') }}</p>
+                </div>
+            @endif
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Record payment') }}</button>
         </form>
     @endif

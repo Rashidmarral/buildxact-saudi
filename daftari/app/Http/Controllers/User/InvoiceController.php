@@ -426,6 +426,13 @@ class InvoiceController extends Controller
             'paid_at' => ['required', 'date'],
             'method' => ['nullable', 'string', 'max:30'],
             'reference' => ['nullable', 'string', 'max:255'],
+            // Only meaningful when the invoice's currency differs from the
+            // company's — the rate actually in effect on the day the money
+            // was banked, which can differ from the invoice's own booked
+            // rate. Left blank (or on a same-currency invoice) it falls
+            // back to the invoice's rate in postInvoicePayment(), so no FX
+            // gain/loss is recognized unless a real rate was given.
+            'exchange_rate' => ['nullable', 'numeric', 'min:0.000001'],
         ]);
 
         $wasPaid = $invoice->status === 'paid';
