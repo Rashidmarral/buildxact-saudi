@@ -14,12 +14,12 @@ class PaymentVoucher extends Model
         'company_id', 'bank_account_id', 'party_type', 'client_id', 'supplier_id', 'counter_account_id',
         'expense_id', 'bill_id', 'bill_payment_id', 'created_by', 'voucher_number', 'date', 'payee_name',
         'party_name_ar', 'party_vat_number', 'party_phone', 'party_email', 'party_address',
-        'amount', 'method', 'reference', 'notes', 'status',
+        'amount', 'wht_amount', 'method', 'reference', 'notes', 'status',
     ];
 
     protected function casts(): array
     {
-        return ['date' => 'date'];
+        return ['date' => 'date', 'wht_amount' => 'decimal:2'];
     }
 
     public function bankAccount(): BelongsTo

@@ -479,10 +479,23 @@ class LedgerPostingService
 
         $this->requireAccounts(['DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank, 'counterpart' => $counterpart], 'payment voucher');
 
-        return $this->post($company, 'payment_voucher', $voucher->id, __('Payment voucher :number', ['number' => $voucher->voucher_number]), $voucher->date, [
-            ['account_id' => $counterpart->id, 'debit' => $voucher->amount],
+        $whtAmount = (float) $voucher->wht_amount;
+
+        // Accounts Payable is relieved for the cash paid out AND the tax
+        // withheld on the supplier's behalf — both are real settlements of
+        // the payable, one to the supplier and one (eventually) to ZATCA.
+        $lines = [
+            ['account_id' => $counterpart->id, 'debit' => $voucher->amount + $whtAmount],
             ['account_id' => $cashOrBank->id, 'credit' => $voucher->amount],
-        ]);
+        ];
+
+        if ($whtAmount > 0) {
+            $whtPayable = $this->account($company, 'WHT_PAYABLE');
+            $this->requireAccounts(['WHT_PAYABLE' => $whtPayable], 'payment voucher');
+            $lines[] = ['account_id' => $whtPayable->id, 'credit' => $whtAmount];
+        }
+
+        return $this->post($company, 'payment_voucher', $voucher->id, __('Payment voucher :number', ['number' => $voucher->voucher_number]), $voucher->date, $lines);
     }
 
     public function postExpense(Expense $expense): ?JournalEntry

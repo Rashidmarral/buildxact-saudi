@@ -17,7 +17,7 @@ class Bill extends Model
         'company_id', 'supplier_id', 'branch_id', 'warehouse_id', 'created_by', 'bill_number',
         'supplier_reference', 'status', 'bill_date', 'due_date', 'subtotal',
         'discount_total', 'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes',
-        'stock_received',
+        'stock_received', 'wht_rate_id', 'wht_amount', 'wht_withheld',
     ];
 
     protected function casts(): array
@@ -26,6 +26,8 @@ class Bill extends Model
             'bill_date' => 'date',
             'due_date' => 'date',
             'stock_received' => 'boolean',
+            'wht_amount' => 'decimal:2',
+            'wht_withheld' => 'boolean',
         ];
     }
 
@@ -42,6 +44,11 @@ class Bill extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function whtRate(): BelongsTo
+    {
+        return $this->belongsTo(WhtRate::class);
     }
 
     public function items(): HasMany

@@ -383,6 +383,7 @@
     <div x-show="tab === 'rules'" x-cloak class="grid sm:grid-cols-2 gap-4">
         @foreach ([
             ['title' => __('Tax rates'), 'desc' => __('The VAT rates available on invoice, bill, and quotation lines.'), 'route' => 'app.tax-rates.index'],
+            ['title' => __('Withholding tax'), 'desc' => __('Rate categories applied when paying non-resident suppliers.'), 'route' => 'app.wht-rates.index'],
             ['title' => __('Approvals'), 'desc' => __('Require sign-off on purchase orders or expenses above a set amount.'), 'route' => 'app.settings.approvals'],
             ['title' => __('Custom fields'), 'desc' => __('Add your own fields to clients, suppliers, and items.'), 'route' => 'app.settings.custom-fields.index'],
         ] as $card)

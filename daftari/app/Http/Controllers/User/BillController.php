@@ -5,6 +5,8 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
+use App\Models\Account;
+use App\Models\AccountMapping;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Bill;
@@ -14,6 +16,7 @@ use App\Models\ItemStock;
 use App\Models\Supplier;
 use App\Models\TaxRate;
 use App\Models\Warehouse;
+use App\Models\WhtRate;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use App\Support\Currencies;
@@ -65,11 +68,21 @@ class BillController extends Controller
     {
         $company = Auth::user()->company;
 
+        // Lazily backfills the WHT Payable system account + mapping for
+        // companies that existed before this feature shipped — mirrors how
+        // FixedAssetController backfills its own accounts, since both rely
+        // on Account::seedSystemAccounts()/AccountMapping::seedDefaults()
+        // being idempotent.
+        Account::seedSystemAccounts($company->id);
+        AccountMapping::seedDefaults($company->id);
+        WhtRate::seedDefaults($company->id);
+
         return view('user.bills.form', [
             'bill' => new Bill(['bill_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString(), 'currency' => $company->currency, 'exchange_rate' => 1]),
             'suppliers' => Supplier::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
+            'whtRates' => WhtRate::active()->orderBy('name')->get(),
             'currencies' => Currencies::catalog(),
             'nextNumberPreview' => $company->bill_prefix.'-'.str_pad((string) $company->next_bill_number, 5, '0', STR_PAD_LEFT),
         ]);
@@ -83,10 +96,18 @@ class BillController extends Controller
         $bill = DB::transaction(function () use ($data) {
             $company = Auth::user()->company;
 
+            $supplier = Supplier::findOrFail($data['supplier_id']);
+
+            // WHT only applies to non-resident suppliers under Saudi tax
+            // law — a resident supplier's bill never withholds, even if a
+            // category was somehow submitted.
+            $whtRateId = (! $supplier->is_resident && ! empty($data['wht_rate_id'])) ? $data['wht_rate_id'] : null;
+
             $bill = Bill::create([
                 'supplier_id' => $data['supplier_id'],
                 'branch_id' => $company->default_branch_id,
                 'warehouse_id' => $data['warehouse_id'] ?? null,
+                'wht_rate_id' => $whtRateId,
                 'created_by' => Auth::id(),
                 'bill_number' => $company->nextBillNumber(),
                 'supplier_reference' => $data['supplier_reference'] ?? null,
@@ -101,6 +122,12 @@ class BillController extends Controller
 
             $this->syncItems($bill, $data['items']);
             $bill->recalculateTotals();
+
+            if ($whtRateId) {
+                $whtBase = (float) $bill->subtotal - (float) $bill->discount_total;
+                $bill->wht_amount = round($whtBase * (float) $bill->whtRate->rate / 100, 2);
+                $bill->save();
+            }
 
             return $bill;
         });
@@ -295,6 +322,7 @@ class BillController extends Controller
         return $request->validate([
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
             'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
+            'wht_rate_id' => ['nullable', Rule::exists('wht_rates', 'id')->where('company_id', $companyId)],
             'supplier_reference' => ['nullable', 'string', 'max:255'],
             'bill_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:bill_date'],

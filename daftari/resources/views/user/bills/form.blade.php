@@ -51,7 +51,7 @@ $company = auth()->user()->company;
             <select name="supplier_id" id="pv-supplier" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a supplier') }}</option>
                 @foreach ($suppliers as $supplier)
-                    <option value="{{ $supplier->id }}" @selected(old('supplier_id') == $supplier->id)>{{ $supplier->name }}</option>
+                    <option value="{{ $supplier->id }}" data-resident="{{ $supplier->is_resident ? '1' : '0' }}" @selected(old('supplier_id') == $supplier->id)>{{ $supplier->name }}</option>
                 @endforeach
             </select>
         </div>
@@ -80,6 +80,18 @@ $company = auth()->user()->company;
             <input type="number" step="0.000001" min="0.000001" name="exchange_rate" id="exchange_rate" value="{{ old('exchange_rate', $bill->exchange_rate ?? 1) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             <p class="text-xs text-slate-400 mt-1">{{ __('Amounts below stay in the selected currency. Your ledger converts them to :currency using this rate.', ['currency' => $company->currency]) }}</p>
         </div>
+        @if ($whtRates->isNotEmpty())
+            <div id="wht-rate-wrap" class="hidden">
+                <label class="block text-sm font-medium text-slate-700">{{ __('Withholding tax category') }}</label>
+                <select name="wht_rate_id" id="wht_rate_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($whtRates as $rate)
+                        <option value="{{ $rate->id }}" @selected(old('wht_rate_id') == $rate->id)>{{ $rate->name }} ({{ number_format((float) $rate->rate, 2) }}%)</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-slate-400 mt-1">{{ __('This supplier is marked non-resident — pick a category if this bill is subject to Saudi withholding tax.') }}</p>
+            </div>
+        @endif
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -366,5 +378,20 @@ document.getElementById('currency').addEventListener('change', (e) => {
         document.getElementById('exchange_rate').value = 1;
     }
 });
+
+const whtRateWrap = document.getElementById('wht-rate-wrap');
+if (whtRateWrap) {
+    const whtSupplierSelect = document.getElementById('pv-supplier');
+    const toggleWht = () => {
+        const option = whtSupplierSelect.selectedOptions[0];
+        const isNonResident = option && option.dataset.resident === '0';
+        whtRateWrap.classList.toggle('hidden', ! isNonResident);
+        if (! isNonResident) {
+            document.getElementById('wht_rate_id').value = '';
+        }
+    };
+    whtSupplierSelect.addEventListener('change', toggleWht);
+    toggleWht();
+}
 </script>
 @endsection

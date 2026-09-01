@@ -17,12 +17,14 @@ class Supplier extends Model
         'company_id', 'supplier_code', 'type', 'name', 'name_ar', 'contact_name', 'vat_number',
         'cr_number', 'initial_balance', 'email', 'phone', 'mobile', 'address_line_1',
         'address_line_2', 'district', 'city', 'postal_code', 'state', 'country', 'notes',
+        'is_resident',
     ];
 
     protected function casts(): array
     {
         return [
             'initial_balance' => 'decimal:2',
+            'is_resident' => 'boolean',
         ];
     }
 

@@ -53,6 +53,14 @@
             </div>
 
             <div>
+                <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input type="checkbox" name="is_non_resident" value="1" @checked(old('is_non_resident', ! ($supplier->is_resident ?? true))) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                    {{ __('Non-resident (subject to Saudi withholding tax)') }}
+                </label>
+                <p class="text-xs text-slate-400 mt-1">{{ __('Bills from this supplier can withhold tax before payment, using the categories set under Business Rules.') }}</p>
+            </div>
+
+            <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Notes') }}</label>
                 <textarea name="notes" rows="3" placeholder="{{ __('Optional notes') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $supplier->notes) }}</textarea>
             </div>

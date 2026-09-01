@@ -58,6 +58,7 @@ use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\TaxRateController;
+use App\Http\Controllers\User\WhtRateController;
 use App\Http\Controllers\User\UnitController;
 use App\Http\Controllers\User\GlobalSearchController;
 use App\Http\Controllers\User\JournalController;
@@ -227,6 +228,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::get('items-import/template', [ItemController::class, 'importTemplate'])->name('items.import.template')->middleware('permission:items');
     Route::resource('units', UnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:items');
     Route::resource('tax-rates', TaxRateController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:settings');
+    Route::resource('wht-rates', WhtRateController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:settings');
 
     Route::middleware('permission:invoices')->group(function () {
         Route::resource('invoices', InvoiceController::class);
@@ -286,6 +288,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
         Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
+        Route::get('withholding-tax', [ReportController::class, 'whtReturn'])->name('wht-return');
     });
 
     Route::middleware('permission:accounting')->prefix('accounting')->group(function () {

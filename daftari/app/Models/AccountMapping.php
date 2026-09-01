@@ -47,6 +47,7 @@ class AccountMapping extends Model
             'DEFAULT_OPERATING_EXPENSES' => ['label' => 'Default operating expenses', 'default_code' => '5100'],
             'OTHER_INCOME_DEFAULT' => ['label' => 'Other income (default)', 'default_code' => '4200'],
             'RETENTION_PAYABLE' => ['label' => 'Retention payable', 'default_code' => '2200'],
+            'WHT_PAYABLE' => ['label' => 'Withholding tax payable', 'default_code' => '2250'],
             'ROUNDING' => ['label' => 'Rounding', 'default_code' => '9000'],
             'DEFAULT_SALES_DISCOUNTS' => ['label' => 'Default sales discounts', 'default_code' => '4100'],
             'SALES_RETURNS_DEFAULT' => ['label' => 'Sales returns (default)', 'default_code' => '4150'],

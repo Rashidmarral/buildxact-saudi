@@ -47,6 +47,7 @@ class Account extends Model
             ['code' => '2110', 'name' => 'VAT Output – Reverse Charge', 'name_ar' => 'ضريبة مخرجات - آلية الاحتساب العكسي', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2150', 'name' => 'Customs Payable', 'name_ar' => 'الجمارك المستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2200', 'name' => 'Retentions Payable', 'name_ar' => 'محتجزات مستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
+            ['code' => '2250', 'name' => 'Withholding Tax Payable', 'name_ar' => 'ضريبة الاستقطاع المستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '3000', 'name' => "Owner's Equity", 'name_ar' => 'حقوق الملكية', 'type' => 'equity', 'normal_balance' => 'credit'],
             ['code' => '4000', 'name' => 'Sales Revenue', 'name_ar' => 'إيرادات المبيعات', 'type' => 'revenue', 'normal_balance' => 'credit'],
             ['code' => '4100', 'name' => 'Sales Discounts', 'name_ar' => 'خصومات المبيعات', 'type' => 'revenue', 'normal_balance' => 'debit'],

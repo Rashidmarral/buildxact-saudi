@@ -232,6 +232,11 @@ class SupplierController extends Controller
 
         $this->validateRequiredCustomFields(Supplier::customFieldDefinitions(), $data['custom_fields'] ?? []);
 
+        // "Non-resident" is what the checkbox asks for; is_resident is its
+        // inverse and defaults to true (most suppliers are Saudi-resident)
+        // since an unchecked checkbox never appears in the request.
+        $data['is_resident'] = ! $request->boolean('is_non_resident');
+
         return $data;
     }
 

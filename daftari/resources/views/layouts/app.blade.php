@@ -129,6 +129,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.balance-sheet', 'label' => __('Balance Sheet')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.vat', 'label' => __('VAT Return')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.account-statement', 'label' => __('Account Statement')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.wht-return', 'label' => __('Withholding Tax')])
                     </div>
                 </details>
 

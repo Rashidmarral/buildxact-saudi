@@ -14,6 +14,7 @@ use App\Models\Subscription;
 use App\Models\TaxRate;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\WhtRate;
 use App\Rules\SaudiPhoneNumber;
 use App\Rules\SaudiVatNumber;
 use App\Support\CompanyProfileOptions;
@@ -146,6 +147,7 @@ class AuthController extends Controller
             Account::seedSystemAccounts($company->id);
             AccountMapping::seedDefaults($company->id);
             TaxRate::seedDefaults($company->id);
+            WhtRate::seedDefaults($company->id);
             Unit::seedDefaults($company->id);
 
             $user = User::create([

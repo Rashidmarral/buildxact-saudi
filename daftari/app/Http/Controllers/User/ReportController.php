@@ -12,6 +12,7 @@ use App\Models\Client;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Invoice;
+use App\Models\PaymentVoucher;
 use App\Models\InvoicePayment;
 use App\Models\Item;
 use App\Models\Salesperson;
@@ -400,6 +401,46 @@ class ReportController extends Controller
             'categories' => ExpenseCategory::orderBy('name')->get(),
             'total' => $expenses->sum('amount'),
             'vatTotal' => $expenses->sum('vat_amount'),
+        ]);
+    }
+
+    /**
+     * The withholding tax actually deducted from non-resident supplier
+     * payments during the period — the figures a monthly WHT return to
+     * ZATCA is built from. Keyed off PaymentVoucher.wht_amount (the exact
+     * payment event that applied the withholding) rather than Bill, since
+     * a bill's WHT is applied once on its first payment, not on its date.
+     */
+    public function whtReturn(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+
+        $vouchers = PaymentVoucher::with('bill.supplier', 'bill.whtRate')
+            ->where('wht_amount', '>', 0)
+            ->where('status', '!=', 'void')
+            ->whereBetween('date', [$period['from'], $period['to']])
+            ->orderBy('date')
+            ->get();
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('withholding-tax-report.csv', [__('Date'), __('Supplier'), __('Bill'), __('Category'), __('Rate'), __('Taxable base'), __('WHT amount')],
+                $vouchers->map(fn ($v) => [
+                    $v->date->format('Y-m-d'),
+                    $v->bill?->supplier?->name,
+                    $v->bill?->bill_number,
+                    $v->bill?->whtRate?->name,
+                    number_format((float) ($v->bill?->whtRate?->rate ?? 0), 2, '.', ''),
+                    number_format((float) ($v->bill?->subtotal ?? 0) - (float) ($v->bill?->discount_total ?? 0), 2, '.', ''),
+                    number_format((float) $v->wht_amount, 2, '.', ''),
+                ]));
+        }
+
+        return view('user.reports.wht-return', [
+            'company' => $company,
+            'period' => $period,
+            'vouchers' => $vouchers,
+            'total' => $vouchers->sum('wht_amount'),
         ]);
     }
 

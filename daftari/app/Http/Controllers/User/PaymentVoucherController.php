@@ -62,11 +62,22 @@ class PaymentVoucherController extends Controller
         $voucher = DB::transaction(function () use ($data, $ledger) {
             $company = Auth::user()->company;
             $billPaymentId = null;
+            $whtAmount = 0.0;
 
             if (! empty($data['bill_id'])) {
                 $bill = Bill::findOrFail($data['bill_id']);
+
+                // Withholding is applied once, on the first voucher paid
+                // against a WHT-bearing bill — the tax due on the full
+                // bill is deducted from the supplier's cash then, rather
+                // than being prorated across installment payments.
+                if ((float) $bill->wht_amount > 0 && ! $bill->wht_withheld) {
+                    $whtAmount = (float) $bill->wht_amount;
+                    $bill->wht_withheld = true;
+                }
+
                 $payment = $bill->billPayments()->create([
-                    'amount' => $data['amount'],
+                    'amount' => $data['amount'] + $whtAmount,
                     'paid_at' => $data['date'],
                     'method' => $data['method'],
                     'reference' => $data['reference'] ?? null,
@@ -95,6 +106,7 @@ class PaymentVoucherController extends Controller
                 'party_email' => $data['party_email'] ?? null,
                 'party_address' => $data['party_address'] ?? null,
                 'amount' => $data['amount'],
+                'wht_amount' => $whtAmount,
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
@@ -129,6 +141,11 @@ class PaymentVoucherController extends Controller
                 $bill = $paymentVoucher->bill;
                 $bill->billPayments()->where('id', $paymentVoucher->bill_payment_id)->delete();
                 $bill->amount_paid = $bill->billPayments()->sum('amount');
+
+                if ((float) $paymentVoucher->wht_amount > 0) {
+                    $bill->wht_withheld = false;
+                }
+
                 $bill->save();
             }
 
