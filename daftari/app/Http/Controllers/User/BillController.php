@@ -38,18 +38,7 @@ class BillController extends Controller
             ->orderByDesc('id');
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse(
-                'bills.csv',
-                [__('Number'), __('Supplier'), __('Date'), __('Total'), __('Balance'), __('Status')],
-                $query->get()->map(fn ($bill) => [
-                    $bill->bill_number,
-                    $bill->supplier->name,
-                    $bill->bill_date->format('Y-m-d'),
-                    number_format($bill->total, 2),
-                    number_format($bill->balanceDue(), 2),
-                    $bill->status,
-                ])
-            );
+            return $this->csvResponse('bills.csv', $this->csvHeader(), $query->get()->map(fn ($bill) => $this->csvRow($bill)));
         }
 
         $bills = $query->paginate($this->resolvePerPage($request))->withQueryString();
@@ -62,6 +51,70 @@ class BillController extends Controller
         ];
 
         return view('user.bills.index', compact('bills', 'counts'));
+    }
+
+    /**
+     * Audit finding MEDIUM-15: no list page could act on more than one
+     * record at a time. Exports exactly the checked rows, independent of
+     * the current filter.
+     */
+    public function bulkExport(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $bills = Bill::with('supplier')->whereIn('id', $ids)->orderByDesc('bill_date')->orderByDesc('id')->get();
+
+        return $this->csvResponse('bills-selected.csv', $this->csvHeader(), $bills->map(fn ($bill) => $this->csvRow($bill)));
+    }
+
+    /**
+     * Void is the only bulk-safe destructive action a bill has — there's
+     * no bill delete at all, and void() reverses both stock and the ledger
+     * posting, so only currently-posted bills are eligible; an already-
+     * void or still-draft bill is skipped rather than double-reversed.
+     */
+    public function bulkVoid(Request $request, LedgerPostingService $ledger)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $bills = Bill::whereIn('id', $ids)->get();
+
+        $voided = 0;
+
+        foreach ($bills as $bill) {
+            if ($bill->status !== 'posted') {
+                continue;
+            }
+
+            $this->void($bill, $ledger);
+            $voided++;
+        }
+
+        $skipped = $bills->count() - $voided;
+
+        return back()->with('status', $skipped > 0
+            ? __(':voided voided, :skipped skipped — only posted bills can be bulk voided.', ['voided' => $voided, 'skipped' => $skipped])
+            : __(':voided bill(s) voided.', ['voided' => $voided]));
+    }
+
+    private function validatedBulkIds(Request $request): array
+    {
+        return $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['integer']])['ids'];
+    }
+
+    private function csvHeader(): array
+    {
+        return [__('Number'), __('Supplier'), __('Date'), __('Total'), __('Balance'), __('Status')];
+    }
+
+    private function csvRow(Bill $bill): array
+    {
+        return [
+            $bill->bill_number,
+            $bill->supplier->name,
+            $bill->bill_date->format('Y-m-d'),
+            number_format($bill->total, 2),
+            number_format($bill->balanceDue(), 2),
+            $bill->status,
+        ];
     }
 
     public function create()

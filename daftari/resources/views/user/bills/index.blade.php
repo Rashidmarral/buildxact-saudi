@@ -31,35 +31,49 @@
     @endforeach
 </div>
 
-<div class="bg-white rounded-xl border border-slate-100">
-    @if ($bills->isEmpty())
-        <p class="px-6 py-8 text-sm text-slate-500">{{ __('No bills yet.') }}</p>
-    @else
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-slate-500 border-b border-slate-100">
-                    <th class="px-6 py-3 font-medium">{{ __('Number') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Supplier') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Balance') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($bills as $bill)
-                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.bills.show', $bill) }}'">
-                        <td class="px-6 py-3 font-medium text-brand-700">{{ $bill->bill_number }}</td>
-                        <td class="px-6 py-3">{{ $bill->supplier->name }}</td>
-                        <td class="px-6 py-3">{{ $bill->bill_date->format('Y-m-d') }}</td>
-                        <td class="px-6 py-3">{{ \App\Support\Money::format($bill->total) }}</td>
-                        <td class="px-6 py-3">{{ \App\Support\Money::format($bill->balanceDue()) }}</td>
-                        <td class="px-6 py-3">@include('user.bills.partials.status-badge', ['status' => $bill->status])</td>
+@if (! $bills->isEmpty())
+    <div x-data="bulkSelect()">
+        @include('user.partials.bulk-actions-toolbar', [
+            'formId' => 'bulk-bills',
+            'exportRoute' => route('app.bills.bulk-export'),
+            'destroyRoute' => route('app.bills.bulk-void'),
+            'destroyLabel' => __('Void selected'),
+            'destroyConfirm' => __('Void the selected bills? Only posted bills will be voided.'),
+        ])
+
+        <div class="bg-white rounded-xl border border-slate-100">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="w-10 px-6 py-3"><input type="checkbox" :checked="allChecked" @change="toggleAll($event.target.checked)"></th>
+                        <th class="px-6 py-3 font-medium">{{ __('Number') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Supplier') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Balance') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
-    @endif
-</div>
+                </thead>
+                <tbody x-ref="rows">
+                    @foreach ($bills as $bill)
+                        <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" data-row-id="{{ $bill->id }}" onclick="window.location='{{ route('app.bills.show', $bill) }}'">
+                            <td class="px-6 py-3" onclick="event.stopPropagation()"><input type="checkbox" :checked="selected.includes('{{ $bill->id }}')" @change="toggleOne('{{ $bill->id }}', $event.target.checked)"></td>
+                            <td class="px-6 py-3 font-medium text-brand-700">{{ $bill->bill_number }}</td>
+                            <td class="px-6 py-3">{{ $bill->supplier->name }}</td>
+                            <td class="px-6 py-3">{{ $bill->bill_date->format('Y-m-d') }}</td>
+                            <td class="px-6 py-3">{{ \App\Support\Money::format($bill->total) }}</td>
+                            <td class="px-6 py-3">{{ \App\Support\Money::format($bill->balanceDue()) }}</td>
+                            <td class="px-6 py-3">@include('user.bills.partials.status-badge', ['status' => $bill->status])</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+@else
+    <div class="bg-white rounded-xl border border-slate-100">
+        <p class="px-6 py-8 text-sm text-slate-500">{{ __('No bills yet.') }}</p>
+    </div>
+@endif
 @include('partials.pagination', ['paginator' => $bills])
 @endsection

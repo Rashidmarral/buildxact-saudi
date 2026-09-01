@@ -225,12 +225,16 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:clients')->group(function () {
         Route::resource('clients', ClientController::class)->except(['show']);
+        Route::post('clients/bulk-export', [ClientController::class, 'bulkExport'])->name('clients.bulk-export');
+        Route::post('clients/bulk-destroy', [ClientController::class, 'bulkDestroy'])->name('clients.bulk-destroy');
         Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
         Route::get('clients-import', [ClientController::class, 'showImport'])->name('clients.import');
         Route::post('clients-import', [ClientController::class, 'import'])->name('clients.import.store');
         Route::get('clients-import/template', [ClientController::class, 'importTemplate'])->name('clients.import.template');
     });
     Route::resource('items', ItemController::class)->except(['show'])->middleware('permission:items');
+    Route::post('items/bulk-export', [ItemController::class, 'bulkExport'])->name('items.bulk-export')->middleware('permission:items');
+    Route::post('items/bulk-destroy', [ItemController::class, 'bulkDestroy'])->name('items.bulk-destroy')->middleware('permission:items');
     Route::get('items-generate-barcode', [ItemController::class, 'generateBarcode'])->name('items.generate-barcode')->middleware('permission:items');
     Route::get('items-import', [ItemController::class, 'showImport'])->name('items.import')->middleware('permission:items');
     Route::post('items-import', [ItemController::class, 'import'])->name('items.import.store')->middleware('permission:items');
@@ -242,6 +246,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:invoices')->group(function () {
         Route::resource('invoices', InvoiceController::class);
+        Route::post('invoices/bulk-export', [InvoiceController::class, 'bulkExport'])->name('invoices.bulk-export');
+        Route::post('invoices/bulk-destroy', [InvoiceController::class, 'bulkDestroy'])->name('invoices.bulk-destroy');
         Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
         Route::post('invoices/{invoice}/approve', [InvoiceController::class, 'approve'])->name('invoices.approve');
         Route::post('invoices/{invoice}/reject', [InvoiceController::class, 'reject'])->name('invoices.reject');
@@ -276,6 +282,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware(['permission:quotations', 'feature:quotations'])->group(function () {
         Route::resource('quotations', QuotationController::class);
+        Route::post('quotations/bulk-export', [QuotationController::class, 'bulkExport'])->name('quotations.bulk-export');
+        Route::post('quotations/bulk-destroy', [QuotationController::class, 'bulkDestroy'])->name('quotations.bulk-destroy');
         Route::post('quotations/{quotation}/send', [QuotationController::class, 'send'])->name('quotations.send');
         Route::post('quotations/{quotation}/approve-issuance', [QuotationController::class, 'approveIssuance'])->name('quotations.approve-issuance');
         Route::post('quotations/{quotation}/reject-issuance', [QuotationController::class, 'rejectIssuance'])->name('quotations.reject-issuance');
@@ -393,6 +401,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('suppliers-import/template', [SupplierController::class, 'importTemplate'])->name('suppliers.import.template');
 
         Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('bills/bulk-export', [BillController::class, 'bulkExport'])->name('bills.bulk-export');
+        Route::post('bills/bulk-void', [BillController::class, 'bulkVoid'])->name('bills.bulk-void');
         Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
         Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
         Route::post('bills/{bill}/attachments', [BillController::class, 'storeAttachment'])->name('bills.attachments.store');

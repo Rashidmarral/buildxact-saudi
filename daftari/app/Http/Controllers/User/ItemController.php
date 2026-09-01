@@ -7,8 +7,12 @@ use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ImportsCsv;
 use App\Models\AuditLog;
+use App\Models\BillItem;
+use App\Models\InvoiceItem;
 use App\Models\Item;
 use App\Models\ItemUnit;
+use App\Models\PurchaseOrderItem;
+use App\Models\QuotationItem;
 use App\Models\TaxRate;
 use App\Models\Unit;
 use App\Services\Limits\UsageLimitService;
@@ -27,23 +31,85 @@ class ItemController extends Controller
         $query = Item::orderBy('name');
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse(
-                'items.csv',
-                [__('Name'), __('SKU'), __('Type'), __('Unit price'), __('VAT rate'), __('Status')],
-                $query->get()->map(fn ($item) => [
-                    $item->name,
-                    $item->sku,
-                    $item->item_type === 'service' ? __('Service') : __('Physical'),
-                    number_format($item->unit_price, 2),
-                    $item->vat_rate,
-                    $item->is_active ? __('Active') : __('Inactive'),
-                ])
-            );
+            return $this->csvResponse('items.csv', $this->csvHeader(), $query->get()->map(fn ($item) => $this->csvRow($item)));
         }
 
         $items = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.items.index', compact('items'));
+    }
+
+    /**
+     * Audit finding MEDIUM-15: no list page could act on more than one
+     * record at a time. Exports exactly the checked rows, independent of
+     * the current filter.
+     */
+    public function bulkExport(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $items = Item::whereIn('id', $ids)->orderBy('name')->get();
+
+        return $this->csvResponse('items-selected.csv', $this->csvHeader(), $items->map(fn ($item) => $this->csvRow($item)));
+    }
+
+    /**
+     * Unlike the single-row destroy() below (which deletes unconditionally,
+     * with no check at all), bulk delete adds the guard that was missing:
+     * an item already used on an invoice, quotation, bill, or purchase
+     * order line is kept rather than orphaning that line's item reference.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $items = Item::whereIn('id', $ids)->get();
+
+        $deleted = 0;
+
+        foreach ($items as $item) {
+            $isUsed = InvoiceItem::where('item_id', $item->id)->exists()
+                || QuotationItem::where('item_id', $item->id)->exists()
+                || BillItem::where('item_id', $item->id)->exists()
+                || PurchaseOrderItem::where('item_id', $item->id)->exists();
+
+            if ($isUsed) {
+                continue;
+            }
+
+            if ($item->image_path) {
+                Storage::disk('public')->delete($item->image_path);
+            }
+
+            $item->delete();
+            $deleted++;
+        }
+
+        $skipped = $items->count() - $deleted;
+
+        return back()->with('status', $skipped > 0
+            ? __(':deleted deleted, :skipped skipped — items already used on a document cannot be bulk deleted.', ['deleted' => $deleted, 'skipped' => $skipped])
+            : __(':deleted item(s) deleted.', ['deleted' => $deleted]));
+    }
+
+    private function validatedBulkIds(Request $request): array
+    {
+        return $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['integer']])['ids'];
+    }
+
+    private function csvHeader(): array
+    {
+        return [__('Name'), __('SKU'), __('Type'), __('Unit price'), __('VAT rate'), __('Status')];
+    }
+
+    private function csvRow(Item $item): array
+    {
+        return [
+            $item->name,
+            $item->sku,
+            $item->item_type === 'service' ? __('Service') : __('Physical'),
+            number_format($item->unit_price, 2),
+            $item->vat_rate,
+            $item->is_active ? __('Active') : __('Inactive'),
+        ];
     }
 
     public function create()

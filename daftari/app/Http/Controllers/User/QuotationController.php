@@ -39,18 +39,7 @@ class QuotationController extends Controller
             ->orderByDesc('id');
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse(
-                'quotations.csv',
-                [__('Number'), __('Client'), __('Type'), __('Issue date'), __('Total'), __('Status')],
-                $query->get()->map(fn ($quotation) => [
-                    $quotation->quotation_number,
-                    $quotation->client->name,
-                    $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
-                    $quotation->issue_date->format('Y-m-d'),
-                    number_format($quotation->total, 2),
-                    $quotation->status,
-                ])
-            );
+            return $this->csvResponse('quotations.csv', $this->csvHeader(), $query->get()->map(fn ($quotation) => $this->csvRow($quotation)));
         }
 
         $quotations = $query->paginate($this->resolvePerPage($request))->withQueryString();
@@ -270,6 +259,70 @@ class QuotationController extends Controller
         $quotation->delete();
 
         return redirect()->route('app.quotations.index')->with('status', __('Quotation deleted.'));
+    }
+
+    /**
+     * Audit finding MEDIUM-15: no list page could act on more than one
+     * record at a time. Exports exactly the checked rows, independent of
+     * the current filter.
+     */
+    public function bulkExport(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $quotations = Quotation::with('client')->whereIn('id', $ids)->orderByDesc('issue_date')->orderByDesc('id')->get();
+
+        return $this->csvResponse('quotations-selected.csv', $this->csvHeader(), $quotations->map(fn ($quotation) => $this->csvRow($quotation)));
+    }
+
+    /**
+     * Unlike the single-row destroy() above (which deletes unconditionally,
+     * even a converted quotation), bulk delete adds the one guard that was
+     * missing: a converted quotation already has a real invoice generated
+     * from it and stays as the sales record for that conversion.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $quotations = Quotation::whereIn('id', $ids)->get();
+
+        $deleted = 0;
+
+        foreach ($quotations as $quotation) {
+            if ($quotation->status === 'converted') {
+                continue;
+            }
+
+            $quotation->delete();
+            $deleted++;
+        }
+
+        $skipped = $quotations->count() - $deleted;
+
+        return back()->with('status', $skipped > 0
+            ? __(':deleted deleted, :skipped skipped — converted quotations cannot be bulk deleted.', ['deleted' => $deleted, 'skipped' => $skipped])
+            : __(':deleted quotation(s) deleted.', ['deleted' => $deleted]));
+    }
+
+    private function validatedBulkIds(Request $request): array
+    {
+        return $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['integer']])['ids'];
+    }
+
+    private function csvHeader(): array
+    {
+        return [__('Number'), __('Client'), __('Type'), __('Issue date'), __('Total'), __('Status')];
+    }
+
+    private function csvRow(Quotation $quotation): array
+    {
+        return [
+            $quotation->quotation_number,
+            $quotation->client->name,
+            $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
+            $quotation->issue_date->format('Y-m-d'),
+            number_format($quotation->total, 2),
+            $quotation->status,
+        ];
     }
 
     public function send(Quotation $quotation)

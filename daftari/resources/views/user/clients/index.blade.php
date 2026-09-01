@@ -12,45 +12,59 @@
     </div>
 </div>
 
-<div class="bg-white rounded-xl border border-slate-100">
-    @if ($clients->isEmpty())
+@if ($clients->isEmpty())
+    <div class="bg-white rounded-xl border border-slate-100">
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No clients yet.') }}</p>
-    @else
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-slate-500 border-b border-slate-100">
-                    <th class="px-6 py-3 font-medium">{{ __('Code') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Name') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('VAT number') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Email') }}</th>
-                    <th class="px-6 py-3 font-medium">{{ __('Phone') }}</th>
-                    <th class="px-6 py-3"></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($clients as $client)
-                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                        <td class="px-6 py-3 text-slate-400 font-mono text-xs">{{ $client->client_code }}</td>
-                        <td class="px-6 py-3 font-medium text-slate-800">
-                            {{ $client->name }}
-                            <span class="ms-1 text-xs text-slate-400">({{ $client->type === 'individual' ? __('Individual') : __('Company') }})</span>
-                        </td>
-                        <td class="px-6 py-3 text-slate-500">{{ $client->vat_number ?: '—' }}</td>
-                        <td class="px-6 py-3 text-slate-500">{{ $client->email ?: '—' }}</td>
-                        <td class="px-6 py-3 text-slate-500">{{ $client->phone ?: '—' }}</td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <a href="{{ route('app.clients.edit', $client) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                            <form method="POST" action="{{ route('app.clients.destroy', $client) }}" class="inline" onsubmit="return confirm('{{ __('Delete this client?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
-                        </td>
+    </div>
+@else
+    <div x-data="bulkSelect()">
+        @include('user.partials.bulk-actions-toolbar', [
+            'formId' => 'bulk-clients',
+            'exportRoute' => route('app.clients.bulk-export'),
+            'destroyRoute' => route('app.clients.bulk-destroy'),
+            'destroyLabel' => __('Delete selected'),
+            'destroyConfirm' => __('Delete the selected clients? Clients with invoices or quotations on file will be skipped.'),
+        ])
+
+        <div class="bg-white rounded-xl border border-slate-100">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="w-10 px-6 py-3"><input type="checkbox" :checked="allChecked" @change="toggleAll($event.target.checked)"></th>
+                        <th class="px-6 py-3 font-medium">{{ __('Code') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Name') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('VAT number') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Email') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Phone') }}</th>
+                        <th class="px-6 py-3"></th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
-    @endif
-</div>
+                </thead>
+                <tbody x-ref="rows">
+                    @foreach ($clients as $client)
+                        <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50" data-row-id="{{ $client->id }}">
+                            <td class="px-6 py-3"><input type="checkbox" :checked="selected.includes('{{ $client->id }}')" @change="toggleOne('{{ $client->id }}', $event.target.checked)"></td>
+                            <td class="px-6 py-3 text-slate-400 font-mono text-xs">{{ $client->client_code }}</td>
+                            <td class="px-6 py-3 font-medium text-slate-800">
+                                {{ $client->name }}
+                                <span class="ms-1 text-xs text-slate-400">({{ $client->type === 'individual' ? __('Individual') : __('Company') }})</span>
+                            </td>
+                            <td class="px-6 py-3 text-slate-500">{{ $client->vat_number ?: '—' }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $client->email ?: '—' }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $client->phone ?: '—' }}</td>
+                            <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
+                                <a href="{{ route('app.clients.edit', $client) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
+                                <form method="POST" action="{{ route('app.clients.destroy', $client) }}" class="inline" onsubmit="return confirm('{{ __('Delete this client?') }}')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+@endif
 
 @include('partials.pagination', ['paginator' => $clients])
 @endsection

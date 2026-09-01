@@ -48,23 +48,71 @@ class InvoiceController extends Controller
             ->orderByDesc('id');
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse(
-                'invoices.csv',
-                [__('Invoice'), __('Client'), __('Date'), __('Total'), __('Balance due'), __('Status')],
-                $query->get()->map(fn ($invoice) => [
-                    $invoice->invoice_number,
-                    $invoice->client->name,
-                    $invoice->issue_date->format('Y-m-d'),
-                    number_format($invoice->total, 2),
-                    number_format($invoice->balanceDue(), 2),
-                    $invoice->status,
-                ])
-            );
+            return $this->csvResponse('invoices.csv', $this->csvHeader(), $query->get()->map(fn ($invoice) => $this->csvRow($invoice)));
         }
 
         $invoices = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.invoices.index', compact('invoices'));
+    }
+
+    /**
+     * Audit finding MEDIUM-15: list pages had no way to act on more than
+     * one record at a time. Exports exactly the checked rows (independent
+     * of whatever filter is applied), distinct from the existing
+     * ?export=csv above which exports everything matching the filter.
+     */
+    public function bulkExport(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $invoices = Invoice::with('client')->whereIn('id', $ids)->orderByDesc('issue_date')->orderByDesc('id')->get();
+
+        return $this->csvResponse('invoices-selected.csv', $this->csvHeader(), $invoices->map(fn ($invoice) => $this->csvRow($invoice)));
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $invoices = Invoice::whereIn('id', $ids)->get();
+
+        $deleted = 0;
+
+        foreach ($invoices as $invoice) {
+            if ($invoice->isZatcaLocked() || $invoice->status !== 'draft') {
+                continue;
+            }
+
+            $invoice->delete();
+            $deleted++;
+        }
+
+        $skipped = $invoices->count() - $deleted;
+
+        return back()->with('status', $skipped > 0
+            ? __(':deleted deleted, :skipped skipped — only draft, non-ZATCA-locked invoices can be bulk deleted.', ['deleted' => $deleted, 'skipped' => $skipped])
+            : __(':deleted invoice(s) deleted.', ['deleted' => $deleted]));
+    }
+
+    private function validatedBulkIds(Request $request): array
+    {
+        return $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['integer']])['ids'];
+    }
+
+    private function csvHeader(): array
+    {
+        return [__('Invoice'), __('Client'), __('Date'), __('Total'), __('Balance due'), __('Status')];
+    }
+
+    private function csvRow(Invoice $invoice): array
+    {
+        return [
+            $invoice->invoice_number,
+            $invoice->client->name,
+            $invoice->issue_date->format('Y-m-d'),
+            number_format($invoice->total, 2),
+            number_format($invoice->balanceDue(), 2),
+            $invoice->status,
+        ];
     }
 
     public function create()

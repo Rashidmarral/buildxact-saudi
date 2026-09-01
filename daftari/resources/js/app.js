@@ -46,6 +46,33 @@ document.addEventListener('alpine:init', () => {
             this.$refs.textarea.value = this.$refs.editable.innerHTML;
         },
     }));
+
+    // Row-selection state for list pages that offer bulk actions (Invoices,
+    // Bills, Quotations, Clients, Items) — one shared component instead of
+    // re-wiring checkbox/select-all bookkeeping per page. The selected ids
+    // are rendered into the surrounding <form> as hidden ids[] inputs (see
+    // the x-for template each of those index views includes), so any submit
+    // button inside that form — pointed at a different action via its own
+    // formaction — carries the current selection.
+    Alpine.data('bulkSelect', () => ({
+        selected: [],
+        get allChecked() {
+            return this.selected.length > 0 && this.selected.length === this.$refs.rows.querySelectorAll('[data-row-id]').length;
+        },
+        toggleAll(checked) {
+            this.selected = checked
+                ? [...this.$refs.rows.querySelectorAll('[data-row-id]')].map((el) => el.dataset.rowId)
+                : [];
+        },
+        toggleOne(id, checked) {
+            id = String(id);
+            if (checked) {
+                if (!this.selected.includes(id)) this.selected.push(id);
+            } else {
+                this.selected = this.selected.filter((existing) => existing !== id);
+            }
+        },
+    }));
 });
 
 window.Alpine = Alpine;

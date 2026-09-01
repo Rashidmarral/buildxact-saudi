@@ -27,23 +27,77 @@ class ClientController extends Controller
         $query = Client::orderBy('name');
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse(
-                'clients.csv',
-                [__('Code'), __('Name'), __('Type'), __('VAT number'), __('Email'), __('Phone')],
-                $query->get()->map(fn ($client) => [
-                    $client->client_code,
-                    $client->name,
-                    $client->type === 'individual' ? __('Individual') : __('Company'),
-                    $client->vat_number,
-                    $client->email,
-                    $client->phone,
-                ])
-            );
+            return $this->csvResponse('clients.csv', $this->csvHeader(), $query->get()->map(fn ($client) => $this->csvRow($client)));
         }
 
         $clients = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.clients.index', compact('clients'));
+    }
+
+    /**
+     * Audit finding MEDIUM-15: no list page could act on more than one
+     * record at a time. Exports exactly the checked rows, independent of
+     * the current filter.
+     */
+    public function bulkExport(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $clients = Client::whereIn('id', $ids)->orderBy('name')->get();
+
+        return $this->csvResponse('clients-selected.csv', $this->csvHeader(), $clients->map(fn ($client) => $this->csvRow($client)));
+    }
+
+    /**
+     * Unlike the single-row destroy() below (which deletes unconditionally,
+     * with no check at all), bulk delete adds the guard that single delete
+     * was missing: a client with any invoice or quotation history is kept
+     * rather than silently orphaning that history's client reference.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $ids = $this->validatedBulkIds($request);
+        $clients = Client::whereIn('id', $ids)->get();
+
+        $deleted = 0;
+
+        foreach ($clients as $client) {
+            if ($client->invoices()->exists() || $client->quotations()->exists()) {
+                continue;
+            }
+
+            AuditLog::record('client.delete', $client, __('Deleted client :name', ['name' => $client->name]));
+            $client->delete();
+            $deleted++;
+        }
+
+        $skipped = $clients->count() - $deleted;
+
+        return back()->with('status', $skipped > 0
+            ? __(':deleted deleted, :skipped skipped — clients with invoices or quotations on file cannot be bulk deleted.', ['deleted' => $deleted, 'skipped' => $skipped])
+            : __(':deleted client(s) deleted.', ['deleted' => $deleted]));
+    }
+
+    private function validatedBulkIds(Request $request): array
+    {
+        return $request->validate(['ids' => ['required', 'array', 'min:1'], 'ids.*' => ['integer']])['ids'];
+    }
+
+    private function csvHeader(): array
+    {
+        return [__('Code'), __('Name'), __('Type'), __('VAT number'), __('Email'), __('Phone')];
+    }
+
+    private function csvRow(Client $client): array
+    {
+        return [
+            $client->client_code,
+            $client->name,
+            $client->type === 'individual' ? __('Individual') : __('Company'),
+            $client->vat_number,
+            $client->email,
+            $client->phone,
+        ];
     }
 
     public function outstandingInvoices(Client $client)
