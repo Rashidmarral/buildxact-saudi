@@ -132,7 +132,7 @@
                     </div>
                 </details>
 
-                @php($accountingActive = request()->routeIs('app.accounts.*') || request()->routeIs('app.journals.*') || request()->routeIs('app.ledger.*') || request()->routeIs('app.cost-centers.*') || request()->routeIs('app.zakat.*') || request()->routeIs('app.fixed-assets.*') || request()->routeIs('app.budgets.*'))
+                @php($accountingActive = request()->routeIs('app.accounting-health.*') || request()->routeIs('app.accounts.*') || request()->routeIs('app.journals.*') || request()->routeIs('app.ledger.*') || request()->routeIs('app.cost-centers.*') || request()->routeIs('app.zakat.*') || request()->routeIs('app.fixed-assets.*') || request()->routeIs('app.budgets.*'))
                 <details class="group" @if($accountingActive) open @endif>
                     <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $accountingActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
                         <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'accounting', 'class' => 'h-[18px] w-[18px]'])</span>
@@ -140,6 +140,7 @@
                         <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
                     </summary>
                     <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
+                        @include('partials.nav-subitem', ['route' => 'app.accounting-health.index', 'label' => __('Accounting Health')])
                         @include('partials.nav-subitem', ['route' => 'app.accounts.index', 'label' => __('Chart of Accounts')])
                         @include('partials.nav-subitem', ['route' => 'app.cost-centers.index', 'label' => __('Cost Centers')])
                         @include('partials.nav-subitem', ['route' => 'app.zakat.index', 'label' => __('Zakat Estimate')])

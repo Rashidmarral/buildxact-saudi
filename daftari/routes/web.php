@@ -34,6 +34,7 @@ use App\Http\Controllers\Site\CmsPageController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
+use App\Http\Controllers\User\AccountingHealthController;
 use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
 use App\Http\Controllers\User\ApiTokenController;
 use App\Http\Controllers\User\BankAccountController;
@@ -288,6 +289,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     });
 
     Route::middleware('permission:accounting')->prefix('accounting')->group(function () {
+        Route::get('health', [AccountingHealthController::class, 'index'])->name('accounting-health.index');
+
         Route::prefix('accounts')->name('accounts.')->group(function () {
             Route::get('/', [AccountController::class, 'index'])->name('index');
             Route::post('/', [AccountController::class, 'store'])->name('store');
