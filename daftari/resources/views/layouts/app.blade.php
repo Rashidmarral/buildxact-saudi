@@ -347,10 +347,27 @@
                 @if (session('error'))
                     <div class="mb-6 animate-fade-up rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-soft print:hidden">{{ session('error') }}</div>
                 @endif
-                @if ($errors->any())
+                {{-- Plan-limit/feature-gate errors (UsageLimitService::friendlyMessage,
+                    the various hasReachedPlanLimit() checks across the user
+                    controllers, and EnsurePlanFeature's 'feature' key) get
+                    their own banner with a direct link to upgrade, rather
+                    than sitting as plain text inside the generic error list
+                    below where there was previously nothing to click. --}}
+                @if ($errors->has('plan_limit') || $errors->has('feature'))
+                    <div class="mb-6 animate-fade-up flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-soft sm:flex-row sm:items-center sm:justify-between print:hidden">
+                        <span class="flex items-center gap-2">
+                            @include('partials.icon', ['name' => 'sparkle', 'class' => 'h-4 w-4 shrink-0'])
+                            {{ $errors->first('plan_limit') ?: $errors->first('feature') }}
+                        </span>
+                        <a href="{{ route('app.billing.index', ['tab' => 'plans']) }}" class="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700">{{ __('Upgrade plan') }}</a>
+                    </div>
+                @endif
+
+                @php($otherErrors = collect($errors->getMessages())->except(['plan_limit', 'feature'])->flatten())
+                @if ($otherErrors->isNotEmpty())
                     <div class="mb-6 animate-fade-up rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-soft print:hidden">
                         <ul class="list-disc ps-4 space-y-1">
-                            @foreach ($errors->all() as $error)
+                            @foreach ($otherErrors as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
