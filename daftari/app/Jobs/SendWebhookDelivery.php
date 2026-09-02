@@ -2,14 +2,17 @@
 
 namespace App\Jobs;
 
+use App\Models\User;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
+use App\Notifications\GenericNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class SendWebhookDelivery implements ShouldQueue
 {
@@ -79,5 +82,36 @@ class SendWebhookDelivery implements ShouldQueue
         // than $this->fail(), which would mark the job permanently failed
         // and skip the remaining attempts.
         $response->throw();
+    }
+
+    /**
+     * Audit finding LOW-30: every attempt already lands a WebhookDelivery
+     * row, but nothing ever surfaced to a human that a webhook had
+     * exhausted all its retries — the failure just sat in the deliveries
+     * log until someone thought to check. Laravel calls this once the
+     * job gives up for good (all $tries exhausted), so it fires exactly
+     * once per permanently-failed delivery, not once per retry.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        $webhook = Webhook::withoutGlobalScopes()->find($this->webhookId);
+
+        if (! $webhook) {
+            return;
+        }
+
+        User::where('company_id', $webhook->company_id)
+            ->get()
+            ->filter(fn (User $user) => $user->hasPermission('settings'))
+            ->each(fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Webhook delivery failed'),
+                body: __(':event delivery to :url failed after all retries: :error', [
+                    'event' => $this->event,
+                    'url' => $webhook->url,
+                    'error' => Str::limit($exception->getMessage(), 150),
+                ]),
+                url: route('app.settings.webhooks.show', $webhook),
+                icon: 'settings',
+            )));
     }
 }

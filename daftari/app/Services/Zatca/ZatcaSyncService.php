@@ -6,9 +6,11 @@ use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\DebitNote;
 use App\Models\Invoice;
+use App\Models\User;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaDebitNoteLog;
 use App\Models\ZatcaInvoiceLog;
+use App\Notifications\GenericNotification;
 use App\Services\ZatcaQrGenerator;
 use App\Support\DemoMode;
 use Illuminate\Support\Str;
@@ -209,17 +211,20 @@ class ZatcaSyncService
                 ]);
                 $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
             } else {
+                $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                 $log->update([
                     'status' => 'failed',
                     'response_payload' => $response->body(),
-                    'error_message' => Str::limit('HTTP '.$response->status().': '.$response->body(), 1000),
+                    'error_message' => $errorMessage,
                 ]);
+                $this->notifyZatcaFailure($company, __('Invoice'), $invoice->invoice_number, $errorMessage);
             }
         } catch (\Throwable $e) {
             $log->update([
                 'status' => 'failed',
                 'error_message' => Str::limit($e->getMessage(), 1000),
             ]);
+            $this->notifyZatcaFailure($company, __('Invoice'), $invoice->invoice_number, $e->getMessage());
         }
 
         return $log;
@@ -302,17 +307,20 @@ class ZatcaSyncService
                 ]);
                 $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
             } else {
+                $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                 $log->update([
                     'status' => 'failed',
                     'response_payload' => $response->body(),
-                    'error_message' => Str::limit('HTTP '.$response->status().': '.$response->body(), 1000),
+                    'error_message' => $errorMessage,
                 ]);
+                $this->notifyZatcaFailure($company, __('Credit note'), $creditNote->credit_note_number, $errorMessage);
             }
         } catch (\Throwable $e) {
             $log->update([
                 'status' => 'failed',
                 'error_message' => Str::limit($e->getMessage(), 1000),
             ]);
+            $this->notifyZatcaFailure($company, __('Credit note'), $creditNote->credit_note_number, $e->getMessage());
         }
 
         return $log;
@@ -395,20 +403,50 @@ class ZatcaSyncService
                 ]);
                 $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
             } else {
+                $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                 $log->update([
                     'status' => 'failed',
                     'response_payload' => $response->body(),
-                    'error_message' => Str::limit('HTTP '.$response->status().': '.$response->body(), 1000),
+                    'error_message' => $errorMessage,
                 ]);
+                $this->notifyZatcaFailure($company, __('Debit note'), $debitNote->debit_note_number, $errorMessage);
             }
         } catch (\Throwable $e) {
             $log->update([
                 'status' => 'failed',
                 'error_message' => Str::limit($e->getMessage(), 1000),
             ]);
+            $this->notifyZatcaFailure($company, __('Debit note'), $debitNote->debit_note_number, $e->getMessage());
         }
 
         return $log;
+    }
+
+    /**
+     * Audit finding LOW-30: a failed clearance/reporting call left nothing
+     * but a "failed" row in the sync log the user had to go looking for —
+     * nobody was actually told a document didn't reach ZATCA. Only the
+     * two branches below that represent a real attempted-and-rejected
+     * submission notify; the "not onboarded yet" / demo-mode short
+     * circuits above are expected states, not failures worth alerting on.
+     */
+    private function notifyZatcaFailure(Company $company, string $documentLabel, string $documentNumber, ?string $errorMessage): void
+    {
+        $body = __(':label :document failed to sync with ZATCA: :error', [
+            'label' => $documentLabel,
+            'document' => $documentNumber,
+            'error' => Str::limit($errorMessage ?: __('Unknown error'), 150),
+        ]);
+
+        User::where('company_id', $company->id)
+            ->get()
+            ->filter(fn (User $user) => $user->hasPermission('zatca'))
+            ->each(fn (User $user) => $user->notify(new GenericNotification(
+                title: __('ZATCA sync failed'),
+                body: $body,
+                url: route('app.zatca.dashboard'),
+                icon: 'zatca',
+            )));
     }
 
     /**
