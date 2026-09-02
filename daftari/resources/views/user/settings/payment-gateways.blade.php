@@ -3,7 +3,7 @@
 @section('title', __('Payment gateways'))
 
 @php
-    $labels = ['moyasar' => 'Moyasar', 'hyperpay' => 'HyperPay', 'tap' => 'Tap Payments', 'paytabs' => 'PayTabs'];
+    $labels = ['moyasar' => 'Moyasar', 'hyperpay' => 'HyperPay', 'tap' => 'Tap Payments', 'paytabs' => 'PayTabs', 'bank_transfer' => __('Bank transfer (offline)')];
 @endphp
 
 @section('content')
@@ -31,13 +31,17 @@
                 </label>
             </div>
 
-            <div>
-                <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Mode') }}</label>
-                <select name="mode" class="w-full rounded-lg border border-slate-200 text-sm">
-                    <option value="test" {{ ($gateway?->mode ?? 'test') === 'test' ? 'selected' : '' }}>{{ __('Test') }}</option>
-                    <option value="live" {{ $gateway?->mode === 'live' ? 'selected' : '' }}>{{ __('Live') }}</option>
-                </select>
-            </div>
+            @if ($provider === 'bank_transfer')
+                <p class="text-sm text-slate-500 -mt-2">{{ __('Lets clients pay this invoice by wiring money to your bank account instead of an online gateway. Add or edit your bank accounts under Cash & Banks — the account attached to each invoice (or your default) is what shows in the payment instructions.') }}</p>
+            @else
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Mode') }}</label>
+                    <select name="mode" class="w-full rounded-lg border border-slate-200 text-sm">
+                        <option value="test" {{ ($gateway?->mode ?? 'test') === 'test' ? 'selected' : '' }}>{{ __('Test') }}</option>
+                        <option value="live" {{ $gateway?->mode === 'live' ? 'selected' : '' }}>{{ __('Live') }}</option>
+                    </select>
+                </div>
+            @endif
 
             @if ($provider === 'moyasar')
                 <div>

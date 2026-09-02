@@ -3915,5 +3915,6 @@
     "Success": "نجاح",
     "Set backup retention to :days day(s)": "تعيين مدة الاحتفاظ بالنسخ الاحتياطية إلى :days يوم/أيام",
     "Deleted backup file :file": "تم حذف ملف النسخة الاحتياطية :file",
-    "Complete ZATCA e-invoicing setup": "إكمال إعداد الفوترة الإلكترونية لهيئة الزكاة والضريبة (زاتكا)"
+    "Complete ZATCA e-invoicing setup": "إكمال إعداد الفوترة الإلكترونية لهيئة الزكاة والضريبة (زاتكا)",
+    "Lets clients pay this invoice by wiring money to your bank account instead of an online gateway. Add or edit your bank accounts under Cash & Banks — the account attached to each invoice (or your default) is what shows in the payment instructions.": "يتيح للعملاء دفع هذه الفاتورة عن طريق تحويل الأموال إلى حسابك البنكي بدلاً من بوابة دفع إلكترونية. أضف أو عدّل حساباتك البنكية ضمن النقدية والبنوك — الحساب المرتبط بكل فاتورة (أو حسابك الافتراضي) هو ما يظهر في تعليمات الدفع."
 }

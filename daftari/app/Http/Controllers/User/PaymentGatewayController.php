@@ -38,8 +38,14 @@ class PaymentGatewayController extends Controller
 
         abort_unless($platformGateway && $platformGateway->is_enabled, 404);
 
+        // Bank transfer has no test/live distinction — it's just an
+        // on/off switch, so its form never renders the mode select.
+        $modeRule = $provider === PaymentGateway::BANK_TRANSFER
+            ? ['nullable']
+            : ['required', Rule::in(['test', 'live'])];
+
         $data = $request->validate([
-            'mode' => ['required', Rule::in(['test', 'live'])],
+            'mode' => $modeRule,
             'is_enabled' => ['nullable', 'boolean'],
         ] + PaymentGateway::credentialRulesFor($provider, isPlatform: false));
 
@@ -64,7 +70,7 @@ class PaymentGatewayController extends Controller
         PaymentGateway::updateOrCreate(
             ['company_id' => $companyId, 'provider' => $provider],
             [
-                'mode' => $data['mode'],
+                'mode' => $data['mode'] ?? 'live',
                 'is_enabled' => $request->boolean('is_enabled'),
                 'credentials' => $credentials,
             ]
