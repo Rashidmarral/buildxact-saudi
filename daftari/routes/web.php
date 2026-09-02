@@ -79,6 +79,7 @@ use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\SalespersonController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\StockAdjustmentController;
+use App\Http\Controllers\User\PhysicalCountController;
 use App\Http\Controllers\User\ItemLotController;
 use App\Http\Controllers\User\ReorderSuggestionController;
 use App\Http\Controllers\User\StockTransferController;
@@ -444,6 +445,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('warehouses/{warehouse}/make-default', [WarehouseController::class, 'makeDefault'])->name('warehouses.make-default');
         Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'store']);
         Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
+        Route::get('physical-counts', [PhysicalCountController::class, 'index'])->name('physical-counts.index');
+        Route::post('physical-counts', [PhysicalCountController::class, 'store'])->name('physical-counts.store');
         Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'store']);
         Route::post('stock-transfers/{stockTransfer}/receive', [StockTransferController::class, 'receive'])->name('stock-transfers.receive');
         Route::post('stock-transfers/{stockTransfer}/reverse', [StockTransferController::class, 'reverse'])->name('stock-transfers.reverse');

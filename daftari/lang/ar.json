@@ -3859,5 +3859,17 @@
     "Variant created.": "تم إنشاء النوع.",
     "Variants": "الأنواع",
     "e.g. Red / Large": "مثال: أحمر / كبير",
-    "Created variant :label of :item": "تم إنشاء النوع :label للصنف :item"
+    "Created variant :label of :item": "تم إنشاء النوع :label للصنف :item",
+    "Physical Inventory Count": "الجرد الفعلي للمخزون",
+    "Count a warehouse's stock and reconcile it in one pass — only items whose count differs from the system quantity get an adjustment.": "قم بجرد مخزون مستودع وتسويته دفعة واحدة — يتم إنشاء تسوية فقط للأصناف التي يختلف عدّها الفعلي عن الكمية في النظام.",
+    "Add a warehouse first to start a physical count.": "أضف مستودعًا أولاً لبدء الجرد الفعلي.",
+    "No tracked items to count.": "لا توجد أصناف متتبَّعة للجرد.",
+    "System quantity": "الكمية في النظام",
+    "Counted quantity": "الكمية المجرودة",
+    "Save count and adjust stock": "حفظ الجرد وتسوية المخزون",
+    "Physical inventory count": "جرد فعلي للمخزون",
+    ":count item(s) adjusted from a physical inventory count": "تم تسوية :count صنف/أصناف من جرد فعلي للمخزون",
+    ":count item(s) adjusted to match the count.": "تم تسوية :count صنف/أصناف لمطابقة الجرد.",
+    "No differences found — nothing to adjust.": "لم يتم العثور على فروقات — لا شيء لتسويته.",
+    "Physical count": "الجرد الفعلي"
 }
