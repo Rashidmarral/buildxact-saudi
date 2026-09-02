@@ -27,3 +27,4 @@ Schedule::command('subscriptions:expire-cancelled')->dailyAt('01:00');
 Schedule::command('subscriptions:run-lifecycle-rules')->dailyAt('02:30');
 Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00');
 Schedule::command('inventory:check-low-stock')->dailyAt('07:00');
+Schedule::command('backup:run')->dailyAt('03:00')->withoutOverlapping();

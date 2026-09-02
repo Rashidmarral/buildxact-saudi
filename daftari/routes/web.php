@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PasswordConfirmationController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
@@ -706,6 +707,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::middleware('password.confirm.admin')->post('settings/payment-gateways/{provider}', [AdminPaymentGatewaySettingsController::class, 'update'])->name('settings.payment-gateways.update');
 
         Route::resource('certificates', PlatformDocumentController::class)->only(['index', 'store', 'destroy']);
+
+        // Downloading or deleting a raw database dump is at least as
+        // sensitive as the storage/payment-gateway secrets above — same
+        // re-auth requirement. Listing and triggering a fresh one stay
+        // available without it, same as the other system actions.
+        Route::get('backups', [BackupController::class, 'index'])->name('backups.index');
+        Route::post('backups/run', [BackupController::class, 'runNow'])->name('backups.run');
+        Route::post('backups/retention', [BackupController::class, 'updateRetention'])->name('backups.retention');
+        Route::middleware('password.confirm.admin')->group(function () {
+            Route::get('backups/{filename}/download', [BackupController::class, 'download'])->name('backups.download');
+            Route::delete('backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');
+        });
 
         Route::resource('currencies', CurrencyController::class)->except(['show']);
 
