@@ -47,6 +47,7 @@ use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\BudgetController;
 use App\Http\Controllers\User\ClientController;
+use App\Http\Controllers\User\CompanyAuditController;
 use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\FixedAssetController;
 use App\Http\Controllers\User\ZakatController;
@@ -325,6 +326,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
         Route::get('withholding-tax', [ReportController::class, 'whtReturn'])->name('wht-return');
+    });
+
+    Route::middleware('permission:audit')->prefix('audit')->name('audit.')->group(function () {
+        Route::get('/', [CompanyAuditController::class, 'index'])->name('index');
     });
 
     Route::middleware('permission:accounting')->prefix('accounting')->group(function () {

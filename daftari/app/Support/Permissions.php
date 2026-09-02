@@ -30,6 +30,7 @@ class Permissions
             'salespersons' => __('Salespersons'),
             'projects' => __('Projects'),
             'reports' => __('Reports'),
+            'audit' => __('Company Audit'),
             'accounting' => __('Accounting'),
             'branches' => __('Branches'),
             'members_roles' => __('Members & Roles'),
@@ -54,7 +55,7 @@ class Permissions
     {
         return [
             'admin' => self::keys(),
-            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'projects', 'reports', 'zatca', 'accounting', 'approvals', 'support'],
+            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'projects', 'reports', 'audit', 'zatca', 'accounting', 'approvals', 'support'],
             'sales' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'salespersons', 'projects', 'reports', 'support'],
             'member' => ['dashboard', 'reports', 'support'],
         ];
