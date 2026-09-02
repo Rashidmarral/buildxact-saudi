@@ -308,7 +308,17 @@ class ZatcaController extends Controller
             // separate now() calls risks drift (canonicalization + signing
             // both take real time), which fails ZATCA's consistency check
             // between the two.
-            $issuedAt = now();
+            //
+            // Backdated by a few minutes purely as a safety margin against
+            // clock drift on ZATCA's own compliance sandbox — confirmed via
+            // support debugging that our own server clock was accurate to
+            // the second, yet the sandbox still rejected a genuinely
+            // current timestamp under BR-KSA-04 ("issue date must be <=
+            // current date"). Compliance samples are synthetic self-test
+            // documents, not real invoices, so backdating them slightly
+            // carries none of the real-invoice concern of misstating an
+            // actual issuance time.
+            $issuedAt = now()->subMinutes(5);
             $unsignedXml = $xml->generateComplianceSample($company, $combo['code'], $combo['name'], $previousHash, $uuid, $icv + 1, $issuedAt);
             $hash = $signer->contentHash($unsignedXml);
 
