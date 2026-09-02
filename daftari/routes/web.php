@@ -80,6 +80,7 @@ use App\Http\Controllers\User\SalespersonController;
 use App\Http\Controllers\User\SettingsController;
 use App\Http\Controllers\User\StockAdjustmentController;
 use App\Http\Controllers\User\ItemLotController;
+use App\Http\Controllers\User\ReorderSuggestionController;
 use App\Http\Controllers\User\StockTransferController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
@@ -413,6 +414,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('bills/{bill}/pdf', [BillController::class, 'downloadPdf'])->name('bills.pdf');
 
         Route::middleware('feature:purchase_orders')->group(function () {
+            Route::get('reorder-suggestions', [ReorderSuggestionController::class, 'index'])->name('reorder-suggestions.index');
+            Route::post('reorder-suggestions', [ReorderSuggestionController::class, 'store'])->name('reorder-suggestions.store');
             Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
             Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
             Route::post('purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
