@@ -41,6 +41,17 @@ class DashboardController extends Controller
             ['label' => __('Record your first expense'), 'done' => Expense::exists(), 'route' => 'app.expenses.create'],
         ];
 
+        // Audit finding LOW-32: ZATCA e-invoicing compliance is central
+        // to this product, yet the onboarding checklist never mentioned
+        // it — a company could tick off everything above and still be
+        // issuing invoices with no CSID, no clearance, no compliance at
+        // all. Only shown when the plan actually includes ZATCA Phase 2;
+        // isZatcaOnboarded() would otherwise sit permanently unchecked
+        // for a company whose plan doesn't carry the feature at all.
+        if ($company->hasFeature('zatca_phase2')) {
+            $checklist[] = ['label' => __('Complete ZATCA e-invoicing setup'), 'done' => $company->isZatcaOnboarded(), 'route' => 'app.zatca.dashboard'];
+        }
+
         return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist'));
     }
 

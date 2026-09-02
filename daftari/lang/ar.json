@@ -3914,5 +3914,6 @@
     "Size": "الحجم",
     "Success": "نجاح",
     "Set backup retention to :days day(s)": "تعيين مدة الاحتفاظ بالنسخ الاحتياطية إلى :days يوم/أيام",
-    "Deleted backup file :file": "تم حذف ملف النسخة الاحتياطية :file"
+    "Deleted backup file :file": "تم حذف ملف النسخة الاحتياطية :file",
+    "Complete ZATCA e-invoicing setup": "إكمال إعداد الفوترة الإلكترونية لهيئة الزكاة والضريبة (زاتكا)"
 }
