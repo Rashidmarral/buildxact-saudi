@@ -177,6 +177,28 @@ class InvoiceTotalsTest extends TestCase
     }
 
     /**
+     * Regression: the XML's IssueDate/IssueTime must come from the exact
+     * $issuedAt instant the caller passes in — not a fresh now() call
+     * inside generateComplianceSample() — because ZatcaController::
+     * runComplianceCheck() reuses that same $issuedAt for the QR code's
+     * own timestamp (KSA-25). Two independent now() calls a few
+     * milliseconds apart would fail ZATCA's "Time on QR Code does not
+     * match with Invoice Issue Time" check for every simplified/B2C
+     * compliance sample.
+     */
+    public function test_compliance_sample_issue_date_and_time_come_from_the_passed_instant(): void
+    {
+        $issuedAt = \Carbon\Carbon::parse('2026-01-15 09:30:00');
+
+        $xml = (new ZatcaXmlGenerator())->generateComplianceSample(
+            $this->company, '388', '0200000', null, 'compliance-test-uuid-2', 1, $issuedAt
+        );
+
+        $this->assertStringContainsString('<cbc:IssueDate>2026-01-15</cbc:IssueDate>', $xml);
+        $this->assertStringContainsString('<cbc:IssueTime>09:30:00</cbc:IssueTime>', $xml);
+    }
+
+    /**
      * Commercial audit finding B4: appendAmount() hardcoded currencyID="SAR"
      * on every monetary amount regardless of the invoice's actual currency
      * — DocumentCurrencyCode was correctly set to e.g. "USD", but every

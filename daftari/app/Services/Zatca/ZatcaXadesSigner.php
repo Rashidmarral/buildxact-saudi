@@ -88,20 +88,11 @@ class ZatcaXadesSigner
      */
     public function sign(Company $company, string $unsignedXml, string $invoiceHashBase64, string $certificateBase64, string $qrBase64, string $digitalSignature): string
     {
-        // CRITICAL: Get certificate data once and reuse
-        $rawCert = $this->certificates->rawCertificate($certificateBase64);
-        $certificateValue = base64_encode($rawCert);
+        $certificateValue = base64_encode($this->certificates->rawCertificate($certificateBase64));
         $certificateHash = $this->certificates->certificateHash($certificateBase64);
         $issuerName = $this->certificates->issuerName($certificateBase64);
         $serialNumber = $this->certificates->serialNumber($certificateBase64);
         $signingTimestamp = gmdate('Y-m-d\TH:i:s\Z');
-
-        // Debug logging
-        \Log::debug('Signing certificate details', [
-            'cert_hash' => $certificateHash,
-            'issuer' => $issuerName,
-            'serial' => $serialNumber,
-        ]);
 
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->preserveWhiteSpace = false;
@@ -110,33 +101,33 @@ class ZatcaXadesSigner
         $root = $doc->documentElement;
         $this->declareSignatureNamespaces($root);
 
-        // Build UBLExtensions skeleton
+        // ds:Object/QualifyingProperties/SignedProperties has to be built
+        // and actually attached into the real document tree — inheriting
+        // the ext:/sig:/ds:/xades: namespace declarations just placed on
+        // $root — *before* computing its digest below. Hashing a
+        // separately-built standalone copy produces a different digest
+        // than what canonicalizing the real embedded node yields, because
+        // the standalone copy has no ancestor to inherit those namespaces
+        // from and so serializes differently. Must use the same
+        // (non-exclusive) C14N here as declared in
+        // ds:CanonicalizationMethod below (xml-c14n11) — exclusive C14N
+        // would drop those inherited-but-unused namespace declarations
+        // from the digest input, producing a hash ZATCA's own
+        // recomputation (against the declared algorithm) won't match.
         [$ublExtensions, $signature, $signedProperties, $object] = $this->buildUblExtensionsSkeleton(
             $doc, $certificateValue, $signingTimestamp, $certificateHash, $issuerName, $serialNumber,
         );
-        
-        // CRITICAL: Insert UBLExtensions FIRST
         $root->insertBefore($ublExtensions, $root->firstChild);
 
-        // CRITICAL FIX: Compute SignedProperties hash AFTER attaching to document
-        // Using C14N with exclusive canonicalization to properly handle namespaces
-        // This is the key fix for B2C "signed-properties-hashing" error
-        $signedPropertiesHash = base64_encode(hash('sha256', $signedProperties->C14N(true), true));
+        $signedPropertiesHash = base64_encode(hash('sha256', $signedProperties->C14N(), true));
 
-        \Log::debug('SignedProperties hash computed', [
-            'hash' => $signedPropertiesHash,
-            'c14n_length' => strlen($signedProperties->C14N(true))
-        ]);
-
-        // Attach the rest of the signature
         $this->attachSignatureCore($doc, $signature, $object, $invoiceHashBase64, $signedPropertiesHash, $digitalSignature, $certificateValue);
 
-        // Add QR reference
         $insertionPoint = $this->lastAdditionalDocumentReference($root) ?? $root->firstChild;
+
         $qrReference = $this->buildQrReference($doc, $qrBase64);
         $this->insertAfter($qrReference, $insertionPoint);
 
-        // Add signature element
         $signatureElement = $this->buildSignatureElement($doc);
         $this->insertAfter($signatureElement, $qrReference);
 
@@ -268,43 +259,21 @@ class ZatcaXadesSigner
         return $reference;
     }
 
-    private function buildSignedPropertiesReference(
-        DOMDocument $doc,
-        string $signedPropertiesHash
-    ): DOMElement {
-        $reference = $doc->createElementNS(
-            self::NS_DS,
-            'ds:Reference'
-        );
+    private function buildSignedPropertiesReference(DOMDocument $doc, string $signedPropertiesHash): DOMElement
+    {
+        $reference = $doc->createElementNS(self::NS_DS, 'ds:Reference');
+        // XAdES (ETSI TS 101 903) requires this specific Type URI for the
+        // SignedProperties reference, not XMLDSig's generic
+        // "SignatureProperties" — ZATCA validates it against this exact
+        // value.
+        $reference->setAttribute('Type', 'http://uri.etsi.org/01903#SignedProperties');
+        $reference->setAttribute('URI', '#xades-SignedProperties');
 
-        $reference->setAttribute(
-            'Type',
-            'http://uri.etsi.org/01903#SignedProperties'
-        );
-
-        $reference->setAttribute(
-            'URI',
-            '#xades-SignedProperties'
-        );
-
-        $digestMethod = $doc->createElementNS(
-            self::NS_DS,
-            'ds:DigestMethod'
-        );
-
-        $digestMethod->setAttribute(
-            'Algorithm',
-            'http://www.w3.org/2001/04/xmlenc#sha256'
-        );
-
+        $digestMethod = $doc->createElementNS(self::NS_DS, 'ds:DigestMethod');
+        $digestMethod->setAttribute('Algorithm', 'http://www.w3.org/2001/04/xmlenc#sha256');
         $reference->appendChild($digestMethod);
 
-        $digestValue = $doc->createElementNS(
-            self::NS_DS,
-            'ds:DigestValue',
-            $signedPropertiesHash
-        );
-
+        $digestValue = $doc->createElementNS(self::NS_DS, 'ds:DigestValue', $signedPropertiesHash);
         $reference->appendChild($digestValue);
 
         return $reference;

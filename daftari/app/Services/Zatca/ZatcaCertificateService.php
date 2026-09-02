@@ -145,75 +145,18 @@ class ZatcaCertificateService
      * scanner rejects as "not compatible" even though every other tag is
      * correct, since it isn't the format ZATCA's validator expects.
      */
-   /**
- * The certificate's public key — QR tag 8 — as the full DER-encoded
- * SubjectPublicKeyInfo structure (algorithm identifier + the 0x04||X||Y
- * point), not just the bare 65-byte point. Confirmed against a working
- * reference implementation: sending only the raw point here (this
- * method's previous behaviour) produces a QR that a real ZATCA-aware
- * scanner rejects as "not compatible" even though every other tag is
- * correct, since it isn't the format ZATCA's validator expects.
- */
-public function publicKeyBytes(string $certificateBase64): string
-{
-    [$x509] = $this->load($certificateBase64);
+    public function publicKeyBytes(string $certificateBase64): string
+    {
+        [$x509] = $this->load($certificateBase64);
 
-    $publicKeyPem = (string) $x509->getPublicKey();
-    $body = str_replace(["-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----", "\r", "\n"], '', $publicKeyPem);
-    $der = base64_decode($body, true);
+        $publicKeyPem = (string) $x509->getPublicKey();
+        $body = str_replace(["-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----", "\r", "\n"], '', $publicKeyPem);
+        $der = base64_decode($body, true);
 
-    if ($der === false || $der === '') {
-        throw new RuntimeException('Unable to read the public key from the ZATCA-issued certificate.');
+        if ($der === false || $der === '') {
+            throw new RuntimeException('Unable to read the public key from the ZATCA-issued certificate.');
+        }
+
+        return $der;
     }
-
-    // CRITICAL FIX: Ensure the public key is properly formatted
-    // Some implementations need the raw point, others need the full DER
-    // This returns the DER format which ZATCA expects for QR Tag 8
-    return $der;
-}
-/**
- * Debug method to verify certificate details
- */
-/**
- * Debug method to verify certificate details for troubleshooting
- */
-public function debugCertificate(string $certificateBase64): array
-{
-    try {
-        $raw = $this->rawCertificate($certificateBase64);
-        $hash = $this->certificateHash($certificateBase64);
-        $issuer = $this->issuerName($certificateBase64);
-        $serial = $this->serialNumber($certificateBase64);
-        $publicKey = $this->publicKeyBytes($certificateBase64);
-        $signature = $this->certificateSignature($certificateBase64);
-        
-        \Log::debug('Certificate debug info', [
-            'raw_length' => strlen($raw),
-            'hash' => $hash,
-            'issuer' => $issuer,
-            'serial' => $serial,
-            'public_key_length' => strlen($publicKey),
-            'public_key_base64' => base64_encode($publicKey),
-            'signature_length' => strlen($signature),
-            'signature_hex' => bin2hex($signature),
-        ]);
-        
-        return [
-            'valid' => true,
-            'raw_length' => strlen($raw),
-            'hash' => $hash,
-            'issuer' => $issuer,
-            'serial' => $serial,
-            'public_key_length' => strlen($publicKey),
-            'public_key_base64' => base64_encode($publicKey),
-            'signature_length' => strlen($signature),
-        ];
-    } catch (\Throwable $e) {
-        \Log::error('Certificate debug failed', ['error' => $e->getMessage()]);
-        return [
-            'valid' => false,
-            'error' => $e->getMessage(),
-        ];
-    }
-}
 }
