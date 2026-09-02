@@ -425,20 +425,25 @@ class ZatcaXmlGenerator
      * that fails that check.
      */
     public function generateComplianceSample(\App\Models\Company $company, string $documentTypeCode, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv, \DateTimeInterface $issuedAt): string
-    {
-        $doc = new DOMDocument('1.0', 'UTF-8');
-        $doc->formatOutput = false;
+{
+    $doc = new DOMDocument('1.0', 'UTF-8');
+    $doc->formatOutput = false;
 
-        $root = $doc->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
-        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
-        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
-        $doc->appendChild($root);
+    $root = $doc->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
+    $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+    $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+    $doc->appendChild($root);
 
-        $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
-        $this->append($doc, $root, 'cbc:ID', 'COMPLIANCE-'.$icv);
-        $this->append($doc, $root, 'cbc:UUID', $uuid);
-        $this->append($doc, $root, 'cbc:IssueDate', $issuedAt->format('Y-m-d'));
-        $this->append($doc, $root, 'cbc:IssueTime', $issuedAt->format('H:i:s'));
+    // CRITICAL FIX: Use current date/time for compliance samples
+    // ZATCA rejects future dates with BR-KSA-04
+    $now = new \DateTime('now', new \DateTimeZone('UTC'));
+    
+    $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
+    $this->append($doc, $root, 'cbc:ID', 'COMPLIANCE-'.$icv);
+    $this->append($doc, $root, 'cbc:UUID', $uuid);
+    $this->append($doc, $root, 'cbc:IssueDate', $now->format('Y-m-d'));  // Use current date
+    $this->append($doc, $root, 'cbc:IssueTime', $now->format('H:i:s'));  // Use current time
+
 
         $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', $documentTypeCode);
         $typeCode->setAttribute('name', $invoiceTypeName);
@@ -554,77 +559,82 @@ class ZatcaXmlGenerator
         return (string) Str::uuid();
     }
 
-    private function party(DOMDocument $doc, string $wrapperTag, array $data): \DOMElement
-    {
-        $wrapper = $doc->createElement($wrapperTag);
-        $party = $doc->createElement('cac:Party');
+    /**
+ * ZATCA requires PartyIdentification to have a valid scheme and alphanumeric ID.
+ * The ID must be alphanumeric only - no spaces, dashes, or special characters.
+ */
+private function party(DOMDocument $doc, string $wrapperTag, array $data): \DOMElement
+{
+    $wrapper = $doc->createElement($wrapperTag);
+    $party = $doc->createElement('cac:Party');
 
-        // UBL PartyType element order matters: PartyIdentification, then
-        // PostalAddress, then PartyTaxScheme, then PartyLegalEntity — ZATCA's
-        // validator (BR-KSA-08) rejects the seller party without a
-        // PartyIdentification carrying a recognised scheme (CRN, MOM, MLS,
-        // SAG, OTH, 700) and alphanumeric-only ID.
-        if (! empty($data['id_value']) && ! empty($data['id_scheme'])) {
-            $identification = $doc->createElement('cac:PartyIdentification');
-            $id = $this->append($doc, $identification, 'cbc:ID', preg_replace('/[^A-Za-z0-9]/', '', (string) $data['id_value']));
-            $id->setAttribute('schemeID', $data['id_scheme']);
-            $party->appendChild($identification);
-        }
-
-        $hasAddress = ! empty($data['street']) || ! empty($data['city']) || ! empty($data['building_number']) || ! empty($data['district']) || ! empty($data['postal_code']);
-
-        if ($hasAddress) {
-            // UBL's PostalAddressType requires StreetName before
-            // BuildingName/BuildingNumber — ZATCA's XSD validation rejects
-            // the reverse order outright (and, since a schema violation
-            // aborts deeper validation, was also the real cause behind
-            // otherwise-inexplicable "missing ICV"/"missing seller VAT"
-            // business-rule errors reported alongside it).
-            $address = $doc->createElement('cac:PostalAddress');
-            if (! empty($data['street'])) {
-                $this->append($doc, $address, 'cbc:StreetName', $data['street']);
-            }
-            if (! empty($data['building_number'])) {
-                $this->append($doc, $address, 'cbc:BuildingNumber', $data['building_number']);
-            }
-            if (! empty($data['district'])) {
-                $this->append($doc, $address, 'cbc:CitySubdivisionName', $data['district']);
-            }
-            if (! empty($data['city'])) {
-                $this->append($doc, $address, 'cbc:CityName', $data['city']);
-            }
-            if (! empty($data['postal_code'])) {
-                $this->append($doc, $address, 'cbc:PostalZone', $data['postal_code']);
-            }
-            $country = $doc->createElement('cac:Country');
-            $this->append($doc, $country, 'cbc:IdentificationCode', 'SA');
-            $address->appendChild($country);
-            $party->appendChild($address);
-        }
-
-        if (! empty($data['vat_number'])) {
-            // UBL's PartyTaxSchemeType ends its sequence with a mandatory
-            // (not optional) cac:TaxScheme — omitting it, as we previously
-            // did, is itself an XSD violation, and since it sits inside
-            // the same AccountingSupplierParty subtree as the seller's
-            // CompanyID, this was also the real cause of the "missing
-            // seller VAT number" (BR-KSA-39) error reported alongside it.
-            $taxScheme = $doc->createElement('cac:PartyTaxScheme');
-            $this->append($doc, $taxScheme, 'cbc:CompanyID', $data['vat_number']);
-            $scheme = $doc->createElement('cac:TaxScheme');
-            $this->append($doc, $scheme, 'cbc:ID', 'VAT');
-            $taxScheme->appendChild($scheme);
-            $party->appendChild($taxScheme);
-        }
-
-        $legalEntity = $doc->createElement('cac:PartyLegalEntity');
-        $this->append($doc, $legalEntity, 'cbc:RegistrationName', $data['name'] ?: '');
-        $party->appendChild($legalEntity);
-
-        $wrapper->appendChild($party);
-
-        return $wrapper;
+    // UBL PartyType element order matters: PartyIdentification, then
+    // PostalAddress, then PartyTaxScheme, then PartyLegalEntity — ZATCA's
+    // validator (BR-KSA-08) rejects the seller party without a
+    // PartyIdentification carrying a recognised scheme (CRN, MOM, MLS,
+    // SAG, OTH, 700) and alphanumeric-only ID.
+    if (! empty($data['id_value']) && ! empty($data['id_scheme'])) {
+        $identification = $doc->createElement('cac:PartyIdentification');
+        // CRITICAL FIX: Remove ALL non-alphanumeric characters
+        $cleanId = preg_replace('/[^A-Za-z0-9]/', '', (string) $data['id_value']);
+        $id = $this->append($doc, $identification, 'cbc:ID', $cleanId);
+        $id->setAttribute('schemeID', $data['id_scheme']);
+        $party->appendChild($identification);
     }
+
+    $hasAddress = ! empty($data['street']) || ! empty($data['city']) || ! empty($data['building_number']) || ! empty($data['district']) || ! empty($data['postal_code']);
+
+    if ($hasAddress) {
+        // UBL's PostalAddressType requires StreetName before
+        // BuildingName/BuildingNumber — ZATCA's XSD validation rejects
+        // the reverse order outright (and, since a schema violation
+        // aborts deeper validation, was also the real cause behind
+        // otherwise-inexplicable "missing ICV"/"missing seller VAT"
+        // business-rule errors reported alongside it).
+        $address = $doc->createElement('cac:PostalAddress');
+        if (! empty($data['street'])) {
+            $this->append($doc, $address, 'cbc:StreetName', $data['street']);
+        }
+        if (! empty($data['building_number'])) {
+            $this->append($doc, $address, 'cbc:BuildingNumber', $data['building_number']);
+        }
+        if (! empty($data['district'])) {
+            $this->append($doc, $address, 'cbc:CitySubdivisionName', $data['district']);
+        }
+        if (! empty($data['city'])) {
+            $this->append($doc, $address, 'cbc:CityName', $data['city']);
+        }
+        if (! empty($data['postal_code'])) {
+            $this->append($doc, $address, 'cbc:PostalZone', $data['postal_code']);
+        }
+        $country = $doc->createElement('cac:Country');
+        $this->append($doc, $country, 'cbc:IdentificationCode', 'SA');
+        $address->appendChild($country);
+        $party->appendChild($address);
+    }
+
+    // CRITICAL FIX: VAT number must be exactly 15 digits for Saudi VAT
+    if (! empty($data['vat_number'])) {
+        $taxScheme = $doc->createElement('cac:PartyTaxScheme');
+        // Clean VAT number - remove any non-numeric characters
+        $cleanVat = preg_replace('/[^0-9]/', '', (string) $data['vat_number']);
+        // Ensure it's exactly 15 digits (pad with leading zeros if needed)
+        $cleanVat = str_pad($cleanVat, 15, '0', STR_PAD_LEFT);
+        $this->append($doc, $taxScheme, 'cbc:CompanyID', $cleanVat);
+        $scheme = $doc->createElement('cac:TaxScheme');
+        $this->append($doc, $scheme, 'cbc:ID', 'VAT');
+        $taxScheme->appendChild($scheme);
+        $party->appendChild($taxScheme);
+    }
+
+    $legalEntity = $doc->createElement('cac:PartyLegalEntity');
+    $this->append($doc, $legalEntity, 'cbc:RegistrationName', $data['name'] ?: '');
+    $party->appendChild($legalEntity);
+
+    $wrapper->appendChild($party);
+
+    return $wrapper;
+}
 
     /**
      * ZATCA's dual-currency EN16931 profile requires exactly two document

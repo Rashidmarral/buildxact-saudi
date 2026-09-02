@@ -461,46 +461,126 @@ class ZatcaSyncService
      *
      * @return array{0: string, 1: ?string} [signedXml, qrPngBase64]
      */
-    public function buildSignedPayload(Company $company, string $unsignedXml, string $invoiceHash, string $certificateBase64, \DateTimeInterface $issueDate, float $total, float $vatTotal): array
-    {
-        $signature = $this->crypto->signInvoiceHash($company, $invoiceHash);
+    /**
+ * Builds the fully signed XML (XAdES UBLExtensions + cac:Signature +
+ * embedded QR) that actually gets submitted to ZATCA, and the QR PNG
+ * shown in the UI — both built proactively from the company's own key
+ * material and CSID certificate, not from a clearance response. QR
+ * tag 9 ("certificate signature") is a property of the certificate
+ * itself, not of any individual invoice, so — unlike the old
+ * approach — nothing here depends on the submission having happened
+ * yet or having succeeded.
+ *
+ * @return array{0: string, 1: ?string} [signedXml, qrPngBase64]
+ */
+/**
+ * Builds the fully signed XML (XAdES UBLExtensions + cac:Signature +
+ * embedded QR) that actually gets submitted to ZATCA, and the QR PNG
+ * shown in the UI — both built proactively from the company's own key
+ * material and CSID certificate, not from a clearance response. QR
+ * tag 9 ("certificate signature") is a property of the certificate
+ * itself, not of any individual invoice, so — unlike the old
+ * approach — nothing here depends on the submission having happened
+ * yet or having succeeded.
+ *
+ * @return array{0: string, 1: ?string} [signedXml, qrPngBase64]
+ */
+/**
+ * Builds the fully signed XML (XAdES UBLExtensions + cac:Signature +
+ * embedded QR) that actually gets submitted to ZATCA, and the QR PNG
+ * shown in the UI — both built proactively from the company's own key
+ * material and CSID certificate, not from a clearance response. QR
+ * tag 9 ("certificate signature") is a property of the certificate
+ * itself, not of any individual invoice, so — unlike the old
+ * approach — nothing here depends on the submission having happened
+ * yet or having succeeded.
+ *
+ * @return array{0: string, 1: ?string} [signedXml, qrPngBase64]
+ */
+public function buildSignedPayload(Company $company, string $unsignedXml, string $invoiceHash, string $certificateBase64, \DateTimeInterface $issueDate, float $total, float $vatTotal): array
+{
+    // CRITICAL FIX: Generate signature ONCE and reuse for both QR and XML
+    $signature = $this->crypto->signInvoiceHash($company, $invoiceHash);
+    
+    if (! $signature) {
+        \Log::error('Failed to generate signature for invoice', [
+            'company_id' => $company->id,
+            'has_private_key' => !empty($company->zatca_private_key)
+        ]);
+        return [$unsignedXml, null];
+    }
+
+    try {
         $publicKey = $this->certificates->publicKeyBytes($certificateBase64);
         $certificateSignature = $this->certificates->certificateSignature($certificateBase64);
-
-        if (! $signature) {
-            return [$unsignedXml, null];
-        }
-
-        $qrTlv = ZatcaQrGenerator::buildTlvPayloadPhase2(
-            $company->name,
-            (string) $company->vat_number,
-            $issueDate,
-            $total,
-            $vatTotal,
-            $invoiceHash,
-            $signature,
-            base64_encode($publicKey),
-            $certificateSignature,
-        );
-
-        if (! $qrTlv) {
-            return [$unsignedXml, null];
-        }
-
-        $signedXml = $this->signer->sign($company, $unsignedXml, $invoiceHash, $certificateBase64, $qrTlv, $signature);
-
-        $qrPng = ZatcaQrGenerator::generatePhase2(
-            $company->name,
-            (string) $company->vat_number,
-            $issueDate,
-            $total,
-            $vatTotal,
-            $invoiceHash,
-            $signature,
-            base64_encode($publicKey),
-            $certificateSignature,
-        );
-
-        return [$signedXml, $qrPng];
+        
+        \Log::debug('Certificate details for QR', [
+            'public_key_length' => strlen($publicKey),
+            'public_key_base64' => base64_encode($publicKey),
+            'cert_signature_length' => strlen($certificateSignature),
+        ]);
+    } catch (\Throwable $e) {
+        \Log::error('Failed to extract certificate data', [
+            'error' => $e->getMessage()
+        ]);
+        return [$unsignedXml, null];
     }
+
+    // CRITICAL FIX: For compliance samples, ensure date is not in future
+    $now = new \DateTime('now', new \DateTimeZone('UTC'));
+    $issueDateTime = clone $issueDate;
+    $issueDateTime->setTimezone(new \DateTimeZone('UTC'));
+    
+    // If issue date is in future, use current date for compliance
+    if ($issueDateTime > $now) {
+        \Log::warning('Issue date is in future, adjusting to current date for compliance', [
+            'issue_date' => $issueDateTime->format('Y-m-d H:i:s'),
+            'current_date' => $now->format('Y-m-d H:i:s')
+        ]);
+        $issueDate = $now;
+    }
+
+    // Build QR TLV with the SAME data
+    $qrTlv = ZatcaQrGenerator::buildTlvPayloadPhase2(
+        $company->name,
+        (string) $company->vat_number,
+        $issueDate,
+        $total,
+        $vatTotal,
+        $invoiceHash,
+        $signature,  // Same signature
+        base64_encode($publicKey),  // Encode the DER public key
+        $certificateSignature,
+    );
+
+    if (! $qrTlv) {
+        \Log::error('Failed to build QR TLV payload');
+        return [$unsignedXml, null];
+    }
+
+    // Sign the XML using the SAME signature
+    $signedXml = $this->signer->sign(
+        $company, 
+        $unsignedXml, 
+        $invoiceHash, 
+        $certificateBase64, 
+        $qrTlv,  // QR payload with the same signature
+        $signature  // Same signature
+    );
+
+    // Generate QR PNG with the SAME data
+    $qrPng = ZatcaQrGenerator::generatePhase2(
+        $company->name,
+        (string) $company->vat_number,
+        $issueDate,
+        $total,
+        $vatTotal,
+        $invoiceHash,
+        $signature,  // Same signature
+        base64_encode($publicKey),  // Same encoding
+        $certificateSignature,
+    );
+
+    return [$signedXml, $qrPng];
+}
 }
