@@ -9,6 +9,7 @@ use App\Models\DebitNote;
 use App\Models\Invoice;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaDebitNoteLog;
+use App\Models\ZatcaEnvironmentCredential;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
 use App\Services\Zatca\ZatcaCryptoService;
@@ -19,6 +20,7 @@ use App\Support\DemoMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -136,28 +138,46 @@ class ZatcaController extends Controller
         // declaring a capability that's actually off here creates
         // compliance-check requirements (and, per ZATCA's Simulation
         // environment, real validation trouble) for an invoice type the
-        // company was never going to submit anyway. Reset onboarding on
-        // change for the same reason environment changes do — the
-        // previously issued CSR/CSID no longer matches what should be
-        // declared.
-        $capabilityChanged = $data['zatca_environment'] !== $company->zatca_environment
-            || $data['zatca_sync_b2b'] !== (bool) $company->zatca_sync_b2b
+        // company was never going to submit anyway. Changing either one
+        // makes every environment's already-issued CSR stale (it declared
+        // the old capability set), so every environment's saved
+        // onboarding progress is wiped here — not just the one currently
+        // active — since switching to any of them afterward would
+        // otherwise resurrect a CSR built for the wrong capabilities.
+        $capabilitiesChanged = $data['zatca_sync_b2b'] !== (bool) $company->zatca_sync_b2b
             || $data['zatca_sync_b2c'] !== (bool) $company->zatca_sync_b2c;
 
-        if ($capabilityChanged) {
-            $data['zatca_onboarding_status'] = 'not_started';
-            $data['zatca_csr'] = null;
-            $data['zatca_private_key'] = null;
-            $data['zatca_compliance_request_id'] = null;
-            $data['zatca_compliance_csid'] = null;
-            $data['zatca_compliance_secret'] = null;
-            $data['zatca_production_request_id'] = null;
-            $data['zatca_production_csid'] = null;
-            $data['zatca_production_secret'] = null;
-            $data['zatca_linked_at'] = null;
-        }
+        $environment = $data['zatca_environment'];
+        unset($data['zatca_environment']);
 
-        $company->update($data);
+        DB::transaction(function () use ($company, $data, $capabilitiesChanged, $environment) {
+            if ($capabilitiesChanged) {
+                ZatcaEnvironmentCredential::where('company_id', $company->id)->delete();
+                $data['zatca_onboarding_status'] = 'not_started';
+                $data['zatca_csr'] = null;
+                $data['zatca_private_key'] = null;
+                $data['zatca_compliance_request_id'] = null;
+                $data['zatca_compliance_csid'] = null;
+                $data['zatca_compliance_secret'] = null;
+                $data['zatca_production_request_id'] = null;
+                $data['zatca_production_csid'] = null;
+                $data['zatca_production_secret'] = null;
+                $data['zatca_linked_at'] = null;
+            }
+
+            $company->fill($data);
+
+            // Switching environments swaps in that environment's own saved
+            // onboarding progress (or a blank slate the first time it's
+            // visited) instead of discarding whatever the environment
+            // being left had already completed — see
+            // Company::switchZatcaEnvironment().
+            if ($environment !== $company->zatca_environment) {
+                $company->switchZatcaEnvironment($environment);
+            }
+
+            $company->save();
+        });
 
         return back()->with('status', __('ZATCA sync settings saved.'));
     }

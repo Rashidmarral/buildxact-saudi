@@ -1138,7 +1138,7 @@
     "E-invoicing (ZATCA)": "الفوترة الإلكترونية (هيئة الزكاة والضريبة والجمارك)",
     "EGS Serial Number": "الرقم التسلسلي لجهاز إنشاء الفواتير الإلكترونية",
     "EUR - Euro (€)": "يورو - EUR (€)",
-    "Each ZATCA environment (Developer, Simulation, Production) has its own credentials. Switching environments resets this checklist.": "لكل بيئة من بيئات زاتكا (المطورين، المحاكاة، الإنتاج) بيانات اعتماد خاصة بها. تغيير البيئة يعيد تعيين قائمة الخطوات هذه.",
+    "Each ZATCA environment (Developer, Simulation, Production) has its own credentials — switch between them in Settings any time without losing progress on the one you switch away from.": "لكل بيئة من بيئات زاتكا (المطورين، المحاكاة، الإنتاج) بيانات اعتماد خاصة بها — يمكنك التبديل بينها من الإعدادات في أي وقت دون فقدان التقدّم المُحرز في البيئة التي تنتقل منها.",
     "Each code can be used once to sign in if you lose access to your authenticator app. Store them somewhere safe — this is the only time they will be shown.": "يمكن استخدام كل رمز مرة واحدة فقط لتسجيل الدخول في حال فقدان الوصول إلى تطبيق المصادقة. احتفظ بها في مكان آمن — لن تُعرض إلا هذه المرة فقط.",
     "Edit": "تعديل",
     "Edit Account": "تعديل الحساب",

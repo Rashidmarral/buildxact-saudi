@@ -579,6 +579,57 @@ class Company extends Model
     }
 
     /**
+     * The zatca_* columns on this row are always "whichever environment
+     * is currently selected" — every other read site (admin filtering/
+     * stats, the scheduled sync command, this company's own ZATCA
+     * dashboard) depends on that and is untouched by this method. What
+     * used to happen on an environment switch (ZatcaController::
+     * updateSettings()) was a hard reset of those columns to blank,
+     * which silently discarded a *different* environment's already
+     * -completed onboarding the moment you switched back to it — a
+     * company that finished Simulation, then finished Production, then
+     * switched back to Simulation would be asked to redo CSR/OTP/
+     * compliance from scratch, even though nothing about Simulation
+     * itself had changed.
+     *
+     * Fixed by treating each environment's zatca_environment_credentials
+     * row as a save slot: the current columns are stashed into the slot
+     * for the environment being left, then the slot for the environment
+     * being entered (or a blank default, the first time it's visited) is
+     * loaded back onto the columns. No caller elsewhere needs to change.
+     */
+    public function switchZatcaEnvironment(string $newEnvironment): void
+    {
+        if ($newEnvironment === $this->zatca_environment) {
+            return;
+        }
+
+        $fields = [
+            'onboarding_status' => 'zatca_onboarding_status', 'egs_serial' => 'zatca_egs_serial',
+            'common_name' => 'zatca_common_name', 'organization_unit_name' => 'zatca_organization_unit_name',
+            'business_category' => 'zatca_business_category', 'csr' => 'zatca_csr', 'private_key' => 'zatca_private_key',
+            'compliance_request_id' => 'zatca_compliance_request_id', 'compliance_csid' => 'zatca_compliance_csid',
+            'compliance_secret' => 'zatca_compliance_secret', 'production_request_id' => 'zatca_production_request_id',
+            'production_csid' => 'zatca_production_csid', 'production_secret' => 'zatca_production_secret',
+            'last_invoice_hash' => 'zatca_last_invoice_hash', 'linked_at' => 'zatca_linked_at', 'last_sync_at' => 'zatca_last_sync_at',
+        ];
+
+        ZatcaEnvironmentCredential::updateOrCreate(
+            ['company_id' => $this->id, 'environment' => $this->zatca_environment],
+            collect($fields)->mapWithKeys(fn ($companyField, $slotField) => [$slotField => $this->{$companyField}])->all()
+        );
+
+        $slot = ZatcaEnvironmentCredential::where('company_id', $this->id)->where('environment', $newEnvironment)->first();
+
+        $this->fill(
+            collect($fields)->mapWithKeys(fn ($companyField, $slotField) => [
+                $companyField => $slotField === 'onboarding_status' ? ($slot?->onboarding_status ?? 'not_started') : $slot?->{$slotField},
+            ])->all()
+        );
+        $this->zatca_environment = $newEnvironment;
+    }
+
+    /**
      * Everything ZATCA Phase 2 onboarding needs from the company profile
      * before a CSR is worth generating — checked up front so a rejected
      * OTP/CSR at the Fatoora Portal (or a technically-valid-but-useless CSR)

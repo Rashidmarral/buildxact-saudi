@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Subscription;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaDebitNoteLog;
+use App\Models\ZatcaEnvironmentCredential;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
 use App\Services\Zatca\ZatcaSyncService;
@@ -293,6 +294,13 @@ class ZatcaController extends Controller
         ];
 
         $company->update(self::RESET_FIELDS);
+
+        // Also clears any *other* environment's saved onboarding progress
+        // (see Company::switchZatcaEnvironment()) — an admin-initiated
+        // reset is meant to fully disconnect the company, not leave a
+        // stale save slot that would quietly resurrect the next time the
+        // company switches environments.
+        ZatcaEnvironmentCredential::where('company_id', $company->id)->delete();
 
         AuditLog::record(
             'zatca.reset_onboarding',

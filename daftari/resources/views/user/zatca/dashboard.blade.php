@@ -158,7 +158,7 @@
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <h3 class="font-semibold text-slate-900 mb-1">{{ __('Onboarding steps') }}</h3>
-            <p class="text-xs text-slate-500 mb-4">{{ __('Each ZATCA environment (Developer, Simulation, Production) has its own credentials. Switching environments resets this checklist.') }}</p>
+            <p class="text-xs text-slate-500 mb-4">{{ __('Each ZATCA environment (Developer, Simulation, Production) has its own credentials — switch between them in Settings any time without losing progress on the one you switch away from.') }}</p>
 
             <div class="space-y-4">
                 {{-- Step 1: CSR --}}
