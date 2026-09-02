@@ -309,16 +309,16 @@ class ZatcaController extends Controller
             // both take real time), which fails ZATCA's consistency check
             // between the two.
             //
-            // Backdated by a few minutes purely as a safety margin against
-            // clock drift on ZATCA's own compliance sandbox — confirmed via
-            // support debugging that our own server clock was accurate to
-            // the second, yet the sandbox still rejected a genuinely
-            // current timestamp under BR-KSA-04 ("issue date must be <=
-            // current date"). Compliance samples are synthetic self-test
-            // documents, not real invoices, so backdating them slightly
-            // carries none of the real-invoice concern of misstating an
-            // actual issuance time.
-            $issuedAt = now()->subMinutes(5);
+            // Explicitly UTC, not bare now(): App\Http\Middleware\SetTimezone
+            // switches PHP's default timezone to the logged-in company's own
+            // timezone for the rest of the request (so dates *display* in
+            // their local zone) — a bare now() here would silently return
+            // that local wall-clock time while every downstream consumer
+            // (the XML, the QR) treats it as UTC, corrupting BT-2 by the
+            // zone's UTC offset and, near midnight UTC, tipping the date
+            // into "tomorrow" — exactly what produced ZATCA's BR-KSA-04
+            // ("issue date must be <= current date") rejection.
+            $issuedAt = now('UTC');
             $unsignedXml = $xml->generateComplianceSample($company, $combo['code'], $combo['name'], $previousHash, $uuid, $icv + 1, $issuedAt);
             $hash = $signer->contentHash($unsignedXml);
 
@@ -350,14 +350,7 @@ class ZatcaController extends Controller
             $alreadyCompliant = ! $response->successful() && Str::contains($response->body(), 'Submitted before');
 
             if (! $response->successful() && ! $alreadyCompliant) {
-                // Temporary diagnostic for the BR-KSA-04 investigation: the
-                // standard HTTP "Date" response header is ZATCA's own
-                // server clock at the moment it answered, letting us
-                // measure the real drift instead of guessing at a buffer
-                // size. Remove once BR-KSA-04 is confirmed resolved.
-                $zatcaClock = $response->header('Date') ?: '(no Date header)';
-                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body()
-                    .' [diagnostic: we sent IssueDate/IssueTime='.$issuedAt->format('Y-m-d H:i:s').' UTC, ZATCA responded with Date header='.$zatcaClock.']';
+                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
             }
 
             $previousHash = $hash;

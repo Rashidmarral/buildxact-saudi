@@ -37,7 +37,7 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:ID', $invoice->invoice_number);
         $this->append($doc, $root, 'cbc:UUID', $uuid);
         $this->append($doc, $root, 'cbc:IssueDate', $invoice->issue_date->format('Y-m-d'));
-        $this->append($doc, $root, 'cbc:IssueTime', $invoice->created_at?->format('H:i:s') ?? now()->format('H:i:s'));
+        $this->append($doc, $root, 'cbc:IssueTime', $invoice->created_at?->format('H:i:s') ?? now('UTC')->format('H:i:s'));
 
         $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', $invoice->status === 'cancelled' ? '381' : '388');
         $typeCode->setAttribute('name', $invoiceTypeName);
@@ -160,7 +160,7 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:ID', $creditNote->credit_note_number);
         $this->append($doc, $root, 'cbc:UUID', $uuid);
         $this->append($doc, $root, 'cbc:IssueDate', $creditNote->issue_date->format('Y-m-d'));
-        $this->append($doc, $root, 'cbc:IssueTime', $creditNote->created_at?->format('H:i:s') ?? now()->format('H:i:s'));
+        $this->append($doc, $root, 'cbc:IssueTime', $creditNote->created_at?->format('H:i:s') ?? now('UTC')->format('H:i:s'));
 
         $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', '381');
         $typeCode->setAttribute('name', $invoiceTypeName);
@@ -298,7 +298,7 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:ID', $debitNote->debit_note_number);
         $this->append($doc, $root, 'cbc:UUID', $uuid);
         $this->append($doc, $root, 'cbc:IssueDate', $debitNote->issue_date->format('Y-m-d'));
-        $this->append($doc, $root, 'cbc:IssueTime', $debitNote->created_at?->format('H:i:s') ?? now()->format('H:i:s'));
+        $this->append($doc, $root, 'cbc:IssueTime', $debitNote->created_at?->format('H:i:s') ?? now('UTC')->format('H:i:s'));
 
         $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', '383');
         $typeCode->setAttribute('name', $invoiceTypeName);
