@@ -4,6 +4,9 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CreditNote;
+use App\Models\DebitNote;
+use App\Models\Invoice;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaDebitNoteLog;
 use App\Models\ZatcaInvoiceLog;
@@ -62,9 +65,9 @@ class ZatcaController extends Controller
         ];
 
         $sync = app(ZatcaSyncService::class);
-        $pendingCount = $sync->pendingInvoices($company)->count();
-        $pendingCreditNoteCount = $sync->pendingCreditNotes($company)->count();
-        $pendingDebitNoteCount = $sync->pendingDebitNotes($company)->count();
+        $pendingInvoicesList = $sync->pendingInvoices($company)->load('client');
+        $pendingCreditNotesList = $sync->pendingCreditNotes($company)->load('client');
+        $pendingDebitNotesList = $sync->pendingDebitNotes($company)->load('client');
 
         return view('user.zatca.dashboard', [
             'company' => $company,
@@ -74,9 +77,12 @@ class ZatcaController extends Controller
             'creditNoteLogs' => $creditNoteLogs,
             'debitNoteLogs' => $debitNoteLogs,
             'stats' => $stats,
-            'pendingCount' => $pendingCount,
-            'pendingCreditNoteCount' => $pendingCreditNoteCount,
-            'pendingDebitNoteCount' => $pendingDebitNoteCount,
+            'pendingInvoicesList' => $pendingInvoicesList,
+            'pendingCreditNotesList' => $pendingCreditNotesList,
+            'pendingDebitNotesList' => $pendingDebitNotesList,
+            'pendingCount' => $pendingInvoicesList->count(),
+            'pendingCreditNoteCount' => $pendingCreditNotesList->count(),
+            'pendingDebitNoteCount' => $pendingDebitNotesList->count(),
             'environments' => ZatcaApiClient::BASE_URLS,
             'readiness' => $company->zatcaReadinessChecklist(),
         ]);
@@ -460,5 +466,63 @@ class ZatcaController extends Controller
         }
 
         return back()->with('status', __(':cleared document(s) synced, :failed failed. See the log below.', ['cleared' => $cleared, 'failed' => $failed]));
+    }
+
+    /**
+     * Syncing one specific document at a time (rather than only the bulk
+     * "sync everything pending" action above) lets the user choose which
+     * invoice, credit note, or debit note to submit first — useful when
+     * only some documents are urgent, or when troubleshooting a single
+     * rejection without resubmitting everything else in the queue.
+     * {$invoice}/{$creditNote}/{$debitNote} 404 for another company's
+     * document via BelongsToCompany's global scope on route-model binding,
+     * same as every other single-document route in this controller group.
+     */
+    public function syncInvoice(Invoice $invoice, ZatcaSyncService $sync): RedirectResponse
+    {
+        $company = Auth::user()->company;
+
+        if (! $company->isZatcaOnboarded()) {
+            return back()->with('error', __('Complete ZATCA onboarding before syncing invoices.'));
+        }
+
+        $log = $sync->submit($invoice);
+
+        return $this->syncResult($log->status, $invoice->invoice_number, $log->error_message);
+    }
+
+    public function syncCreditNote(CreditNote $creditNote, ZatcaSyncService $sync): RedirectResponse
+    {
+        $company = Auth::user()->company;
+
+        if (! $company->isZatcaOnboarded()) {
+            return back()->with('error', __('Complete ZATCA onboarding before syncing credit notes.'));
+        }
+
+        $log = $sync->submitCreditNote($creditNote);
+
+        return $this->syncResult($log->status, $creditNote->credit_note_number, $log->error_message);
+    }
+
+    public function syncDebitNote(DebitNote $debitNote, ZatcaSyncService $sync): RedirectResponse
+    {
+        $company = Auth::user()->company;
+
+        if (! $company->isZatcaOnboarded()) {
+            return back()->with('error', __('Complete ZATCA onboarding before syncing debit notes.'));
+        }
+
+        $log = $sync->submitDebitNote($debitNote);
+
+        return $this->syncResult($log->status, $debitNote->debit_note_number, $log->error_message);
+    }
+
+    private function syncResult(string $status, string $number, ?string $errorMessage): RedirectResponse
+    {
+        if (in_array($status, ['cleared', 'reported'], true)) {
+            return back()->with('status', __(':number synced successfully.', ['number' => $number]));
+        }
+
+        return back()->with('error', __(':number failed to sync: :error', ['number' => $number, 'error' => $errorMessage ?? __('Unknown error')]));
     }
 }

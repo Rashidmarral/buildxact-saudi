@@ -568,6 +568,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('production-csid', [ZatcaController::class, 'issueProductionCsid'])->name('production-csid');
         Route::post('reset', [ZatcaController::class, 'resetOnboarding'])->name('reset');
         Route::post('sync', [ZatcaController::class, 'sync'])->name('sync');
+        Route::post('sync/invoices/{invoice}', [ZatcaController::class, 'syncInvoice'])->name('sync.invoice');
+        Route::post('sync/credit-notes/{creditNote}', [ZatcaController::class, 'syncCreditNote'])->name('sync.credit-note');
+        Route::post('sync/debit-notes/{debitNote}', [ZatcaController::class, 'syncDebitNote'])->name('sync.debit-note');
     });
 
     Route::middleware('permission:support')->prefix('tickets')->name('tickets.')->group(function () {

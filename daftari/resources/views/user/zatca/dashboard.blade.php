@@ -270,13 +270,91 @@
             @endif
         </div>
 
+        @php
+            $pendingTotal = $pendingCount + $pendingCreditNoteCount + $pendingDebitNoteCount;
+        @endphp
+        <div class="bg-white rounded-xl border border-slate-100 p-6">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-semibold text-slate-900">{{ __('Pending sync') }} ({{ $pendingTotal }})</h3>
+                @if ($pendingTotal > 0)
+                    <form method="POST" action="{{ route('app.zatca.sync') }}" onsubmit="return confirm('{{ __('Sync all :count pending document(s) now?', ['count' => $pendingTotal]) }}')">
+                        @csrf
+                        <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Sync all pending') }}</button>
+                    </form>
+                @endif
+            </div>
+            <p class="text-xs text-slate-500 mb-4">{{ __('Documents waiting to be cleared or reported to ZATCA. Sync everything at once, or pick a specific document to sync it first.') }}</p>
+
+            @if ($pendingTotal === 0)
+                <p class="py-6 text-center text-sm text-slate-400">{{ __('Nothing pending — every eligible document has been synced.') }}</p>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 border-b border-slate-100">
+                                <th class="py-2">{{ __('Document') }}</th>
+                                <th class="py-2">{{ __('Kind') }}</th>
+                                <th class="py-2">{{ __('Type') }}</th>
+                                <th class="py-2">{{ __('Client') }}</th>
+                                <th class="py-2 text-end">{{ __('Total') }}</th>
+                                <th class="py-2 text-end">{{ __('Action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($pendingInvoicesList as $doc)
+                                <tr class="border-b border-slate-50 last:border-0">
+                                    <td class="py-2 font-medium text-slate-800">{{ $doc->invoice_number }}</td>
+                                    <td class="py-2 text-slate-500">{{ __('Invoice') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->type === 'standard' ? __('B2B') : __('B2C') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->client?->name }}</td>
+                                    <td class="py-2 text-end">{{ \App\Support\Money::format($doc->total) }}</td>
+                                    <td class="py-2 text-end">
+                                        <form method="POST" action="{{ route('app.zatca.sync.invoice', $doc) }}">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-600">{{ __('Sync') }}</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                            @foreach ($pendingCreditNotesList as $doc)
+                                <tr class="border-b border-slate-50 last:border-0">
+                                    <td class="py-2 font-medium text-slate-800">{{ $doc->credit_note_number }}</td>
+                                    <td class="py-2 text-slate-500">{{ __('Credit note') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->invoice->type === 'standard' ? __('B2B') : __('B2C') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->client?->name }}</td>
+                                    <td class="py-2 text-end">{{ \App\Support\Money::format($doc->total) }}</td>
+                                    <td class="py-2 text-end">
+                                        <form method="POST" action="{{ route('app.zatca.sync.credit-note', $doc) }}">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-600">{{ __('Sync') }}</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                            @foreach ($pendingDebitNotesList as $doc)
+                                <tr class="border-b border-slate-50 last:border-0">
+                                    <td class="py-2 font-medium text-slate-800">{{ $doc->debit_note_number }}</td>
+                                    <td class="py-2 text-slate-500">{{ __('Debit note') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->invoice->type === 'standard' ? __('B2B') : __('B2C') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->client?->name }}</td>
+                                    <td class="py-2 text-end">{{ \App\Support\Money::format($doc->total) }}</td>
+                                    <td class="py-2 text-end">
+                                        <form method="POST" action="{{ route('app.zatca.sync.debit-note', $doc) }}">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-600">{{ __('Sync') }}</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-semibold text-slate-900">{{ __('Invoice sync log') }}</h3>
-                <form method="POST" action="{{ route('app.zatca.sync') }}">
-                    @csrf
-                    <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Sync now') }} ({{ $pendingCount + $pendingCreditNoteCount + $pendingDebitNoteCount }})</button>
-                </form>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -287,6 +365,7 @@
                             <th class="py-2">{{ __('Environment') }}</th>
                             <th class="py-2">{{ __('Status') }}</th>
                             <th class="py-2">{{ __('Submitted') }}</th>
+                            <th class="py-2"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -309,9 +388,14 @@
                                     @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
+                                <td class="py-2 text-end">
+                                    @if (in_array($log->status, ['cleared', 'reported'], true) && $log->invoice)
+                                        <a href="{{ route('app.invoices.xml', $log->invoice) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
+                            <tr><td colspan="6" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -331,6 +415,7 @@
                             <th class="py-2">{{ __('Environment') }}</th>
                             <th class="py-2">{{ __('Status') }}</th>
                             <th class="py-2">{{ __('Submitted') }}</th>
+                            <th class="py-2"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -353,9 +438,14 @@
                                     @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
+                                <td class="py-2 text-end">
+                                    @if (in_array($log->status, ['cleared', 'reported'], true) && $log->creditNote)
+                                        <a href="{{ route('app.credit-notes.xml', $log->creditNote) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
+                            <tr><td colspan="6" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -375,6 +465,7 @@
                             <th class="py-2">{{ __('Environment') }}</th>
                             <th class="py-2">{{ __('Status') }}</th>
                             <th class="py-2">{{ __('Submitted') }}</th>
+                            <th class="py-2"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -397,9 +488,14 @@
                                     @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
+                                <td class="py-2 text-end">
+                                    @if (in_array($log->status, ['cleared', 'reported'], true) && $log->debitNote)
+                                        <a href="{{ route('app.debit-notes.xml', $log->debitNote) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
+                            <tr><td colspan="6" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>
