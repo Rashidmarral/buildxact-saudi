@@ -169,4 +169,29 @@ class CompanyAuditTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_the_audit_page_can_be_downloaded_as_a_pdf(): void
+    {
+        $company = $this->makeCompany(['vat_number' => null]);
+        $owner = $this->makeOwner($company);
+
+        $response = $this->actingAs($owner)->get(route('app.audit.index', ['export' => 'pdf']));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_the_audit_page_can_be_exported_as_a_csv_listing_every_finding(): void
+    {
+        $company = $this->makeCompany(['vat_number' => null]);
+        $owner = $this->makeOwner($company);
+
+        $response = $this->actingAs($owner)->get(route('app.audit.index', ['export' => 'csv']));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('Company profile completeness', $csv);
+        $this->assertStringContainsString('VAT registration number', $csv);
+    }
 }
