@@ -88,7 +88,9 @@
 
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Default tax category') }}</label>
-            @php($defaultVatRate = $item->vat_rate ?? \App\Models\TaxRate::defaultRate(auth()->user()->company_id))
+            @php
+                $defaultVatRate = $item->vat_rate ?? \App\Models\TaxRate::defaultRate(auth()->user()->company_id);
+            @endphp
             <select name="vat_rate" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 @foreach ($taxRates as $taxRate)
                     <option value="{{ $taxRate->rate }}" @selected((float) old('vat_rate', $defaultVatRate) === (float) $taxRate->rate)>{{ $taxRate->name }} ({{ number_format((float) $taxRate->rate, 2) }}%)</option>
@@ -160,7 +162,9 @@
                     <p class="text-sm text-slate-600">{{ __('This is a variant of') }} <a href="{{ route('app.items.edit', $item->parentItem) }}" class="text-brand-600 hover:underline">{{ $item->parentItem->name }}</a>@if($item->variant_label) — {{ $item->variant_label }}@endif</p>
                 @endif
 
-                @php($variantList = $item->variants)
+                @php
+                    $variantList = $item->variants;
+                @endphp
                 @if ($variantList->isNotEmpty())
                     <ul class="divide-y divide-slate-100 mb-3">
                         @foreach ($variantList as $variant)
