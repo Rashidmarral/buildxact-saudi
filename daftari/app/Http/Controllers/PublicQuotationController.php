@@ -7,6 +7,7 @@ use App\Models\Quotation;
 use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
+use Illuminate\Http\Request;
 
 /**
  * Audit finding MEDIUM-14: the client portal only ever handled invoices —
@@ -51,7 +52,7 @@ class PublicQuotationController extends Controller
         ]);
     }
 
-    public function accept(int $id, string $token)
+    public function accept(Request $request, int $id, string $token)
     {
         $quotation = Quotation::withoutGlobalScopes()->findOrFail($id);
 
@@ -61,9 +62,25 @@ class PublicQuotationController extends Controller
             return back()->with('error', __('This quotation can no longer be accepted online.'));
         }
 
-        $quotation->update(['status' => 'accepted']);
+        // The e-signature is a lightweight acceptance record, not a legal
+        // digital-signature scheme: a typed name plus a hand-drawn stroke
+        // captured from the public accept form, alongside the IP and
+        // timestamp, so a later dispute has something more than "the
+        // status changed to accepted" to point to.
+        $data = $request->validate([
+            'accepted_by_name' => ['required', 'string', 'max:255'],
+            'accepted_signature' => ['required', 'string', 'starts_with:data:image/png;base64,'],
+        ]);
 
-        AuditLog::record('quotation.client_accept', $quotation, __('Client accepted quotation :number', ['number' => $quotation->quotation_number]));
+        $quotation->update([
+            'status' => 'accepted',
+            'accepted_at' => now(),
+            'accepted_by_name' => $data['accepted_by_name'],
+            'accepted_signature' => $data['accepted_signature'],
+            'accepted_ip' => $request->ip(),
+        ]);
+
+        AuditLog::record('quotation.client_accept', $quotation, __('Client :name accepted quotation :number', ['name' => $data['accepted_by_name'], 'number' => $quotation->quotation_number]));
 
         if ($quotation->created_by) {
             User::find($quotation->created_by)?->notify(new GenericNotification(

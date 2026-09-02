@@ -377,7 +377,7 @@ class QuotationController extends Controller
     public function accept(Quotation $quotation)
     {
         if (in_array($quotation->status, ['issued', 'draft'])) {
-            $quotation->update(['status' => 'accepted']);
+            $quotation->update(['status' => 'accepted', 'accepted_at' => now(), 'accepted_by_name' => Auth::user()->name]);
         }
 
         return back()->with('status', __('Quotation marked as accepted.'));

@@ -76,10 +76,30 @@ class ClientPortalQuotationsTest extends TestCase
     {
         [, , , $quotation] = $this->makeQuotation('issued');
 
-        $response = $this->post(route('public.quotations.accept', [$quotation->id, $quotation->public_token]));
+        $response = $this->post(route('public.quotations.accept', [$quotation->id, $quotation->public_token]), [
+            'accepted_by_name' => 'Jane Prospect',
+            'accepted_signature' => 'data:image/png;base64,'.base64_encode('fake-png-bytes'),
+        ]);
 
         $response->assertSessionDoesntHaveErrors();
-        $this->assertSame('accepted', $quotation->fresh()->status);
+        $fresh = $quotation->fresh();
+        $this->assertSame('accepted', $fresh->status);
+        $this->assertSame('Jane Prospect', $fresh->accepted_by_name);
+        $this->assertNotNull($fresh->accepted_at);
+        $this->assertNotNull($fresh->accepted_signature);
+        $this->assertSame('127.0.0.1', $fresh->accepted_ip);
+    }
+
+    public function test_accepting_without_a_signature_fails_validation_and_does_not_change_status(): void
+    {
+        [, , , $quotation] = $this->makeQuotation('issued');
+
+        $response = $this->post(route('public.quotations.accept', [$quotation->id, $quotation->public_token]), [
+            'accepted_by_name' => 'Jane Prospect',
+        ]);
+
+        $response->assertSessionHasErrors('accepted_signature');
+        $this->assertSame('issued', $quotation->fresh()->status);
     }
 
     public function test_rejecting_an_issued_quotation_marks_it_rejected(): void

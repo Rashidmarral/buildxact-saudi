@@ -70,6 +70,19 @@
     </div>
 @endif
 
+@if ($quotation->status === 'accepted' && $quotation->accepted_at)
+    <div class="mb-6 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800 print:hidden">
+        <p class="font-semibold mb-2">{{ __('Acceptance record') }}</p>
+        <p>{{ __('Accepted by :name on :date', ['name' => $quotation->accepted_by_name, 'date' => $quotation->accepted_at->format('Y-m-d H:i')]) }}</p>
+        @if ($quotation->accepted_ip)
+            <p class="text-emerald-700">{{ __('IP address: :ip', ['ip' => $quotation->accepted_ip]) }}</p>
+        @endif
+        @if ($quotation->accepted_signature)
+            <img src="{{ $quotation->accepted_signature }}" alt="{{ __('Signature') }}" class="mt-2 h-20 rounded-lg border border-emerald-200 bg-white p-1">
+        @endif
+    </div>
+@endif
+
 @php
     $doc = [
         'type_label' => $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),

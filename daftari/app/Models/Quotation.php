@@ -18,6 +18,7 @@ class Quotation extends Model
         'quotation_number', 'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total',
         'vat_total', 'total', 'currency', 'notes', 'bank_account_id',
         'approved_by', 'approved_at', 'approval_rejection_reason',
+        'accepted_at', 'accepted_by_name', 'accepted_signature', 'accepted_ip',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class Quotation extends Model
             'issue_date' => 'date',
             'expiry_date' => 'date',
             'approved_at' => 'datetime',
+            'accepted_at' => 'datetime',
         ];
     }
 

@@ -3871,5 +3871,14 @@
     ":count item(s) adjusted from a physical inventory count": "تم تسوية :count صنف/أصناف من جرد فعلي للمخزون",
     ":count item(s) adjusted to match the count.": "تم تسوية :count صنف/أصناف لمطابقة الجرد.",
     "No differences found — nothing to adjust.": "لم يتم العثور على فروقات — لا شيء لتسويته.",
-    "Physical count": "الجرد الفعلي"
+    "Physical count": "الجرد الفعلي",
+    "Acceptance record": "سجل القبول",
+    "Clear signature": "مسح التوقيع",
+    "Confirm acceptance": "تأكيد القبول",
+    "Please sign before confirming.": "يرجى التوقيع قبل التأكيد.",
+    "Signature": "التوقيع",
+    "Type your name and sign below to confirm your acceptance.": "اكتب اسمك ووقّع أدناه لتأكيد قبولك.",
+    "Accepted by :name on :date": "تم القبول بواسطة :name بتاريخ :date",
+    "IP address: :ip": "عنوان IP: :ip",
+    "Client :name accepted quotation :number": "قبل العميل :name عرض السعر :number"
 }
