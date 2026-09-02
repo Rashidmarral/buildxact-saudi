@@ -12,6 +12,7 @@ use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceItem;
 use App\Models\Salesperson;
 use App\Models\TaxRate;
+use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,7 @@ class RecurringInvoiceController extends Controller
             'recurringInvoice' => new RecurringInvoice(['start_date' => now()->toDateString(), 'due_days' => 30]),
             'clients' => Client::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
@@ -82,6 +84,7 @@ class RecurringInvoiceController extends Controller
             'recurringInvoice' => $recurringInvoice,
             'clients' => Client::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),

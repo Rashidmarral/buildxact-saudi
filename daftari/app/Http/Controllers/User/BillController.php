@@ -15,6 +15,7 @@ use App\Models\Item;
 use App\Models\ItemStock;
 use App\Models\Supplier;
 use App\Models\TaxRate;
+use App\Models\Unit;
 use App\Models\Warehouse;
 use App\Models\WhtRate;
 use App\Services\Accounting\LedgerPostingService;
@@ -134,6 +135,7 @@ class BillController extends Controller
             'bill' => new Bill(['bill_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString(), 'currency' => $company->currency, 'exchange_rate' => 1]),
             'suppliers' => Supplier::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
             'whtRates' => WhtRate::active()->orderBy('name')->get(),
             'currencies' => Currencies::catalog(),

@@ -16,6 +16,7 @@ use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Salesperson;
 use App\Models\TaxRate;
+use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
@@ -61,6 +62,7 @@ class QuotationController extends Controller
     {
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get();
+        $units = Unit::orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
         $company = Auth::user()->company;
@@ -74,6 +76,7 @@ class QuotationController extends Controller
             ]),
             'clients' => $clients,
             'items' => $items,
+            'units' => $units,
             'salespersons' => $salespersons,
             'bankAccounts' => $bankAccounts,
             'nextNumberPreview' => $type === 'proforma'
@@ -197,10 +200,11 @@ class QuotationController extends Controller
         $quotation->load('items');
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get();
+        $units = Unit::orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
 
-        return view('user.quotations.form', compact('quotation', 'clients', 'items', 'salespersons', 'bankAccounts'));
+        return view('user.quotations.form', compact('quotation', 'clients', 'items', 'units', 'salespersons', 'bankAccounts'));
     }
 
     public function update(Request $request, Quotation $quotation)

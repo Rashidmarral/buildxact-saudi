@@ -13,6 +13,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
 use App\Models\TaxRate;
+use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\MpdfRenderer;
@@ -70,6 +71,7 @@ class PurchaseOrderController extends Controller
             'order' => new PurchaseOrder(['order_date' => now()->toDateString()]),
             'suppliers' => Supplier::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
             'nextNumberPreview' => $company->po_prefix.'-'.str_pad((string) $company->next_po_number, 5, '0', STR_PAD_LEFT),
         ]);
     }

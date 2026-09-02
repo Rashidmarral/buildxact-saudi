@@ -162,10 +162,12 @@ $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy
     $existingJson = \Illuminate\Support\Js::from($existingItems->map(function ($i) {
         return ['item_id' => $i->item_id, 'unit_id' => $i->unit_id, 'description' => $i->description, 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'vat_rate' => (float) $i->vat_rate];
     })->values());
+    $unitsJson = \Illuminate\Support\Js::from($units->map(fn ($u) => ['id' => $u->id, 'label' => $u->label()])->values());
 @endphp
 
 <script>
 const CATALOG = {!! $catalogJson !!};
+const ALL_UNITS = {!! $unitsJson !!};
 const EXISTING = {!! $existingJson !!};
 
 const tbody = document.getElementById('items-body');
@@ -235,15 +237,31 @@ function populateUnitOptions(tr, itemId, selectedUnitId) {
     const unitSelect = tr.querySelector('[data-role="unit"]');
     const catalogItem = CATALOG.find(c => String(c.id) === String(itemId));
 
-    if (! catalogItem || ! catalogItem.units.length) {
+    if (catalogItem) {
+        if (! catalogItem.units.length) {
+            unitSelect.innerHTML = '';
+            unitSelect.disabled = true;
+            return;
+        }
+
+        unitSelect.disabled = false;
+        unitSelect.innerHTML = catalogItem.units.map(u => `<option value="${u.id}" data-price="${u.price}">${u.label}</option>`).join('');
+        unitSelect.value = selectedUnitId || catalogItem.units[0].id;
+        return;
+    }
+
+    // Custom line (no linked catalog item): no per-item conversion or
+    // price override exists, but the user can still pick any of the
+    // company's units directly for display/ZATCA purposes.
+    if (! ALL_UNITS.length) {
         unitSelect.innerHTML = '';
         unitSelect.disabled = true;
         return;
     }
 
     unitSelect.disabled = false;
-    unitSelect.innerHTML = catalogItem.units.map(u => `<option value="${u.id}" data-price="${u.price}">${u.label}</option>`).join('');
-    unitSelect.value = selectedUnitId || catalogItem.units[0].id;
+    unitSelect.innerHTML = `<option value="">${@json(__('No unit'))}</option>` + ALL_UNITS.map(u => `<option value="${u.id}">${u.label}</option>`).join('');
+    unitSelect.value = selectedUnitId || '';
 }
 
 function recalc() {

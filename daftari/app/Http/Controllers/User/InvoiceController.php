@@ -19,6 +19,7 @@ use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\SmsConfig;
 use App\Models\TaxRate;
+use App\Models\Unit;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\Webhook;
@@ -123,6 +124,7 @@ class InvoiceController extends Controller
             'invoice' => new Invoice(['issue_date' => now()->toDateString(), 'due_date' => now()->addDays(30)->toDateString(), 'currency' => $company->currency, 'exchange_rate' => 1]),
             'clients' => Client::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
@@ -378,6 +380,7 @@ class InvoiceController extends Controller
             'invoice' => $invoice,
             'clients' => Client::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
