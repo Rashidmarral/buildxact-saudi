@@ -64,6 +64,34 @@
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Notes') }}</label>
                 <textarea name="notes" rows="3" placeholder="{{ __('Optional notes') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $supplier->notes) }}</textarea>
             </div>
+
+            <div class="grid sm:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Lead source') }}</label>
+                    <input type="text" name="lead_source" list="supplier-lead-source-options" value="{{ old('lead_source', $supplier->lead_source) }}" placeholder="{{ __('e.g. Referral, Website, Cold call') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <datalist id="supplier-lead-source-options">
+                        <option value="{{ __('Referral') }}">
+                        <option value="{{ __('Website') }}">
+                        <option value="{{ __('Cold call') }}">
+                        <option value="{{ __('Social media') }}">
+                        <option value="{{ __('Trade show') }}">
+                    </datalist>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Next follow-up date') }}</label>
+                    <input type="date" name="next_follow_up_date" value="{{ old('next_follow_up_date', optional($supplier->next_follow_up_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                </div>
+            </div>
+
+            @if ($supplier->exists)
+                <div class="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
+                    <p class="text-sm text-slate-500">
+                        {{ __('Last contacted') }}:
+                        <span class="font-medium text-slate-700">{{ $supplier->last_contacted_at ? $supplier->last_contacted_at->format('Y-m-d H:i') : __('Never') }}</span>
+                    </p>
+                    <button type="submit" form="supplier-log-contact-form" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300">{{ __('Log contact now') }}</button>
+                </div>
+            @endif
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-5">
@@ -143,6 +171,12 @@
         <a href="{{ route('app.suppliers.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
     </div>
 </form>
+
+@if ($supplier->exists)
+    <form id="supplier-log-contact-form" method="POST" action="{{ route('app.suppliers.log-contact', $supplier) }}" class="hidden">
+        @csrf
+    </form>
+@endif
 
 <script>
 (function () {

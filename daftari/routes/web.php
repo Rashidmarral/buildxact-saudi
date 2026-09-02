@@ -231,6 +231,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('clients/bulk-export', [ClientController::class, 'bulkExport'])->name('clients.bulk-export');
         Route::post('clients/bulk-destroy', [ClientController::class, 'bulkDestroy'])->name('clients.bulk-destroy');
         Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
+        Route::post('clients/{client}/log-contact', [ClientController::class, 'logContact'])->name('clients.log-contact');
         Route::get('clients-import', [ClientController::class, 'showImport'])->name('clients.import');
         Route::post('clients-import', [ClientController::class, 'import'])->name('clients.import.store');
         Route::get('clients-import/template', [ClientController::class, 'importTemplate'])->name('clients.import.template');
@@ -401,6 +402,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:purchases')->group(function () {
         Route::resource('suppliers', SupplierController::class)->except(['show']);
         Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
+        Route::post('suppliers/{supplier}/log-contact', [SupplierController::class, 'logContact'])->name('suppliers.log-contact');
         Route::get('suppliers/{supplier}/bills', [SupplierController::class, 'bills'])->name('suppliers.bills');
         Route::get('suppliers-import', [SupplierController::class, 'showImport'])->name('suppliers.import');
         Route::post('suppliers-import', [SupplierController::class, 'import'])->name('suppliers.import.store');

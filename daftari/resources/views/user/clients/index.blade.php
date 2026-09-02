@@ -36,6 +36,7 @@
                         <th class="px-6 py-3 font-medium">{{ __('VAT number') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Email') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Phone') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Next follow-up') }}</th>
                         <th class="px-6 py-3"></th>
                     </tr>
                 </thead>
@@ -51,6 +52,13 @@
                             <td class="px-6 py-3 text-slate-500">{{ $client->vat_number ?: '—' }}</td>
                             <td class="px-6 py-3 text-slate-500">{{ $client->email ?: '—' }}</td>
                             <td class="px-6 py-3 text-slate-500">{{ $client->phone ?: '—' }}</td>
+                            <td class="px-6 py-3">
+                                @if ($client->next_follow_up_date)
+                                    <span class="{{ $client->next_follow_up_date->isPast() ? 'text-red-600 font-medium' : 'text-slate-500' }}">{{ $client->next_follow_up_date->format('Y-m-d') }}</span>
+                                @else
+                                    <span class="text-slate-300">—</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
                                 <a href="{{ route('app.clients.edit', $client) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
                                 <form method="POST" action="{{ route('app.clients.destroy', $client) }}" class="inline" onsubmit="return confirm('{{ __('Delete this client?') }}')">

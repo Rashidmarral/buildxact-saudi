@@ -140,6 +140,18 @@ class SupplierController extends Controller
         return redirect()->route('app.suppliers.index')->with('status', __('Supplier deleted.'));
     }
 
+    /**
+     * Audit finding LOW-29: mirrors Client::logContact() — a one-click
+     * way to timestamp "I just talked to this supplier" without opening
+     * the edit form.
+     */
+    public function logContact(Supplier $supplier)
+    {
+        $supplier->update(['last_contacted_at' => now()]);
+
+        return back()->with('status', __('Contact logged for :name.', ['name' => $supplier->name]));
+    }
+
     public function showImport()
     {
         return view('user.suppliers.import');
@@ -226,6 +238,8 @@ class SupplierController extends Controller
             'state' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'lead_source' => ['nullable', 'string', 'max:100'],
+            'next_follow_up_date' => ['nullable', 'date'],
             'custom_fields' => ['nullable', 'array'],
             'custom_fields.*' => ['nullable', 'string', 'max:2000'],
         ]);

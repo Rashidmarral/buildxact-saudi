@@ -3880,5 +3880,16 @@
     "Type your name and sign below to confirm your acceptance.": "اكتب اسمك ووقّع أدناه لتأكيد قبولك.",
     "Accepted by :name on :date": "تم القبول بواسطة :name بتاريخ :date",
     "IP address: :ip": "عنوان IP: :ip",
-    "Client :name accepted quotation :number": "قبل العميل :name عرض السعر :number"
+    "Client :name accepted quotation :number": "قبل العميل :name عرض السعر :number",
+    "Last contacted": "آخر تواصل",
+    "Lead source": "مصدر العميل المحتمل",
+    "Log contact now": "تسجيل تواصل الآن",
+    "Next follow-up date": "تاريخ المتابعة القادمة",
+    "Next follow-up": "المتابعة القادمة",
+    "Referral": "إحالة",
+    "Cold call": "اتصال مباشر",
+    "Social media": "وسائل التواصل الاجتماعي",
+    "Trade show": "معرض تجاري",
+    "e.g. Referral, Website, Cold call": "مثال: إحالة، الموقع الإلكتروني، اتصال مباشر",
+    "Contact logged for :name.": "تم تسجيل التواصل مع :name."
 }

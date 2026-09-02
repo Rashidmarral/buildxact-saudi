@@ -17,7 +17,7 @@ class Supplier extends Model
         'company_id', 'supplier_code', 'type', 'name', 'name_ar', 'contact_name', 'vat_number',
         'cr_number', 'initial_balance', 'email', 'phone', 'mobile', 'address_line_1',
         'address_line_2', 'district', 'city', 'postal_code', 'state', 'country', 'notes',
-        'is_resident',
+        'is_resident', 'lead_source', 'next_follow_up_date', 'last_contacted_at',
     ];
 
     protected function casts(): array
@@ -25,6 +25,8 @@ class Supplier extends Model
         return [
             'initial_balance' => 'decimal:2',
             'is_resident' => 'boolean',
+            'next_follow_up_date' => 'date',
+            'last_contacted_at' => 'datetime',
         ];
     }
 

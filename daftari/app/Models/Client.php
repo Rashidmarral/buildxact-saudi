@@ -19,6 +19,7 @@ class Client extends Model
         'additional_id_number', 'initial_balance', 'payment_terms_days', 'email', 'phone', 'mobile',
         'street_name', 'building_number', 'district', 'city', 'state', 'country',
         'postal_code', 'notes',
+        'lead_source', 'next_follow_up_date', 'last_contacted_at',
     ];
 
     protected function casts(): array
@@ -27,6 +28,8 @@ class Client extends Model
             'is_vat_registered' => 'boolean',
             'initial_balance' => 'decimal:2',
             'payment_terms_days' => 'integer',
+            'next_follow_up_date' => 'date',
+            'last_contacted_at' => 'datetime',
         ];
     }
 

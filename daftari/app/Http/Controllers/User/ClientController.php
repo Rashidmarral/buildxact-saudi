@@ -196,6 +196,19 @@ class ClientController extends Controller
         return redirect()->route('app.clients.index')->with('status', __('Client deleted.'));
     }
 
+    /**
+     * Audit finding LOW-29: a client had no lightweight CRM trail — no
+     * lead source, no next-follow-up reminder, and no record of the last
+     * time anyone actually reached out. This one-click action timestamps
+     * "I just talked to them" without opening the edit form.
+     */
+    public function logContact(Client $client)
+    {
+        $client->update(['last_contacted_at' => now()]);
+
+        return back()->with('status', __('Contact logged for :name.', ['name' => $client->name]));
+    }
+
     public function showImport()
     {
         return view('user.clients.import');
@@ -303,6 +316,8 @@ class ClientController extends Controller
             'country' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'lead_source' => ['nullable', 'string', 'max:100'],
+            'next_follow_up_date' => ['nullable', 'date'],
             'contacts' => ['nullable', 'array'],
             'contacts.*.name' => ['nullable', 'string', 'max:255'],
             'contacts.*.phone' => ['nullable', 'string', 'max:30'],
