@@ -5,9 +5,27 @@
 @section('content')
 @php
     $status = $company->zatca_onboarding_status;
-    $steps = ['not_started', 'csr_generated', 'compliance_pending', 'compliance_verified', 'onboarded'];
-    $stepIndex = array_search($status, $steps, true);
-    $stepIndex = $stepIndex === false ? 0 : $stepIndex;
+    // Step completion is derived from which credentials actually exist,
+    // not from array_search()-ing the raw status string against a fixed
+    // linear list. zatca_onboarding_status can land on 'failed' (set by
+    // issueProductionCsid() when ZATCA rejects the production-CSID
+    // exchange) — a value that isn't one of the linear step labels, so
+    // array_search() used to return false and collapse the whole wizard
+    // back to "nothing done yet". That discarded the already-successful
+    // CSR/compliance-CSID display and tempted the user into regenerating
+    // a CSR that ZATCA's Fatoora portal already has a device registered
+    // against — orphaning that registration — instead of just retrying
+    // step 4.
+    $stepIndex = 0;
+    if ($company->zatca_csr) {
+        $stepIndex = 1;
+    }
+    if ($company->zatca_compliance_csid && $company->zatca_compliance_secret) {
+        $stepIndex = 2;
+    }
+    if (in_array($status, ['compliance_verified', 'onboarded', 'failed'], true)) {
+        $stepIndex = 3;
+    }
     $isReady = $mode === 'phase2' ? collect($readiness)->every(fn ($check) => $check['ok']) : false;
     // A company can be flagged 'onboarded' without ever actually holding a
     // production CSID — the status onboarding used to set from the
@@ -232,6 +250,9 @@
                         @if ($productionCsidIssued)<span class="text-xs text-emerald-600 font-semibold">✓ {{ __('Done') }}</span>@endif
                     </div>
                     <p class="text-xs text-slate-500 mt-1">{{ __('Exchanges the verified compliance CSID for the long-lived certificate ZATCA requires for actual clearance/reporting submissions in this environment.') }}</p>
+                    @if ($status === 'failed' && ! $productionCsidIssued)
+                        <p class="mt-2 text-xs font-medium text-red-600">{{ __('The last attempt was rejected by ZATCA. Your CSR and compliance CSID from steps 1–3 are still valid and were not lost — just retry this step below. If it keeps failing, check the error message from your last attempt above and the readiness checklist.') }}</p>
+                    @endif
                     @if (! $productionCsidIssued)
                         <form method="POST" action="{{ route('app.zatca.production-csid') }}" class="mt-3">
                             @csrf

@@ -927,6 +927,7 @@
     "Landed cost allocated": "تم تخصيص تكلفة الوصول",
     "Landed cost allocated to item costs.": "تم تخصيص تكلفة الوصول على تكاليف العناصر.",
     "Landed cost has already been allocated for this declaration.": "تم بالفعل تخصيص تكلفة الوصول لهذا البيان.",
+    "The last attempt was rejected by ZATCA. Your CSR and compliance CSID from steps 1–3 are still valid and were not lost — just retry this step below. If it keeps failing, check the error message from your last attempt above and the readiness checklist.": "تم رفض المحاولة الأخيرة من قبل هيئة الزكاة والضريبة والجمارك. طلب التوقيع (CSR) وشهادة الامتثال (CSID) من الخطوات 1-3 ما زالا صالحين ولم يفقدا — فقط أعد المحاولة أدناه. إذا استمر الفشل، راجع رسالة الخطأ من محاولتك الأخيرة أعلاه وقائمة الجاهزية.",
     "The linked bills have no tracked-inventory line items to allocate landed cost to.": "لا تحتوي الفواتير المرتبطة على بنود مخزون متتبَّع لتخصيص تكلفة الوصول عليها.",
     "This declaration has no customs duty to allocate.": "لا توجد رسوم جمركية في هذا البيان لتخصيصها.",
     "Customs duty": "الرسوم الجمركية",
