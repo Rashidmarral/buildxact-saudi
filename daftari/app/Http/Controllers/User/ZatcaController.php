@@ -350,7 +350,14 @@ class ZatcaController extends Controller
             $alreadyCompliant = ! $response->successful() && Str::contains($response->body(), 'Submitted before');
 
             if (! $response->successful() && ! $alreadyCompliant) {
-                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
+                // Temporary diagnostic for the BR-KSA-04 investigation: the
+                // standard HTTP "Date" response header is ZATCA's own
+                // server clock at the moment it answered, letting us
+                // measure the real drift instead of guessing at a buffer
+                // size. Remove once BR-KSA-04 is confirmed resolved.
+                $zatcaClock = $response->header('Date') ?: '(no Date header)';
+                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body()
+                    .' [diagnostic: we sent IssueDate/IssueTime='.$issuedAt->format('Y-m-d H:i:s').' UTC, ZATCA responded with Date header='.$zatcaClock.']';
             }
 
             $previousHash = $hash;
