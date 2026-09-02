@@ -37,6 +37,7 @@ class Item extends Model
         'company_id', 'name', 'name_ar', 'description', 'sku', 'barcode', 'category',
         'expiry_date', 'item_type', 'unit', 'unit_code', 'image_path', 'base_unit_id',
         'unit_price', 'purchase_price', 'vat_rate', 'is_active', 'track_inventory', 'reorder_point', 'tracking_type',
+        'is_kit', 'parent_item_id', 'variant_label',
     ];
 
     protected function casts(): array
@@ -45,6 +46,7 @@ class Item extends Model
             'is_active' => 'boolean',
             'track_inventory' => 'boolean',
             'expiry_date' => 'date',
+            'is_kit' => 'boolean',
         ];
     }
 
@@ -61,6 +63,40 @@ class Item extends Model
     public function isLotOrSerialTracked(): bool
     {
         return in_array($this->tracking_type, ['lot', 'serial'], true);
+    }
+
+    /**
+     * The items this kit expands into on sale — see
+     * User\InvoiceController::applyStock(), which deducts each component's
+     * own stock (quantity per one unit of the kit, times the invoice
+     * line's quantity) instead of the kit item's own stock, since a kit
+     * never carries an ItemStock row of its own.
+     */
+    public function kitComponents(): HasMany
+    {
+        return $this->hasMany(ItemKitComponent::class, 'kit_item_id');
+    }
+
+    public function parentItem(): BelongsTo
+    {
+        return $this->belongsTo(Item::class, 'parent_item_id');
+    }
+
+    /**
+     * Other items sharing this item's parent (or, called on a parent
+     * itself, its own variants) — e.g. "Red / Large" and "Blue / Small"
+     * of the same base product, each its own full Item with its own SKU,
+     * barcode, price and stock rather than a size/color pair stored on a
+     * single row.
+     */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(Item::class, 'parent_item_id');
+    }
+
+    public function isVariant(): bool
+    {
+        return $this->parent_item_id !== null;
     }
 
     public function totalStock(): float

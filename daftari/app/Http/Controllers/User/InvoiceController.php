@@ -712,22 +712,46 @@ class InvoiceController extends Controller
 
     private function applyStock(Invoice $invoice, int $direction): void
     {
-        $invoice->loadMissing('items.item');
+        $invoice->loadMissing('items.item.kitComponents.componentItem');
 
         foreach ($invoice->items as $line) {
-            if (! $line->item || ! $line->item->track_inventory) {
+            if (! $line->item) {
                 continue;
             }
 
-            $stock = ItemStock::firstOrCreate(
-                ['item_id' => $line->item_id, 'warehouse_id' => $invoice->warehouse_id],
-                ['quantity' => 0]
-            );
-
             $baseQuantity = $line->item->baseQuantityFor((float) $line->quantity, $line->unit_id);
 
-            $stock->increment('quantity', $baseQuantity * $direction);
+            // A kit never carries its own ItemStock row — selling one
+            // deducts each of its components instead, scaled by how many
+            // of that component one unit of the kit contains.
+            if ($line->item->is_kit) {
+                foreach ($line->item->kitComponents as $component) {
+                    if (! $component->componentItem?->track_inventory) {
+                        continue;
+                    }
+
+                    $this->adjustStock($component->component_item_id, $invoice->warehouse_id, (float) $component->quantity * $baseQuantity * $direction);
+                }
+
+                continue;
+            }
+
+            if (! $line->item->track_inventory) {
+                continue;
+            }
+
+            $this->adjustStock($line->item_id, $invoice->warehouse_id, $baseQuantity * $direction);
         }
+    }
+
+    private function adjustStock(int $itemId, ?int $warehouseId, float $delta): void
+    {
+        $stock = ItemStock::firstOrCreate(
+            ['item_id' => $itemId, 'warehouse_id' => $warehouseId],
+            ['quantity' => 0]
+        );
+
+        $stock->increment('quantity', $delta);
     }
 
     private function syncItems(Invoice $invoice, array $items): void

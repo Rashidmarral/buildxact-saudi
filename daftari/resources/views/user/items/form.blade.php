@@ -125,6 +125,10 @@
                 <input type="checkbox" name="track_inventory" value="1" @checked(old('track_inventory', $item->track_inventory ?? false)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                 {{ __('Track inventory for this item') }}
             </label>
+            <label class="flex items-center gap-2 text-sm text-slate-600" id="is-kit-wrap">
+                <input type="checkbox" name="is_kit" id="is-kit-checkbox" value="1" @checked(old('is_kit', $item->is_kit ?? false)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                {{ __('This is a kit (bundle of other items)') }}
+            </label>
         </div>
 
         <div class="sm:col-span-2" id="tracking-type-wrap">
@@ -136,6 +140,55 @@
             </select>
             <p class="text-xs text-slate-400 mt-1">{{ __('Receive and consume specific lots/serials from the Lots & Serials page once enabled here.') }}</p>
         </div>
+
+        <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4" id="kit-components-wrap">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Kit components') }}</label>
+                    <p class="text-xs text-slate-400">{{ __('Selling this kit deducts each component\'s own stock instead of the kit itself — e.g. a "Gift Basket" kit deducts stock of the fruit, box and ribbon it contains.') }}</p>
+                </div>
+                <button type="button" id="add-kit-component" class="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300">{{ __('+ Add component') }}</button>
+            </div>
+            <div id="kit-components-rows" class="space-y-2"></div>
+            <p id="kit-components-empty" class="text-xs text-slate-400">{{ __('No components added.') }}</p>
+        </div>
+
+        @if ($item->exists && ! $item->is_kit)
+            <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
+                <label class="block text-xs font-semibold uppercase text-slate-500 mb-2">{{ __('Variants') }}</label>
+                @if ($item->parentItem)
+                    <p class="text-sm text-slate-600">{{ __('This is a variant of') }} <a href="{{ route('app.items.edit', $item->parentItem) }}" class="text-brand-600 hover:underline">{{ $item->parentItem->name }}</a>@if($item->variant_label) — {{ $item->variant_label }}@endif</p>
+                @endif
+
+                @php($variantList = $item->variants)
+                @if ($variantList->isNotEmpty())
+                    <ul class="divide-y divide-slate-100 mb-3">
+                        @foreach ($variantList as $variant)
+                            <li class="py-2 flex items-center justify-between text-sm">
+                                <a href="{{ route('app.items.edit', $variant) }}" class="text-brand-600 hover:underline">{{ $variant->name }}</a>
+                                <span class="text-slate-400">{{ $variant->variant_label }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-xs text-slate-400 mb-3">{{ __('No variants yet.') }}</p>
+                @endif
+
+                <form method="POST" action="{{ route('app.items.variants.store', $item) }}" class="flex flex-wrap items-end gap-2">
+                    @csrf
+                    <div>
+                        <label class="block text-xs text-slate-500">{{ __('New variant label') }}</label>
+                        <input type="text" name="variant_label" placeholder="{{ __('e.g. Red / Large') }}" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500">{{ __('SKU') }}</label>
+                        <input type="text" name="sku" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <button type="submit" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-brand-300">{{ __('+ Add variant') }}</button>
+                </form>
+                <p class="text-xs text-slate-400 mt-2">{{ __('Each variant is its own item with its own SKU, price and stock — clone this item, then adjust the new one.') }}</p>
+            </div>
+        @endif
     </div>
 
     @include('partials.custom-fields')
@@ -154,9 +207,14 @@
     const trackCheckbox = trackWrap.querySelector('input[name="track_inventory"]');
     const trackingTypeWrap = document.getElementById('tracking-type-wrap');
     const trackingTypeSelect = trackingTypeWrap.querySelector('select[name="tracking_type"]');
+    const isKitCheckbox = document.getElementById('is-kit-checkbox');
+    const kitComponentsWrap = document.getElementById('kit-components-wrap');
 
     function sync() {
-        const isPhysical = physicalRadio.checked;
+        const isKit = isKitCheckbox.checked;
+        kitComponentsWrap.classList.toggle('hidden', ! isKit);
+
+        const isPhysical = physicalRadio.checked && ! isKit;
         trackWrap.classList.toggle('opacity-40', ! isPhysical);
         trackWrap.classList.toggle('pointer-events-none', ! isPhysical);
         if (! isPhysical) trackCheckbox.checked = false;
@@ -168,6 +226,7 @@
     }
 
     trackCheckbox.addEventListener('change', sync);
+    isKitCheckbox.addEventListener('change', sync);
 
     serviceRadio.addEventListener('change', sync);
     physicalRadio.addEventListener('change', sync);
@@ -235,6 +294,58 @@
     }
 
     document.getElementById('add-alt-unit').addEventListener('click', () => addRow());
+
+    EXISTING.forEach(addRow);
+    refreshEmptyHint();
+})();
+
+@php
+    $kitCandidatesData = $kitCandidates->map(fn ($i) => ['id' => $i->id, 'label' => $i->name])->values();
+    $existingKitComponentsData = $item->exists
+        ? $item->kitComponents->map(fn ($c) => [
+            'component_item_id' => $c->component_item_id,
+            'quantity' => (float) $c->quantity,
+        ])->values()
+        : collect();
+@endphp
+(function () {
+    const CANDIDATES = @json($kitCandidatesData);
+    const EXISTING = @json($existingKitComponentsData);
+
+    const rowsWrap = document.getElementById('kit-components-rows');
+    const emptyHint = document.getElementById('kit-components-empty');
+    let rowIndex = 0;
+
+    function itemOptions(selectedId) {
+        return CANDIDATES.map(i => `<option value="${i.id}" ${String(i.id) === String(selectedId) ? 'selected' : ''}>${i.label}</option>`).join('');
+    }
+
+    function refreshEmptyHint() {
+        emptyHint.classList.toggle('hidden', rowsWrap.children.length > 0);
+    }
+
+    function addRow(data) {
+        data = data || {};
+        const i = rowIndex++;
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-12 gap-2 items-center';
+        row.innerHTML = `
+            <select name="kit_components[${i}][component_item_id]" class="col-span-8 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Select item') }}</option>
+                ${itemOptions(data.component_item_id)}
+            </select>
+            <input type="number" step="0.01" min="0.01" name="kit_components[${i}][quantity]" value="${data.quantity ?? ''}" placeholder="{{ __('Qty per kit') }}" class="col-span-3 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <button type="button" class="col-span-1 text-red-500 hover:text-red-700" title="{{ __('Remove') }}">✕</button>
+        `;
+        row.querySelector('button').addEventListener('click', () => {
+            row.remove();
+            refreshEmptyHint();
+        });
+        rowsWrap.appendChild(row);
+        refreshEmptyHint();
+    }
+
+    document.getElementById('add-kit-component').addEventListener('click', () => addRow());
 
     EXISTING.forEach(addRow);
     refreshEmptyHint();

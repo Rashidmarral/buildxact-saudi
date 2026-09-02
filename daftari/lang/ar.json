@@ -3843,5 +3843,21 @@
     "year": "سنة",
     "you@example.com": "you@example.com",
     "— Select —": "— اختر —",
-    "•••••••• (configured — leave blank to keep)": "•••••••• (مُعد — اتركه فارغًا للإبقاء عليه)"
+    "•••••••• (configured — leave blank to keep)": "•••••••• (مُعد — اتركه فارغًا للإبقاء عليه)",
+    "+ Add component": "+ إضافة عنصر",
+    "+ Add variant": "+ إضافة نوع",
+    "Each variant is its own item with its own SKU, price and stock — clone this item, then adjust the new one.": "كل نوع هو صنف مستقل له رمز تخزين (SKU) وسعر ومخزون خاص به — يتم استنساخ هذا الصنف ثم تعديل النسخة الجديدة.",
+    "Kit components": "مكونات الطقم",
+    "New variant label": "تسمية النوع الجديد",
+    "No components added.": "لم تتم إضافة مكونات.",
+    "No variants yet.": "لا توجد أنواع بعد.",
+    "Qty per kit": "الكمية لكل طقم",
+    "Select item": "اختر الصنف",
+    "Selling this kit deducts each component's own stock instead of the kit itself — e.g. a \"Gift Basket\" kit deducts stock of the fruit, box and ribbon it contains.": "بيع هذا الطقم يخصم مخزون كل مكون على حدة بدلاً من الطقم نفسه — على سبيل المثال طقم \"سلة هدايا\" يخصم مخزون الفواكه والصندوق والشريط الذي يحتويه.",
+    "This is a kit (bundle of other items)": "هذا طقم (حزمة من أصناف أخرى)",
+    "This is a variant of": "هذا نوع من",
+    "Variant created.": "تم إنشاء النوع.",
+    "Variants": "الأنواع",
+    "e.g. Red / Large": "مثال: أحمر / كبير",
+    "Created variant :label of :item": "تم إنشاء النوع :label للصنف :item"
 }

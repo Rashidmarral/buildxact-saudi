@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\BillItem;
 use App\Models\InvoiceItem;
 use App\Models\Item;
+use App\Models\ItemKitComponent;
 use App\Models\ItemUnit;
 use App\Models\PurchaseOrderItem;
 use App\Models\QuotationItem;
@@ -120,6 +121,7 @@ class ItemController extends Controller
             'taxRates' => TaxRate::active()->effectiveAsOf()->orderByDesc('is_default')->orderBy('name')->get(),
             'customFieldDefinitions' => Item::customFieldDefinitions(),
             'customFieldValues' => [],
+            'kitCandidates' => Item::where('is_kit', false)->orderBy('name')->get(),
         ]);
     }
 
@@ -132,18 +134,20 @@ class ItemController extends Controller
         $data = $this->validated($request);
         $altUnits = $data['alt_units'] ?? [];
         $customFields = $data['custom_fields'] ?? [];
-        unset($data['alt_units'], $data['custom_fields']);
+        $kitComponents = $data['kit_components'] ?? [];
+        unset($data['alt_units'], $data['custom_fields'], $data['kit_components']);
         $data = $this->withImage($request, $data);
         $item = Item::create($data);
         $this->syncAltUnits($item, $altUnits);
         $item->syncCustomFieldValues($customFields);
+        $this->syncKitComponents($item, $kitComponents);
 
         return redirect()->route('app.items.index')->with('status', __('Item saved.'));
     }
 
     public function edit(Item $item)
     {
-        $item->load('customFieldValues');
+        $item->load('customFieldValues', 'kitComponents', 'variants', 'parentItem');
 
         return view('user.items.form', [
             'item' => $item,
@@ -151,6 +155,7 @@ class ItemController extends Controller
             'taxRates' => TaxRate::active()->effectiveAsOf()->orderByDesc('is_default')->orderBy('name')->get(),
             'customFieldDefinitions' => Item::customFieldDefinitions(),
             'customFieldValues' => $item->customFieldValuesMap(),
+            'kitCandidates' => Item::where('is_kit', false)->where('id', '!=', $item->id)->orderBy('name')->get(),
         ]);
     }
 
@@ -159,11 +164,13 @@ class ItemController extends Controller
         $data = $this->validated($request);
         $altUnits = $data['alt_units'] ?? [];
         $customFields = $data['custom_fields'] ?? [];
-        unset($data['alt_units'], $data['custom_fields']);
+        $kitComponents = $data['kit_components'] ?? [];
+        unset($data['alt_units'], $data['custom_fields'], $data['kit_components']);
         $data = $this->withImage($request, $data, $item);
         $item->update($data);
         $this->syncAltUnits($item, $altUnits);
         $item->syncCustomFieldValues($customFields);
+        $this->syncKitComponents($item, $kitComponents);
 
         return redirect()->route('app.items.index')->with('status', __('Item updated.'));
     }
@@ -184,6 +191,68 @@ class ItemController extends Controller
                 'unit_price' => ($row['unit_price'] ?? '') !== '' ? $row['unit_price'] : null,
             ]);
         }
+    }
+
+    private function syncKitComponents(Item $item, array $components): void
+    {
+        $item->kitComponents()->delete();
+
+        if (! $item->is_kit) {
+            return;
+        }
+
+        foreach ($components as $row) {
+            if (empty($row['component_item_id']) || empty($row['quantity']) || (int) $row['component_item_id'] === $item->id) {
+                continue;
+            }
+
+            ItemKitComponent::create([
+                'kit_item_id' => $item->id,
+                'component_item_id' => $row['component_item_id'],
+                'quantity' => $row['quantity'],
+            ]);
+        }
+    }
+
+    /**
+     * A lightweight take on item variants: each variant is its own full
+     * Item (own SKU, barcode, price, stock) rather than an attribute pair
+     * stored on a single row — this just clones the shared fields from the
+     * parent so the user isn't starting from a blank form for every size/
+     * color combination, and links it back via parent_item_id so
+     * Item::variants() can group them for display/reporting.
+     */
+    public function storeVariant(Request $request, Item $item)
+    {
+        $data = $request->validate([
+            'variant_label' => ['required', 'string', 'max:100'],
+            'sku' => ['nullable', 'string', 'max:40'],
+            'barcode' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $variant = Item::create([
+            'name' => trim($item->name.' — '.$data['variant_label']),
+            'name_ar' => $item->name_ar ? trim($item->name_ar.' — '.$data['variant_label']) : null,
+            'sku' => $data['sku'] ?? null,
+            'barcode' => $data['barcode'] ?? null,
+            'category' => $item->category,
+            'item_type' => $item->item_type,
+            'unit' => $item->unit,
+            'unit_code' => $item->unit_code,
+            'base_unit_id' => $item->base_unit_id,
+            'unit_price' => $item->unit_price,
+            'purchase_price' => $item->purchase_price,
+            'vat_rate' => $item->vat_rate,
+            'is_active' => true,
+            'track_inventory' => $item->track_inventory,
+            'tracking_type' => $item->tracking_type,
+            'parent_item_id' => $item->parent_item_id ?? $item->id,
+            'variant_label' => $data['variant_label'],
+        ]);
+
+        AuditLog::record('item.create_variant', $variant, __('Created variant :label of :item', ['label' => $data['variant_label'], 'item' => $item->name]));
+
+        return redirect()->route('app.items.edit', $variant)->with('status', __('Variant created.'));
     }
 
     public function destroy(Item $item)
@@ -307,12 +376,19 @@ class ItemController extends Controller
             'alt_units.*.unit_price' => ['nullable', 'numeric', 'min:0'],
             'custom_fields' => ['nullable', 'array'],
             'custom_fields.*' => ['nullable', 'string', 'max:2000'],
+            'is_kit' => ['nullable', 'boolean'],
+            'kit_components' => ['nullable', 'array'],
+            'kit_components.*.component_item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],
+            'kit_components.*.quantity' => ['nullable', 'numeric', 'min:0.01'],
+            'parent_item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],
+            'variant_label' => ['nullable', 'string', 'max:100'],
         ]);
 
         unset($data['image']);
 
         $data['is_active'] = $request->boolean('is_active', true);
-        $data['track_inventory'] = $data['item_type'] === 'physical' && $request->boolean('track_inventory');
+        $data['is_kit'] = $request->boolean('is_kit');
+        $data['track_inventory'] = ! $data['is_kit'] && $data['item_type'] === 'physical' && $request->boolean('track_inventory');
         $data['tracking_type'] = $data['track_inventory'] ? ($data['tracking_type'] ?? 'none') : 'none';
 
         $baseUnit = ! empty($data['base_unit_id']) ? Unit::find($data['base_unit_id']) : null;

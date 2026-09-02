@@ -235,6 +235,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('clients-import/template', [ClientController::class, 'importTemplate'])->name('clients.import.template');
     });
     Route::resource('items', ItemController::class)->except(['show'])->middleware('permission:items');
+    Route::post('items/{item}/variants', [ItemController::class, 'storeVariant'])->name('items.variants.store')->middleware('permission:items');
     Route::post('items/bulk-export', [ItemController::class, 'bulkExport'])->name('items.bulk-export')->middleware('permission:items');
     Route::post('items/bulk-destroy', [ItemController::class, 'bulkDestroy'])->name('items.bulk-destroy')->middleware('permission:items');
     Route::get('items-generate-barcode', [ItemController::class, 'generateBarcode'])->name('items.generate-barcode')->middleware('permission:items');
