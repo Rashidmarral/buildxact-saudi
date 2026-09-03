@@ -14,33 +14,40 @@ use Tests\TestCase;
 
 /**
  * Bug report: the ZATCA compliance check rejected every simplified/B2C
- * document combination with "Invalid signed properties hashing" (and a
- * cascading "publicKey_QRCODE_INVALID"), even though B2B/standard
- * combinations passed cleanly. Root cause: ZatcaXadesSigner::sign()
- * computed the xades:SignedProperties digest as
- * base64_encode(hash('sha256', $signedProperties->C14N(), true)) — raw
- * digest bytes, directly base64-encoded — but ZATCA's validator expects
- * the same "hex string, then base64" double-encoding already used for the
- * certificate digest (ZatcaCertificateService::certificateHash()):
- * base64_encode(hash('sha256', ..., false)). Confirmed against a
- * commercially available, independently-verified-working ZATCA Phase 2
- * reference implementation (Ultimate POS's ZATCA module), whose
- * GetSignedPropertiesHashEncoded() uses the hex-then-base64 form while its
- * plain invoice content hash uses the raw form — an inconsistent-looking
- * but apparently ZATCA-mandated convention.
+ * document combination with "Invalid signed properties hashing", even
+ * though B2B/standard combinations passed cleanly. Two encoding-only
+ * fixes (hex-vs-raw digest output, then the SignedProperties id string)
+ * each checked out against a commercially available, independently-
+ * verified-working ZATCA Phase 2 reference implementation (Ultimate
+ * POS's ZATCA module) but neither changed the rejection, pointing at the
+ * actual bytes being hashed rather than their encoding.
+ *
+ * Root cause: ZatcaXadesSigner::sign() computed the digest input via
+ * $signedProperties->C14N() — a true C14N canonicalization, which also
+ * pulls in every namespace merely *in scope* on the node (ext:, sig:)
+ * regardless of whether SignedProperties actually uses them. The
+ * reference implementation never canonicalizes anything for this digest
+ * despite declaring the same xml-c14n11 CanonicalizationMethod: it
+ * builds the XML with \XMLWriter and hashes \XMLReader::readInnerXml()'s
+ * literal text — the exact bytes about to be transmitted, not a
+ * canonical form of them. ZATCA's validator apparently does the
+ * equivalent of a literal re-hash of the transmitted bytes rather than a
+ * true C14N-invariant recomputation.
  *
  * This test drives the real compliance-check route end to end with a
  * genuine EC key pair and self-signed certificate, captures the actual
  * signed XML ZatcaXadesSigner::sign() produced, and independently
- * recomputes the SignedProperties digest from the embedded node —
- * asserting it matches what was actually placed in the ds:Reference's
- * DigestValue rather than trusting the signer's own computation.
+ * recomputes the SignedProperties digest by re-parsing that XML and
+ * literally re-serializing the embedded node — asserting it matches what
+ * was actually placed in the ds:Reference's DigestValue, and that it
+ * does NOT match either of the two previously-tried (and wrong) digest
+ * inputs: C14N() and a version with the old hyphenated id.
  */
 class ZatcaXadesSignedPropertiesHashTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_signed_properties_digest_is_hex_then_base64_not_raw_then_base64(): void
+    public function test_the_signed_properties_digest_is_the_literal_serialized_bytes_not_c14n(): void
     {
         $key = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,
@@ -120,10 +127,12 @@ class ZatcaXadesSignedPropertiesHashTest extends TestCase
         $this->assertSame(1, $digestValueNodes->length, 'Expected exactly one ds:Reference pointing at the SignedProperties with a DigestValue.');
         $declaredDigest = $digestValueNodes->item(0)->textContent;
 
-        $expectedDigest = base64_encode(hash('sha256', $signedProperties->C14N(), false));
-        $wrongLegacyDigest = base64_encode(hash('sha256', $signedProperties->C14N(), true));
+        $expectedDigest = base64_encode(hash('sha256', trim($doc->saveXML($signedProperties)), false));
+        $wrongC14nDigest = base64_encode(hash('sha256', $signedProperties->C14N(), false));
+        $wrongRawDigest = base64_encode(hash('sha256', $signedProperties->C14N(), true));
 
-        $this->assertNotSame($wrongLegacyDigest, $declaredDigest, 'The declared digest matches the old raw-then-base64 encoding — the fix did not take effect.');
-        $this->assertSame($expectedDigest, $declaredDigest, 'ZatcaXadesSigner::sign() must hex-encode the SignedProperties SHA-256 digest before base64-encoding it, matching certificateHash()\'s convention.');
+        $this->assertNotSame($wrongRawDigest, $declaredDigest, 'The declared digest matches the old raw-then-base64 encoding — a previously-reverted bug has resurfaced.');
+        $this->assertNotSame($wrongC14nDigest, $declaredDigest, 'The declared digest is hashed from a true C14N canonicalization rather than the literal transmitted bytes — the fix did not take effect.');
+        $this->assertSame($expectedDigest, $declaredDigest, 'ZatcaXadesSigner::sign() must hash the literal serialized bytes of the SignedProperties node (DOMDocument::saveXML($node)), not a C14N-canonicalized form of it.');
     }
 }
