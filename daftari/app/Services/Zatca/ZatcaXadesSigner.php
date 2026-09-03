@@ -331,6 +331,22 @@ class ZatcaXadesSigner
         $qualifyingProperties->setAttribute('Target', 'signature');
 
         $signedProperties = $doc->createElementNS(self::NS_XADES, 'xades:SignedProperties');
+        // Explicitly redeclare xmlns:xades locally on SignedProperties
+        // itself — redundant with the declaration this element already
+        // inherits from its immediate parent $qualifyingProperties, but
+        // present nonetheless. Confirmed against a commercially available,
+        // independently-verified-working ZATCA Phase 2 reference
+        // implementation (Ultimate POS's ZATCA module): its literal XML
+        // structure (UBLExtensions.php) declares 'xmlns:xades' as one of
+        // SignedProperties' own attributes, not just inherited scope —
+        // and since this digest hashes the element's *literal* serialized
+        // bytes (see the digest computation in sign()), an inherited-but-
+        // not-locally-declared namespace produces different bytes (and a
+        // different digest) than one explicitly present on the tag itself,
+        // even though both are namespace-equivalent XML. Verified directly
+        // against a real ZATCA compliance-check rejection's actual signed
+        // XML that this omission changes the computed digest.
+        $signedProperties->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xades', self::NS_XADES);
         // Must match buildSignedPropertiesReference()'s URI exactly
         // (no hyphen) — see the comment there.
         $signedProperties->setAttribute('Id', 'xadesSignedProperties');
