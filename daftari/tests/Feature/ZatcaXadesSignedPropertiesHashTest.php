@@ -119,6 +119,19 @@ class ZatcaXadesSignedPropertiesHashTest extends TestCase
         $xpath->registerNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
         $xpath->registerNamespace('xades', 'http://uri.etsi.org/01903/v1.3.2#');
 
+        // PHP's DOM silently drops a namespace declaration set via
+        // setAttributeNS() whenever an ancestor already declares the same
+        // prefix+URI, no matter how it's set — so this specific literal
+        // string must be asserted directly against the raw transmitted
+        // XML text, not just via DOM node inspection (which would report
+        // the declaration as present even when saveXML() never actually
+        // emits it — exactly the bug this regression test exists for).
+        $this->assertStringContainsString(
+            '<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="xadesSignedProperties">',
+            $capturedXml,
+            'xades:SignedProperties must carry its own literal xmlns:xades declaration, redundant with the one it inherits from its parent — matching the reference implementation\'s literal XML exactly. This can\'t be done via DOMElement::setAttributeNS() (PHP\'s DOM elides genuinely redundant namespace declarations during serialization no matter how they\'re set) and must be done via direct string substitution instead.'
+        );
+
         $signedPropertiesNodes = $xpath->query("//xades:SignedProperties[@Id='xadesSignedProperties']");
         $this->assertSame(1, $signedPropertiesNodes->length, 'Expected exactly one xades:SignedProperties node with Id="xadesSignedProperties".');
         $signedProperties = $signedPropertiesNodes->item(0);

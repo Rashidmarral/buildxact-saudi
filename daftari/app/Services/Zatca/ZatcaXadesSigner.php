@@ -141,7 +141,16 @@ class ZatcaXadesSigner
         // uses them). ZATCA's validator apparently does the equivalent of
         // a literal re-hash of the transmitted bytes rather than a true
         // C14N-invariant recomputation, despite the declared algorithm.
-        $signedPropertiesHash = base64_encode(hash('sha256', trim($doc->saveXML($signedProperties)), false));
+        //
+        // withRedundantXadesNamespace() additionally splices a literal,
+        // redundant 'xmlns:xades' declaration onto this element's own
+        // opening tag — matching the reference implementation's literal
+        // XML exactly — which the digest below must be computed from,
+        // since it has to hash the *exact* bytes that end up transmitted
+        // (see that method's docblock for why this can't be done through
+        // the normal DOM API).
+        $signedPropertiesLiteral = $this->withRedundantXadesNamespace(trim($doc->saveXML($signedProperties)));
+        $signedPropertiesHash = base64_encode(hash('sha256', $signedPropertiesLiteral, false));
 
         $this->attachSignatureCore($doc, $signature, $object, $invoiceHashBase64, $signedPropertiesHash, $digitalSignature, $certificateValue);
 
@@ -153,7 +162,52 @@ class ZatcaXadesSigner
         $signatureElement = $this->buildSignatureElement($doc);
         $this->insertAfter($signatureElement, $qrReference);
 
-        return $doc->saveXML();
+        // Must apply the identical string surgery to the actually-
+        // transmitted document, or the digest computed above would
+        // describe bytes that were never sent — see
+        // withRedundantXadesNamespace()'s docblock.
+        return $this->withRedundantXadesNamespace($doc->saveXML());
+    }
+
+    /**
+     * Splices a literal 'xmlns:xades' declaration onto xades:SignedProperties'
+     * own opening tag — redundant with the declaration it already inherits
+     * from its parent xades:QualifyingProperties, but physically present in
+     * the text regardless. Matches a commercially available, independently-
+     * verified-working ZATCA Phase 2 reference implementation (Ultimate
+     * POS's ZATCA module): its literal XML structure (UBLExtensions.php)
+     * declares 'xmlns:xades' as one of SignedProperties' own attributes,
+     * not merely inherited scope.
+     *
+     * This can't be done through DOMElement::setAttributeNS(): PHP's DOM
+     * silently drops a namespace declaration set that way whenever an
+     * ancestor already declares the same prefix+URI (confirmed directly —
+     * hasAttributeNS() reports it as set immediately afterward, but
+     * saveXML() never emits it, and the attribute never shows up in the
+     * element's own attributes list), since libxml2 treats it as
+     * redundant and elides it during serialization no matter how it was
+     * set. There is no DOM-level way to force a genuinely redundant
+     * declaration into the output, so this does it with direct string
+     * substitution on the already-serialized text instead. Used on both
+     * the digest input (the isolated SignedProperties fragment) and the
+     * final transmitted document, so the two stay consistent — the digest
+     * must describe the exact bytes ZATCA receives.
+     */
+    private function withRedundantXadesNamespace(string $xml): string
+    {
+        $target = '<xades:SignedProperties Id="xadesSignedProperties">';
+        $replacement = '<xades:SignedProperties xmlns:xades="'.self::NS_XADES.'" Id="xadesSignedProperties">';
+
+        $count = 0;
+        $result = str_replace($target, $replacement, $xml, $count);
+
+        if ($count !== 1) {
+            throw new RuntimeException(
+                'Expected exactly one xades:SignedProperties opening tag to splice the redundant xmlns:xades declaration into, found '.$count.'.'
+            );
+        }
+
+        return $result;
     }
 
     /**
@@ -331,22 +385,16 @@ class ZatcaXadesSigner
         $qualifyingProperties->setAttribute('Target', 'signature');
 
         $signedProperties = $doc->createElementNS(self::NS_XADES, 'xades:SignedProperties');
-        // Explicitly redeclare xmlns:xades locally on SignedProperties
-        // itself — redundant with the declaration this element already
-        // inherits from its immediate parent $qualifyingProperties, but
-        // present nonetheless. Confirmed against a commercially available,
-        // independently-verified-working ZATCA Phase 2 reference
-        // implementation (Ultimate POS's ZATCA module): its literal XML
-        // structure (UBLExtensions.php) declares 'xmlns:xades' as one of
-        // SignedProperties' own attributes, not just inherited scope —
-        // and since this digest hashes the element's *literal* serialized
-        // bytes (see the digest computation in sign()), an inherited-but-
-        // not-locally-declared namespace produces different bytes (and a
-        // different digest) than one explicitly present on the tag itself,
-        // even though both are namespace-equivalent XML. Verified directly
-        // against a real ZATCA compliance-check rejection's actual signed
-        // XML that this omission changes the computed digest.
-        $signedProperties->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xades', self::NS_XADES);
+        // NOTE: this element deliberately does NOT call setAttributeNS()
+        // to redeclare xmlns:xades locally, even though the reference
+        // implementation's literal XML does — PHP's DOM silently drops a
+        // namespace declaration set via setAttributeNS() whenever an
+        // ancestor (here, $qualifyingProperties, once attached) already
+        // declares the same prefix+URI, no matter how it's set; there is
+        // no DOM-level API to force a genuinely redundant declaration
+        // through to saveXML() output. See withRedundantXadesNamespace()
+        // in sign(), which achieves the same literal text via direct
+        // string surgery on the serialized output instead.
         // Must match buildSignedPropertiesReference()'s URI exactly
         // (no hyphen) — see the comment there.
         $signedProperties->setAttribute('Id', 'xadesSignedProperties');
