@@ -21,6 +21,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -351,6 +352,16 @@ class ZatcaController extends Controller
 
             if (! $response->successful() && ! $alreadyCompliant) {
                 $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
+
+                // TEMPORARY diagnostic: dump the actual signed XML we sent
+                // for a failing combo, so the exact bytes ZATCA rejected
+                // can be inspected directly rather than guessed at.
+                // Remove once the signed-properties-hashing investigation
+                // (B2C-only rejection) is resolved.
+                Storage::disk('local')->put(
+                    'zatca-debug/'.now('UTC')->format('Ymd-His').'-'.$combo['code'].'-'.$combo['name'].'.xml',
+                    $xmlString,
+                );
             }
 
             $previousHash = $hash;
