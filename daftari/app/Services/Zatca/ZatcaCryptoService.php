@@ -146,6 +146,12 @@ CNF;
 
 
     /**
+     * secp256k1's field size — 32 bytes — used to fix the length of each
+     * half (r, s) of a raw ECDSA signature.
+     */
+    private const EC_COMPONENT_SIZE = 32;
+
+    /**
      * Signs the invoice hash with the company's own EC private key (the
      * same key used for its ZATCA CSID/CSR) — tag 7 of the Phase 2 QR,
      * and also the source of the invoice's XAdES ds:SignatureValue (ZATCA's
@@ -155,6 +161,19 @@ CNF;
      * *text* as the message — not the decoded raw hash bytes — per
      * ZATCA's documented signing behaviour. Returns null until the
      * company has generated a CSR/key pair.
+     *
+     * PHP's openssl_sign() always returns an EC signature as ASN.1 DER
+     * (SEQUENCE of two INTEGERs) — the standard PKI/CMS convention. The
+     * signature block declares SignatureMethod
+     * "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256", and per
+     * RFC 4050 (which that xmldsig-more URI is defined against),
+     * ds:SignatureValue for that algorithm must instead be the raw
+     * concatenation of r and s as two fixed-length big-endian integers —
+     * not DER. Embedding the DER bytes directly (this method's previous
+     * behaviour) produces a signature ZATCA's validator can't verify
+     * against the certificate's public key, surfacing as
+     * "ECDSA Public Key does not match with qr code ECDSA public key"
+     * even though the key itself is correct.
      */
     public function signInvoiceHash(Company $company, string $invoiceHashBase64): ?string
     {
@@ -167,12 +186,60 @@ CNF;
             return null;
         }
 
-        $signature = null;
-        if (! openssl_sign($invoiceHashBase64, $signature, $key, OPENSSL_ALGO_SHA256)) {
+        $der = null;
+        if (! openssl_sign($invoiceHashBase64, $der, $key, OPENSSL_ALGO_SHA256)) {
             return null;
         }
 
-        return base64_encode($signature);
+        return base64_encode($this->derSignatureToRaw($der));
+    }
+
+    /**
+     * Converts an ASN.1 DER-encoded ECDSA signature (SEQUENCE of two
+     * INTEGERs r, s) into the raw r||s concatenation XMLDSig's
+     * ecdsa-sha256 algorithm requires: each component left-padded/
+     * truncated to exactly self::EC_COMPONENT_SIZE bytes, with the
+     * DER INTEGER's own sign-guard leading 0x00 byte (added whenever the
+     * value's high bit would otherwise make it look negative) stripped.
+     */
+    private function derSignatureToRaw(string $der): string
+    {
+        $offset = 0;
+
+        $readLength = function () use ($der, &$offset): int {
+            $byte = ord($der[$offset++]);
+            if (($byte & 0x80) === 0) {
+                return $byte;
+            }
+            $numBytes = $byte & 0x7F;
+            $length = 0;
+            for ($i = 0; $i < $numBytes; $i++) {
+                $length = ($length << 8) | ord($der[$offset++]);
+            }
+
+            return $length;
+        };
+
+        // SEQUENCE tag (0x30) + its length — the length itself is unused
+        // here since each INTEGER carries its own.
+        $offset++;
+        $readLength();
+
+        $readInteger = function () use ($der, &$offset, $readLength): string {
+            $offset++; // INTEGER tag (0x02)
+            $length = $readLength();
+            $value = substr($der, $offset, $length);
+            $offset += $length;
+
+            $value = ltrim($value, "\x00");
+
+            return str_pad($value, self::EC_COMPONENT_SIZE, "\x00", STR_PAD_LEFT);
+        };
+
+        $r = $readInteger();
+        $s = $readInteger();
+
+        return $r.$s;
     }
 
     /**

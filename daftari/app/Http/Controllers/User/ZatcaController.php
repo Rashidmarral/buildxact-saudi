@@ -350,18 +350,7 @@ class ZatcaController extends Controller
             $alreadyCompliant = ! $response->successful() && Str::contains($response->body(), 'Submitted before');
 
             if (! $response->successful() && ! $alreadyCompliant) {
-                // Temporary diagnostic for the publicKey_QRCODE_INVALID
-                // investigation — confirms whether the running code is
-                // actually extracting the bare 65-byte EC point (the fix)
-                // or something else, independent of whether the deploy
-                // picked up cleanly. Remove once resolved.
-                try {
-                    $keyLen = strlen(app(\App\Services\Zatca\ZatcaCertificateService::class)->publicKeyBytes($company->zatca_compliance_csid));
-                } catch (Throwable $e) {
-                    $keyLen = 'error: '.$e->getMessage();
-                }
-                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body()
-                    .' [diagnostic: publicKeyBytes() length='.$keyLen.' bytes (should be 65)]';
+                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
             }
 
             $previousHash = $hash;
