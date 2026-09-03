@@ -350,7 +350,24 @@ class ZatcaController extends Controller
             $alreadyCompliant = ! $response->successful() && Str::contains($response->body(), 'Submitted before');
 
             if (! $response->successful() && ! $alreadyCompliant) {
-                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
+                // Temporary diagnostic: two independently-verified crypto
+                // fixes (QR public key format, signature DER-vs-raw)
+                // produced no observable change in ZATCA's response even
+                // with a freshly issued CSR/compliance CSID — strong
+                // evidence of either a third, still-unfound defect or a
+                // wrong assumption in one of those fixes. Rather than
+                // keep guessing from static code review, save the actual
+                // signed XML that was submitted so it can be inspected
+                // directly. Remove once resolved.
+                $debugDir = storage_path('app/zatca-debug');
+                if (! is_dir($debugDir)) {
+                    mkdir($debugDir, 0755, true);
+                }
+                $debugFile = $debugDir.'/'.now()->format('Y-m-d_His').'_'.Str::slug($combo['label']).'.xml';
+                file_put_contents($debugFile, $xmlString);
+
+                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body()
+                    .' [diagnostic: signed XML saved to '.$debugFile.']';
             }
 
             $previousHash = $hash;
