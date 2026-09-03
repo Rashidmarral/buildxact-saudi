@@ -119,7 +119,19 @@ class ZatcaXadesSigner
         );
         $root->insertBefore($ublExtensions, $root->firstChild);
 
-        $signedPropertiesHash = base64_encode(hash('sha256', $signedProperties->C14N(), true));
+        // Same hex-digest-then-base64 convention as certificateHash() above
+        // (and unlike the plain invoice content hash, which base64-encodes
+        // the raw digest bytes directly) — confirmed against a
+        // commercially available, independently-verified-working ZATCA
+        // Phase 2 reference implementation (Ultimate POS's ZATCA module):
+        // its SignedProperties digest is base64_encode(hash('sha256', ...,
+        // false)) — false meaning hash()'s hex-string output, not raw
+        // bytes — while its main invoice hash uses raw output (true). A
+        // prior version of this method used raw output for both, which
+        // produces a different (and apparently wrong) SignedProperties
+        // digest even though the underlying bytes being hashed are
+        // identical.
+        $signedPropertiesHash = base64_encode(hash('sha256', $signedProperties->C14N(), false));
 
         $this->attachSignatureCore($doc, $signature, $object, $invoiceHashBase64, $signedPropertiesHash, $digitalSignature, $certificateValue);
 
