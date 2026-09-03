@@ -112,11 +112,11 @@ class ZatcaXadesSignedPropertiesHashTest extends TestCase
         $xpath->registerNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
         $xpath->registerNamespace('xades', 'http://uri.etsi.org/01903/v1.3.2#');
 
-        $signedPropertiesNodes = $xpath->query("//xades:SignedProperties[@Id='xades-SignedProperties']");
-        $this->assertSame(1, $signedPropertiesNodes->length, 'Expected exactly one xades:SignedProperties node with Id="xades-SignedProperties".');
+        $signedPropertiesNodes = $xpath->query("//xades:SignedProperties[@Id='xadesSignedProperties']");
+        $this->assertSame(1, $signedPropertiesNodes->length, 'Expected exactly one xades:SignedProperties node with Id="xadesSignedProperties".');
         $signedProperties = $signedPropertiesNodes->item(0);
 
-        $digestValueNodes = $xpath->query("//ds:Reference[@URI='#xades-SignedProperties']/ds:DigestValue");
+        $digestValueNodes = $xpath->query("//ds:Reference[@URI='#xadesSignedProperties']/ds:DigestValue");
         $this->assertSame(1, $digestValueNodes->length, 'Expected exactly one ds:Reference pointing at the SignedProperties with a DigestValue.');
         $declaredDigest = $digestValueNodes->item(0)->textContent;
 

@@ -238,7 +238,15 @@ class ZatcaXadesSigner
     private function buildInvoiceContentReference(DOMDocument $doc, string $invoiceHash): DOMElement
     {
         $reference = $doc->createElementNS(self::NS_DS, 'ds:Reference');
-        $reference->setAttribute('Id', 'invoice-SignedData');
+        // No hyphen — matches the exact id spelling a commercially
+        // available, independently-verified-working ZATCA Phase 2
+        // reference implementation (Ultimate POS's ZATCA module) uses.
+        // Not dereferenced by any URI in this document (this reference's
+        // own URI="" is a whole-document self-reference), so this is
+        // low-risk, but ZATCA's validator has proven to do literal string
+        // matching on these ids elsewhere (see buildSignedPropertiesReference
+        // below), so it's safest to match the reference exactly here too.
+        $reference->setAttribute('Id', 'invoiceSignedData');
         $reference->setAttribute('URI', '');
 
         $transforms = $doc->createElementNS(self::NS_DS, 'ds:Transforms');
@@ -274,12 +282,25 @@ class ZatcaXadesSigner
     private function buildSignedPropertiesReference(DOMDocument $doc, string $signedPropertiesHash): DOMElement
     {
         $reference = $doc->createElementNS(self::NS_DS, 'ds:Reference');
-        // XAdES (ETSI TS 101 903) requires this specific Type URI for the
-        // SignedProperties reference, not XMLDSig's generic
-        // "SignatureProperties" — ZATCA validates it against this exact
-        // value.
-        $reference->setAttribute('Type', 'http://uri.etsi.org/01903#SignedProperties');
-        $reference->setAttribute('URI', '#xades-SignedProperties');
+        // Plain XMLDSig "SignatureProperties" Type URI, not the
+        // XAdES-specific "http://uri.etsi.org/01903#SignedProperties" a
+        // prior version of this method used (reasoning that XAdES/ETSI TS
+        // 101 903 formally calls for it) — cross-checking against a
+        // commercially available, independently-verified-working ZATCA
+        // Phase 2 reference implementation (Ultimate POS's ZATCA module)
+        // shows it uses the generic XMLDSig URI instead, so that's what's
+        // used here now.
+        $reference->setAttribute('Type', 'http://www.w3.org/2000/09/xmldsig#SignatureProperties');
+        // No hyphen in the id fragment — ZATCA's own compliance-check
+        // rejection ("Invalid signed properties hashing, SignedProperties
+        // with id='xadesSignedProperties'") names this *exact* id, with no
+        // hyphen, confirming ZATCA's validator does a literal string match
+        // against this id/URI pair rather than resolving it as a generic
+        // XML ID reference — a prior version of this method used
+        // 'xades-SignedProperties' (with a hyphen), which the validator
+        // silently failed to resolve, surfacing as an "invalid hashing"
+        // error even though the digest itself may have been correct.
+        $reference->setAttribute('URI', '#xadesSignedProperties');
 
         $digestMethod = $doc->createElementNS(self::NS_DS, 'ds:DigestMethod');
         $digestMethod->setAttribute('Algorithm', 'http://www.w3.org/2001/04/xmlenc#sha256');
@@ -300,7 +321,9 @@ class ZatcaXadesSigner
         $qualifyingProperties->setAttribute('Target', 'signature');
 
         $signedProperties = $doc->createElementNS(self::NS_XADES, 'xades:SignedProperties');
-        $signedProperties->setAttribute('Id', 'xades-SignedProperties');
+        // Must match buildSignedPropertiesReference()'s URI exactly
+        // (no hyphen) — see the comment there.
+        $signedProperties->setAttribute('Id', 'xadesSignedProperties');
         $qualifyingProperties->appendChild($signedProperties);
 
         $signedSignatureProperties = $doc->createElementNS(self::NS_XADES, 'xades:SignedSignatureProperties');
