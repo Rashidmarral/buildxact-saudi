@@ -137,23 +137,18 @@ class ZatcaCertificateService
     }
 
     /**
-     * The certificate's public key — QR tag 8 — as the bare 65-byte
-     * uncompressed EC point (0x04||X||Y), not the full DER-encoded
-     * SubjectPublicKeyInfo structure. ZATCA's own validator independently
-     * re-derives the "expected" public key by parsing the X.509
-     * certificate and extracting this same raw point, then compares it
-     * byte-for-byte against QR tag 8 — a full SubjectPublicKeyInfo
-     * (algorithm identifier + curve OID ahead of the point) never matches
-     * that comparison, which is exactly the "ECDSA Public Key does not
-     * match with qr code ECDSA public key" rejection. Every reference
-     * ZATCA Phase 2 implementation uses the bare point here, consistent
-     * with certificateSignature() above already stripping the BIT
-     * STRING's own DER wrapper down to raw bytes for the same reason.
-     *
-     * A SubjectPublicKeyInfo's BIT STRING content — the point itself — is
-     * always the last element serialized regardless of how the preceding
-     * AlgorithmIdentifier's OIDs happen to encode, so the trailing 65
-     * bytes of the DER blob are the point for any uncompressed EC key.
+     * The certificate's public key — QR tag 8 — as the full DER-encoded
+     * SubjectPublicKeyInfo structure (algorithm identifier + the 0x04||X||Y
+     * point), not just the bare 65-byte point. Confirmed against a
+     * commercially available, independently-verified-working ZATCA Phase 2
+     * reference implementation (Ultimate POS's ZATCA module): its
+     * Cert509XParser::getCertificatePublicKeyEncoded() does exactly this —
+     * base64-decodes the PEM public key body as-is, no stripping to the
+     * bare point. An earlier attempt here to send only the raw point
+     * produced compliance-check rejections that persisted even after
+     * fixing other genuine issues, and reverting to the full DER form
+     * (this method's original behaviour) matches that confirmed-working
+     * reference exactly.
      */
     public function publicKeyBytes(string $certificateBase64): string
     {
@@ -163,16 +158,10 @@ class ZatcaCertificateService
         $body = str_replace(["-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----", "\r", "\n"], '', $publicKeyPem);
         $der = base64_decode($body, true);
 
-        if ($der === false || strlen($der) < 65) {
+        if ($der === false || $der === '') {
             throw new RuntimeException('Unable to read the public key from the ZATCA-issued certificate.');
         }
 
-        $point = substr($der, -65);
-
-        if ($point[0] !== "\x04") {
-            throw new RuntimeException('Unexpected public key encoding from the ZATCA-issued certificate (not an uncompressed EC point).');
-        }
-
-        return $point;
+        return $der;
     }
 }

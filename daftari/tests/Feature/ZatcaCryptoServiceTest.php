@@ -7,24 +7,20 @@ use App\Services\Zatca\ZatcaCryptoService;
 use Tests\TestCase;
 
 /**
- * Bug report: the compliance check kept failing every simplified/B2C
- * document type with "ECDSA Public Key does not match with qr code ECDSA
- * public key" even after the public key extraction itself was fixed and
- * independently confirmed correct (the private key and certificate were
- * proven to be a genuine matching pair). Root cause: signInvoiceHash()
- * used openssl_sign()'s output directly — PHP always returns EC
- * signatures as ASN.1 DER (SEQUENCE of two INTEGERs), the standard PKI/
- * CMS convention. But the signature block declares SignatureMethod
- * "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256", and per RFC
- * 4050 (which that URI is defined against), ds:SignatureValue for that
- * algorithm must be the raw r||s concatenation instead — two
- * fixed-length big-endian integers, no DER wrapper. Sending DER bytes
- * there produces a signature ZATCA's validator can't verify against the
- * (otherwise entirely correct) certificate's public key.
+ * signInvoiceHash() must return openssl_sign()'s plain ASN.1 DER signature,
+ * base64-encoded, with no conversion to raw r||s. A prior attempt
+ * converted it to raw r||s on the theory that the declared SignatureMethod
+ * (xmldsig-more's ecdsa-sha256, whose governing RFC 4050 nominally calls
+ * for that format) required it — that produced compliance-check
+ * rejections that persisted even after fixing other genuine issues, and
+ * was reverted after cross-checking against a commercially available,
+ * independently-verified-working ZATCA Phase 2 reference implementation
+ * (Ultimate POS's ZATCA module), whose equivalent of this method is
+ * `openssl_sign(...); base64_encode($sig)` with no r||s conversion either.
  */
 class ZatcaCryptoServiceTest extends TestCase
 {
-    public function test_signed_hash_is_the_raw_64_byte_r_s_concatenation_not_der_and_verifies_correctly(): void
+    public function test_signed_hash_is_the_plain_der_signature_and_verifies_correctly(): void
     {
         $key = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_EC,
@@ -39,34 +35,13 @@ class ZatcaCryptoServiceTest extends TestCase
         $signature = app(ZatcaCryptoService::class)->signInvoiceHash($company, $hashBase64);
         $this->assertNotNull($signature);
 
-        $raw = base64_decode($signature);
-        $this->assertSame(64, strlen($raw), 'A raw ECDSA signature for secp256k1 must be exactly 64 bytes (32-byte r + 32-byte s), not variable-length DER.');
-
-        // Round-trip: rebuild a DER signature from the raw r||s halves and
-        // confirm it's still cryptographically valid for the same message
-        // and key — proving the conversion preserved r and s correctly
-        // rather than corrupting them.
-        $r = substr($raw, 0, 32);
-        $s = substr($raw, 32, 32);
-        $der = $this->encodeDerSignature($r, $s);
+        $der = base64_decode($signature);
+        // A DER-encoded ECDSA signature is a SEQUENCE of two INTEGERs —
+        // starts with 0x30, variable length (typically 70-72 bytes for a
+        // 256-bit curve), never the fixed 64-byte raw r||s concatenation.
+        $this->assertSame(0x30, ord($der[0]), 'signInvoiceHash() must return openssl_sign()\'s DER output (SEQUENCE tag 0x30), not a converted raw r||s signature.');
 
         $publicKeyPem = openssl_pkey_get_details($key)['key'];
-        $this->assertSame(1, openssl_verify($hashBase64, $der, $publicKeyPem, OPENSSL_ALGO_SHA256), 'The raw r||s signature did not round-trip to a valid signature — r or s was corrupted during conversion.');
-    }
-
-    private function encodeDerSignature(string $r, string $s): string
-    {
-        $encodeInteger = function (string $bytes): string {
-            $bytes = ltrim($bytes, "\x00");
-            if ($bytes === '' || (ord($bytes[0]) & 0x80) !== 0) {
-                $bytes = "\x00".$bytes;
-            }
-
-            return "\x02".chr(strlen($bytes)).$bytes;
-        };
-
-        $body = $encodeInteger($r).$encodeInteger($s);
-
-        return "\x30".chr(strlen($body)).$body;
+        $this->assertSame(1, openssl_verify($hashBase64, $der, $publicKeyPem, OPENSSL_ALGO_SHA256), 'The signature does not verify against the signing key for the given message.');
     }
 }
