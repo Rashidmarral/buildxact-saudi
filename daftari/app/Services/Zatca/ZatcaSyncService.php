@@ -483,7 +483,7 @@ class ZatcaSyncService
             $vatTotal,
             $invoiceHash,
             $signature,
-            base64_encode($publicKey),
+            $publicKey,
             $certificateSignature,
         );
 
@@ -501,7 +501,7 @@ class ZatcaSyncService
             $vatTotal,
             $invoiceHash,
             $signature,
-            base64_encode($publicKey),
+            $publicKey,
             $certificateSignature,
         );
 

@@ -76,10 +76,10 @@ class ZatcaQrGenerator
         float $vatTotal,
         string $invoiceHashBase64,
         string $signatureBase64,
-        string $publicKeyBase64,
+        string $publicKeyRaw,
         string $certificateSignatureRaw
     ): ?string {
-        $payload = self::buildTlvPayloadPhase2($sellerName, $vatNumber, $issuedAt, $invoiceTotal, $vatTotal, $invoiceHashBase64, $signatureBase64, $publicKeyBase64, $certificateSignatureRaw);
+        $payload = self::buildTlvPayloadPhase2($sellerName, $vatNumber, $issuedAt, $invoiceTotal, $vatTotal, $invoiceHashBase64, $signatureBase64, $publicKeyRaw, $certificateSignatureRaw);
 
         if ($payload === null) {
             return null;
@@ -116,16 +116,29 @@ class ZatcaQrGenerator
         float $vatTotal,
         string $invoiceHashBase64,
         string $signatureBase64,
-        string $publicKeyBase64,
+        string $publicKeyRaw,
         string $certificateSignatureRaw
     ): ?string {
-        // User-verified against a real ZATCA-issued certificate with the
-        // QrKsaReader app (confirmed "compatible with Phase 2" twice on
-        // freshly-synced invoices): tags 6, 7, and 8 all stay as their
-        // base64 *text* — none of the three are decoded to raw bytes
-        // before being written into the TLV. Tag 9 was already raw to
-        // begin with (see ZatcaCertificateService::certificateSignature()),
-        // so it's unaffected either way.
+        // Tags 6 and 7 (invoice hash, signature) are written as their
+        // base64 *text*, but tag 8 (public key) is the raw DER
+        // SubjectPublicKeyInfo bytes — not base64 text of them — same as
+        // tag 9. Confirmed against a commercially available,
+        // independently-verified-working ZATCA Phase 2 reference
+        // implementation (Ultimate POS's ZATCA module): its
+        // Cert509XParser::getCertificatePublicKeyEncoded() (despite the
+        // name) returns base64_decode($publicKeyPem) — raw bytes — and
+        // that's what it feeds straight into its own QR TLV builder,
+        // exactly like its already-raw certificate-signature tag. A prior
+        // version of this method instead received (and embedded) the
+        // public key as base64 *text*, which put the ASCII characters of
+        // a base64 string into tag 8's value rather than the actual key
+        // bytes — silently corrupting the QR's own copy of the public key
+        // while leaving the ds:X509Certificate elsewhere in the signed
+        // XML untouched, which is why this only ever surfaced as ZATCA's
+        // "ECDSA Public Key does not match with qr code ECDSA public key"
+        // and only on simplified/B2C documents (ZATCA does not
+        // cryptographically re-validate the QR contents for
+        // standard/B2B invoices, only for simplified ones).
         $tags = [
             1 => $sellerName,
             2 => $vatNumber,
@@ -134,7 +147,7 @@ class ZatcaQrGenerator
             5 => number_format($vatTotal, 2, '.', ''),
             6 => $invoiceHashBase64,
             7 => $signatureBase64,
-            8 => $publicKeyBase64,
+            8 => $publicKeyRaw,
             9 => $certificateSignatureRaw,
         ];
 
