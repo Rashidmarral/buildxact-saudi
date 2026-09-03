@@ -119,37 +119,30 @@ class ZatcaXadesSigner
         );
         $root->insertBefore($ublExtensions, $root->firstChild);
 
-        // Hash the *literal* serialized bytes of this node — not a true
-        // C14N canonicalization of it. Two encoding-only fixes here (the
-        // hex-vs-raw digest convention, then the SignedProperties id
-        // string) each independently checked out against the reference
-        // implementation but neither changed ZATCA's rejection at all, so
-        // the remaining suspect is the content actually being hashed, not
-        // its encoding. The reference implementation never canonicalizes
-        // anything for this digest despite declaring the same
-        // xml-c14n11 CanonicalizationMethod we do: it builds the XML with
-        // \XMLWriter (pretty-printed, insertion-order attributes) and
-        // hashes \XMLReader::readInnerXml()'s literal text — i.e. exactly
-        // the bytes about to be transmitted, not a canonical form of them.
-        // DOMDocument::saveXML($node) is the DOM equivalent of that: the
-        // literal serialization of this node as it will actually appear
-        // in the final document (reconstructing only the namespace
-        // declarations this fragment actually needs, the same way
-        // XMLReader's extraction does), rather than DOMElement::C14N()'s
-        // canonical form (which also pulls in every namespace merely
-        // *in scope* — ext:, sig: — regardless of whether SignedProperties
-        // uses them). ZATCA's validator apparently does the equivalent of
-        // a literal re-hash of the transmitted bytes rather than a true
-        // C14N-invariant recomputation, despite the declared algorithm.
+        // Hash a *pretty-printed* (4-space indented) literal serialization
+        // of this node — not compact DOM output, not true C14N. Four
+        // narrower fixes here (hex-vs-raw digest convention, the
+        // SignedProperties id string, true C14N vs. compact-literal DOM
+        // serialization, a redundant xmlns:xades declaration) each
+        // independently checked out against the reference implementation
+        // but none changed ZATCA's rejection — because none of them
+        // touched the one thing the reference implementation actually
+        // does differently from all of those attempts: it never uses
+        // DOMDocument at all for this digest. It builds the XML with
+        // \XMLWriter — indented 4 spaces per nesting level via
+        // setIndent(true)/setIndentString('    ') — and hashes
+        // \XMLReader::readInnerXml()'s literal extracted text, which
+        // faithfully preserves that indentation (confirmed directly: fed
+        // a known pretty-printed input through PHP's own XMLReader and
+        // got back the identical whitespace). Compact DOM output was
+        // never going to match that regardless of which encoding, id, or
+        // canonicalization was layered on top.
         //
-        // withRedundantXadesNamespace() additionally splices a literal,
-        // redundant 'xmlns:xades' declaration onto this element's own
-        // opening tag — matching the reference implementation's literal
-        // XML exactly — which the digest below must be computed from,
-        // since it has to hash the *exact* bytes that end up transmitted
-        // (see that method's docblock for why this can't be done through
-        // the normal DOM API).
-        $signedPropertiesLiteral = $this->withRedundantXadesNamespace(trim($doc->saveXML($signedProperties)));
+        // buildPrettyPrintedSignedProperties() reproduces that literal
+        // text directly, without going through DOMDocument at all.
+        $signedPropertiesLiteral = $this->buildPrettyPrintedSignedProperties(
+            $signingTimestamp, $certificateHash, $issuerName, $serialNumber,
+        );
         $signedPropertiesHash = base64_encode(hash('sha256', $signedPropertiesLiteral, false));
 
         $this->attachSignatureCore($doc, $signature, $object, $invoiceHashBase64, $signedPropertiesHash, $digitalSignature, $certificateValue);
@@ -162,52 +155,149 @@ class ZatcaXadesSigner
         $signatureElement = $this->buildSignatureElement($doc);
         $this->insertAfter($signatureElement, $qrReference);
 
-        // Must apply the identical string surgery to the actually-
-        // transmitted document, or the digest computed above would
-        // describe bytes that were never sent — see
-        // withRedundantXadesNamespace()'s docblock.
-        return $this->withRedundantXadesNamespace($doc->saveXML());
-    }
-
-    /**
-     * Splices a literal 'xmlns:xades' declaration onto xades:SignedProperties'
-     * own opening tag — redundant with the declaration it already inherits
-     * from its parent xades:QualifyingProperties, but physically present in
-     * the text regardless. Matches a commercially available, independently-
-     * verified-working ZATCA Phase 2 reference implementation (Ultimate
-     * POS's ZATCA module): its literal XML structure (UBLExtensions.php)
-     * declares 'xmlns:xades' as one of SignedProperties' own attributes,
-     * not merely inherited scope.
-     *
-     * This can't be done through DOMElement::setAttributeNS(): PHP's DOM
-     * silently drops a namespace declaration set that way whenever an
-     * ancestor already declares the same prefix+URI (confirmed directly —
-     * hasAttributeNS() reports it as set immediately afterward, but
-     * saveXML() never emits it, and the attribute never shows up in the
-     * element's own attributes list), since libxml2 treats it as
-     * redundant and elides it during serialization no matter how it was
-     * set. There is no DOM-level way to force a genuinely redundant
-     * declaration into the output, so this does it with direct string
-     * substitution on the already-serialized text instead. Used on both
-     * the digest input (the isolated SignedProperties fragment) and the
-     * final transmitted document, so the two stay consistent — the digest
-     * must describe the exact bytes ZATCA receives.
-     */
-    private function withRedundantXadesNamespace(string $xml): string
-    {
-        $target = '<xades:SignedProperties Id="xadesSignedProperties">';
-        $replacement = '<xades:SignedProperties xmlns:xades="'.self::NS_XADES.'" Id="xadesSignedProperties">';
+        // DOMDocument still owns building/positioning this element in the
+        // real tree (for ID uniqueness, XPath reference resolution, and
+        // everything else about the document's structure), but its own
+        // serialization of this one node is compact, not pretty-printed —
+        // so the digest above, computed from the pretty-printed form,
+        // would describe bytes that were never actually transmitted
+        // unless this node's compact rendering is swapped out for the
+        // identical pretty-printed text in the final output too.
+        $compactSignedProperties = trim($doc->saveXML($signedProperties));
+        $finalXml = $doc->saveXML();
 
         $count = 0;
-        $result = str_replace($target, $replacement, $xml, $count);
+        $finalXml = str_replace($compactSignedProperties, $signedPropertiesLiteral, $finalXml, $count);
 
         if ($count !== 1) {
             throw new RuntimeException(
-                'Expected exactly one xades:SignedProperties opening tag to splice the redundant xmlns:xades declaration into, found '.$count.'.'
+                'Expected exactly one occurrence of the compact xades:SignedProperties fragment to replace with its pretty-printed form, found '.$count.'.'
             );
         }
 
-        return $result;
+        return $finalXml;
+    }
+
+    /**
+     * Builds the literal (not DOM-serialized, not C14N-canonicalized)
+     * xades:SignedProperties XML text the digest above hashes — matching
+     * a commercially available, independently-verified-working ZATCA
+     * Phase 2 reference implementation (Ultimate POS's ZATCA module)
+     * byte-for-byte: its InvoiceGenerator::GetSignedPropertiesHashEncoded()
+     * builds the *entire* invoice document via \XMLWriter with 4-space
+     * indentation, then extracts just this element's text via
+     * \XMLReader::readInnerXml() (which preserves that indentation
+     * exactly — confirmed directly). Reproducing that requires this
+     * element's own opening tag to be indented as deeply as it actually
+     * sits in the reference's document tree: Invoice > ext:UBLExtensions
+     * > ext:UBLExtension > ext:ExtensionContent >
+     * sig:UBLDocumentSignatures > sac:SignatureInformation > ds:Signature
+     * > ds:Object > xades:QualifyingProperties — 9 ancestors, the same
+     * depth this element sits at in our own document (built independently
+     * but following the same ZATCA-mandated schema). \XMLWriter's
+     * setIndent() derives each element's indentation purely from actual
+     * startElement() call nesting — there's no API to set a starting
+     * indent level directly — so 9 placeholder wrapper elements (any
+     * name; only the count matters) reproduce that depth before writing
+     * the real element, and are stripped back out afterward along with
+     * everything the wrappers themselves would otherwise contribute.
+     */
+    private function buildPrettyPrintedSignedProperties(string $signingTimestamp, string $certificateHash, string $issuerName, string $serialNumber): string
+    {
+        $writer = new \XMLWriter;
+        $writer->openMemory();
+        $writer->setIndent(true);
+        $writer->setIndentString('    ');
+
+        for ($i = 0; $i < 9; $i++) {
+            $writer->startElement('a');
+        }
+
+        // Plain startElement() with the prefix baked into the literal tag
+        // name — not startElementNs() — throughout this method: the
+        // reference implementation passes a null namespace URI for every
+        // element in its equivalent structure, relying entirely on
+        // explicit 'xmlns:*' *attributes* (written below wherever they
+        // appear in the real output) rather than XMLWriter's own
+        // namespace management. startElementNs() auto-declares its own
+        // xmlns on every call with no persistent namespace scope across
+        // plain startElement() ancestors, which produced duplicate/
+        // spurious xmlns:xades and xmlns:ds declarations on every element
+        // instead of only where the reference actually places them.
+        $writer->startElement('xades:SignedProperties');
+        $writer->startAttribute('xmlns:xades');
+        $writer->text(self::NS_XADES);
+        $writer->endAttribute();
+        $writer->writeAttribute('Id', 'xadesSignedProperties');
+
+        $writer->startElement('xades:SignedSignatureProperties');
+
+        $writer->startElement('xades:SigningTime');
+        $writer->text($signingTimestamp);
+        $writer->endElement();
+
+        $writer->startElement('xades:SigningCertificate');
+        $writer->startElement('xades:Cert');
+
+        $writer->startElement('xades:CertDigest');
+        $writer->startElement('ds:DigestMethod');
+        $writer->startAttribute('xmlns:ds');
+        $writer->text(self::NS_DS);
+        $writer->endAttribute();
+        $writer->writeAttribute('Algorithm', 'http://www.w3.org/2001/04/xmlenc#sha256');
+        // The reference implementation's equivalent DigestMethod element
+        // (the one nested here, under CertDigest specifically — its other
+        // DigestMethod elements elsewhere use an empty string) writes a
+        // single literal space as this element's text content, keeping it
+        // a non-self-closing <tag> </tag> rather than <tag/>. Matched
+        // exactly since this is hashed as literal text, not canonicalized.
+        $writer->text(' ');
+        $writer->endElement();
+        $writer->startElement('ds:DigestValue');
+        $writer->startAttribute('xmlns:ds');
+        $writer->text(self::NS_DS);
+        $writer->endAttribute();
+        $writer->text($certificateHash);
+        $writer->endElement();
+        $writer->endElement(); // CertDigest
+
+        $writer->startElement('xades:IssuerSerial');
+        $writer->startElement('ds:X509IssuerName');
+        $writer->startAttribute('xmlns:ds');
+        $writer->text(self::NS_DS);
+        $writer->endAttribute();
+        $writer->text($issuerName);
+        $writer->endElement();
+        $writer->startElement('ds:X509SerialNumber');
+        $writer->startAttribute('xmlns:ds');
+        $writer->text(self::NS_DS);
+        $writer->endAttribute();
+        $writer->text($serialNumber);
+        $writer->endElement();
+        $writer->endElement(); // IssuerSerial
+
+        $writer->endElement(); // Cert
+        $writer->endElement(); // SigningCertificate
+        $writer->endElement(); // SignedSignatureProperties
+        $writer->endElement(); // SignedProperties
+
+        for ($i = 0; $i < 9; $i++) {
+            $writer->endElement();
+        }
+
+        $full = $writer->outputMemory(true);
+        $writer->flush();
+
+        $start = strpos($full, '<xades:SignedProperties');
+        $end = strpos($full, '</xades:SignedProperties>');
+
+        if ($start === false || $end === false) {
+            throw new RuntimeException('Failed to locate the pretty-printed xades:SignedProperties fragment.');
+        }
+
+        $end += strlen('</xades:SignedProperties>');
+
+        return trim(substr($full, $start, $end - $start));
     }
 
     /**
