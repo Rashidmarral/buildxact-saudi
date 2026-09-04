@@ -506,6 +506,121 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Who owes the company money, and who the company owes, bucketed by
+     * how overdue each outstanding invoice/bill is — the report that was
+     * missing next to the existing per-party Account Statement, which
+     * shows one party's running balance but never "who's overdue and by
+     * how much" across the whole receivables/payables book at a glance.
+     * Always a live snapshot (not a historical AS OF date) — a genuine
+     * point-in-time aging would need every payment filtered by its own
+     * date too, which isn't worth the complexity for a report that's
+     * almost always run "as of today" in practice.
+     */
+    public function aging(Request $request)
+    {
+        $company = Auth::user()->company;
+        $type = $request->query('type', 'receivables') === 'payables' ? 'payables' : 'receivables';
+
+        $rows = $type === 'receivables' ? $this->agedReceivablesRows() : $this->agedPayablesRows();
+
+        $totals = ['current' => 0.0, 'days_1_30' => 0.0, 'days_31_60' => 0.0, 'days_61_90' => 0.0, 'days_over_90' => 0.0, 'total' => 0.0];
+        foreach ($rows as $row) {
+            foreach ($totals as $bucket => $sum) {
+                $totals[$bucket] += $row['buckets'][$bucket] ?? $row['total'];
+            }
+        }
+
+        if ($request->query('export') === 'csv') {
+            $header = [__('Party'), __('Current'), __('1-30 days'), __('31-60 days'), __('61-90 days'), __('90+ days'), __('Total')];
+            $csvRows = $rows->map(fn (array $row) => [
+                $row['party']->name,
+                number_format($row['buckets']['current'], 2, '.', ''),
+                number_format($row['buckets']['days_1_30'], 2, '.', ''),
+                number_format($row['buckets']['days_31_60'], 2, '.', ''),
+                number_format($row['buckets']['days_61_90'], 2, '.', ''),
+                number_format($row['buckets']['days_over_90'], 2, '.', ''),
+                number_format($row['total'], 2, '.', ''),
+            ]);
+
+            return $this->csvResponse('aged-'.$type.'.csv', $header, $csvRows);
+        }
+
+        return view('user.reports.aging', [
+            'company' => $company,
+            'type' => $type,
+            'rows' => $rows,
+            'totals' => $totals,
+        ]);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{party: Client, buckets: array<string, float>, total: float}>
+     */
+    private function agedReceivablesRows()
+    {
+        return Invoice::with('client')
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->whereHas('client')
+            ->get()
+            ->filter(fn (Invoice $invoice) => $invoice->balanceDue() > 0.004)
+            ->groupBy('client_id')
+            ->map(fn ($invoices) => [
+                'party' => $invoices->first()->client,
+                'buckets' => $this->bucketBalances($invoices, fn (Invoice $i) => $i->due_date ?? $i->issue_date, fn (Invoice $i) => $i->balanceDue()),
+                'total' => (float) $invoices->sum(fn (Invoice $i) => $i->balanceDue()),
+            ])
+            ->sortByDesc('total')
+            ->values();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{party: Supplier, buckets: array<string, float>, total: float}>
+     */
+    private function agedPayablesRows()
+    {
+        return Bill::with('supplier')
+            ->whereNotIn('status', ['draft', 'void'])
+            ->whereHas('supplier')
+            ->get()
+            ->filter(fn (Bill $bill) => $bill->balanceDue() > 0.004)
+            ->groupBy('supplier_id')
+            ->map(fn ($bills) => [
+                'party' => $bills->first()->supplier,
+                'buckets' => $this->bucketBalances($bills, fn (Bill $b) => $b->due_date ?? $b->bill_date, fn (Bill $b) => $b->balanceDue()),
+                'total' => (float) $bills->sum(fn (Bill $b) => $b->balanceDue()),
+            ])
+            ->sortByDesc('total')
+            ->values();
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function bucketBalances($documents, \Closure $dueDate, \Closure $balance): array
+    {
+        $buckets = ['current' => 0.0, 'days_1_30' => 0.0, 'days_31_60' => 0.0, 'days_61_90' => 0.0, 'days_over_90' => 0.0];
+        $today = now()->startOfDay();
+
+        foreach ($documents as $document) {
+            $amount = $balance($document);
+            $due = $dueDate($document);
+            $daysOverdue = $due->startOfDay()->lt($today) ? $due->startOfDay()->diffInDays($today) : -1;
+
+            $bucket = match (true) {
+                $daysOverdue < 0 => 'current',
+                $daysOverdue <= 30 => 'days_1_30',
+                $daysOverdue <= 60 => 'days_31_60',
+                $daysOverdue <= 90 => 'days_61_90',
+                default => 'days_over_90',
+            };
+
+            $buckets[$bucket] += $amount;
+        }
+
+        return $buckets;
+    }
+
     private function customerStatementLines(?Client $client, array $period): array
     {
         if (! $client) {

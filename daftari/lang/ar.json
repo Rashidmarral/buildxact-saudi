@@ -4003,5 +4003,15 @@
     "Total debits must equal total credits before this can be posted.": "يجب أن يساوي إجمالي المدين إجمالي الدائن قبل إمكانية الترحيل.",
     "Total debits must equal total credits before this can be saved.": "يجب أن يساوي إجمالي المدين إجمالي الدائن قبل إمكانية الحفظ.",
     "e.g. Correct miscoded expense from July": "مثال: تصحيح مصروف مقيد بشكل خاطئ من يوليو",
-    "e.g. Monthly office rent accrual": "مثال: استحقاق إيجار المكتب الشهري"
+    "e.g. Monthly office rent accrual": "مثال: استحقاق إيجار المكتب الشهري",
+    "Aged Receivables/Payables": "أعمار الذمم المدينة والدائنة",
+    "Every outstanding invoice or bill, bucketed by how overdue it is — as of today.": "كل فاتورة أو مستند شراء مستحق، مصنف حسب مدة التأخر — اعتبارًا من اليوم.",
+    "Receivables (customers owe you)": "الذمم المدينة (مستحقة لك من العملاء)",
+    "Payables (you owe suppliers)": "الذمم الدائنة (مستحقة عليك للموردين)",
+    "1-30 days": "1-30 يومًا",
+    "31-60 days": "31-60 يومًا",
+    "61-90 days": "61-90 يومًا",
+    "90+ days": "أكثر من 90 يومًا",
+    "No outstanding customer balances.": "لا توجد أرصدة مستحقة على العملاء.",
+    "No outstanding supplier balances.": "لا توجد أرصدة مستحقة للموردين."
 }

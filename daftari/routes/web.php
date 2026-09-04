@@ -327,6 +327,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
         Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
+        Route::get('aging', [ReportController::class, 'aging'])->name('aging');
         Route::get('withholding-tax', [ReportController::class, 'whtReturn'])->name('wht-return');
     });
 
