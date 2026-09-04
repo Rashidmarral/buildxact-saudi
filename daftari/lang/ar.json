@@ -1347,6 +1347,7 @@
     "Footer note (Arabic)": "ملاحظة التذييل (عربي)",
     "Footer note (English)": "ملاحظة التذييل (إنجليزي)",
     "Footer tagline": "شعار التذييل",
+    "Follows the selected client's VAT registration by default — change it any time.": "يتبع تسجيل ضريبة القيمة المضافة للعميل المحدد افتراضيًا — يمكنك تغييره في أي وقت.",
     "For": "مقابل",
     "For S3-compatible providers other than AWS (e.g. DigitalOcean Spaces, Cloudflare R2, MinIO).": "لمزوّدي التخزين المتوافقين مع S3 غير AWS (مثل DigitalOcean Spaces أو Cloudflare R2 أو MinIO).",
     "For VAT groups: enter the 10-digit TIN of the group member. For regular taxpayers: enter your branch name.": "لمجموعات ضريبة القيمة المضافة: أدخل الرقم الضريبي المكوّن من 10 أرقام لعضو المجموعة. لدافعي الضرائب العاديين: أدخل اسم فرعك.",

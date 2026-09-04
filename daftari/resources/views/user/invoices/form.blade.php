@@ -62,16 +62,17 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
             <select name="client_id" id="pv-client" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a client') }}</option>
                 @foreach ($clients as $client)
-                    <option value="{{ $client->id }}" data-terms-days="{{ $client->payment_terms_days }}" @selected(old('client_id', $invoice->client_id) == $client->id)>{{ $client->name }}</option>
+                    <option value="{{ $client->id }}" data-terms-days="{{ $client->payment_terms_days }}" data-vat-registered="{{ $client->is_vat_registered ? '1' : '0' }}" @selected(old('client_id', $invoice->client_id) == $client->id)>{{ $client->name }}</option>
                 @endforeach
             </select>
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Type') }}</label>
-            <select name="type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <select name="type" id="pv-type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="standard" @selected(old('type', $invoice->type ?? 'standard') === 'standard')>{{ __('Standard (B2B)') }}</option>
                 <option value="simplified" @selected(old('type', $invoice->type ?? 'standard') === 'simplified')>{{ __('Simplified (B2C)') }}</option>
             </select>
+            <p class="mt-1 text-xs text-slate-400">{{ __('Follows the selected client\'s VAT registration by default — change it any time.') }}</p>
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Issue date') }}</label>
@@ -483,6 +484,29 @@ document.getElementById('invoice-form').addEventListener('submit', (e) => {
                 applyTerms();
             }
         }
+    });
+})();
+
+// Standard (B2B) vs Simplified (B2C) isn't derived server-side — it's
+// this plain select, which always defaulted to "standard" regardless of
+// which client was picked. Auto-follow the selected client's VAT
+// registration instead (VAT-registered → standard, unregistered →
+// simplified) so picking a non-VAT client doesn't silently leave the
+// invoice marked B2B, while still letting the user override it — once
+// they've touched the Type field themselves, client changes stop
+// overwriting it.
+(function () {
+    const clientSelect = document.getElementById('pv-client');
+    const typeSelect = document.getElementById('pv-type');
+    let typeTouchedByUser = false;
+
+    typeSelect.addEventListener('change', () => { typeTouchedByUser = true; });
+
+    clientSelect.addEventListener('change', () => {
+        if (typeTouchedByUser) return;
+        const opt = clientSelect.selectedOptions[0];
+        if (! opt || ! opt.value) return;
+        typeSelect.value = opt.dataset.vatRegistered === '1' ? 'standard' : 'simplified';
     });
 })();
 
