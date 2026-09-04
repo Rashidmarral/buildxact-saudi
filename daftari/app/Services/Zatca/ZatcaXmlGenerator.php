@@ -66,6 +66,8 @@ class ZatcaXmlGenerator
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
             'name' => $client->name,
             'vat_number' => $client->vat_number,
+            'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
+            'id_value' => $client->additional_id_number,
             'street' => $client->street_name,
             'building_number' => $client->building_number,
             'district' => $client->district,
@@ -83,19 +85,21 @@ class ZatcaXmlGenerator
         $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
         $root->appendChild($paymentMeans);
 
-        if ((float) $invoice->discount_total > 0) {
-            $root->appendChild($this->documentAllowanceCharge($doc, (float) $invoice->discount_total, $invoice->items));
-        }
+        $docCurrency = $invoice->currency ?: 'SAR';
+
+        // Always present (even at 0.00 with no header discount) — confirmed
+        // against a real ZATCA-cleared invoice, which carries this element
+        // unconditionally rather than only when a discount applies.
+        $root->appendChild($this->documentAllowanceCharge($doc, (float) $invoice->discount_total, $invoice->items, $docCurrency));
 
         $this->appendDualTaxTotal($doc, $root, (float) $invoice->vat_total, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
-
-        $docCurrency = $invoice->currency ?: 'SAR';
 
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $invoice->total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', $invoice->discount_total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', 0.0, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total, $docCurrency);
         $root->appendChild($monetaryTotal);
 
@@ -127,6 +131,7 @@ class ZatcaXmlGenerator
 
             $price = $doc->createElement('cac:Price');
             $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price, $docCurrency);
+            $price->appendChild($this->lineAllowanceCharge($doc, $docCurrency));
             $line->appendChild($price);
 
             $root->appendChild($line);
@@ -204,6 +209,8 @@ class ZatcaXmlGenerator
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
             'name' => $client->name,
             'vat_number' => $client->vat_number,
+            'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
+            'id_value' => $client->additional_id_number,
             'street' => $client->street_name,
             'building_number' => $client->building_number,
             'district' => $client->district,
@@ -234,6 +241,8 @@ class ZatcaXmlGenerator
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $creditNote->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $creditNote->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $creditNote->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', 0.0, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', 0.0, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $creditNote->total, $docCurrency);
         $root->appendChild($monetaryTotal);
 
@@ -263,6 +272,7 @@ class ZatcaXmlGenerator
 
             $price = $doc->createElement('cac:Price');
             $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price, $docCurrency);
+            $price->appendChild($this->lineAllowanceCharge($doc, $docCurrency));
             $line->appendChild($price);
 
             $root->appendChild($line);
@@ -338,6 +348,8 @@ class ZatcaXmlGenerator
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
             'name' => $client->name,
             'vat_number' => $client->vat_number,
+            'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
+            'id_value' => $client->additional_id_number,
             'street' => $client->street_name,
             'building_number' => $client->building_number,
             'district' => $client->district,
@@ -363,6 +375,8 @@ class ZatcaXmlGenerator
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $debitNote->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $debitNote->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $debitNote->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', 0.0, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', 0.0, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $debitNote->total, $docCurrency);
         $root->appendChild($monetaryTotal);
 
@@ -392,6 +406,7 @@ class ZatcaXmlGenerator
 
             $price = $doc->createElement('cac:Price');
             $this->appendAmount($doc, $price, 'cbc:PriceAmount', $item->unit_price, $docCurrency);
+            $price->appendChild($this->lineAllowanceCharge($doc, $docCurrency));
             $line->appendChild($price);
 
             $root->appendChild($line);
@@ -719,7 +734,7 @@ class ZatcaXmlGenerator
      * this uses the dominant VAT rate among the invoice's lines as the
      * category/percentage context.
      */
-    private function documentAllowanceCharge(DOMDocument $doc, float $discountTotal, iterable $items): \DOMElement
+    private function documentAllowanceCharge(DOMDocument $doc, float $discountTotal, iterable $items, string $currency = 'SAR'): \DOMElement
     {
         $rate = 0.0;
         foreach ($items as $item) {
@@ -728,19 +743,57 @@ class ZatcaXmlGenerator
         }
 
         $allowance = $doc->createElement('cac:AllowanceCharge');
+        $this->append($doc, $allowance, 'cbc:ID', '1');
         $this->append($doc, $allowance, 'cbc:ChargeIndicator', 'false');
         $this->append($doc, $allowance, 'cbc:AllowanceChargeReason', 'discount');
-        $this->appendAmount($doc, $allowance, 'cbc:Amount', $discountTotal);
+        $this->appendAmount($doc, $allowance, 'cbc:Amount', $discountTotal, $currency);
 
         $category = $doc->createElement('cac:TaxCategory');
-        $this->append($doc, $category, 'cbc:ID', $rate > 0 ? 'S' : 'Z');
+        $id = $this->append($doc, $category, 'cbc:ID', $rate > 0 ? 'S' : 'Z');
+        $id->setAttribute('schemeAgencyID', '6');
+        $id->setAttribute('schemeID', 'UN/ECE 5305');
         $this->append($doc, $category, 'cbc:Percent', number_format($rate, 2, '.', ''));
         $scheme = $doc->createElement('cac:TaxScheme');
-        $this->append($doc, $scheme, 'cbc:ID', 'VAT');
+        $schemeId = $this->append($doc, $scheme, 'cbc:ID', 'VAT');
+        $schemeId->setAttribute('schemeAgencyID', '6');
+        $schemeId->setAttribute('schemeID', 'UN/ECE 5153');
         $category->appendChild($scheme);
         $allowance->appendChild($category);
 
         return $allowance;
+    }
+
+    /**
+     * The line-level counterpart to documentAllowanceCharge() above, nested
+     * under cac:Price per UBL's PriceType — confirmed present (Amount
+     * 0.00, no per-line discount tracked here) on a real ZATCA-cleared
+     * invoice, so every line carries one unconditionally rather than only
+     * when a per-line discount exists.
+     */
+    private function lineAllowanceCharge(DOMDocument $doc, string $currency): \DOMElement
+    {
+        $allowance = $doc->createElement('cac:AllowanceCharge');
+        $this->append($doc, $allowance, 'cbc:ChargeIndicator', 'false');
+        $this->append($doc, $allowance, 'cbc:AllowanceChargeReason', 'Applied Discount');
+        $this->appendAmount($doc, $allowance, 'cbc:Amount', 0.0, $currency);
+
+        return $allowance;
+    }
+
+    /**
+     * ZATCA's Buyer Additional ID (KSA-25) — identifies a buyer who has no
+     * VAT number via another approved scheme instead. Mirrors the values
+     * Client::additional_id_type accepts (see ClientController).
+     */
+    private function buyerAdditionalIdScheme(?string $type): ?string
+    {
+        return match ($type) {
+            'national_id' => 'NAT',
+            'iqama' => 'IQA',
+            'passport' => 'PAS',
+            'gcc_id' => 'GCC',
+            default => null,
+        };
     }
 
     /**

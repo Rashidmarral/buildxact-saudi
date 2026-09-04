@@ -50,6 +50,16 @@
         @endif
         @if ($invoice->isZatcaLocked())
             <a href="{{ route('app.invoices.xml', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download XML') }}</a>
+        @elseif (auth()->user()->hasPermission('zatca') && $invoice->company->hasFeature('zatca_phase2') && $invoice->company->zatcaIntegrationMode() === \App\Models\Company::ZATCA_MODE_PHASE2)
+            @php($zatcaBlockedReason = $invoice->zatcaSyncBlockedReason())
+            @if (is_null($zatcaBlockedReason))
+                <form method="POST" action="{{ route('app.zatca.sync.invoice', $invoice) }}">
+                    @csrf
+                    <button type="submit" class="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 hover:border-brand-300">{{ __('Sync with ZATCA') }}</button>
+                </form>
+            @elseif ($invoice->status !== 'draft' && $invoice->status !== 'cancelled')
+                <span class="inline-flex items-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400" title="{{ $zatcaBlockedReason }}">{{ __('ZATCA sync unavailable') }}</span>
+            @endif
         @endif
         <a href="{{ route('app.invoices.pdf', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         @if ($invoice->status !== 'draft')

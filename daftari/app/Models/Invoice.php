@@ -179,6 +179,44 @@ class Invoice extends Model
         return $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->exists();
     }
 
+    /**
+     * Why this invoice can't be synced to ZATCA right now, or null if it
+     * can — mirrors ZatcaSyncService::pendingInvoices()'s filter criteria
+     * for a single invoice, so the invoice page can offer (or explain the
+     * absence of) a direct "Sync with ZATCA" action instead of only
+     * surfacing eligible invoices in the ZATCA dashboard's pending list.
+     */
+    public function zatcaSyncBlockedReason(): ?string
+    {
+        if ($this->isZatcaLocked()) {
+            return null;
+        }
+
+        $company = $this->company;
+
+        if (! $company->isZatcaOnboarded()) {
+            return __('Complete ZATCA onboarding before syncing invoices.');
+        }
+
+        if (in_array($this->status, ['draft', 'cancelled'], true)) {
+            return __('Send this invoice before it can be synced to ZATCA.');
+        }
+
+        if ($this->currency !== $company->currency) {
+            return __('ZATCA sync only supports invoices in your base currency (:currency).', ['currency' => $company->currency]);
+        }
+
+        if ($this->type === 'standard' && ! $company->zatca_sync_b2b) {
+            return __('Standard (B2B) ZATCA sync is turned off in your ZATCA settings.');
+        }
+
+        if ($this->type === 'simplified' && ! $company->zatca_sync_b2c) {
+            return __('Simplified (B2C) ZATCA sync is turned off in your ZATCA settings.');
+        }
+
+        return null;
+    }
+
     public function recalculateTotals(): void
     {
         $items = $this->items;
