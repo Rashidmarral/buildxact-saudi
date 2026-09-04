@@ -119,10 +119,43 @@
                             </select>
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500">{{ __('Language') }}</label>
+                            <select name="language_mode" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                <option value="bilingual" @selected($selected->language_mode === 'bilingual')>{{ __('Bilingual (English + Arabic)') }}</option>
+                                <option value="english_only" @selected($selected->language_mode === 'english_only')>{{ __('English only') }}</option>
+                                <option value="arabic_only" @selected($selected->language_mode === 'arabic_only')>{{ __('Arabic only') }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500">{{ __('Table direction') }}</label>
+                            <select name="table_direction" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                <option value="ltr" @selected($selected->table_direction === 'ltr')>{{ __('Left to right') }}</option>
+                                <option value="rtl" @selected($selected->table_direction === 'rtl')>{{ __('Right to left') }}</option>
+                            </select>
+                        </div>
+                    </div>
                     <label class="flex items-center gap-2 text-sm text-slate-700">
                         <input type="checkbox" name="show_logo" value="1" @checked($selected->show_logo) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                         {{ __('Show company logo') }}
                     </label>
+                    <div x-data="{ signature: {{ $selected->show_signature ? 'true' : 'false' }} }">
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" name="show_signature" value="1" x-model="signature" @checked($selected->show_signature) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                            {{ __('Show signature area') }}
+                        </label>
+                        <div x-show="signature" x-cloak class="grid grid-cols-2 gap-3 mt-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500">{{ __('Signature label (English)') }}</label>
+                                <input type="text" name="signature_label_en" value="{{ $selected->signature_label_en }}" placeholder="{{ __('Authorized Signature') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500">{{ __('Signature label (Arabic)') }}</label>
+                                <input type="text" name="signature_label_ar" value="{{ $selected->signature_label_ar }}" dir="rtl" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            </div>
+                        </div>
+                    </div>
                     <div x-show="layout === 'custom_letterhead'" x-cloak>
                         <label class="block text-xs font-medium text-slate-500">{{ __('Letterhead image') }}</label>
                         @if ($selected->letterhead_path)

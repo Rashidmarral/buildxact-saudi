@@ -3957,5 +3957,15 @@
     "Company profile completeness": "اكتمال بيانات الشركة",
     "All required company profile fields are complete.": "جميع حقول بيانات الشركة المطلوبة مكتملة.",
     ":count required company profile field(s) are missing.": "هناك :count حقل/حقول مطلوبة ناقصة من بيانات الشركة.",
-    "Fixed": "ثابت"
+    "Fixed": "ثابت",
+    "Table direction": "اتجاه الجدول",
+    "Bilingual (English + Arabic)": "ثنائي اللغة (إنجليزي + عربي)",
+    "English only": "إنجليزي فقط",
+    "Arabic only": "عربي فقط",
+    "Left to right": "من اليسار إلى اليمين",
+    "Right to left": "من اليمين إلى اليسار",
+    "Show signature area": "إظهار مساحة التوقيع",
+    "Signature label (English)": "نص التوقيع (إنجليزي)",
+    "Signature label (Arabic)": "نص التوقيع (عربي)",
+    "Authorized Signature": "التوقيع المعتمد"
 }

@@ -20,6 +20,10 @@ class InvoiceTemplateController extends Controller
 
     private const LAYOUTS = ['minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead'];
 
+    private const LANGUAGE_MODES = ['bilingual', 'english_only', 'arabic_only'];
+
+    private const TABLE_DIRECTIONS = ['ltr', 'rtl'];
+
     public function index(Request $request)
     {
         $company = Auth::user()->company;
@@ -106,6 +110,11 @@ class InvoiceTemplateController extends Controller
             'document_type' => ['required', Rule::in(self::TYPES)],
             'accent_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'layout' => ['required', Rule::in(self::LAYOUTS)],
+            'language_mode' => ['required', Rule::in(self::LANGUAGE_MODES)],
+            'table_direction' => ['required', Rule::in(self::TABLE_DIRECTIONS)],
+            'show_signature' => ['nullable', 'boolean'],
+            'signature_label_en' => ['nullable', 'string', 'max:255'],
+            'signature_label_ar' => ['nullable', 'string', 'max:255'],
             'show_logo' => ['nullable', 'boolean'],
             'letterhead' => ['nullable', 'image', 'max:4096'],
             'notes_en' => ['nullable', 'string', 'max:2000'],
@@ -113,6 +122,7 @@ class InvoiceTemplateController extends Controller
         ]);
 
         $data['show_logo'] = $request->boolean('show_logo');
+        $data['show_signature'] = $request->boolean('show_signature');
         unset($data['letterhead']);
 
         if ($request->hasFile('letterhead')) {

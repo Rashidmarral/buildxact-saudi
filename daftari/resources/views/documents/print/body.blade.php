@@ -11,7 +11,34 @@
     $layout = $template->layout ?? 'minimal';
     $showLogo = $template->show_logo ?? true;
     $bankAccounts = $doc['bank_accounts'] ?? (($doc['bank_account'] ?? null) ? collect([$doc['bank_account']]) : collect());
+
+    // Document language mode: 'bilingual' (default) shows English primary
+    // text with an Arabic subtext/column; 'english_only' hides every
+    // Arabic string; 'arabic_only' shows Arabic as the primary text
+    // (falling back to English only where no Arabic value exists).
+    $languageMode = $template->language_mode ?? 'bilingual';
+    $tableDirection = $template->table_direction ?? 'ltr';
+    $showEn = $languageMode !== 'arabic_only';
+    $showAr = $languageMode !== 'english_only';
+
+    // Static UI labels ("Description", "Subtotal", ...) always have an
+    // Arabic translation in lang/ar.json, so arabic_only/english_only can
+    // resolve them directly instead of needing hand-written Arabic in
+    // every layout branch.
+    $lbl = fn (string $key) => $languageMode === 'arabic_only'
+        ? \Illuminate\Support\Facades\Lang::get($key, [], 'ar')
+        : \Illuminate\Support\Facades\Lang::get($key, [], 'en');
+    $lblAr = fn (string $key) => \Illuminate\Support\Facades\Lang::get($key, [], 'ar');
+
+    // Name pairs (company/party/item) have a primary line plus an
+    // optional Arabic secondary line — this picks the primary text for
+    // the current language mode, falling back to English if the record
+    // has no Arabic name at all.
+    $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
+    $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
 @endphp
+
+<div dir="{{ $tableDirection }}">
 
 @if ($layout === 'bilingual_classic')
     {{-- "Bilingual Classic": dual-language mirrored header, centered
@@ -22,20 +49,25 @@
     @include('documents.print.bilingual-header', ['company' => $company, 'showLogo' => $showLogo])
 
     <div class="mt-8 pb-4 border-b-2 border-slate-800 text-center">
-        <h2 class="text-3xl font-bold text-slate-900"><span dir="rtl">{{ $doc['type_label_ar'] }}</span> &nbsp; {{ $doc['type_label'] }}</h2>
+        <h2 class="text-3xl font-bold text-slate-900">
+            @if ($showAr)<span dir="rtl">{{ $doc['type_label_ar'] }}</span> &nbsp; @endif
+            @if ($showEn){{ $doc['type_label'] }}@endif
+        </h2>
     </div>
 
     <table class="w-full text-sm mt-6 border border-slate-300">
         <tbody>
             <tr class="border-b border-slate-300">
-                <td class="w-1/6 px-3 py-2 font-semibold text-slate-700">{{ $doc['party_label'] }}</td>
+                <td class="w-1/6 px-3 py-2 font-semibold text-slate-700">@if ($showEn){{ $doc['party_label'] }}@else{{ $doc['party_label_ar'] }}@endif</td>
                 <td class="px-3 py-2 text-center font-medium text-slate-800">
-                    {{ $doc['party']->name }}
-                    @if (!empty($doc['party']->name_ar))
+                    @if ($showEn){{ $doc['party']->name }}@endif
+                    @if ($secondary($doc['party']->name_ar ?? null))
                         <span dir="rtl" class="block text-slate-600">{{ $doc['party']->name_ar }}</span>
+                    @elseif (!$showEn)
+                        {{ $doc['party']->name_ar ?: $doc['party']->name }}
                     @endif
                 </td>
-                <td class="w-1/6 px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">{{ $doc['party_label_ar'] }}</td>
+                <td class="w-1/6 px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">@if ($showAr){{ $doc['party_label_ar'] }}@endif</td>
             </tr>
             <tr class="border-b border-slate-300">
                 <td class="px-3 py-2 font-semibold text-slate-700">{{ __('VAT number') }}</td>
@@ -178,14 +210,18 @@
     @endif
 
     <h2 class="mt-4 text-center text-base font-bold uppercase tracking-wide text-slate-900">
-        {{ strtoupper($doc['type_label']) }} <span class="font-normal">/ ({{ $doc['type_label_ar'] }})</span>
+        @if ($showEn){{ strtoupper($doc['type_label']) }}@endif
+        @if ($showAr)<span class="font-normal">/ ({{ $doc['type_label_ar'] }})</span>@endif
     </h2>
 
     <table class="w-full text-sm mt-5">
         <tbody>
             <tr>
-                <td class="w-1/4 py-1 font-semibold text-slate-600">{{ $doc['party_label'] }}</td>
-                <td class="w-1/4 py-1 text-slate-800">{{ $doc['party']->name }}</td>
+                <td class="w-1/4 py-1 font-semibold text-slate-600">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</td>
+                <td class="w-1/4 py-1 text-slate-800">
+                    {{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}
+                    @if ($secondary($doc['party']->name_ar ?? null))<span class="block text-xs text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</span>@endif
+                </td>
                 <td class="w-1/4 py-1 font-semibold text-slate-600">{{ __('Number') }}</td>
                 <td class="py-1 text-slate-800">{{ $doc['number'] }}</td>
             </tr>
@@ -226,7 +262,10 @@
             @foreach ($doc['lines'] as $index => $line)
                 <tr>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-500">{{ $index + 1 }}</td>
-                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800">{{ $line->description }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800">
+                        {{ $primary($line->description, $line->item?->name_ar) }}
+                        @if ($secondary($line->item?->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->item->name_ar }}</span>@endif
+                    </td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end font-medium text-slate-900">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
@@ -307,13 +346,17 @@
                 <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-12 w-12 rounded-lg object-cover border border-slate-100">
             @endif
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">{{ $company->name }}</h1>
-                @if ($company->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $company->vat_number }}</p>@endif
+                <h1 class="text-2xl font-bold text-slate-900">{{ $primary($company->name, $company->name_ar) }}</h1>
+                @if ($secondary($company->name_ar))<p class="text-sm font-medium text-slate-600" dir="rtl">{{ $company->name_ar }}</p>@endif
+                @if ($company->vat_number)<p class="text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $company->vat_number }}</p>@endif
                 @if ($company->address)<p class="text-sm text-slate-500">{{ $company->address }}</p>@endif
             </div>
         </div>
         <div class="text-end">
-            <h2 class="text-xl font-bold" style="color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }}">{{ $doc['type_label'] }}</h2>
+            <h2 class="text-xl font-bold" style="color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }}">
+                {{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}
+            </h2>
+            @if ($secondary($doc['type_label_ar'] ?? null))<p class="text-xs text-slate-400" dir="rtl">{{ $doc['type_label_ar'] }}</p>@endif
             <p class="text-sm text-slate-500">{{ $doc['number'] }}</p>
             <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</p>
             @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</p>@endif
@@ -322,9 +365,10 @@
 
     <div class="mt-8 grid grid-cols-2 gap-8">
         <div>
-            <h3 class="text-xs font-semibold uppercase text-slate-400">{{ $doc['party_label'] }}</h3>
-            <p class="mt-1 font-medium text-slate-800">{{ $doc['party']->name }}</p>
-            @if ($doc['party']->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
+            <h3 class="text-xs font-semibold uppercase text-slate-400">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</h3>
+            <p class="mt-1 font-medium text-slate-800">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</p>
+            @if ($secondary($doc['party']->name_ar ?? null))<p class="text-sm text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</p>@endif
+            @if ($doc['party']->vat_number)<p class="text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
             @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<p class="text-sm text-slate-500">{{ $doc['party']->fullAddress() }}</p>@endif
             @if (!empty($doc['party']->email))<p class="text-sm text-slate-500">{{ $doc['party']->email }}</p>@endif
         </div>
@@ -344,17 +388,20 @@
     <table class="w-full text-sm mt-8">
         <thead>
             <tr class="text-left text-slate-500 border-b border-slate-200">
-                <th class="py-2">{{ __('Description') }}</th>
-                <th class="py-2 text-end">{{ __('Qty') }}</th>
-                <th class="py-2 text-end">{{ __('Unit price') }}</th>
-                <th class="py-2 text-end">{{ __('VAT') }}</th>
-                <th class="py-2 text-end">{{ __('Total') }}</th>
+                <th class="py-2">{{ $lbl('Description') }}</th>
+                <th class="py-2 text-end">{{ $lbl('Qty') }}</th>
+                <th class="py-2 text-end">{{ $lbl('Unit price') }}</th>
+                <th class="py-2 text-end">{{ $lbl('VAT') }}</th>
+                <th class="py-2 text-end">{{ $lbl('Total') }}</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $line)
                 <tr class="border-b border-slate-50">
-                    <td class="py-2">{{ $line->description }}</td>
+                    <td class="py-2">
+                        {{ $primary($line->description, $line->item?->name_ar) }}
+                        @if ($secondary($line->item?->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->item->name_ar }}</span>@endif
+                    </td>
                     <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
                     <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
                     <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
@@ -369,12 +416,12 @@
             @php
                 $boxed = $layout === 'boxed' && $accent;
             @endphp
-            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Subtotal') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Subtotal') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
             @if (($doc['discount_total'] ?? 0) > 0)
-                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
+                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
             @endif
-            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('VAT') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
-            <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ __('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('VAT') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
+            <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 @php
                     $rowColor = 'text-slate-500';
@@ -415,3 +462,19 @@
         <div class="mt-2 text-sm text-slate-400 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
     @endif
 @endif
+
+@if ($template && $template->show_signature)
+    <div class="mt-14 flex justify-end">
+        <div class="w-56 text-center">
+            <div class="h-16 border-b border-slate-400"></div>
+            <p class="mt-2 text-sm text-slate-600">
+                @if ($showEn){{ $primary($template->signature_label_en ?: __('Authorized Signature'), $template->signature_label_ar) }}@endif
+                @if ($showAr && $languageMode === 'bilingual' && $template->signature_label_ar)
+                    <span dir="rtl" class="block text-xs text-slate-500">{{ $template->signature_label_ar }}</span>
+                @endif
+            </p>
+        </div>
+    </div>
+@endif
+
+</div>

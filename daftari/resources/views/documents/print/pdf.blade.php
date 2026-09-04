@@ -19,6 +19,16 @@
     $logoData = $embed($company->logo_path ?? null);
     $stampData = $embed($company->stamp_path ?? null);
     $letterheadData = $embed($template->letterhead_path ?? null);
+
+    $languageMode = $template->language_mode ?? 'bilingual';
+    $tableDirection = $template->table_direction ?? 'ltr';
+    $showEn = $languageMode !== 'arabic_only';
+    $showAr = $languageMode !== 'english_only';
+    $lbl = fn (string $key) => $languageMode === 'arabic_only'
+        ? \Illuminate\Support\Facades\Lang::get($key, [], 'ar')
+        : \Illuminate\Support\Facades\Lang::get($key, [], 'en');
+    $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
+    $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
 @endphp
 <!DOCTYPE html>
 <html>
@@ -46,6 +56,13 @@
 </style>
 </head>
 <body>
+{{-- Note: mPDF's table renderer has known instability combining a
+     dir="rtl" <body> with certain colspan/border table shapes (a real
+     "Undefined array key BORDER-RIGHT" crash was hit here), so
+     table_direction only flips column order in the browser-rendered
+     documents.print.body view. Arabic text itself still renders
+     correctly in the PDF via the per-element dir="rtl" spans below,
+     regardless of the body's own direction. --}}
 
 @if ($layout === 'bilingual_classic')
     <table style="border: 1.5pt solid {{ $accent }}; margin-bottom: 12px;"><tr><td style="height: 6px;"></td></tr></table>
@@ -233,12 +250,14 @@
                 @if ($showLogo && $logoData)
                     <img src="{{ $logoData }}" style="height: 42px; margin-bottom: 6px;" alt="">
                 @endif
-                <div style="font-size: 15pt; font-weight: bold; color: #0f172a;">{{ $company->name }}</div>
-                @if ($company->vat_number)<div class="muted">{{ __('VAT') }}: {{ $company->vat_number }}</div>@endif
+                <div style="font-size: 15pt; font-weight: bold; color: #0f172a;">{{ $primary($company->name, $company->name_ar) }}</div>
+                @if ($secondary($company->name_ar))<div class="ar" style="font-weight: 600;">{{ $company->name_ar }}</div>@endif
+                @if ($company->vat_number)<div class="muted">{{ $lbl('VAT') }}: {{ $company->vat_number }}</div>@endif
                 @if ($company->address)<div class="muted">{{ $company->address }}</div>@endif
             </td>
             <td style="width: 40%; vertical-align: top; text-align: right;">
-                <div style="font-size: 13pt; font-weight: bold; color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }};">{{ $doc['type_label'] }}</div>
+                <div style="font-size: 13pt; font-weight: bold; color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }};">{{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}</div>
+                @if ($secondary($doc['type_label_ar'] ?? null))<div class="muted ar">{{ $doc['type_label_ar'] }}</div>@endif
                 <div class="muted">{{ $doc['number'] }}</div>
                 <div class="muted">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
                 @if (!empty($doc['date2']))<div class="muted">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
@@ -249,9 +268,10 @@
     <table style="margin-top: 16px;">
         <tr>
             <td style="width: 50%; vertical-align: top;">
-                <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $doc['party_label'] }}</div>
-                <div style="margin-top: 3px; font-weight: bold; color: #1e293b;">{{ $doc['party']->name }}</div>
-                @if ($doc['party']->vat_number)<div class="muted">{{ __('VAT') }}: {{ $doc['party']->vat_number }}</div>@endif
+                <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</div>
+                <div style="margin-top: 3px; font-weight: bold; color: #1e293b;">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</div>
+                @if ($secondary($doc['party']->name_ar ?? null))<div class="muted ar">{{ $doc['party']->name_ar }}</div>@endif
+                @if ($doc['party']->vat_number)<div class="muted">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</div>@endif
                 @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<div class="muted">{{ $doc['party']->fullAddress() }}</div>@endif
                 @if (!empty($doc['party']->email))<div class="muted">{{ $doc['party']->email }}</div>@endif
             </td>
@@ -266,17 +286,20 @@
     <table style="margin-top: 16px;">
         <thead>
             <tr style="border-bottom: 0.5pt solid #e2e8f0; text-align: left; color: #64748b; font-size: 9pt;">
-                <th style="padding: 5px 0;">{{ __('Description') }}</th>
-                <th class="text-end" style="padding: 5px 0;">{{ __('Qty') }}</th>
-                <th class="text-end" style="padding: 5px 0;">{{ __('Unit price') }}</th>
-                <th class="text-end" style="padding: 5px 0;">{{ __('VAT') }}</th>
-                <th class="text-end" style="padding: 5px 0;">{{ __('Total') }}</th>
+                <th style="padding: 5px 0;">{{ $lbl('Description') }}</th>
+                <th class="text-end" style="padding: 5px 0;">{{ $lbl('Qty') }}</th>
+                <th class="text-end" style="padding: 5px 0;">{{ $lbl('Unit price') }}</th>
+                <th class="text-end" style="padding: 5px 0;">{{ $lbl('VAT') }}</th>
+                <th class="text-end" style="padding: 5px 0;">{{ $lbl('Total') }}</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $line)
                 <tr style="border-bottom: 0.5pt solid #f1f5f9;">
-                    <td style="padding: 5px 0;">{{ $line->description }}</td>
+                    <td style="padding: 5px 0;">
+                        {{ $primary($line->description, $line->item?->name_ar) }}
+                        @if ($secondary($line->item?->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->item->name_ar }}</div>@endif
+                    </td>
                     <td class="text-end" style="padding: 5px 0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
                     <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->unit_price) }}</td>
                     <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
@@ -292,12 +315,12 @@
             <td style="width: 55%;"></td>
             <td style="width: 45%; @if ($boxed) background-color: {{ $accent }}; border-radius: 6px; padding: 12px; @endif">
                 <table>
-                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
+                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                     @if (($doc['discount_total'] ?? 0) > 0)
-                        <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">-{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
+                        <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">-{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
                     @endif
-                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ __('VAT') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
-                    <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">{{ __('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('VAT') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                    <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid {{ $boxed ? '#ffffff' : '#0f172a' }}; @if ($boxed) color: #ffffff; @endif">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($row['value']) }}</td></tr>
                     @endforeach
@@ -315,6 +338,19 @@
     @endif
 
     @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 120])
+@endif
+
+@if ($template && $template->show_signature)
+    <table style="margin-top: 40px;">
+        <tr>
+            <td style="width: 60%;"></td>
+            <td style="width: 40%; text-align: center;">
+                <div style="border-bottom: 0.75pt solid #94a3b8; height: 40px;"></div>
+                <div class="muted" style="margin-top: 6px;">{{ $primary($template->signature_label_en ?: __('Authorized Signature'), $template->signature_label_ar) }}</div>
+                @if ($secondary($template->signature_label_ar))<div class="muted ar">{{ $template->signature_label_ar }}</div>@endif
+            </td>
+        </tr>
+    </table>
 @endif
 
 </body>

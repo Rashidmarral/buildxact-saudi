@@ -11,13 +11,16 @@ class InvoiceTemplate extends Model
 
     protected $fillable = [
         'company_id', 'name', 'name_ar', 'document_type', 'accent_color',
-        'layout', 'show_logo', 'letterhead_path', 'notes_en', 'notes_ar', 'is_default',
+        'layout', 'language_mode', 'table_direction', 'show_signature',
+        'signature_label_en', 'signature_label_ar',
+        'show_logo', 'letterhead_path', 'notes_en', 'notes_ar', 'is_default',
     ];
 
     protected function casts(): array
     {
         return [
             'show_logo' => 'boolean',
+            'show_signature' => 'boolean',
             'is_default' => 'boolean',
         ];
     }
@@ -25,5 +28,12 @@ class InvoiceTemplate extends Model
     public function notesFor(string $locale): ?string
     {
         return $locale === 'ar' ? ($this->notes_ar ?: $this->notes_en) : $this->notes_en;
+    }
+
+    public function signatureLabelFor(string $locale): ?string
+    {
+        $label = $locale === 'ar' ? ($this->signature_label_ar ?: $this->signature_label_en) : $this->signature_label_en;
+
+        return $label ?: __('Authorized Signature');
     }
 }
