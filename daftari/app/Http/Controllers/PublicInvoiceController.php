@@ -110,8 +110,8 @@ class PublicInvoiceController extends Controller
         $bankAccount = $invoice->bankAccount ?? $invoice->company->defaultBankAccount();
 
         return [
-            'type_label' => __('Tax Invoice'),
-            'type_label_ar' => 'فاتورة ضريبية',
+            'type_label' => $invoice->type === 'simplified' ? __('Simplified tax invoice') : __('Standard tax invoice'),
+            'type_label_ar' => $invoice->type === 'simplified' ? 'فاتورة ضريبية مبسّطة' : 'فاتورة ضريبية عادية',
             'number' => $invoice->invoice_number,
             'date_label' => __('Issued'),
             'date' => $invoice->issue_date,

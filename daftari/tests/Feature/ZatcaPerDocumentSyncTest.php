@@ -61,13 +61,13 @@ class ZatcaPerDocumentSyncTest extends TestCase
         return [$company, $owner];
     }
 
-    private function makeInvoice(Company $company): Invoice
+    private function makeInvoice(Company $company, string $type = 'standard'): Invoice
     {
         $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client']);
 
         return Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),
-            'type' => 'standard', 'status' => 'sent', 'issue_date' => now()->toDateString(), 'currency' => $company->currency,
+            'type' => $type, 'status' => 'sent', 'issue_date' => now()->toDateString(), 'currency' => $company->currency,
             'subtotal' => 100, 'discount_total' => 0, 'vat_total' => 15, 'total' => 115,
         ]);
     }
@@ -189,5 +189,29 @@ class ZatcaPerDocumentSyncTest extends TestCase
         $response->assertOk();
         $response->assertSee(__('Sync with ZATCA'));
         $response->assertSee(route('app.zatca.sync.invoice', $invoice), false);
+    }
+
+    /**
+     * The document header always said "Tax Invoice" regardless of whether
+     * the invoice was standard (B2B) or simplified (B2C) — ZATCA's own
+     * terminology distinguishes the two on the printed/downloaded
+     * document itself.
+     */
+    public function test_the_invoice_document_header_reflects_standard_vs_simplified_type(): void
+    {
+        [$company, $owner] = $this->makeOnboardedOwner();
+        $standardInvoice = $this->makeInvoice($company, 'standard');
+        $simplifiedInvoice = $this->makeInvoice($company, 'simplified');
+
+        $standardResponse = $this->actingAs($owner)->get(route('app.invoices.show', $standardInvoice));
+        $simplifiedResponse = $this->actingAs($owner)->get(route('app.invoices.show', $simplifiedInvoice));
+
+        $standardResponse->assertOk();
+        $standardResponse->assertSee(__('Standard tax invoice'));
+        $standardResponse->assertDontSee(__('Simplified tax invoice'));
+
+        $simplifiedResponse->assertOk();
+        $simplifiedResponse->assertSee(__('Simplified tax invoice'));
+        $simplifiedResponse->assertDontSee(__('Standard tax invoice'));
     }
 }
