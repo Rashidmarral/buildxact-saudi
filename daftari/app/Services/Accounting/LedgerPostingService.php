@@ -521,6 +521,44 @@ class LedgerPostingService
     }
 
     /**
+     * Period-end revaluation of open foreign-currency AR/AP balances against
+     * a current market rate (see FxRevaluationController) — the unrealized
+     * counterpart to appendFxDifference()'s realized gain/loss on
+     * settlement. Nothing has actually been paid: this is a pure adjusting
+     * entry that moves AR/AP to what today's rate says the outstanding
+     * balance is really worth in base currency, landing the swing in the
+     * same FX_GAINS/FX_LOSSES accounts. $arDelta/$apDelta are the total
+     * base-currency change across every revalued document (revalued minus
+     * booked) — always computed from each document's own original
+     * exchange_rate, never a previous revaluation's rate, since the caller
+     * reverses the prior run before posting a new one.
+     */
+    public function postFxRevaluation(Company $company, int $revaluationId, string $description, \DateTimeInterface $date, float $arDelta, float $apDelta): ?JournalEntry
+    {
+        $lines = [];
+
+        if (abs(round($arDelta, 2)) > self::TOLERANCE) {
+            $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
+            $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar], 'FX revaluation');
+            $lines[] = $arDelta > 0
+                ? ['account_id' => $ar->id, 'debit' => abs($arDelta)]
+                : ['account_id' => $ar->id, 'credit' => abs($arDelta)];
+        }
+
+        if (abs(round($apDelta, 2)) > self::TOLERANCE) {
+            $ap = $this->account($company, 'ACCOUNTS_PAYABLE');
+            $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap], 'FX revaluation');
+            $lines[] = $apDelta > 0
+                ? ['account_id' => $ap->id, 'credit' => abs($apDelta)]
+                : ['account_id' => $ap->id, 'debit' => abs($apDelta)];
+        }
+
+        $this->appendFxDifference($company, $lines, $arDelta - $apDelta, 'FX revaluation');
+
+        return $this->post($company, 'fx_revaluation', $revaluationId, $description, $date, $lines);
+    }
+
+    /**
      * Mirrors postCreditNote() for the purchase side: reduces what we owe
      * the supplier and reverses the previously recorded expense + input
      * VAT. Purely internal bookkeeping — not a ZATCA-regulated document,

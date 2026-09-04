@@ -154,6 +154,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.budgets.index', 'label' => __('Budgets')])
                         @include('partials.nav-subitem', ['route' => 'app.journals.index', 'label' => __('Journals')])
                         @include('partials.nav-subitem', ['route' => 'app.recurring-journal-entries.index', 'label' => __('Recurring Journal Entries')])
+                        @include('partials.nav-subitem', ['route' => 'app.fx-revaluations.index', 'label' => __('FX Revaluations')])
                         @include('partials.nav-subitem', ['route' => 'app.ledger.index', 'label' => __('Ledger')])
                     </div>
                 </details>

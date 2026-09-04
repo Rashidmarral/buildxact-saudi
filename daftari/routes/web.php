@@ -67,6 +67,7 @@ use App\Http\Controllers\User\WhtRateController;
 use App\Http\Controllers\User\UnitController;
 use App\Http\Controllers\User\GlobalSearchController;
 use App\Http\Controllers\User\JournalController;
+use App\Http\Controllers\User\FxRevaluationController;
 use App\Http\Controllers\User\ManualJournalEntryController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\PaymentVoucherController;
@@ -360,6 +361,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('recurring-journal-entries/{recurringJournalEntry}/pause', [RecurringJournalEntryController::class, 'pause'])->name('recurring-journal-entries.pause');
         Route::post('recurring-journal-entries/{recurringJournalEntry}/resume', [RecurringJournalEntryController::class, 'resume'])->name('recurring-journal-entries.resume');
         Route::get('ledger', [JournalController::class, 'ledger'])->name('ledger.index');
+
+        Route::resource('fx-revaluations', FxRevaluationController::class)->only(['index', 'create', 'store', 'show']);
 
         Route::middleware('feature:cost_centers')->prefix('cost-centers')->name('cost-centers.')->group(function () {
             Route::get('/', [CostCenterController::class, 'index'])->name('index');
