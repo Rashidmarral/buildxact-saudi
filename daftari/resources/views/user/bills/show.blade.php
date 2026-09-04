@@ -48,6 +48,7 @@
         'currency' => $bill->currency,
         'subtotal' => $bill->subtotal,
         'discount_total' => $bill->discount_total,
+        'discount_percent' => $bill->discount_type === 'percentage' ? $bill->discount_value : null,
         'vat_total' => $bill->vat_total,
         'total' => $bill->total,
         'extra_rows' => array_values(array_filter([

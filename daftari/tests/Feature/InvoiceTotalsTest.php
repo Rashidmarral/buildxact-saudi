@@ -94,11 +94,30 @@ class InvoiceTotalsTest extends TestCase
         $this->addLine($invoice, 1, 100, 15, TaxRate::TYPE_STANDARD);
 
         $invoice->refresh();
-        $invoice->discount_total = 10;
+        $invoice->discount_type = 'fixed';
+        $invoice->discount_value = 10;
         $invoice->recalculateTotals();
 
         // subtotal 100, vat 15, minus 10 discount = 105
         $this->assertSame(100.0, (float) $invoice->subtotal);
+        $this->assertSame(15.0, (float) $invoice->vat_total);
+        $this->assertSame(10.0, (float) $invoice->discount_total);
+        $this->assertSame(105.0, (float) $invoice->total);
+    }
+
+    public function test_invoice_total_deducts_a_percentage_based_discount(): void
+    {
+        $invoice = $this->makeInvoice();
+        $this->addLine($invoice, 1, 100, 15, TaxRate::TYPE_STANDARD);
+
+        $invoice->refresh();
+        $invoice->discount_type = 'percentage';
+        $invoice->discount_value = 10;
+        $invoice->recalculateTotals();
+
+        // subtotal 100, 10% discount = 10, vat 15, total = 100 - 10 + 15 = 105
+        $this->assertSame(100.0, (float) $invoice->subtotal);
+        $this->assertSame(10.0, (float) $invoice->discount_total);
         $this->assertSame(15.0, (float) $invoice->vat_total);
         $this->assertSame(105.0, (float) $invoice->total);
     }

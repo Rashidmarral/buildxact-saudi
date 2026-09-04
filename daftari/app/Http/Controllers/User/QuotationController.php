@@ -104,7 +104,8 @@ class QuotationController extends Controller
                 'status' => 'draft',
                 'issue_date' => $data['issue_date'],
                 'expiry_date' => $data['expiry_date'] ?? null,
-                'discount_total' => $data['discount_total'] ?? 0,
+                'discount_type' => $data['discount_type'] ?? 'fixed',
+                'discount_value' => $data['discount_value'] ?? 0,
                 'currency' => $company->currency,
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -181,6 +182,7 @@ class QuotationController extends Controller
             'lines' => $quotation->items,
             'subtotal' => $quotation->subtotal,
             'discount_total' => $quotation->discount_total,
+            'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
             'vat_total' => $quotation->vat_total,
             'total' => $quotation->total,
             'bank_account' => $bankAccount,
@@ -218,7 +220,8 @@ class QuotationController extends Controller
                 'salesperson_id' => $data['salesperson_id'] ?? null,
                 'issue_date' => $data['issue_date'],
                 'expiry_date' => $data['expiry_date'] ?? null,
-                'discount_total' => $data['discount_total'] ?? 0,
+                'discount_type' => $data['discount_type'] ?? 'fixed',
+                'discount_value' => $data['discount_value'] ?? 0,
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -415,6 +418,7 @@ class QuotationController extends Controller
                 'issue_date' => now()->toDateString(),
                 'due_date' => now()->addDays(30)->toDateString(),
                 'discount_total' => $quotation->discount_total,
+            'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
                 'currency' => $quotation->currency,
                 'notes' => $quotation->notes,
             ]);
@@ -506,7 +510,8 @@ class QuotationController extends Controller
             'type' => ['required', 'in:quotation,proforma'],
             'issue_date' => ['required', 'date'],
             'expiry_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
-            'discount_total' => ['nullable', 'numeric', 'min:0'],
+            'discount_type' => ['nullable', 'in:fixed,percentage'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],

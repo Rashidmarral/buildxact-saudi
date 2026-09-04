@@ -125,6 +125,7 @@
         'currency' => $invoice->currency,
         'subtotal' => $invoice->subtotal,
         'discount_total' => $invoice->discount_total,
+        'discount_percent' => $invoice->discount_type === 'percentage' ? $invoice->discount_value : null,
         'vat_total' => $invoice->vat_total,
         'total' => $invoice->total,
         'extra_rows' => array_values(array_filter([

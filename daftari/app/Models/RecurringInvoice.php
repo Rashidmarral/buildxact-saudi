@@ -16,7 +16,7 @@ class RecurringInvoice extends Model
     protected $fillable = [
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'project_id', 'bank_account_id', 'created_by',
         'title', 'type', 'frequency', 'due_days', 'start_date', 'next_run_date', 'end_date', 'status',
-        'discount_total', 'retention_rate', 'notes', 'last_generated_at', 'generated_count',
+        'discount_total', 'discount_type', 'discount_value', 'retention_rate', 'notes', 'last_generated_at', 'generated_count',
     ];
 
     protected function casts(): array
@@ -112,7 +112,8 @@ class RecurringInvoice extends Model
                 'status' => 'draft',
                 'issue_date' => $issueDate,
                 'due_date' => $issueDate->copy()->addDays($this->due_days),
-                'discount_total' => $this->discount_total,
+                'discount_type' => $this->discount_type,
+                'discount_value' => $this->discount_value,
                 'retention_rate' => $this->retention_rate,
                 'retention_amount' => 0,
                 'currency' => $company->currency,

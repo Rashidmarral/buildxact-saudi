@@ -92,7 +92,8 @@ class PurchaseOrderController extends Controller
                 'status' => 'draft',
                 'order_date' => $data['order_date'],
                 'expected_date' => $data['expected_date'] ?? null,
-                'discount_total' => $data['discount_total'] ?? 0,
+                'discount_type' => $data['discount_type'] ?? 'fixed',
+                'discount_value' => $data['discount_value'] ?? 0,
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -146,6 +147,7 @@ class PurchaseOrderController extends Controller
             'lines' => $purchaseOrder->items,
             'subtotal' => $purchaseOrder->subtotal,
             'discount_total' => $purchaseOrder->discount_total,
+            'discount_percent' => $purchaseOrder->discount_type === 'percentage' ? $purchaseOrder->discount_value : null,
             'vat_total' => $purchaseOrder->vat_total,
             'total' => $purchaseOrder->total,
             'notes' => $purchaseOrder->notes,
@@ -409,7 +411,8 @@ class PurchaseOrderController extends Controller
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
             'order_date' => ['required', 'date'],
             'expected_date' => ['nullable', 'date', 'after_or_equal:order_date'],
-            'discount_total' => ['nullable', 'numeric', 'min:0'],
+            'discount_type' => ['nullable', 'in:fixed,percentage'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],

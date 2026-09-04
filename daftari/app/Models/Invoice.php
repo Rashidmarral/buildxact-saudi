@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\ComputesDiscount;
 use App\Services\ZatcaQrGenerator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,11 +13,11 @@ use Illuminate\Support\Str;
 
 class Invoice extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, ComputesDiscount;
 
     protected $fillable = [
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'project_id', 'created_by', 'invoice_number', 'type',
-        'status', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'retention_rate', 'retention_amount',
+        'status', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value', 'retention_rate', 'retention_amount',
         'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes', 'qr_code', 'bank_account_id', 'warehouse_id', 'stock_deducted',
         'last_reminder_sent_at', 'last_reminder_tier', 'approved_by', 'approved_at', 'rejection_reason',
     ];
@@ -223,6 +224,7 @@ class Invoice extends Model
 
         $this->subtotal = $items->sum(fn ($item) => $item->quantity * $item->unit_price);
         $this->vat_total = $items->sum('vat_amount');
+        $this->discount_total = $this->computeDiscountTotal($this->subtotal);
         $this->total = $this->subtotal - $this->discount_total + $this->vat_total;
         $this->amount_paid = $this->invoicePayments()->sum('amount');
 

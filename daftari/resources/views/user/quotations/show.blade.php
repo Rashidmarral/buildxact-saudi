@@ -99,6 +99,7 @@
         'lines' => $quotation->items,
         'subtotal' => $quotation->subtotal,
         'discount_total' => $quotation->discount_total,
+        'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
         'vat_total' => $quotation->vat_total,
         'total' => $quotation->total,
         'bank_account' => $quotation->bankAccount,

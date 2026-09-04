@@ -97,7 +97,13 @@ $company = auth()->user()->company;
                 <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">{{ \App\Support\Money::format(0) }}</span></div>
                 <div class="flex justify-between items-center text-slate-500">
                     <span>{{ __('Discount') }}</span>
-                    <input type="number" step="0.01" min="0" name="discount_total" id="discount_total" value="{{ old('discount_total', 0) }}" class="w-28 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
+                    <div class="flex items-center gap-1">
+                        <input type="number" step="0.01" min="0" name="discount_value" id="discount_value" value="{{ old('discount_value', 0) }}" class="w-20 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
+                        <select name="discount_type" id="discount_type" class="rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
+                            <option value="fixed" @selected(old('discount_type', 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
+                            <option value="percentage" @selected(old('discount_type') === 'percentage')>%</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">{{ \App\Support\Money::format(0) }}</span></div>
                 <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-100"><span>{{ __('Total') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
@@ -277,14 +283,20 @@ function recalc() {
         subtotal += lineSub;
         vat += lineVat;
     });
-    const discount = parseFloat(document.getElementById('discount_total').value) || 0;
+    const discount = discountAmount(subtotal);
     document.getElementById('summary-subtotal').textContent = fmt(subtotal);
     document.getElementById('summary-vat').textContent = fmt(vat);
     document.getElementById('summary-total').textContent = fmt(subtotal - discount + vat);
 }
 
+function discountAmount(subtotal) {
+    const value = parseFloat(document.getElementById('discount_value').value) || 0;
+    return document.getElementById('discount_type').value === 'percentage' ? subtotal * value / 100 : value;
+}
+
 document.getElementById('add-row').addEventListener('click', () => addRow());
-document.getElementById('discount_total').addEventListener('input', recalc);
+document.getElementById('discount_value').addEventListener('input', recalc);
+document.getElementById('discount_type').addEventListener('change', recalc);
 
 document.getElementById('scan-line-barcode').addEventListener('click', () => {
     window.DaftariBarcodeScanner.open((code) => {
@@ -347,7 +359,7 @@ document.getElementById('preview-btn').addEventListener('click', () => {
     document.getElementById('preview-items').innerHTML = rows.join('');
     document.getElementById('preview-subtotal').textContent = fmt(subtotal);
     document.getElementById('preview-vat').textContent = fmt(vat);
-    document.getElementById('preview-total').textContent = fmt(subtotal + vat - (parseFloat(document.getElementById('discount_total').value) || 0));
+    document.getElementById('preview-total').textContent = fmt(subtotal + vat - discountAmount(subtotal));
 
     document.getElementById('preview-modal').showModal();
 });

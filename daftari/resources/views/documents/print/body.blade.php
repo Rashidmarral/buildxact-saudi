@@ -111,7 +111,7 @@
         <div class="w-full max-w-xs space-y-1.5 text-sm">
             <div class="flex justify-between text-slate-600"><span>{{ __('Subtotal') }} <span class="text-xs text-slate-400" dir="rtl">المجموع الفرعي</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
             @if (($doc['discount_total'] ?? 0) > 0)
-                <div class="flex justify-between text-slate-600"><span>{{ __('Discount') }}</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
+                <div class="flex justify-between text-slate-600"><span>{{ __('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
             @endif
             <div class="flex justify-between text-slate-600"><span>{{ __('Total VAT') }} <span class="text-xs text-slate-400" dir="rtl">إجمالي ضريبة القيمة المضافة</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
             <div class="flex justify-between border-t-2 border-slate-800 pt-2 text-base font-bold text-slate-900"><span>{{ __('Total') }} <span class="text-xs font-normal text-slate-400" dir="rtl">المجموع شامل القيمة المضافة</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
@@ -371,7 +371,7 @@
             @endphp
             <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Subtotal') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
             @if (($doc['discount_total'] ?? 0) > 0)
-                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Discount') }}</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
+                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
             @endif
             <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ __('VAT') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
             <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ __('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>

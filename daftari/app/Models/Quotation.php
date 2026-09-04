@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\ComputesDiscount;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,11 +12,11 @@ use Illuminate\Support\Str;
 
 class Quotation extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, ComputesDiscount;
 
     protected $fillable = [
         'company_id', 'client_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
-        'quotation_number', 'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total',
+        'quotation_number', 'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value',
         'vat_total', 'total', 'currency', 'notes', 'bank_account_id',
         'approved_by', 'approved_at', 'approval_rejection_reason',
         'accepted_at', 'accepted_by_name', 'accepted_signature', 'accepted_ip',
@@ -103,6 +104,7 @@ class Quotation extends Model
 
         $this->subtotal = $items->sum(fn ($item) => $item->quantity * $item->unit_price);
         $this->vat_total = $items->sum('vat_amount');
+        $this->discount_total = $this->computeDiscountTotal($this->subtotal);
         $this->total = $this->subtotal - $this->discount_total + $this->vat_total;
 
         $this->save();

@@ -67,6 +67,7 @@
         'lines' => $order->items,
         'subtotal' => $order->subtotal,
         'discount_total' => $order->discount_total,
+        'discount_percent' => $order->discount_type === 'percentage' ? $order->discount_value : null,
         'vat_total' => $order->vat_total,
         'total' => $order->total,
         'notes' => $order->notes,

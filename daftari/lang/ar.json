@@ -3956,5 +3956,6 @@
     ":count document(s) in this period have not been cleared or reported to ZATCA yet.": "هناك :count مستند/مستندات خلال هذه الفترة لم تُخلَّص أو يُبلَّغ عنها بعد لهيئة الزكاة والضريبة.",
     "Company profile completeness": "اكتمال بيانات الشركة",
     "All required company profile fields are complete.": "جميع حقول بيانات الشركة المطلوبة مكتملة.",
-    ":count required company profile field(s) are missing.": "هناك :count حقل/حقول مطلوبة ناقصة من بيانات الشركة."
+    ":count required company profile field(s) are missing.": "هناك :count حقل/حقول مطلوبة ناقصة من بيانات الشركة.",
+    "Fixed": "ثابت"
 }
