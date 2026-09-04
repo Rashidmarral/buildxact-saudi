@@ -32,7 +32,12 @@ class JournalController extends Controller
     {
         $journalEntry->load('lines.account', 'lines.costCenter', 'creator');
 
-        return view('user.journals.show', compact('journalEntry'));
+        $alreadyReversed = $journalEntry->source_type === 'manual' && JournalEntry::where('company_id', $journalEntry->company_id)
+            ->where('source_type', 'manual_reversal')
+            ->where('source_id', $journalEntry->source_id)
+            ->exists();
+
+        return view('user.journals.show', compact('journalEntry', 'alreadyReversed'));
     }
 
     public function ledger(Request $request)

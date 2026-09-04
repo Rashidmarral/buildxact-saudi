@@ -85,6 +85,62 @@ class LedgerPostingService
     }
 
     /**
+     * A user-authored journal entry with no originating business document
+     * — an adjustment, accrual, correction, or opening balance the rest of
+     * the ledger posting engine has no automatic path for. Unlike post(),
+     * there's no natural source record to key idempotency off of, so this
+     * self-assigns source_id = the entry's own id once it exists (source_
+     * type stays 'manual'), which also makes every manual entry naturally
+     * unique and immediately reversible via reverse('manual', $entry->id).
+     *
+     * @param  array<int, array{account_id:int, debit?:float, credit?:float, memo?:string}>  $lines
+     */
+    public function postManual(Company $company, string $description, \DateTimeInterface $date, array $lines): JournalEntry
+    {
+        $lines = array_values(array_filter($lines, fn ($l) => (float) ($l['debit'] ?? 0) > 0 || (float) ($l['credit'] ?? 0) > 0));
+
+        if (count($lines) < 2) {
+            throw new InvalidArgumentException('A manual journal entry needs at least two lines.');
+        }
+
+        if ($company->accounting_lock_date && Carbon::parse($date)->startOfDay()->lte($company->accounting_lock_date)) {
+            throw new PeriodLockedException(__('The books are locked through :date — this transaction falls inside a closed period and cannot be posted. Move the lock date forward in Settings to reopen it.', ['date' => $company->accounting_lock_date->format('Y-m-d')]));
+        }
+
+        $totalDebit = round(array_sum(array_map(fn ($l) => (float) ($l['debit'] ?? 0), $lines)), 2);
+        $totalCredit = round(array_sum(array_map(fn ($l) => (float) ($l['credit'] ?? 0), $lines)), 2);
+
+        if (abs($totalDebit - $totalCredit) > self::TOLERANCE) {
+            throw new InvalidArgumentException("Unbalanced manual journal entry: debit {$totalDebit} != credit {$totalCredit}");
+        }
+
+        return DB::transaction(function () use ($company, $description, $date, $lines) {
+            $entry = JournalEntry::create([
+                'company_id' => $company->id,
+                'entry_number' => $company->nextJournalNumber(),
+                'entry_date' => $date,
+                'source_type' => 'manual',
+                'source_id' => 0,
+                'description' => $description,
+                'created_by' => Auth::id(),
+            ]);
+
+            $entry->update(['source_id' => $entry->id]);
+
+            foreach ($lines as $line) {
+                $entry->lines()->create([
+                    'account_id' => $line['account_id'],
+                    'debit' => $line['debit'] ?? 0,
+                    'credit' => $line['credit'] ?? 0,
+                    'memo' => $line['memo'] ?? null,
+                ]);
+            }
+
+            return $entry;
+        });
+    }
+
+    /**
      * Posts a mirrored reversing entry for a void/cancel action. Safe to
      * call even if nothing was posted originally (returns null).
      */

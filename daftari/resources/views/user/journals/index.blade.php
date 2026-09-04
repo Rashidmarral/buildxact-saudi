@@ -5,9 +5,15 @@
 @section('content')
 @include('user.accounting.partials.tabs')
 
-<div class="mb-6">
-    <h2 class="text-lg font-semibold text-slate-900">{{ __('Journal Entries') }}</h2>
-    <p class="text-sm text-slate-500 mt-1">{{ __('Every posting made by invoices, bills, payments, and adjustments.') }}</p>
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h2 class="text-lg font-semibold text-slate-900">{{ __('Journal Entries') }}</h2>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Every posting made by invoices, bills, payments, and adjustments.') }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('app.recurring-journal-entries.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Recurring entries') }}</a>
+        <a href="{{ route('app.journals.manual.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New manual entry') }}</a>
+    </div>
 </div>
 
 <form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex flex-wrap items-center gap-3">

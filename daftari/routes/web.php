@@ -67,6 +67,7 @@ use App\Http\Controllers\User\WhtRateController;
 use App\Http\Controllers\User\UnitController;
 use App\Http\Controllers\User\GlobalSearchController;
 use App\Http\Controllers\User\JournalController;
+use App\Http\Controllers\User\ManualJournalEntryController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\ProjectController;
@@ -76,6 +77,7 @@ use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
 use App\Http\Controllers\User\RecurringExpenseController;
 use App\Http\Controllers\User\RecurringInvoiceController;
+use App\Http\Controllers\User\RecurringJournalEntryController;
 use App\Http\Controllers\User\ReportController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\SalespersonController;
@@ -347,8 +349,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
         Route::prefix('journals')->name('journals.')->group(function () {
             Route::get('/', [JournalController::class, 'index'])->name('index');
+            Route::get('manual/create', [ManualJournalEntryController::class, 'create'])->name('manual.create');
+            Route::post('manual', [ManualJournalEntryController::class, 'store'])->name('manual.store');
             Route::get('{journalEntry}', [JournalController::class, 'show'])->name('show');
+            Route::post('{journalEntry}/reverse', [ManualJournalEntryController::class, 'reverse'])->name('reverse');
         });
+
+        Route::resource('recurring-journal-entries', RecurringJournalEntryController::class)->except(['show']);
+        Route::post('recurring-journal-entries/{recurringJournalEntry}/pause', [RecurringJournalEntryController::class, 'pause'])->name('recurring-journal-entries.pause');
+        Route::post('recurring-journal-entries/{recurringJournalEntry}/resume', [RecurringJournalEntryController::class, 'resume'])->name('recurring-journal-entries.resume');
         Route::get('ledger', [JournalController::class, 'ledger'])->name('ledger.index');
 
         Route::middleware('feature:cost_centers')->prefix('cost-centers')->name('cost-centers.')->group(function () {

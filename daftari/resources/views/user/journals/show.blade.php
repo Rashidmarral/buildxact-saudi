@@ -10,7 +10,17 @@
         <h2 class="text-lg font-semibold text-slate-900">{{ $journalEntry->entry_number }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ $journalEntry->description }}</p>
     </div>
-    <a href="{{ route('app.journals.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Back to journals') }}</a>
+    <div class="flex items-center gap-2">
+        @if ($journalEntry->source_type === 'manual' && ! $alreadyReversed)
+            <form method="POST" action="{{ route('app.journals.reverse', $journalEntry) }}" onsubmit="return confirm('{{ __('Post a reversing entry for this journal entry?') }}')">
+                @csrf
+                <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Reverse') }}</button>
+            </form>
+        @elseif ($alreadyReversed)
+            <span class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">{{ __('Reversed') }}</span>
+        @endif
+        <a href="{{ route('app.journals.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Back to journals') }}</a>
+    </div>
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6 grid sm:grid-cols-3 gap-4 text-sm">

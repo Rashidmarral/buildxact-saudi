@@ -22,6 +22,7 @@ Schedule::command('invoices:send-overdue-reminders')->dailyAt('08:00');
 Schedule::command('quotations:expire')->dailyAt('00:15');
 Schedule::command('invoices:generate-recurring')->dailyAt('06:00');
 Schedule::command('expenses:generate-recurring')->dailyAt('06:15');
+Schedule::command('journals:generate-recurring')->dailyAt('06:20');
 Schedule::command('subscriptions:send-expiring-reminders')->dailyAt('07:00');
 Schedule::command('subscriptions:expire-cancelled')->dailyAt('01:00');
 Schedule::command('subscriptions:run-lifecycle-rules')->dailyAt('02:30');
