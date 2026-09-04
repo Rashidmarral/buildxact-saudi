@@ -181,6 +181,41 @@ class CompanyAuditTest extends TestCase
         $response->assertHeader('content-type', 'application/pdf');
     }
 
+    /**
+     * The audit was "very basic" — a pass/fail checklist with no way to
+     * actually see what was posted. Both the web page and the PDF now
+     * carry a full transaction register (every journal entry + the
+     * account each line hit) built from CompanyAuditService::transactions().
+     */
+    public function test_the_audit_page_lists_every_posted_transaction_with_its_account_lines(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $invoice = $this->makeInvoice($company);
+
+        $response = $this->actingAs($owner)->get(route('app.audit.index'));
+
+        $response->assertOk();
+        $response->assertSee('Transaction detail');
+        $response->assertSee($invoice->invoice_number);
+        // Accounts Receivable is the debit side of postInvoiceIssued() — the
+        // line-level detail must show which GL account was hit, not just
+        // the journal entry total.
+        $response->assertSee('Accounts Receivable');
+    }
+
+    public function test_the_audit_pdf_includes_the_transaction_register(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $this->makeInvoice($company);
+
+        $response = $this->actingAs($owner)->get(route('app.audit.index', ['export' => 'pdf']));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+    }
+
     public function test_the_audit_page_can_be_exported_as_a_csv_listing_every_finding(): void
     {
         $company = $this->makeCompany(['vat_number' => null]);

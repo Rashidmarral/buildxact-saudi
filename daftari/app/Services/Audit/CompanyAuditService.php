@@ -12,6 +12,7 @@ use App\Models\JournalEntry;
 use App\Services\Reports\FinancialReportService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * Backs the "Company Audit" dashboard (User\CompanyAuditController) — a
@@ -33,7 +34,7 @@ class CompanyAuditService
     public function __construct(private readonly FinancialReportService $reports) {}
 
     /**
-     * @return array{overall_status: string, sections: array<int, array{key: string, label: string, status: string, summary: string, items: Collection}>}
+     * @return array{overall_status: string, sections: array<int, array{key: string, label: string, status: string, summary: string, items: Collection}>, transactions: Collection, transaction_totals: array{debit: float, credit: float}}
      */
     public function run(Company $company, Carbon $from, Carbon $to): array
     {
@@ -55,7 +56,69 @@ class CompanyAuditService
             }
         }
 
-        return ['overall_status' => $overallStatus, 'sections' => $sections];
+        $transactions = $this->transactions($company, $from, $to);
+
+        return [
+            'overall_status' => $overallStatus,
+            'sections' => $sections,
+            'transactions' => $transactions,
+            'transaction_totals' => [
+                'debit' => round((float) $transactions->sum(fn (JournalEntry $e) => $e->totalDebit()), 2),
+                'credit' => round((float) $transactions->sum(fn (JournalEntry $e) => $e->totalCredit()), 2),
+            ],
+        ];
+    }
+
+    /**
+     * The full, line-level transaction register for the period — every
+     * journal entry (and therefore every invoice, bill, payment, expense,
+     * credit/debit note, and manual adjustment that was actually posted)
+     * with its debit/credit lines and the GL account each line hit. This
+     * is what makes the audit PDF a real detail report instead of just a
+     * pass/fail checklist: an outside auditor or ZATCA reviewer can trace
+     * every transaction in the period without opening the app.
+     */
+    private function transactions(Company $company, Carbon $from, Carbon $to): Collection
+    {
+        return JournalEntry::where('company_id', $company->id)
+            ->whereBetween('entry_date', [$from, $to])
+            ->with(['lines.account', 'creator'])
+            ->orderBy('entry_date')
+            ->orderBy('entry_number')
+            ->get()
+            ->map(function (JournalEntry $entry) {
+                $entry->source_label = $entry->source_type
+                    ? Str::headline($entry->source_type)
+                    : __('Manual');
+                $entry->source_url = $this->sourceUrl($entry);
+
+                return $entry;
+            });
+    }
+
+    private function sourceUrl(JournalEntry $entry): ?string
+    {
+        if (! $entry->source_type || ! $entry->source_id) {
+            return null;
+        }
+
+        $routes = [
+            'invoice' => 'app.invoices.show',
+            'bill' => 'app.bills.show',
+            'expense' => 'app.expenses.edit',
+            'credit_note' => 'app.credit-notes.show',
+            'debit_note' => 'app.debit-notes.show',
+        ];
+
+        if (! isset($routes[$entry->source_type]) || ! \Illuminate\Support\Facades\Route::has($routes[$entry->source_type])) {
+            return null;
+        }
+
+        try {
+            return route($routes[$entry->source_type], $entry->source_id);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

@@ -39,6 +39,8 @@ class CompanyAuditController extends Controller
                 'period' => $period,
                 'overallStatus' => $result['overall_status'],
                 'sections' => $result['sections'],
+                'transactions' => $result['transactions'],
+                'transactionTotals' => $result['transaction_totals'],
                 'locale' => App::getLocale(),
             ]);
 
@@ -50,6 +52,8 @@ class CompanyAuditController extends Controller
             'period' => $period,
             'overallStatus' => $result['overall_status'],
             'sections' => $result['sections'],
+            'transactions' => $result['transactions'],
+            'transactionTotals' => $result['transaction_totals'],
         ]);
     }
 }

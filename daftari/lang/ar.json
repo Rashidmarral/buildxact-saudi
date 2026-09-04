@@ -3967,5 +3967,14 @@
     "Show signature area": "إظهار مساحة التوقيع",
     "Signature label (English)": "نص التوقيع (إنجليزي)",
     "Signature label (Arabic)": "نص التوقيع (عربي)",
-    "Authorized Signature": "التوقيع المعتمد"
+    "Authorized Signature": "التوقيع المعتمد",
+    "Dr": "مدين",
+    "Cr": "دائن",
+    "Transaction detail": "تفاصيل المعاملات",
+    "Entry / Account": "القيد / الحساب",
+    "Every posted transaction in this period, with the accounts each one debited and credited.": "كل معاملة تم ترحيلها خلال هذه الفترة، مع الحسابات المدينة والدائنة لكل منها.",
+    "Every posted transaction in this period — the same detail included in the downloadable PDF.": "كل معاملة تم ترحيلها خلال هذه الفترة — نفس التفاصيل الموجودة في ملف PDF القابل للتحميل.",
+    "No transactions were posted in this period.": "لم يتم ترحيل أي معاملات خلال هذه الفترة.",
+    "entries": "قيود",
+    ":count entries": ":count قيود"
 }
