@@ -472,6 +472,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('item-lots/{itemLot}/consume', [ItemLotController::class, 'consume'])->name('item-lots.consume');
         Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->name('inventory.valuation');
+        Route::get('inventory/profitability', [InventoryController::class, 'profitability'])->name('inventory.profitability');
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');
