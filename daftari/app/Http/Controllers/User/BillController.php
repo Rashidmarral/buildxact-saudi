@@ -236,7 +236,7 @@ class BillController extends Controller
                     'currency' => $bill->company->currency,
                 ] : null,
                 ['label' => __('Paid'), 'value' => $bill->amount_paid],
-                ['label' => __('Balance due'), 'value' => $bill->balanceDue()],
+                \App\Support\Money::balanceRow($bill->balanceDue()),
             ])),
             'notes' => $bill->notes,
         ];

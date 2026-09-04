@@ -339,7 +339,7 @@ class InvoiceController extends Controller
                     'value' => $invoice->retention_amount,
                 ] : null,
                 ['label' => __('Paid'), 'value' => $invoice->amount_paid],
-                ['label' => __('Balance due'), 'value' => $invoice->balanceDue()],
+                \App\Support\Money::balanceRow($invoice->balanceDue()),
             ])),
             'bank_account' => $bankAccount,
             'salesperson' => $invoice->salesperson,

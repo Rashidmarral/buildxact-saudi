@@ -57,10 +57,7 @@
                 'currency' => $bill->company->currency,
             ] : null,
             ['label' => __('Paid'), 'value' => $bill->amount_paid],
-            [
-                'label' => __('Balance due'), 'value' => $bill->balanceDue(), 'emphasis' => true,
-                'variant' => $bill->balanceDue() > 0 ? 'red' : null,
-            ],
+            \App\Support\Money::balanceRow($bill->balanceDue()),
         ])),
         'notes' => $bill->notes,
     ];

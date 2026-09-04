@@ -158,6 +158,34 @@ class Item extends Model
     }
 
     /**
+     * The purchase-side counterpart to priceForUnit() — Bill/Purchase
+     * Order line pre-fill must default to what this item COSTS
+     * (purchase_price), never what it SELLS for (unit_price). Reused the
+     * same conversion-factor math, but deliberately ignores item_units'
+     * own unit_price column, which is a per-alt-unit SALE price override
+     * and has no purchase-side equivalent in the schema. Returns 0 (not a
+     * silent fallback to the sale price) when no purchase price has been
+     * set, so the gap is obvious on the purchase document instead of
+     * quietly defaulting to the wrong number.
+     */
+    public function purchasePriceForUnit(?int $unitId): float
+    {
+        $purchasePrice = (float) ($this->purchase_price ?? 0);
+
+        if (! $unitId || $unitId === $this->base_unit_id) {
+            return $purchasePrice;
+        }
+
+        $itemUnit = $this->relationLoaded('itemUnits')
+            ? $this->itemUnits->firstWhere('unit_id', $unitId)
+            : $this->itemUnits()->where('unit_id', $unitId)->first();
+
+        $factor = $itemUnit ? (float) $itemUnit->conversion_factor : 1.0;
+
+        return $factor > 0 ? $purchasePrice / $factor : $purchasePrice;
+    }
+
+    /**
      * Converts a line quantity sold/bought in $unitId into the item's base
      * unit quantity, for stock tracking (which is always kept in the base
      * unit regardless of what unit a given line was transacted in).

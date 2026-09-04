@@ -2199,6 +2199,7 @@
     "Outstanding invoice balances by how overdue they are.": "أرصدة الفواتير المستحقة حسب مدة تأخرها.",
     "Outstanding revenue": "الإيراد المستحق",
     "Overdue": "متأخرة",
+    "Overpaid": "مدفوع بزيادة",
     "Overdue invoice reminders": "تذكيرات الفواتير المتأخرة",
     "Overdue notice": "إشعار تأخر سداد",
     "Overdue notice: invoice :number from :company": "إشعار تأخر سداد: فاتورة :number من :company",

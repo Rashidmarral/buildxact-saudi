@@ -49,6 +49,28 @@ class Money
         return number_format($amount, $decimals, $currency?->decimal_separator ?? '.', $currency?->thousands_separator ?? ',');
     }
 
+    /**
+     * A document's "Balance due" extra_row — or, once payments exceed the
+     * total, "Overpaid" instead. balanceDue() (Invoice/Bill/etc.) returns a
+     * signed value that goes negative once payments exceed the total;
+     * rendering that raw negative straight into "Balance due: -X" reads as
+     * a diminished debt rather than what it actually is, a credit in the
+     * payer's favor — confusing on a printed/emailed document.
+     */
+    public static function balanceRow(float $balanceDue): array
+    {
+        if ($balanceDue < -0.004) {
+            return ['label' => __('Overpaid'), 'value' => abs($balanceDue), 'emphasis' => true, 'variant' => 'green'];
+        }
+
+        return [
+            'label' => __('Balance due'),
+            'value' => max($balanceDue, 0.0),
+            'emphasis' => true,
+            'variant' => $balanceDue > 0.004 ? 'red' : null,
+        ];
+    }
+
     public static function symbol(?string $currencyCode = null): string
     {
         return static::resolve($currencyCode)?->symbol ?? ($currencyCode ?: static::defaultCode());

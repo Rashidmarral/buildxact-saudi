@@ -117,7 +117,11 @@
             <div class="flex justify-between border-t-2 border-slate-800 pt-2 text-base font-bold text-slate-900"><span>{{ __('Total') }} <span class="text-xs font-normal text-slate-400" dir="rtl">المجموع شامل القيمة المضافة</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 @php
-                    $rowColor = ($row['variant'] ?? null) === 'red' ? 'font-semibold text-red-600' : (($row['emphasis'] ?? false) ? 'font-semibold text-brand-700' : 'text-slate-600');
+                    $rowColor = match ($row['variant'] ?? null) {
+                        'red' => 'font-semibold text-red-600',
+                        'green' => 'font-semibold text-emerald-600',
+                        default => ($row['emphasis'] ?? false) ? 'font-semibold text-brand-700' : 'text-slate-600',
+                    };
                 @endphp
                 <div class="flex justify-between {{ $rowColor }}"><span>{{ $row['label'] }}</span><span>{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</span></div>
             @endforeach
@@ -378,6 +382,8 @@
                         $rowColor = 'text-white/80';
                     } elseif (($row['variant'] ?? null) === 'red') {
                         $rowColor = 'font-semibold text-red-600';
+                    } elseif (($row['variant'] ?? null) === 'green') {
+                        $rowColor = 'font-semibold text-emerald-600';
                     } elseif ($row['emphasis'] ?? false) {
                         $rowColor = 'font-semibold text-brand-700';
                     }

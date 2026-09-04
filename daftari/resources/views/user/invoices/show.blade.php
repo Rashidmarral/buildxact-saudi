@@ -138,10 +138,7 @@
                 'value' => $invoice->retention_amount,
             ] : null,
             ['label' => __('Paid'), 'value' => $invoice->amount_paid],
-            [
-                'label' => __('Balance due'), 'value' => $invoice->balanceDue(), 'emphasis' => true,
-                'variant' => $invoice->balanceDue() > 0 ? 'red' : null,
-            ],
+            \App\Support\Money::balanceRow($invoice->balanceDue()),
         ])),
         'bank_account' => $invoice->bankAccount ?? $invoice->company->defaultBankAccount(),
         'salesperson' => $invoice->salesperson,

@@ -118,11 +118,11 @@ $company = auth()->user()->company;
         return [
             'id' => $i->id,
             'name' => $i->name,
-            'unit_price' => (float) $i->unit_price,
+            'unit_price' => (float) ($i->purchase_price ?? 0),
             'vat_rate' => (float) $i->vat_rate,
             'barcode' => $i->barcode,
-            'units' => collect($i->baseUnit ? [['id' => $i->baseUnit->id, 'label' => $i->baseUnit->label(), 'price' => (float) $i->unit_price]] : [])
-                ->merge($i->itemUnits->map(fn ($iu) => ['id' => $iu->unit_id, 'label' => $iu->unit?->label(), 'price' => (float) $i->priceForUnit($iu->unit_id)]))
+            'units' => collect($i->baseUnit ? [['id' => $i->baseUnit->id, 'label' => $i->baseUnit->label(), 'price' => (float) ($i->purchase_price ?? 0)]] : [])
+                ->merge($i->itemUnits->map(fn ($iu) => ['id' => $iu->unit_id, 'label' => $iu->unit?->label(), 'price' => (float) $i->purchasePriceForUnit($iu->unit_id)]))
                 ->values(),
         ];
     })->values());

@@ -15,7 +15,7 @@
 | {{ __('Subtotal') }} | {{ \App\Support\Money::format($invoice->subtotal) }} |
 | {{ __('VAT') }} | {{ \App\Support\Money::format($invoice->vat_total) }} |
 | **{{ __('Total') }}** | **{{ \App\Support\Money::format($invoice->total) }}** |
-| {{ __('Balance due') }} | {{ \App\Support\Money::format($invoice->balanceDue()) }} |
+| {{ $invoice->balanceDue() < 0 ? __('Overpaid') : __('Balance due') }} | {{ \App\Support\Money::format(abs($invoice->balanceDue())) }} |
 @endcomponent
 
 {{ __('The full invoice, including the ZATCA QR code, is attached as a PDF.') }}
