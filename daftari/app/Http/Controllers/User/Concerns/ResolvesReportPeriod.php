@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User\Concerns;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 trait ResolvesReportPeriod
 {
@@ -34,16 +35,18 @@ trait ResolvesReportPeriod
 
     /**
      * The fiscal year (start, end) that $reference falls inside, per the
-     * "Fiscal year start" platform setting (a month, 1-12; default January
-     * — i.e. the calendar year, so unset behaves exactly as before this
-     * setting existed). A start of e.g. April means the fiscal year
-     * containing a January date began the previous April.
+     * company's own "Fiscal year start" override if it has set one
+     * (Settings → Regional preferences), else the platform-wide "Fiscal
+     * year start" setting (a month, 1-12; default January — i.e. the
+     * calendar year, so an install with neither set behaves exactly as
+     * before either setting existed). A start of e.g. April means the
+     * fiscal year containing a January date began the previous April.
      *
      * @return array{0: Carbon, 1: Carbon}
      */
     private function fiscalYearBounds(Carbon $reference): array
     {
-        $startMonth = (int) Setting::get('general_fiscal_year_start', 1);
+        $startMonth = (int) (Auth::user()?->company?->fiscal_year_start ?? Setting::get('general_fiscal_year_start', 1));
         $startMonth = $startMonth >= 1 && $startMonth <= 12 ? $startMonth : 1;
 
         $start = $reference->copy()->startOfMonth()->month($startMonth);

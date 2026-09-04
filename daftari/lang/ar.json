@@ -3976,5 +3976,8 @@
     "Every posted transaction in this period — the same detail included in the downloadable PDF.": "كل معاملة تم ترحيلها خلال هذه الفترة — نفس التفاصيل الموجودة في ملف PDF القابل للتحميل.",
     "No transactions were posted in this period.": "لم يتم ترحيل أي معاملات خلال هذه الفترة.",
     "entries": "قيود",
-    ":count entries": ":count قيود"
+    ":count entries": ":count قيود",
+    "Regional preferences": "التفضيلات الإقليمية",
+    "Overrides the platform-wide defaults for your company only. Leave on \"Platform default\" to follow whatever the platform is currently set to.": "يتجاوز الإعدادات الافتراضية على مستوى المنصة لشركتك فقط. اتركه على \"الإعداد الافتراضي للمنصة\" لاتباع ما هو محدد حاليًا على مستوى المنصة.",
+    "Platform default": "الإعداد الافتراضي للمنصة"
 }

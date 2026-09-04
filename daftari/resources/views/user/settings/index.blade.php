@@ -188,6 +188,37 @@
                 <p class="text-xs text-slate-400 mt-2">{{ __('Preview:') }} <span id="format-preview" class="font-mono font-medium text-slate-600"></span></p>
             </div>
 
+            <h3 class="font-semibold text-slate-900 pt-2">{{ __('Regional preferences') }}</h3>
+            <p class="text-sm text-slate-500 -mt-2">{{ __('Overrides the platform-wide defaults for your company only. Leave on "Platform default" to follow whatever the platform is currently set to.') }}</p>
+            <div class="grid sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Date format') }}</label>
+                    <select name="date_format" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">{{ __('Platform default') }}</option>
+                        @foreach (['d/m/Y', 'm/d/Y', 'Y-m-d', 'd-m-Y'] as $format)
+                            <option value="{{ $format }}" @selected(old('date_format', $company->date_format) === $format)>{{ \Illuminate\Support\Carbon::now()->format($format) }} ({{ $format }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Time format') }}</label>
+                    <select name="time_format" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">{{ __('Platform default') }}</option>
+                        <option value="24h" @selected(old('time_format', $company->time_format) === '24h')>{{ __('24-hour') }} (14:30)</option>
+                        <option value="12h" @selected(old('time_format', $company->time_format) === '12h')>{{ __('12-hour') }} (2:30 PM)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Fiscal year start') }}</label>
+                    <select name="fiscal_year_start" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">{{ __('Platform default') }}</option>
+                        @foreach ([1=>__('January'),2=>__('February'),3=>__('March'),4=>__('April'),5=>__('May'),6=>__('June'),7=>__('July'),8=>__('August'),9=>__('September'),10=>__('October'),11=>__('November'),12=>__('December')] as $num => $label)
+                            <option value="{{ $num }}" @selected((int) old('fiscal_year_start', $company->fiscal_year_start) === $num)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
             <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 font-semibold text-white hover:bg-brand-700">{{ __('Save settings') }}</button>
         </form>
 
