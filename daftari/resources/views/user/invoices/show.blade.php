@@ -51,7 +51,9 @@
         @if ($invoice->isZatcaLocked())
             <a href="{{ route('app.invoices.xml', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download XML') }}</a>
         @elseif (auth()->user()->hasPermission('zatca') && $invoice->company->hasFeature('zatca_phase2') && $invoice->company->zatcaIntegrationMode() === \App\Models\Company::ZATCA_MODE_PHASE2)
-            @php($zatcaBlockedReason = $invoice->zatcaSyncBlockedReason())
+            @php
+                $zatcaBlockedReason = $invoice->zatcaSyncBlockedReason();
+            @endphp
             @if (is_null($zatcaBlockedReason))
                 <form method="POST" action="{{ route('app.zatca.sync.invoice', $invoice) }}">
                     @csrf

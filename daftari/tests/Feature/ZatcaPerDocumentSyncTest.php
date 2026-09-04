@@ -165,4 +165,29 @@ class ZatcaPerDocumentSyncTest extends TestCase
         $response->assertOk();
         $response->assertSee(route('app.invoices.xml', $invoice), false);
     }
+
+    /**
+     * Regression: the invoice show page mixes an inline @php(...) directive
+     * with a later @php ... @endphp block in the same view — Blade's
+     * storePhpBlocks() extracts raw PHP blocks via a single non-greedy
+     * regex across the WHOLE file, so an inline @php(...) with no
+     * @endphp of its own gets merged with the NEXT @endphp anywhere later
+     * in the file, silently swallowing everything (including @if/@elseif/
+     * @endif) in between into one broken raw block. Blade::compileString()
+     * doesn't catch this — the resulting PHP is only invalid once actually
+     * parsed — so this hits the real route to catch it. Only a full HTTP
+     * GET (not compileString(), which was checked and passed during
+     * development) reproduces the ParseError reported live.
+     */
+    public function test_the_invoice_show_page_renders_with_a_sync_with_zatca_button_for_an_eligible_invoice(): void
+    {
+        [$company, $owner] = $this->makeOnboardedOwner();
+        $invoice = $this->makeInvoice($company);
+
+        $response = $this->actingAs($owner)->get(route('app.invoices.show', $invoice));
+
+        $response->assertOk();
+        $response->assertSee(__('Sync with ZATCA'));
+        $response->assertSee(route('app.zatca.sync.invoice', $invoice), false);
+    }
 }
