@@ -399,10 +399,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:cash_banks')->group(function () {
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
-        Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show']);
+        Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
         Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->name('receipt-vouchers.pdf');
-        Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show']);
+        Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
         Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->name('payment-vouchers.pdf');
         Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
