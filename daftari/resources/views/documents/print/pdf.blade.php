@@ -121,7 +121,8 @@
                 <tr style="border-bottom: 0.5pt solid #e2e8f0;">
                     <td style="padding: 6px 2px; vertical-align: top; color: #64748b;">{{ $index + 1 }}</td>
                     <td style="padding: 6px 2px; vertical-align: top;">
-                        <strong>{{ $line->description }}</strong>
+                        <strong>{{ $primary($line->description, $line->item?->name_ar) }}</strong>
+                        @if ($secondary($line->item?->name_ar))<div class="ar">{{ $line->item->name_ar }}</div>@endif
                         @if (!empty($line->item?->description))<div class="muted">{{ $line->item->description }}</div>@endif
                     </td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
@@ -159,7 +160,7 @@
         <tr>
             <td style="width: 25%; padding: 3px 0; font-weight: bold; color: #475569;">{{ $doc['party_label'] }}</td>
             <td style="width: 25%; padding: 3px 0;">{{ $doc['party']->name }}</td>
-            <td style="width: 25%; padding: 3px 0; font-weight: bold; color: #475569;">{{ __('Number') }}</td>
+            <td style="width: 25%; padding: 3px 0; font-weight: bold; color: #475569;">{{ $lbl('Number') }}</td>
             <td style="padding: 3px 0;">{{ $doc['number'] }}</td>
         </tr>
         <tr>
@@ -171,10 +172,10 @@
             @endif
         </tr>
         @if (!empty($doc['ref_no']))
-            <tr><td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ __('Ref No') }}</td><td style="padding: 3px 0;" colspan="3">{{ $doc['ref_no'] }}</td></tr>
+            <tr><td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $lbl('Ref No') }}</td><td style="padding: 3px 0;" colspan="3">{{ $doc['ref_no'] }}</td></tr>
         @endif
         @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
-            <tr><td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ __('Address') }}</td><td style="padding: 3px 0;" colspan="3">{{ $doc['party']->fullAddress() }}</td></tr>
+            <tr><td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $lbl('Address') }}</td><td style="padding: 3px 0;" colspan="3">{{ $doc['party']->fullAddress() }}</td></tr>
         @endif
     </table>
 
@@ -182,17 +183,20 @@
         <thead>
             <tr style="background-color: #f8fafc; text-align: left; font-size: 8.5pt;">
                 <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 8%;">Sr</th>
-                <th style="border: 0.5pt solid #cbd5e1; padding: 5px;">{{ __('Items') }}</th>
-                <th class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 18%;">{{ __('Quantity') }}</th>
-                <th class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 18%;">{{ __('Rate') }}</th>
-                <th class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 20%;">{{ __('Amount') }}</th>
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px;">{{ $lbl('Items') }}</th>
+                <th class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 18%;">{{ $lbl('Quantity') }}</th>
+                <th class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 18%;">{{ $lbl('Rate') }}</th>
+                <th class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 20%;">{{ $lbl('Amount') }}</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $index => $line)
                 <tr>
                     <td style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top; color: #64748b;">{{ $index + 1 }}</td>
-                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ $line->description }}</td>
+                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">
+                        {{ $primary($line->description, $line->item?->name_ar) }}
+                        @if ($secondary($line->item?->name_ar))<div class="ar">{{ $line->item->name_ar }}</div>@endif
+                    </td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top; font-weight: bold;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
@@ -204,14 +208,14 @@
     <table style="margin-top: 12px;">
         <tr>
             <td style="width: 55%; vertical-align: top; font-size: 9.5pt;">
-                <div style="font-weight: bold; color: #334155;">{{ __('In Words') }}</div>
-                <div class="muted">{{ \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}</div>
+                <div style="font-weight: bold; color: #334155;">{{ $lbl('In Words') }}</div>
+                <div class="muted">{{ $languageMode === 'arabic_only' ? \App\Support\NumberToWords::arabicRiyals($doc['total']) : \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}</div>
             </td>
             <td style="width: 45%; vertical-align: top;">
                 <table>
-                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ __('Total') }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td></tr>
-                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ __('Total Tax') }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($doc['vat_total'], 2) }}</td></tr>
-                    <tr><td style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ __('Grand Total') }}</td><td class="text-end" style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ number_format($doc['total'], 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ $lbl('Total Tax') }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($doc['vat_total'], 2) }}</td></tr>
+                    <tr><td style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ $lbl('Grand Total') }}</td><td class="text-end" style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ number_format($doc['total'], 2) }}</td></tr>
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         <tr><td style="padding: 2px 0;">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($row['value'], 2) }}</td></tr>
                     @endforeach
@@ -222,23 +226,23 @@
 
     @if (!empty($doc['salesperson']))
         <div style="margin-top: 12px; font-size: 9.5pt;">
-            <div style="font-weight: bold;">{{ __('Sales Executive') }}</div>
-            <div class="muted">{{ $doc['salesperson']->name }}@if ($doc['salesperson']->phone) — {{ __('Contact No') }}: {{ $doc['salesperson']->phone }}@endif</div>
+            <div style="font-weight: bold;">{{ $lbl('Sales Executive') }}</div>
+            <div class="muted">{{ $doc['salesperson']->name }}@if ($doc['salesperson']->phone) — {{ $lbl('Contact No') }}: {{ $doc['salesperson']->phone }}@endif</div>
         </div>
     @endif
 
     @if ($bankAccounts->isNotEmpty())
         <div style="margin-top: 10px; font-size: 9.5pt;">
-            <div style="font-weight: bold;">{{ __('Bank Account Details') }}:</div>
+            <div style="font-weight: bold;">{{ $lbl('Bank Account Details') }}:</div>
             @foreach ($bankAccounts as $ba)
-                <div class="muted">{{ __('Bank Name') }}: {{ $ba->bank_name ?: $ba->name }} &nbsp; {{ __('IBAN') }}: {{ $ba->iban }} &nbsp; {{ __('A/C #') }}: {{ $ba->account_number }}</div>
+                <div class="muted">{{ $lbl('Bank Name') }}: {{ $ba->bank_name ?: $ba->name }} &nbsp; {{ $lbl('IBAN') }}: {{ $ba->iban }} &nbsp; {{ $lbl('A/C #') }}: {{ $ba->account_number }}</div>
             @endforeach
         </div>
     @endif
 
     @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 130])
 
-    <div class="footer-note">{{ __('Page 1 of 1') }}</div>
+    <div class="footer-note">{{ $lbl('Page 1 of 1') }}</div>
 
 @else
     {{-- minimal / bordered / boxed --}}
@@ -278,7 +282,7 @@
             </td>
             <td style="width: 50%; vertical-align: top; text-align: right;">
                 @if (!empty($doc['zatca_status']))
-                    <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}</div>
+                    <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div>
                 @endif
             </td>
         </tr>
@@ -333,8 +337,8 @@
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
         <div style="margin-top: 16px; padding-top: 8px; border-top: 0.5pt solid #f1f5f9; font-size: 9pt;">
-            <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px;">{{ __('Payment details') }}</div>
-            <div class="muted">{{ $ba->name }}@if ($ba->bank_name) — {{ $ba->bank_name }} @endif @if ($ba->iban) — {{ __('IBAN') }}: {{ $ba->iban }}@endif</div>
+            <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px;">{{ $lbl('Payment details') }}</div>
+            <div class="muted">{{ $ba->name }}@if ($ba->bank_name) — {{ $ba->bank_name }} @endif @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }}@endif</div>
         </div>
     @endif
 

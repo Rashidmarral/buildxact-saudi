@@ -134,6 +134,36 @@ class InvoiceTemplateLanguageModeTest extends TestCase
         $response->assertSee('عارضة فولاذية');
     }
 
+    /**
+     * Bug: the bilingual_classic layout's item table never showed a
+     * product's Arabic name at all (in any language mode), and its static
+     * labels (headers, "In Words", totals) never flipped to Arabic even
+     * under arabic_only — the layout only respected language_mode for its
+     * top title. custom_letterhead had the same gap for its own labels.
+     */
+    public function test_arabic_only_mode_shows_the_arabic_item_name_on_the_bilingual_classic_layout(): void
+    {
+        $invoice = $this->makeInvoice('arabic_only', 'bilingual_classic');
+
+        $response = $this->get(route('app.invoices.show', $invoice));
+
+        $response->assertOk();
+        $response->assertSee('عارضة فولاذية');
+    }
+
+    public function test_arabic_only_mode_flips_custom_letterhead_static_labels_to_arabic(): void
+    {
+        $invoice = $this->makeInvoice('arabic_only', 'custom_letterhead');
+
+        $response = $this->get(route('app.invoices.show', $invoice));
+
+        $response->assertOk();
+        $response->assertSee('عارضة فولاذية');
+        $response->assertSee(__('Items', [], 'ar'));
+        $response->assertSee(__('Grand Total', [], 'ar'));
+        $response->assertDontSee('Grand Total');
+    }
+
     public function test_template_settings_screen_saves_language_mode_direction_and_signature(): void
     {
         $company = Company::create(['name' => 'Settings Co.', 'slug' => 'settings-'.uniqid()]);

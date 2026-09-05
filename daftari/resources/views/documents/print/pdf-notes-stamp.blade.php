@@ -3,7 +3,7 @@
      a real paper invoice, not mixed in above the line items. --}}
 @if (!empty($doc['notes']))
     <div class="notes-block">
-        <strong>{{ __('Notes') }}</strong>
+        <strong>{{ $lbl('Notes') }}</strong>
         <div class="muted" style="margin-top: 2px; white-space: pre-line;">{{ $doc['notes'] }}</div>
     </div>
 @endif
@@ -19,10 +19,10 @@
             @if (!empty($doc['qr_code']))
                 <td style="width: 25%; text-align: center;">
                     @if (!empty($doc['zatca_status']))
-                        <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}</div><br>
+                        <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div><br>
                     @endif
                     <img src="data:image/png;base64,{{ $doc['qr_code'] }}" class="qr-img" alt="">
-                    <div class="muted">{{ __('Scan to verify invoice details') }}</div>
+                    <div class="muted">{{ $lbl('Scan to verify invoice details') }}</div>
                 </td>
             @endif
             @if ($stampData)

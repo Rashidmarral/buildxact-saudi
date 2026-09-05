@@ -113,7 +113,10 @@
                 <tr class="border-b border-slate-200 align-top">
                     <td class="py-3 ps-1 text-slate-500">{{ $index + 1 }}</td>
                     <td class="py-3 max-w-xs">
-                        <p class="font-semibold text-slate-800">{{ $line->description }}</p>
+                        <p class="font-semibold text-slate-800">{{ $primary($line->description, $line->item?->name_ar) }}</p>
+                        @if ($secondary($line->item?->name_ar))
+                            <p class="mt-1 text-xs text-slate-500" dir="rtl">{{ $line->item->name_ar }}</p>
+                        @endif
                         @if (!empty($line->item?->description))
                             <p class="mt-1 text-xs text-slate-500">{{ $line->item->description }}</p>
                         @endif
@@ -222,7 +225,7 @@
                     {{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}
                     @if ($secondary($doc['party']->name_ar ?? null))<span class="block text-xs text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</span>@endif
                 </td>
-                <td class="w-1/4 py-1 font-semibold text-slate-600">{{ __('Number') }}</td>
+                <td class="w-1/4 py-1 font-semibold text-slate-600">{{ $lbl('Number') }}</td>
                 <td class="py-1 text-slate-800">{{ $doc['number'] }}</td>
             </tr>
             <tr>
@@ -235,13 +238,13 @@
             </tr>
             @if (!empty($doc['ref_no']))
                 <tr>
-                    <td class="py-1 font-semibold text-slate-600">{{ __('Ref No') }}</td>
+                    <td class="py-1 font-semibold text-slate-600">{{ $lbl('Ref No') }}</td>
                     <td class="py-1 text-slate-800">{{ $doc['ref_no'] }}</td>
                 </tr>
             @endif
             @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
                 <tr>
-                    <td class="py-1 font-semibold text-slate-600">{{ __('Address') }}</td>
+                    <td class="py-1 font-semibold text-slate-600">{{ $lbl('Address') }}</td>
                     <td class="py-1 text-slate-800" colspan="3">{{ $doc['party']->fullAddress() }}</td>
                 </tr>
             @endif
@@ -252,10 +255,10 @@
         <thead>
             <tr class="bg-slate-50 text-left text-slate-700">
                 <th class="border border-slate-300 px-2 py-1.5 w-10">Sr</th>
-                <th class="border border-slate-300 px-2 py-1.5">{{ __('Items') }}</th>
-                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ __('Quantity') }}</th>
-                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ __('Rate') }}</th>
-                <th class="border border-slate-300 px-2 py-1.5 text-end w-28">{{ __('Amount') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5">{{ $lbl('Items') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ $lbl('Quantity') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ $lbl('Rate') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-28">{{ $lbl('Amount') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -276,13 +279,13 @@
 
     <div class="mt-4 flex flex-col-reverse gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="max-w-sm text-sm">
-            <p class="font-semibold text-slate-700">{{ __('In Words') }}</p>
-            <p class="text-slate-600">{{ \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}</p>
+            <p class="font-semibold text-slate-700">{{ $lbl('In Words') }}</p>
+            <p class="text-slate-600">{{ $languageMode === 'arabic_only' ? \App\Support\NumberToWords::arabicRiyals($doc['total']) : \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}</p>
         </div>
         <div class="w-full max-w-xs space-y-1 text-sm">
-            <div class="flex justify-between"><span class="font-semibold text-slate-700">{{ __('Total') }}</span><span>{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</span></div>
-            <div class="flex justify-between"><span class="font-semibold text-slate-700">{{ __('Total Tax') }}</span><span>{{ number_format($doc['vat_total'], 2) }}</span></div>
-            <div class="flex justify-between text-base font-bold text-slate-900"><span>{{ __('Grand Total') }}</span><span>{{ number_format($doc['total'], 2) }}</span></div>
+            <div class="flex justify-between"><span class="font-semibold text-slate-700">{{ $lbl('Total') }}</span><span>{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</span></div>
+            <div class="flex justify-between"><span class="font-semibold text-slate-700">{{ $lbl('Total Tax') }}</span><span>{{ number_format($doc['vat_total'], 2) }}</span></div>
+            <div class="flex justify-between text-base font-bold text-slate-900"><span>{{ $lbl('Grand Total') }}</span><span>{{ number_format($doc['total'], 2) }}</span></div>
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 <div class="flex justify-between {{ $row['emphasis'] ?? false ? 'font-semibold text-brand-700' : 'text-slate-600' }}"><span>{{ $row['label'] }}</span><span>{{ number_format($row['value'], 2) }}</span></div>
             @endforeach
@@ -291,17 +294,17 @@
 
     @if (!empty($doc['salesperson']))
         <div class="mt-6 text-sm">
-            <p class="font-semibold text-slate-800">{{ __('Sales Executive') }}</p>
+            <p class="font-semibold text-slate-800">{{ $lbl('Sales Executive') }}</p>
             <p class="text-slate-600">{{ $doc['salesperson']->name }}</p>
-            @if ($doc['salesperson']->phone)<p class="text-slate-600">{{ __('Contact No') }}: {{ $doc['salesperson']->phone }}</p>@endif
+            @if ($doc['salesperson']->phone)<p class="text-slate-600">{{ $lbl('Contact No') }}: {{ $doc['salesperson']->phone }}</p>@endif
         </div>
     @endif
 
     @if ($bankAccounts->isNotEmpty())
         <div class="mt-4 text-sm">
-            <p class="font-semibold text-slate-800">{{ __('Bank Account Details') }} :</p>
+            <p class="font-semibold text-slate-800">{{ $lbl('Bank Account Details') }} :</p>
             @foreach ($bankAccounts as $ba)
-                <p class="text-slate-600">{{ __('Bank Name') }}: {{ $ba->bank_name ?: $ba->name }} &nbsp; {{ __('IBAN') }}: {{ $ba->iban }} &nbsp; {{ __('A/C #') }}: {{ $ba->account_number }}</p>
+                <p class="text-slate-600">{{ $lbl('Bank Name') }}: {{ $ba->bank_name ?: $ba->name }} &nbsp; {{ $lbl('IBAN') }}: {{ $ba->iban }} &nbsp; {{ $lbl('A/C #') }}: {{ $ba->account_number }}</p>
             @endforeach
         </div>
     @endif
@@ -320,20 +323,20 @@
                 <div class="text-center">
                     @if (!empty($doc['zatca_status']))
                         <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                            {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                            {{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}
                         </p>
                     @endif
-                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
-                    <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
+                    <p class="mt-1 text-xs text-slate-400">{{ $lbl('Scan to verify invoice details') }}</p>
                 </div>
             @endif
             @if ($company->stamp_path)
-                <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-32 w-32 object-contain">
+                <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ $lbl('Company stamp') }}" class="h-32 w-32 object-contain">
             @endif
         </div>
     @endif
 
-    <div class="mt-10 text-center text-xs text-slate-400">{{ __('Page 1 of 1') }}</div>
+    <div class="mt-10 text-center text-xs text-slate-400">{{ $lbl('Page 1 of 1') }}</div>
 
 @else
     {{-- minimal / bordered / boxed — the original three layouts. --}}
@@ -376,11 +379,11 @@
             @if (!empty($doc['qr_code']))
                 @if (!empty($doc['zatca_status']))
                     <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                        {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                        {{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}
                     </p>
                 @endif
-                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
-                <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
+                <p class="mt-1 text-xs text-slate-400">{{ $lbl('Scan to verify invoice details') }}</p>
             @endif
         </div>
     </div>
@@ -445,11 +448,11 @@
             $ba = $bankAccounts->first();
         @endphp
         <div class="mt-8 pt-4 border-t border-slate-100 text-sm">
-            <h4 class="text-xs font-semibold uppercase text-slate-400 mb-1">{{ __('Payment details') }}</h4>
+            <h4 class="text-xs font-semibold uppercase text-slate-400 mb-1">{{ $lbl('Payment details') }}</h4>
             <p class="text-slate-600">
                 {{ $ba->name }}
                 @if ($ba->bank_name) — {{ $ba->bank_name }} @endif
-                @if ($ba->iban) — {{ __('IBAN') }}: {{ $ba->iban }} @endif
+                @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }} @endif
             </p>
         </div>
     @endif
