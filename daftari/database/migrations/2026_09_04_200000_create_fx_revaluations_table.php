@@ -45,7 +45,7 @@ return new class extends Migration
             $table->decimal('unrealized_gain_loss', 14, 2);
             $table->timestamps();
 
-            $table->index(['fx_revaluation_id', 'document_type', 'document_id']);
+            $table->index(['fx_revaluation_id', 'document_type', 'document_id'], 'fx_revaluation_lines_document_index');
         });
     }
 
