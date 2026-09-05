@@ -19,7 +19,7 @@ class ReceiptVoucherController extends Controller
 {
     public function downloadPdf(ReceiptVoucher $receiptVoucher, MpdfRenderer $renderer)
     {
-        $receiptVoucher->loadMissing('bankAccount', 'invoice', 'counterAccount');
+        $receiptVoucher->loadMissing('bankAccount', 'invoice.items', 'counterAccount');
 
         $pdf = $renderer->render('documents.print.voucher-pdf', [
             'voucher' => $receiptVoucher,
@@ -119,7 +119,7 @@ class ReceiptVoucherController extends Controller
 
     public function show(ReceiptVoucher $receiptVoucher)
     {
-        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice', 'counterAccount');
+        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice.items', 'counterAccount');
 
         $template = $receiptVoucher->company->defaultTemplateFor('receipt_voucher');
 

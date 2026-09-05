@@ -6,9 +6,14 @@ use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\BankAccount;
 use App\Models\Bill;
+use App\Models\BillItem;
+use App\Models\Client;
 use App\Models\Company;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
 use App\Models\PaymentVoucher;
+use App\Models\ReceiptVoucher;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -174,7 +179,7 @@ class VoucherRedesignTest extends TestCase
         $this->assertNull($template->footer_path);
     }
 
-    public function test_a_bill_payment_voucher_defaults_its_purpose_line_from_the_bill(): void
+    public function test_a_bill_payment_voucher_defaults_its_purpose_line_from_the_bill_and_its_items(): void
     {
         $company = $this->makeCompany();
         $owner = $this->makeOwner($company);
@@ -184,6 +189,10 @@ class VoucherRedesignTest extends TestCase
             'company_id' => $company->id, 'supplier_id' => $supplier->id, 'bill_number' => 'BILL-9001',
             'status' => 'posted', 'bill_date' => now()->toDateString(), 'currency' => $company->currency,
             'subtotal' => 400, 'vat_total' => 0, 'total' => 400,
+        ]);
+        BillItem::create([
+            'bill_id' => $bill->id, 'description' => 'Cement bags', 'quantity' => 10,
+            'unit_price' => 40, 'vat_rate' => 0, 'vat_amount' => 0, 'line_total' => 400,
         ]);
 
         $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
@@ -197,5 +206,90 @@ class VoucherRedesignTest extends TestCase
 
         $show->assertOk();
         $show->assertSee('BILL-9001');
+        $show->assertSee('Cement bags');
+    }
+
+    public function test_a_receipt_voucher_defaults_its_purpose_line_from_the_invoice_and_its_items(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Invoice Client']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-7001',
+            'type' => 'standard', 'status' => 'sent', 'issue_date' => now()->toDateString(),
+            'currency' => $company->currency, 'subtotal' => 500, 'vat_total' => 0, 'total' => 500,
+        ]);
+        InvoiceItem::create([
+            'invoice_id' => $invoice->id, 'description' => 'Consulting hours', 'quantity' => 5,
+            'unit_price' => 100, 'vat_rate' => 0, 'vat_amount' => 0, 'line_total' => 500,
+        ]);
+
+        $this->actingAs($owner)->post(route('app.receipt-vouchers.store'), [
+            'party_type' => 'customer', 'client_id' => $client->id, 'invoice_id' => $invoice->id,
+            'payer_name' => $client->name, 'bank_account_id' => $account->id,
+            'date' => now()->toDateString(), 'amount' => 500, 'method' => 'bank_transfer',
+        ]);
+
+        $voucher = ReceiptVoucher::first();
+        $show = $this->actingAs($owner)->get(route('app.receipt-vouchers.show', $voucher));
+
+        $show->assertOk();
+        $show->assertSee('INV-7001');
+        $show->assertSee('Consulting hours');
+    }
+
+    public function test_selecting_an_invoice_returns_its_total_date_and_line_items(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Details Client']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-8001',
+            'type' => 'standard', 'status' => 'sent', 'issue_date' => '2026-01-15',
+            'currency' => $company->currency, 'subtotal' => 1000, 'vat_total' => 150, 'total' => 1150,
+        ]);
+        InvoiceItem::create([
+            'invoice_id' => $invoice->id, 'description' => 'Steel Beam', 'quantity' => 2,
+            'unit_price' => 500, 'vat_rate' => 15, 'vat_amount' => 150, 'line_total' => 1150,
+        ]);
+
+        $response = $this->actingAs($owner)->get('/app/clients/'.$client->id.'/outstanding-invoices');
+
+        $response->assertOk();
+        $response->assertJsonFragment([
+            'invoice_number' => 'INV-8001',
+            'date' => '2026-01-15',
+            'total' => '1,150.00',
+            'balance' => '1,150.00',
+        ]);
+        $response->assertJsonFragment(['description' => 'Steel Beam', 'quantity' => '2']);
+    }
+
+    public function test_selecting_a_bill_returns_its_total_date_and_line_items(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $supplier = Supplier::create(['company_id' => $company->id, 'name' => 'Details Supplier']);
+        $bill = Bill::create([
+            'company_id' => $company->id, 'supplier_id' => $supplier->id, 'bill_number' => 'BILL-8001',
+            'status' => 'posted', 'bill_date' => '2026-02-10', 'currency' => $company->currency,
+            'subtotal' => 300, 'vat_total' => 0, 'total' => 300,
+        ]);
+        BillItem::create([
+            'bill_id' => $bill->id, 'description' => 'Office chairs', 'quantity' => 3,
+            'unit_price' => 100, 'vat_rate' => 0, 'vat_amount' => 0, 'line_total' => 300,
+        ]);
+
+        $response = $this->actingAs($owner)->get('/app/suppliers/'.$supplier->id.'/outstanding-bills');
+
+        $response->assertOk();
+        $response->assertJsonFragment([
+            'bill_number' => 'BILL-8001',
+            'date' => '2026-02-10',
+            'total' => '300.00',
+            'balance' => '300.00',
+        ]);
+        $response->assertJsonFragment(['description' => 'Office chairs', 'quantity' => '3']);
     }
 }

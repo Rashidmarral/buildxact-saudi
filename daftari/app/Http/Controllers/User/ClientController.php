@@ -104,11 +104,18 @@ class ClientController extends Controller
     {
         $invoices = $client->invoices()
             ->whereIn('status', ['sent', 'partially_paid', 'overdue'])
+            ->with('items')
             ->get()
             ->map(fn ($invoice) => [
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
+                'date' => $invoice->issue_date->format('Y-m-d'),
+                'total' => number_format((float) $invoice->total, 2),
                 'balance' => number_format($invoice->balanceDue(), 2),
+                'items' => $invoice->items->map(fn ($line) => [
+                    'description' => $line->description,
+                    'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),
+                ])->values(),
             ])
             ->values();
 

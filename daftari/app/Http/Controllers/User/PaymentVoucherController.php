@@ -27,7 +27,7 @@ class PaymentVoucherController extends Controller
 
     public function downloadPdf(PaymentVoucher $paymentVoucher, MpdfRenderer $renderer)
     {
-        $paymentVoucher->loadMissing('bankAccount', 'bill', 'expense', 'counterAccount');
+        $paymentVoucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount');
 
         $pdf = $renderer->render('documents.print.voucher-pdf', [
             'voucher' => $paymentVoucher,
@@ -133,7 +133,7 @@ class PaymentVoucherController extends Controller
 
     public function show(PaymentVoucher $paymentVoucher)
     {
-        $paymentVoucher->load('bankAccount', 'expense', 'bill', 'client', 'supplier', 'counterAccount');
+        $paymentVoucher->load('bankAccount', 'expense', 'bill.items', 'client', 'supplier', 'counterAccount');
 
         $template = $paymentVoucher->company->defaultTemplateFor('payment_voucher');
 

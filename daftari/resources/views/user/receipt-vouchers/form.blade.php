@@ -43,6 +43,18 @@
                     <select name="invoice_id" id="invoice_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         <option value="">{{ __('None') }}</option>
                     </select>
+                    <p class="mt-1 text-xs text-slate-400">{{ __('Selecting an invoice fills in the amount and item details below — you can still edit them.') }}</p>
+                </div>
+                <div id="invoice-summary" class="hidden rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+                    <div class="flex items-center justify-between font-semibold text-slate-700">
+                        <span id="invoice-summary-number"></span>
+                        <span id="invoice-summary-date"></span>
+                    </div>
+                    <ul id="invoice-summary-items" class="mt-2 space-y-0.5 text-slate-500"></ul>
+                    <div class="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between text-slate-700">
+                        <span>{{ __('Total') }}: <span id="invoice-summary-total" class="font-semibold"></span></span>
+                        <span>{{ __('Balance due') }}: <span id="invoice-summary-balance" class="font-semibold"></span></span>
+                    </div>
                 </div>
             </div>
 
@@ -116,7 +128,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Amount') }}</label>
-                    <input type="number" step="0.01" min="0.01" name="amount" value="{{ old('amount') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Payment method') }}</label>
@@ -134,8 +146,9 @@
                 <p class="text-xs text-slate-500 mt-1 mb-3">{{ __('Add a reference or description to make the transaction easier to find later.') }}</p>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reference') }}</label>
                 <input type="text" name="reference" value="{{ old('reference') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('Notes') }}</label>
-                <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes') }}</textarea>
+                <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('For') }}</label>
+                <textarea name="notes" id="notes" rows="2" placeholder="{{ __('What is this receipt for? e.g. a service or product description.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes') }}</textarea>
+                <p class="mt-1 text-xs text-slate-400">{{ __('Printed on the voucher next to "For".') }}</p>
             </div>
         </div>
     </div>
@@ -186,14 +199,26 @@
     clientSelect.addEventListener('change', () => fillPartyFields(clientsData[clientSelect.value]));
 
     const invoiceSelect = document.getElementById('invoice_id');
+    const amountInput = document.getElementById('amount');
+    const notesInput = document.getElementById('notes');
+    const summaryBox = document.getElementById('invoice-summary');
+    const summaryNumber = document.getElementById('invoice-summary-number');
+    const summaryDate = document.getElementById('invoice-summary-date');
+    const summaryItems = document.getElementById('invoice-summary-items');
+    const summaryTotal = document.getElementById('invoice-summary-total');
+    const summaryBalance = document.getElementById('invoice-summary-balance');
+    let invoicesById = {};
 
     function loadInvoices() {
         invoiceSelect.innerHTML = '<option value="">' + @json(__('None')) + '</option>';
+        invoicesById = {};
+        summaryBox.classList.add('hidden');
         if (!clientSelect.value) return;
         fetch('{{ url('/app/clients') }}/' + clientSelect.value + '/outstanding-invoices')
             .then(r => r.json())
             .then(invoices => {
                 invoices.forEach(inv => {
+                    invoicesById[inv.id] = inv;
                     const opt = document.createElement('option');
                     opt.value = inv.id;
                     opt.textContent = inv.invoice_number + ' — SAR ' + inv.balance;
@@ -202,7 +227,36 @@
             });
     }
 
+    function applyInvoiceSelection() {
+        const invoice = invoicesById[invoiceSelect.value];
+        if (!invoice) {
+            summaryBox.classList.add('hidden');
+            return;
+        }
+
+        summaryBox.classList.remove('hidden');
+        summaryNumber.textContent = invoice.invoice_number;
+        summaryDate.textContent = invoice.date;
+        summaryTotal.textContent = 'SAR ' + invoice.total;
+        summaryBalance.textContent = 'SAR ' + invoice.balance;
+        summaryItems.innerHTML = '';
+        invoice.items.forEach(line => {
+            const li = document.createElement('li');
+            li.textContent = line.description + (line.quantity ? ' × ' + line.quantity : '');
+            summaryItems.appendChild(li);
+        });
+
+        if (!amountInput.value) {
+            amountInput.value = invoice.balance.replace(/,/g, '');
+        }
+        if (!notesInput.value) {
+            const itemList = invoice.items.map(line => line.description).join(', ');
+            notesInput.value = @json(__('Invoice')) + ' ' + invoice.invoice_number + (itemList ? ' — ' + itemList : '');
+        }
+    }
+
     clientSelect.addEventListener('change', loadInvoices);
+    invoiceSelect.addEventListener('change', applyInvoiceSelection);
     if (clientSelect.value) loadInvoices();
 })();
 </script>

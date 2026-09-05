@@ -54,6 +54,18 @@
                     <select name="bill_id" id="bill_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         <option value="">{{ __('None') }}</option>
                     </select>
+                    <p class="mt-1 text-xs text-slate-400">{{ __('Selecting a bill fills in the amount and item details below — you can still edit them.') }}</p>
+                </div>
+                <div id="bill-summary" class="hidden rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+                    <div class="flex items-center justify-between font-semibold text-slate-700">
+                        <span id="bill-summary-number"></span>
+                        <span id="bill-summary-date"></span>
+                    </div>
+                    <ul id="bill-summary-items" class="mt-2 space-y-0.5 text-slate-500"></ul>
+                    <div class="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between text-slate-700">
+                        <span>{{ __('Total') }}: <span id="bill-summary-total" class="font-semibold"></span></span>
+                        <span>{{ __('Balance due') }}: <span id="bill-summary-balance" class="font-semibold"></span></span>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Related expense (optional)') }}</label>
@@ -126,7 +138,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Amount') }}</label>
-                    <input type="number" step="0.01" min="0.01" name="amount" value="{{ old('amount') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Payment method') }}</label>
@@ -144,8 +156,9 @@
                 <p class="text-xs text-slate-500 mt-1 mb-3">{{ __('Add a reference or description to make the transaction easier to find later.') }}</p>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reference') }}</label>
                 <input type="text" name="reference" value="{{ old('reference') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('Notes') }}</label>
-                <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes') }}</textarea>
+                <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('For') }}</label>
+                <textarea name="notes" id="notes" rows="2" placeholder="{{ __('What is this payment for? e.g. a service or product description.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes') }}</textarea>
+                <p class="mt-1 text-xs text-slate-400">{{ __('Printed on the voucher next to "For".') }}</p>
             </div>
         </div>
     </div>
@@ -195,14 +208,26 @@
     supplierSelect.addEventListener('change', () => fillPartyFields(suppliersData[supplierSelect.value]));
 
     const billSelect = document.getElementById('bill_id');
+    const amountInput = document.getElementById('amount');
+    const notesInput = document.getElementById('notes');
+    const summaryBox = document.getElementById('bill-summary');
+    const summaryNumber = document.getElementById('bill-summary-number');
+    const summaryDate = document.getElementById('bill-summary-date');
+    const summaryItems = document.getElementById('bill-summary-items');
+    const summaryTotal = document.getElementById('bill-summary-total');
+    const summaryBalance = document.getElementById('bill-summary-balance');
+    let billsById = {};
 
     function loadBills() {
         billSelect.innerHTML = '<option value="">' + @json(__('None')) + '</option>';
+        billsById = {};
+        summaryBox.classList.add('hidden');
         if (!supplierSelect.value) return;
         fetch('{{ url('/app/suppliers') }}/' + supplierSelect.value + '/outstanding-bills')
             .then(r => r.json())
             .then(bills => {
                 bills.forEach(bill => {
+                    billsById[bill.id] = bill;
                     const opt = document.createElement('option');
                     opt.value = bill.id;
                     opt.textContent = bill.bill_number + ' — SAR ' + bill.balance;
@@ -211,7 +236,36 @@
             });
     }
 
+    function applyBillSelection() {
+        const bill = billsById[billSelect.value];
+        if (!bill) {
+            summaryBox.classList.add('hidden');
+            return;
+        }
+
+        summaryBox.classList.remove('hidden');
+        summaryNumber.textContent = bill.bill_number;
+        summaryDate.textContent = bill.date;
+        summaryTotal.textContent = 'SAR ' + bill.total;
+        summaryBalance.textContent = 'SAR ' + bill.balance;
+        summaryItems.innerHTML = '';
+        bill.items.forEach(line => {
+            const li = document.createElement('li');
+            li.textContent = line.description + (line.quantity ? ' × ' + line.quantity : '');
+            summaryItems.appendChild(li);
+        });
+
+        if (!amountInput.value) {
+            amountInput.value = bill.balance.replace(/,/g, '');
+        }
+        if (!notesInput.value) {
+            const itemList = bill.items.map(line => line.description).join(', ');
+            notesInput.value = @json(__('Bill')) + ' ' + bill.bill_number + (itemList ? ' — ' + itemList : '');
+        }
+    }
+
     supplierSelect.addEventListener('change', loadBills);
+    billSelect.addEventListener('change', applyBillSelection);
     if (supplierSelect.value) loadBills();
 })();
 </script>

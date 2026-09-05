@@ -51,4 +51,21 @@ class ReceiptVoucher extends Model
     {
         return $this->belongsTo(InvoicePayment::class);
     }
+
+    /**
+     * What the "For" line on the printed voucher falls back to when no
+     * one typed a description — the linked invoice's number and item
+     * descriptions (what was actually sold), so the voucher never prints
+     * blank just because nobody filled in the optional notes field.
+     */
+    public function defaultPurpose(): ?string
+    {
+        if (! $this->invoice) {
+            return null;
+        }
+
+        $items = $this->invoice->items->pluck('description')->filter()->implode(', ');
+
+        return __('Invoice :number', ['number' => $this->invoice->invoice_number]).($items ? ' — '.$items : '');
+    }
 }

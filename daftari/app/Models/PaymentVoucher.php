@@ -56,4 +56,26 @@ class PaymentVoucher extends Model
     {
         return $this->belongsTo(BillPayment::class);
     }
+
+    /**
+     * What the "For" line on the printed voucher falls back to when no
+     * one typed a description — the linked bill's number and item
+     * descriptions (what was actually purchased), or the expense's own
+     * description, so the voucher never prints blank just because nobody
+     * filled in the optional notes field.
+     */
+    public function defaultPurpose(): ?string
+    {
+        if ($this->bill) {
+            $items = $this->bill->items->pluck('description')->filter()->implode(', ');
+
+            return __('Bill :number', ['number' => $this->bill->bill_number]).($items ? ' — '.$items : '');
+        }
+
+        if ($this->expense) {
+            return $this->expense->description ?: $this->expense->vendor_name;
+        }
+
+        return null;
+    }
 }

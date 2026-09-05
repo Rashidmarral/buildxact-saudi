@@ -16,16 +16,7 @@
     $partyNameAr = $voucher->party_name_ar;
     $isCheque = $voucher->method === 'cheque';
 
-    $purpose = $voucher->notes;
-    if (! $purpose) {
-        if (! $isReceipt && $voucher->bill) {
-            $purpose = __('Payment for bill :number', ['number' => $voucher->bill->bill_number]);
-        } elseif ($isReceipt && $voucher->invoice) {
-            $purpose = __('Payment for invoice :number', ['number' => $voucher->invoice->invoice_number]);
-        } elseif (! $isReceipt && $voucher->expense) {
-            $purpose = $voucher->expense->description ?: $voucher->expense->vendor_name;
-        }
-    }
+    $purpose = $voucher->notes ?: $voucher->defaultPurpose();
 
     $amountWordsEn = \App\Support\NumberToWords::englishRiyals((float) $voucher->amount);
     $amountWordsAr = \App\Support\NumberToWords::arabicRiyals((float) $voucher->amount);
