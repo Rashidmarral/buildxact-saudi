@@ -119,13 +119,17 @@ class InvoiceTemplateController extends Controller
             'letterhead' => ['nullable', 'image', 'max:4096'],
             'footer' => ['nullable', 'image', 'max:4096'],
             'remove_footer' => ['nullable', 'boolean'],
+            'watermark' => ['nullable', 'image', 'max:4096'],
+            'remove_watermark' => ['nullable', 'boolean'],
+            'watermark_opacity' => ['nullable', 'integer', 'between:1,100'],
             'notes_en' => ['nullable', 'string', 'max:2000'],
             'notes_ar' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $data['show_logo'] = $request->boolean('show_logo');
         $data['show_signature'] = $request->boolean('show_signature');
-        unset($data['letterhead'], $data['footer'], $data['remove_footer']);
+        $data['watermark_opacity'] = $data['watermark_opacity'] ?? $invoiceTemplate->watermark_opacity;
+        unset($data['letterhead'], $data['footer'], $data['remove_footer'], $data['watermark'], $data['remove_watermark']);
 
         if ($request->hasFile('letterhead')) {
             if ($invoiceTemplate->letterhead_path) {
@@ -142,6 +146,16 @@ class InvoiceTemplateController extends Controller
         } elseif ($request->boolean('remove_footer') && $invoiceTemplate->footer_path) {
             Storage::disk('public')->delete($invoiceTemplate->footer_path);
             $data['footer_path'] = null;
+        }
+
+        if ($request->hasFile('watermark')) {
+            if ($invoiceTemplate->watermark_path) {
+                Storage::disk('public')->delete($invoiceTemplate->watermark_path);
+            }
+            $data['watermark_path'] = $request->file('watermark')->store('watermarks', 'public');
+        } elseif ($request->boolean('remove_watermark') && $invoiceTemplate->watermark_path) {
+            Storage::disk('public')->delete($invoiceTemplate->watermark_path);
+            $data['watermark_path'] = null;
         }
 
         $invoiceTemplate->update($data);

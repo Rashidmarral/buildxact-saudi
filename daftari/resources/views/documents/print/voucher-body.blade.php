@@ -21,7 +21,11 @@
     $amountWordsEn = \App\Support\NumberToWords::englishRiyals((float) $voucher->amount);
     $amountWordsAr = \App\Support\NumberToWords::arabicRiyals((float) $voucher->amount);
 @endphp
-<div class="border-2 border-slate-800 rounded-xl mt-4 p-6" style="page-break-inside: avoid;">
+<div class="relative border-2 border-slate-800 rounded-xl mt-4 p-6" style="page-break-inside: avoid;">
+    @if ($template && $template->watermark_path)
+        <img src="{{ Storage::url($template->watermark_path) }}" alt="" class="pointer-events-none select-none absolute inset-0 m-auto max-w-[70%] max-h-[70%] object-contain" style="opacity: {{ ($template->watermark_opacity ?? 10) / 100 }}; z-index: 0;">
+    @endif
+    <div class="relative" style="z-index: 1;">
     <div class="flex items-center justify-between border-b border-slate-200 pb-3">
         <div class="text-xs text-slate-500">
             <div>{{ __('No.') }}: <span class="font-semibold text-slate-800">{{ $voucher->voucher_number }}</span></div>
@@ -111,5 +115,6 @@
             <div class="h-10 border-b border-slate-400"></div>
             <p class="mt-2 text-xs text-slate-500">{{ __('Receiver') }} <span dir="rtl">توقيع المستلم</span></p>
         </div>
+    </div>
     </div>
 </div>

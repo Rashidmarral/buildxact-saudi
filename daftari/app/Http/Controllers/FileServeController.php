@@ -36,7 +36,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class FileServeController extends Controller
 {
-    private const PUBLIC_PREFIXES = ['logos/', 'stamps/', 'letterheads/', 'platform-documents/'];
+    private const PUBLIC_PREFIXES = ['logos/', 'stamps/', 'letterheads/', 'footers/', 'watermarks/', 'platform-documents/'];
 
     public function show(string $filepath): Response
     {

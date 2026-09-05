@@ -25,6 +25,21 @@ class MpdfRenderer
     {
         try {
             $mpdf = $this->makeMpdf();
+            $embed = $this->embedHelper();
+
+            // A template's background watermark is an mPDF page feature
+            // (drawn once per page, behind the HTML content), not something
+            // that can be expressed as regular HTML/CSS the way the logo,
+            // stamp and footer banner are — it has to be configured on the
+            // Mpdf instance itself before WriteHTML() runs.
+            $template = $data['template'] ?? null;
+            if ($template instanceof \App\Models\InvoiceTemplate && $template->watermark_path) {
+                $watermarkData = $embed($template->watermark_path);
+                if ($watermarkData) {
+                    $mpdf->SetWatermarkImage($watermarkData, max(1, $template->watermark_opacity ?? 10) / 100);
+                    $mpdf->showWatermarkImage = true;
+                }
+            }
 
             // mPDF parses HTML/CSS internally with PCRE regexes, and our own
             // diacritic-stripping below runs a PCRE pass over the same
@@ -41,7 +56,7 @@ class MpdfRenderer
             ini_set('pcre.backtrack_limit', '10000000');
             ini_set('pcre.recursion_limit', '10000000');
 
-            $html = $this->stripArabicDiacritics(view($view, $data + ['embed' => $this->embedHelper()])->render());
+            $html = $this->stripArabicDiacritics(view($view, $data + ['embed' => $embed])->render());
 
             $mpdf->WriteHTML($html);
 

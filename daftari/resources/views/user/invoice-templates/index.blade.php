@@ -164,7 +164,7 @@
                         <input type="file" name="letterhead" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <p class="mt-1 text-xs text-slate-400">{{ __('Upload a wide banner image — it replaces the logo/company-name header entirely on this layout.') }}</p>
                     </div>
-                    <div x-show="layout === 'custom_letterhead' || layout === 'bilingual_classic'" x-cloak>
+                    <div>
                         <label class="block text-xs font-medium text-slate-500">{{ __('Footer image') }}</label>
                         @if ($selected->footer_path)
                             <img src="{{ Storage::url($selected->footer_path) }}" alt="{{ __('Footer') }}" class="mt-2 mb-2 h-16 rounded border border-slate-100 object-contain">
@@ -175,6 +175,25 @@
                         @endif
                         <input type="file" name="footer" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <p class="mt-1 text-xs text-slate-400">{{ __('A wide banner printed at the bottom of every document and voucher on this template — a contact-details strip, a brand pattern, whatever your company prints there.') }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Background watermark') }}</label>
+                        @if ($selected->watermark_path)
+                            <img src="{{ Storage::url($selected->watermark_path) }}" alt="{{ __('Watermark') }}" class="mt-2 mb-2 h-16 rounded border border-slate-100 object-contain">
+                            <label class="flex items-center gap-2 text-xs text-slate-500 mb-2">
+                                <input type="checkbox" name="remove_watermark" value="1" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                {{ __('Remove this watermark') }}
+                            </label>
+                        @endif
+                        <input type="file" name="watermark" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Shown faintly behind the whole document — a company seal, logo, or "DRAFT"-style graphic.') }}</p>
+                        <div class="mt-2">
+                            <label class="block text-xs font-medium text-slate-500">{{ __('Watermark opacity') }}</label>
+                            <div class="mt-1 flex items-center gap-3">
+                                <input type="range" name="watermark_opacity" min="1" max="100" value="{{ $selected->watermark_opacity }}" class="w-full" oninput="this.nextElementSibling.textContent = this.value + '%'">
+                                <span class="text-xs text-slate-500 w-10 text-end">{{ $selected->watermark_opacity }}%</span>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500">{{ __('Footer note (English)') }}</label>

@@ -38,7 +38,13 @@
     $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
 @endphp
 
-<div dir="{{ $tableDirection }}">
+<div dir="{{ $tableDirection }}" class="relative">
+
+@if ($template && $template->watermark_path)
+    <img src="{{ Storage::url($template->watermark_path) }}" alt="" class="pointer-events-none select-none absolute inset-0 m-auto max-w-[70%] max-h-[70%] object-contain" style="opacity: {{ ($template->watermark_opacity ?? 10) / 100 }}; z-index: 0;">
+@endif
+
+<div class="relative" style="z-index: 1;">
 
 @if ($layout === 'bilingual_classic')
     {{-- "Bilingual Classic": dual-language mirrored header, centered
@@ -483,5 +489,7 @@
 @if ($template && $template->footer_path)
     <img src="{{ Storage::url($template->footer_path) }}" alt="" class="w-full object-contain mt-8">
 @endif
+
+</div>
 
 </div>
