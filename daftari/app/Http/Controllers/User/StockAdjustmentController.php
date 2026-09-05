@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Controller;
+use App\Models\Item;
+use App\Models\ItemStock;
+use App\Models\StockAdjustment;
+use App\Models\Warehouse;
+use App\Services\Accounting\LedgerPostingService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+
+class StockAdjustmentController extends Controller
+{
+    public function index()
+    {
+        return view('user.stock-adjustments.index', [
+            'adjustments' => StockAdjustment::with('item', 'warehouse')->latest('date')->latest('id')->paginate(20),
+            'items' => Item::where('track_inventory', true)->orderBy('name')->get(),
+            'warehouses' => Warehouse::orderBy('name')->get(),
+        ]);
+    }
+
+    public function store(Request $request, LedgerPostingService $ledger)
+    {
+        $data = $this->validated($request);
+
+        $adjustment = DB::transaction(function () use ($data, $ledger) {
+            $adjustment = StockAdjustment::create([
+                'item_id' => $data['item_id'],
+                'warehouse_id' => $data['warehouse_id'],
+                'created_by' => Auth::id(),
+                'type' => $data['type'],
+                'quantity' => $data['quantity'],
+                'reason' => $data['reason'] ?? null,
+                'date' => now()->toDateString(),
+                'status' => 'recorded',
+            ]);
+
+            $this->applyToStock($adjustment, 1);
+            $ledger->postStockAdjustment($adjustment);
+
+            return $adjustment;
+        });
+
+        return redirect()->route('app.stock-adjustments.index')->with('status', __('Stock adjustment recorded.'));
+    }
+
+    public function revoke(StockAdjustment $stockAdjustment, LedgerPostingService $ledger)
+    {
+        if ($stockAdjustment->status === 'revoked') {
+            return back();
+        }
+
+        DB::transaction(function () use ($stockAdjustment, $ledger) {
+            $this->applyToStock($stockAdjustment, -1);
+            $stockAdjustment->update(['status' => 'revoked']);
+            $ledger->reverse($stockAdjustment->company, 'stock_adjustment', $stockAdjustment->id, __('Stock adjustment revoked: :item', ['item' => $stockAdjustment->item->name]));
+        });
+
+        return back()->with('status', __('Stock adjustment revoked.'));
+    }
+
+    private function applyToStock(StockAdjustment $adjustment, int $direction): void
+    {
+        $stock = ItemStock::firstOrCreate(
+            ['item_id' => $adjustment->item_id, 'warehouse_id' => $adjustment->warehouse_id],
+            ['quantity' => 0]
+        );
+
+        $stock->increment('quantity', $adjustment->signedQuantity() * $direction);
+    }
+
+    private function validated(Request $request): array
+    {
+        $companyId = Auth::user()->company_id;
+
+        return $request->validate([
+            'item_id' => ['required', Rule::exists('items', 'id')->where('company_id', $companyId)],
+            'warehouse_id' => ['required', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
+            'type' => ['required', 'in:increase,decrease'],
+            'quantity' => ['required', 'numeric', 'min:0.01'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+    }
+}

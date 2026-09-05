@@ -1,0 +1,763 @@
+<?php
+
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminRoleController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\CouponController;
+use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\BackupController;
+use App\Http\Controllers\Admin\PlatformDocumentController;
+use App\Http\Controllers\Admin\PasswordConfirmationController;
+use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
+use App\Http\Controllers\Admin\CurrencyController;
+use App\Http\Controllers\Admin\CmsController;
+use App\Http\Controllers\Admin\PlatformSettingsController;
+use App\Http\Controllers\Admin\TranslationController;
+use App\Http\Controllers\Admin\TicketController as AdminTicketController;
+use App\Http\Controllers\Admin\ZatcaController as AdminZatcaController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\DemoLoginController;
+use App\Http\Controllers\Auth\PhoneVerificationController;
+use App\Http\Controllers\Auth\TeamInviteController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
+use App\Http\Controllers\FileServeController;
+use App\Http\Controllers\InstallController;
+use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\PaymentWidgetController;
+use App\Http\Controllers\ClientPortalController;
+use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicQuotationController;
+use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Site\CmsPageController;
+use App\Http\Controllers\Site\HomeController;
+use App\Http\Controllers\Site\ToolsController;
+use App\Http\Controllers\User\AccountController;
+use App\Http\Controllers\User\AccountingHealthController;
+use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
+use App\Http\Controllers\User\ApiTokenController;
+use App\Http\Controllers\User\BankAccountController;
+use App\Http\Controllers\User\BankReconciliationController;
+use App\Http\Controllers\User\BankTransferController;
+use App\Http\Controllers\User\BillController;
+use App\Http\Controllers\User\BillingController;
+use App\Http\Controllers\User\BranchController;
+use App\Http\Controllers\User\BudgetController;
+use App\Http\Controllers\User\ClientController;
+use App\Http\Controllers\User\CompanyAuditController;
+use App\Http\Controllers\User\CostCenterController;
+use App\Http\Controllers\User\FixedAssetController;
+use App\Http\Controllers\User\ZakatController;
+use App\Http\Controllers\User\CreditNoteController;
+use App\Http\Controllers\User\DebitNoteController;
+use App\Http\Controllers\User\CustomFieldDefinitionController;
+use App\Http\Controllers\User\CustomsDeclarationController;
+use App\Http\Controllers\User\DashboardController;
+use App\Http\Controllers\User\ExpenseCategoryController;
+use App\Http\Controllers\User\ExpenseController;
+use App\Http\Controllers\User\InventoryController;
+use App\Http\Controllers\User\InvoiceController;
+use App\Http\Controllers\User\InvoiceTemplateController;
+use App\Http\Controllers\User\ItemController;
+use App\Http\Controllers\User\TaxRateController;
+use App\Http\Controllers\User\WhtRateController;
+use App\Http\Controllers\User\UnitController;
+use App\Http\Controllers\User\GlobalSearchController;
+use App\Http\Controllers\User\JournalController;
+use App\Http\Controllers\User\FxRevaluationController;
+use App\Http\Controllers\User\ManualJournalEntryController;
+use App\Http\Controllers\User\NotificationController;
+use App\Http\Controllers\User\PaymentVoucherController;
+use App\Http\Controllers\User\ProjectController;
+use App\Http\Controllers\User\PurchaseOrderController;
+use App\Http\Controllers\User\PurchaseReturnController;
+use App\Http\Controllers\User\QuotationController;
+use App\Http\Controllers\User\ReceiptVoucherController;
+use App\Http\Controllers\User\RecurringExpenseController;
+use App\Http\Controllers\User\RecurringInvoiceController;
+use App\Http\Controllers\User\RecurringJournalEntryController;
+use App\Http\Controllers\User\ReportController;
+use App\Http\Controllers\User\RoleController;
+use App\Http\Controllers\User\SalespersonController;
+use App\Http\Controllers\User\SettingsController;
+use App\Http\Controllers\User\StockAdjustmentController;
+use App\Http\Controllers\User\PhysicalCountController;
+use App\Http\Controllers\User\ItemLotController;
+use App\Http\Controllers\User\ReorderSuggestionController;
+use App\Http\Controllers\User\StockTransferController;
+use App\Http\Controllers\User\SupplierController;
+use App\Http\Controllers\User\TeamController;
+use App\Http\Controllers\User\TwoFactorController;
+use App\Http\Controllers\User\WarehouseController;
+use App\Http\Controllers\User\PaymentGatewayController;
+use App\Http\Controllers\User\ApprovalSettingsController;
+use App\Http\Controllers\User\SmsSettingsController;
+use App\Http\Controllers\User\WhatsappSettingsController;
+use App\Http\Controllers\User\TicketController;
+use App\Http\Controllers\User\WebhookController;
+use App\Http\Controllers\User\ZatcaController;
+use Illuminate\Support\Facades\Route;
+
+// First-installation wizard (Module 24) — refused once InstallerLock says
+// a successful install has already happened; see RedirectIfInstalled and
+// `php artisan installer:enable` for the only supported way back in.
+Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\RedirectIfInstalled::class)->group(function () {
+    Route::get('/', [InstallController::class, 'index'])->name('index');
+
+    Route::get('requirements', [InstallController::class, 'requirements'])->name('requirements');
+    Route::post('requirements', [InstallController::class, 'confirmRequirements'])->name('requirements.store');
+
+    Route::get('database', [InstallController::class, 'showDatabase'])->name('database');
+    Route::post('database', [InstallController::class, 'saveDatabase'])->name('database.store');
+
+    Route::get('application', [InstallController::class, 'showApplication'])->name('application');
+    Route::post('application', [InstallController::class, 'saveApplication'])->name('application.store');
+
+    Route::get('admin', [InstallController::class, 'showAdmin'])->name('admin');
+    Route::post('admin', [InstallController::class, 'saveAdmin'])->name('admin.store');
+
+    Route::get('finish', [InstallController::class, 'showFinish'])->name('finish');
+    Route::post('finish', [InstallController::class, 'runInstall'])->name('finish.store');
+});
+
+// Marketing site
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/features', [HomeController::class, 'features'])->name('features');
+Route::get('/pricing', [HomeController::class, 'pricing'])->name('pricing');
+Route::get('/about', [HomeController::class, 'about'])->name('about');
+Route::get('/compliance', [HomeController::class, 'compliance'])->name('compliance');
+Route::get('/certificates', [HomeController::class, 'certificates'])->name('certificates');
+Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
+Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit');
+Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
+Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('cms-page.show');
+Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
+Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('filepath', '.*')->name('files.show');
+
+Route::get('/pay/invoices/{id}/{token}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
+Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->name('public.invoices.pdf');
+Route::get('/pay/invoices/{id}/{token}/pay/{provider}', [PublicInvoiceController::class, 'pay'])->name('public.invoices.pay');
+
+Route::get('/view/quotations/{id}/{token}', [PublicQuotationController::class, 'show'])->name('public.quotations.show');
+Route::get('/view/quotations/{id}/{token}/pdf', [PublicQuotationController::class, 'downloadPdf'])->name('public.quotations.pdf');
+Route::post('/view/quotations/{id}/{token}/accept', [PublicQuotationController::class, 'accept'])->name('public.quotations.accept');
+Route::post('/view/quotations/{id}/{token}/reject', [PublicQuotationController::class, 'reject'])->name('public.quotations.reject');
+
+// Client self-service portal — full invoice history and a running account
+// statement for a company's own clients, signed in via a one-time magic
+// link (Client records have no password). Viewing/paying one specific
+// invoice deliberately reuses the public.invoices.* routes above rather
+// than re-implementing that page here.
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('login', [ClientPortalController::class, 'showLogin'])->name('login');
+    Route::post('login', [ClientPortalController::class, 'sendLoginLink'])->name('login.send')->middleware('throttle:client-portal-login');
+    Route::get('login/{token}', [ClientPortalController::class, 'authenticate'])->name('authenticate');
+    Route::post('logout', [ClientPortalController::class, 'logout'])->name('logout');
+
+    Route::middleware('client.portal')->group(function () {
+        Route::get('/', [ClientPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('invoices', [ClientPortalController::class, 'invoices'])->name('invoices');
+        Route::get('quotations', [ClientPortalController::class, 'quotations'])->name('quotations');
+        Route::get('statement', [ClientPortalController::class, 'statement'])->name('statement');
+    });
+});
+
+// Public payment-gateway plumbing: the hosted-widget page for HyperPay's
+// COPYandPAY flow, and the single webhook endpoint every driver posts (or,
+// for HyperPay's redirect flow, GETs) results to. Deliberately outside any
+// auth middleware — these are called by the payment provider or by a
+// payer's browser that may never have a Daftari session.
+Route::get('/payments/widget/{provider}/{reference}', [PaymentWidgetController::class, 'show'])->name('payments.widget');
+Route::match(['get', 'post'], '/payments/webhook/{provider}', [PaymentWebhookController::class, 'handle'])->name('payments.webhook');
+
+Route::get('/glossary', [ToolsController::class, 'glossary'])->name('glossary');
+Route::prefix('tools')->name('tools.')->group(function () {
+    Route::get('/', [ToolsController::class, 'index'])->name('index');
+    Route::get('/percentage-calculator', [ToolsController::class, 'percentageCalculator'])->name('percentage');
+    Route::get('/discount-calculator', [ToolsController::class, 'discountCalculator'])->name('discount');
+    Route::get('/vat-calculator', [ToolsController::class, 'vatCalculator'])->name('vat');
+    Route::get('/zakat-calculator', [ToolsController::class, 'zakatCalculator'])->name('zakat');
+    Route::get('/gosi-calculator', [ToolsController::class, 'gosiCalculator'])->name('gosi');
+    Route::get('/end-of-service-calculator', [ToolsController::class, 'endOfServiceCalculator'])->name('end-of-service');
+    Route::get('/zatca-penalty-calculator', [ToolsController::class, 'zatcaPenaltyCalculator'])->name('zatca-penalty');
+    Route::get('/invoice-generator', [ToolsController::class, 'invoiceGenerator'])->name('invoice-generator');
+    Route::get('/quotation-generator', [ToolsController::class, 'quotationGenerator'])->name('quotation-generator');
+    Route::get('/receipt-voucher', [ToolsController::class, 'receiptVoucher'])->name('receipt-voucher');
+    Route::get('/payment-voucher', [ToolsController::class, 'paymentVoucher'])->name('payment-voucher');
+});
+
+// Auth
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register')->middleware('registration.open');
+    Route::post('/register', [AuthController::class, 'register'])->middleware(['throttle:5,1', 'registration.open']);
+
+    Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+    Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email')->middleware('throttle:password-email');
+    Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+});
+Route::get('/team/invite/{id}/{hash}', [TeamInviteController::class, 'show'])->middleware('signed')->name('team.invite.accept');
+Route::post('/team/invite/{id}/{hash}', [TeamInviteController::class, 'accept'])->middleware('signed')->name('team.invite.store');
+
+Route::get('/two-factor-challenge', [TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
+Route::post('/two-factor-challenge', [TwoFactorChallengeController::class, 'verify'])->middleware('throttle:two-factor')->name('two-factor.verify');
+
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::post('/demo-login', [DemoLoginController::class, 'login'])->middleware('throttle:10,1')->name('demo.login');
+Route::post('/stop-impersonating', [ImpersonationController::class, 'stop'])->middleware('auth')->name('stop-impersonating');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/email/verify', [AuthController::class, 'showVerifyEmail'])->name('verification.notice');
+    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->middleware('signed')->name('verification.verify');
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])->middleware('throttle:6,1')->name('verification.send');
+
+    Route::get('/phone/verify', [PhoneVerificationController::class, 'show'])->name('phone.verify');
+    Route::post('/phone/send-code', [PhoneVerificationController::class, 'sendCode'])->middleware('throttle:6,1')->name('phone.send-code');
+    Route::post('/phone/verify-code', [PhoneVerificationController::class, 'verifyCode'])->middleware('throttle:10,1')->name('phone.verify-code');
+});
+
+// User panel
+Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'company.active', 'verified', 'phone.verified', 'demo.guard', 'impersonation.timeout'])->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard')->middleware('permission:dashboard');
+
+    Route::get('search', [GlobalSearchController::class, 'search'])->name('search');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+
+    Route::middleware('permission:clients')->group(function () {
+        Route::resource('clients', ClientController::class)->except(['show']);
+        Route::post('clients/bulk-export', [ClientController::class, 'bulkExport'])->name('clients.bulk-export');
+        Route::post('clients/bulk-destroy', [ClientController::class, 'bulkDestroy'])->name('clients.bulk-destroy');
+        Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
+        Route::post('clients/{client}/log-contact', [ClientController::class, 'logContact'])->name('clients.log-contact');
+        Route::get('clients-import', [ClientController::class, 'showImport'])->name('clients.import');
+        Route::post('clients-import', [ClientController::class, 'import'])->name('clients.import.store');
+        Route::get('clients-import/template', [ClientController::class, 'importTemplate'])->name('clients.import.template');
+    });
+    Route::resource('items', ItemController::class)->except(['show'])->middleware('permission:items');
+    Route::post('items/{item}/variants', [ItemController::class, 'storeVariant'])->name('items.variants.store')->middleware('permission:items');
+    Route::post('items/bulk-export', [ItemController::class, 'bulkExport'])->name('items.bulk-export')->middleware('permission:items');
+    Route::post('items/bulk-destroy', [ItemController::class, 'bulkDestroy'])->name('items.bulk-destroy')->middleware('permission:items');
+    Route::get('items-generate-barcode', [ItemController::class, 'generateBarcode'])->name('items.generate-barcode')->middleware('permission:items');
+    Route::get('items-import', [ItemController::class, 'showImport'])->name('items.import')->middleware('permission:items');
+    Route::post('items-import', [ItemController::class, 'import'])->name('items.import.store')->middleware('permission:items');
+    Route::get('items-import/template', [ItemController::class, 'importTemplate'])->name('items.import.template')->middleware('permission:items');
+    Route::resource('units', UnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:items');
+    Route::resource('tax-rates', TaxRateController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:settings');
+    Route::post('tax-rates-vat-recovery', [TaxRateController::class, 'updateRecovery'])->name('tax-rates.vat-recovery')->middleware('permission:settings');
+    Route::resource('wht-rates', WhtRateController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:settings');
+
+    Route::middleware('permission:invoices')->group(function () {
+        Route::resource('invoices', InvoiceController::class);
+        Route::post('invoices/bulk-export', [InvoiceController::class, 'bulkExport'])->name('invoices.bulk-export');
+        Route::post('invoices/bulk-destroy', [InvoiceController::class, 'bulkDestroy'])->name('invoices.bulk-destroy');
+        Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+        Route::post('invoices/{invoice}/approve', [InvoiceController::class, 'approve'])->name('invoices.approve');
+        Route::post('invoices/{invoice}/reject', [InvoiceController::class, 'reject'])->name('invoices.reject');
+        Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+        Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+        Route::post('invoices/{invoice}/installments', [InvoiceController::class, 'storeInstallments'])->name('invoices.installments.store');
+        Route::delete('invoices/{invoice}/installments', [InvoiceController::class, 'destroyInstallments'])->name('invoices.installments.destroy');
+        Route::post('invoices/{invoice}/attachments', [InvoiceController::class, 'storeAttachment'])->name('invoices.attachments.store');
+        Route::delete('invoices/{invoice}/attachments/{attachment}', [InvoiceController::class, 'destroyAttachment'])->name('invoices.attachments.destroy');
+        Route::get('invoices/{invoice}/xml', [InvoiceController::class, 'downloadXml'])->name('invoices.xml');
+        Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
+        Route::post('invoices/{invoice}/email', [InvoiceController::class, 'emailInvoice'])->name('invoices.email');
+        Route::post('invoices/{invoice}/whatsapp', [InvoiceController::class, 'sendWhatsapp'])->name('invoices.whatsapp');
+        Route::post('invoices/{invoice}/sms', [InvoiceController::class, 'sendSms'])->name('invoices.sms');
+
+        Route::get('credit-notes/eligible-invoices', [CreditNoteController::class, 'eligibleInvoices'])->name('credit-notes.eligible-invoices');
+        Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('credit-notes/{creditNote}/void', [CreditNoteController::class, 'void'])->name('credit-notes.void');
+        Route::get('credit-notes/{creditNote}/xml', [CreditNoteController::class, 'downloadXml'])->name('credit-notes.xml');
+        Route::get('credit-notes/{creditNote}/pdf', [CreditNoteController::class, 'downloadPdf'])->name('credit-notes.pdf');
+
+        Route::get('debit-notes/eligible-invoices', [DebitNoteController::class, 'eligibleInvoices'])->name('debit-notes.eligible-invoices');
+        Route::resource('debit-notes', DebitNoteController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('debit-notes/{debitNote}/void', [DebitNoteController::class, 'void'])->name('debit-notes.void');
+        Route::get('debit-notes/{debitNote}/xml', [DebitNoteController::class, 'downloadXml'])->name('debit-notes.xml');
+        Route::get('debit-notes/{debitNote}/pdf', [DebitNoteController::class, 'downloadPdf'])->name('debit-notes.pdf');
+
+        Route::middleware('feature:recurring_invoices')->group(function () {
+            Route::resource('recurring-invoices', RecurringInvoiceController::class)->except(['show']);
+            Route::post('recurring-invoices/{recurringInvoice}/pause', [RecurringInvoiceController::class, 'pause'])->name('recurring-invoices.pause');
+            Route::post('recurring-invoices/{recurringInvoice}/resume', [RecurringInvoiceController::class, 'resume'])->name('recurring-invoices.resume');
+        });
+    });
+
+    Route::middleware(['permission:quotations', 'feature:quotations'])->group(function () {
+        Route::resource('quotations', QuotationController::class);
+        Route::post('quotations/bulk-export', [QuotationController::class, 'bulkExport'])->name('quotations.bulk-export');
+        Route::post('quotations/bulk-destroy', [QuotationController::class, 'bulkDestroy'])->name('quotations.bulk-destroy');
+        Route::post('quotations/{quotation}/send', [QuotationController::class, 'send'])->name('quotations.send');
+        Route::post('quotations/{quotation}/approve-issuance', [QuotationController::class, 'approveIssuance'])->name('quotations.approve-issuance');
+        Route::post('quotations/{quotation}/reject-issuance', [QuotationController::class, 'rejectIssuance'])->name('quotations.reject-issuance');
+        Route::post('quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
+        Route::post('quotations/{quotation}/reject', [QuotationController::class, 'reject'])->name('quotations.reject');
+        Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');
+        Route::post('quotations/{quotation}/attachments', [QuotationController::class, 'storeAttachment'])->name('quotations.attachments.store');
+        Route::delete('quotations/{quotation}/attachments/{attachment}', [QuotationController::class, 'destroyAttachment'])->name('quotations.attachments.destroy');
+        Route::get('quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
+        Route::post('quotations/{quotation}/email', [QuotationController::class, 'emailQuotation'])->name('quotations.email');
+    });
+
+    Route::middleware('permission:expenses')->group(function () {
+        Route::resource('expenses', ExpenseController::class)->except(['show']);
+        Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expenses.approve');
+        Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
+        Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
+        Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+        Route::resource('recurring-expenses', RecurringExpenseController::class)->except(['show']);
+        Route::post('recurring-expenses/{recurringExpense}/pause', [RecurringExpenseController::class, 'pause'])->name('recurring-expenses.pause');
+        Route::post('recurring-expenses/{recurringExpense}/resume', [RecurringExpenseController::class, 'resume'])->name('recurring-expenses.resume');
+    });
+
+    Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('vat', [ReportController::class, 'vat'])->name('vat')->middleware('feature:vat_return_report');
+        Route::get('sales', [ReportController::class, 'sales'])->name('sales');
+        Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement')->middleware('feature:financial_statements');
+        Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
+        Route::get('cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
+        Route::get('trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
+        Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
+        Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
+        Route::get('aging', [ReportController::class, 'aging'])->name('aging');
+        Route::get('withholding-tax', [ReportController::class, 'whtReturn'])->name('wht-return');
+    });
+
+    Route::middleware('permission:audit')->prefix('audit')->name('audit.')->group(function () {
+        Route::get('/', [CompanyAuditController::class, 'index'])->name('index');
+    });
+
+    Route::middleware('permission:accounting')->prefix('accounting')->group(function () {
+        Route::get('health', [AccountingHealthController::class, 'index'])->name('accounting-health.index');
+
+        Route::prefix('accounts')->name('accounts.')->group(function () {
+            Route::get('/', [AccountController::class, 'index'])->name('index');
+            Route::post('/', [AccountController::class, 'store'])->name('store');
+            Route::put('{account}', [AccountController::class, 'update'])->name('update');
+            Route::delete('{account}', [AccountController::class, 'destroy'])->name('destroy');
+            Route::post('{account}/deactivate', [AccountController::class, 'deactivate'])->name('deactivate');
+            Route::post('{account}/activate', [AccountController::class, 'activate'])->name('activate');
+        });
+        Route::post('mappings', [AccountController::class, 'updateMapping'])->name('accounts.mappings.update');
+
+        Route::prefix('journals')->name('journals.')->group(function () {
+            Route::get('/', [JournalController::class, 'index'])->name('index');
+            Route::get('manual/create', [ManualJournalEntryController::class, 'create'])->name('manual.create');
+            Route::post('manual', [ManualJournalEntryController::class, 'store'])->name('manual.store');
+            Route::get('{journalEntry}', [JournalController::class, 'show'])->name('show');
+            Route::post('{journalEntry}/reverse', [ManualJournalEntryController::class, 'reverse'])->name('reverse');
+        });
+
+        Route::resource('recurring-journal-entries', RecurringJournalEntryController::class)->except(['show']);
+        Route::post('recurring-journal-entries/{recurringJournalEntry}/pause', [RecurringJournalEntryController::class, 'pause'])->name('recurring-journal-entries.pause');
+        Route::post('recurring-journal-entries/{recurringJournalEntry}/resume', [RecurringJournalEntryController::class, 'resume'])->name('recurring-journal-entries.resume');
+        Route::get('ledger', [JournalController::class, 'ledger'])->name('ledger.index');
+
+        Route::resource('fx-revaluations', FxRevaluationController::class)->only(['index', 'create', 'store', 'show']);
+
+        Route::middleware('feature:cost_centers')->prefix('cost-centers')->name('cost-centers.')->group(function () {
+            Route::get('/', [CostCenterController::class, 'index'])->name('index');
+            Route::post('/', [CostCenterController::class, 'store'])->name('store');
+            Route::put('{costCenter}', [CostCenterController::class, 'update'])->name('update');
+            Route::delete('{costCenter}', [CostCenterController::class, 'destroy'])->name('destroy');
+            Route::post('links', [CostCenterController::class, 'storeLink'])->name('links.store');
+            Route::delete('links/{costCenterLink}', [CostCenterController::class, 'destroyLink'])->name('links.destroy');
+        });
+
+        Route::prefix('zakat')->name('zakat.')->group(function () {
+            Route::get('/', [ZakatController::class, 'index'])->name('index');
+            Route::get('create', [ZakatController::class, 'create'])->name('create');
+            Route::post('/', [ZakatController::class, 'store'])->name('store');
+            Route::get('{zakat}', [ZakatController::class, 'show'])->name('show');
+            Route::delete('{zakat}', [ZakatController::class, 'destroy'])->name('destroy');
+            Route::get('{zakat}/pdf', [ZakatController::class, 'downloadPdf'])->name('pdf');
+        });
+
+        Route::prefix('fixed-assets')->name('fixed-assets.')->group(function () {
+            Route::get('/', [FixedAssetController::class, 'index'])->name('index');
+            Route::get('create', [FixedAssetController::class, 'create'])->name('create');
+            Route::post('/', [FixedAssetController::class, 'store'])->name('store');
+            Route::get('{fixedAsset}', [FixedAssetController::class, 'show'])->name('show');
+            Route::post('run-depreciation', [FixedAssetController::class, 'runDepreciation'])->name('run-depreciation');
+            Route::post('{fixedAsset}/dispose', [FixedAssetController::class, 'dispose'])->name('dispose');
+        });
+
+        Route::resource('budgets', BudgetController::class)->except(['show']);
+        Route::get('budgets/{budget}', [BudgetController::class, 'show'])->name('budgets.show');
+        Route::post('budgets/{budget}/activate', [BudgetController::class, 'activate'])->name('budgets.activate');
+    });
+
+    Route::middleware('permission:cash_banks')->group(function () {
+        Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
+        Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
+        Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+        Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
+        Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->name('receipt-vouchers.pdf');
+        Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+        Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
+        Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->name('payment-vouchers.pdf');
+        Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
+
+        Route::get('bank-accounts/{bankAccount}/reconciliations', [BankReconciliationController::class, 'index'])->name('bank-reconciliations.index');
+        Route::get('bank-accounts/{bankAccount}/reconciliations/create', [BankReconciliationController::class, 'create'])->name('bank-reconciliations.create');
+        Route::post('bank-accounts/{bankAccount}/reconciliations', [BankReconciliationController::class, 'store'])->name('bank-reconciliations.store');
+        Route::get('bank-reconciliations/{bankReconciliation}', [BankReconciliationController::class, 'show'])->name('bank-reconciliations.show');
+        Route::post('bank-reconciliations/{bankReconciliation}/import', [BankReconciliationController::class, 'import'])->name('bank-reconciliations.import');
+        Route::post('bank-reconciliations/{bankReconciliation}/complete', [BankReconciliationController::class, 'complete'])->name('bank-reconciliations.complete');
+        Route::delete('bank-reconciliations/{bankReconciliation}', [BankReconciliationController::class, 'destroy'])->name('bank-reconciliations.destroy');
+        Route::post('bank-statement-lines/{bankStatementLine}/match', [BankReconciliationController::class, 'match'])->name('bank-statement-lines.match');
+        Route::post('bank-statement-lines/{bankStatementLine}/unmatch', [BankReconciliationController::class, 'unmatch'])->name('bank-statement-lines.unmatch');
+    });
+
+    Route::middleware('permission:purchases')->group(function () {
+        Route::resource('suppliers', SupplierController::class)->except(['show']);
+        Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
+        Route::post('suppliers/{supplier}/log-contact', [SupplierController::class, 'logContact'])->name('suppliers.log-contact');
+        Route::get('suppliers/{supplier}/bills', [SupplierController::class, 'bills'])->name('suppliers.bills');
+        Route::get('suppliers-import', [SupplierController::class, 'showImport'])->name('suppliers.import');
+        Route::post('suppliers-import', [SupplierController::class, 'import'])->name('suppliers.import.store');
+        Route::get('suppliers-import/template', [SupplierController::class, 'importTemplate'])->name('suppliers.import.template');
+
+        Route::resource('bills', BillController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('bills/bulk-export', [BillController::class, 'bulkExport'])->name('bills.bulk-export');
+        Route::post('bills/bulk-void', [BillController::class, 'bulkVoid'])->name('bills.bulk-void');
+        Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
+        Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
+        Route::post('bills/{bill}/attachments', [BillController::class, 'storeAttachment'])->name('bills.attachments.store');
+        Route::delete('bills/{bill}/attachments/{attachment}', [BillController::class, 'destroyAttachment'])->name('bills.attachments.destroy');
+        Route::get('bills/{bill}/pdf', [BillController::class, 'downloadPdf'])->name('bills.pdf');
+
+        Route::middleware('feature:purchase_orders')->group(function () {
+            Route::get('reorder-suggestions', [ReorderSuggestionController::class, 'index'])->name('reorder-suggestions.index');
+            Route::post('reorder-suggestions', [ReorderSuggestionController::class, 'store'])->name('reorder-suggestions.store');
+            Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
+            Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+            Route::post('purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
+            Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');
+            Route::get('purchase-orders/{purchaseOrder}/bill', [PurchaseOrderController::class, 'billForm'])->name('purchase-orders.bill-form');
+            Route::post('purchase-orders/{purchaseOrder}/bill', [PurchaseOrderController::class, 'storeBill'])->name('purchase-orders.bill-store');
+            Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
+            Route::delete('purchase-orders/{purchaseOrder}/attachments/{attachment}', [PurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
+            Route::get('purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
+        });
+
+        Route::resource('customs-declarations', CustomsDeclarationController::class)->only(['index', 'store', 'destroy']);
+        Route::post('customs-declarations/{customsDeclaration}/allocate-landed-cost', [CustomsDeclarationController::class, 'allocateLandedCost'])->name('customs-declarations.allocate-landed-cost');
+
+        Route::middleware('feature:debit_notes')->group(function () {
+            Route::get('purchase-returns/eligible-bills', [PurchaseReturnController::class, 'eligibleBills'])->name('purchase-returns.eligible-bills');
+            Route::resource('purchase-returns', PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
+            Route::post('purchase-returns/{purchaseReturn}/void', [PurchaseReturnController::class, 'void'])->name('purchase-returns.void');
+            Route::get('purchase-returns/{purchaseReturn}/pdf', [PurchaseReturnController::class, 'downloadPdf'])->name('purchase-returns.pdf');
+        });
+    });
+
+    Route::middleware('permission:inventory')->group(function () {
+        Route::resource('warehouses', WarehouseController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::post('warehouses/{warehouse}/make-default', [WarehouseController::class, 'makeDefault'])->name('warehouses.make-default');
+        Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'store']);
+        Route::post('stock-adjustments/{stockAdjustment}/revoke', [StockAdjustmentController::class, 'revoke'])->name('stock-adjustments.revoke');
+        Route::get('physical-counts', [PhysicalCountController::class, 'index'])->name('physical-counts.index');
+        Route::post('physical-counts', [PhysicalCountController::class, 'store'])->name('physical-counts.store');
+        Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'store']);
+        Route::post('stock-transfers/{stockTransfer}/receive', [StockTransferController::class, 'receive'])->name('stock-transfers.receive');
+        Route::post('stock-transfers/{stockTransfer}/reverse', [StockTransferController::class, 'reverse'])->name('stock-transfers.reverse');
+        Route::resource('item-lots', ItemLotController::class)->only(['index', 'store']);
+        Route::post('item-lots/{itemLot}/consume', [ItemLotController::class, 'consume'])->name('item-lots.consume');
+        Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
+        Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->name('inventory.valuation');
+        Route::get('inventory/profitability', [InventoryController::class, 'profitability'])->name('inventory.profitability');
+    });
+
+    Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');
+
+    Route::resource('projects', ProjectController::class)->middleware('permission:projects');
+
+    Route::middleware('role:owner')->group(function () {
+        Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
+        Route::post('billing/upgrade', [BillingController::class, 'upgrade'])->name('billing.upgrade');
+        Route::get('billing/bank-transfer/{payment}', [BillingController::class, 'bankTransferInstructions'])->name('billing.bank-transfer');
+        Route::get('billing/payments/{payment}/receipt', [BillingController::class, 'downloadReceipt'])->name('billing.receipt');
+        Route::post('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
+        Route::post('billing/resume', [BillingController::class, 'resume'])->name('billing.resume');
+        Route::get('activity', [UserActivityLogController::class, 'index'])->name('activity.index');
+    });
+
+    Route::middleware('permission:members_roles')->group(function () {
+        Route::get('team', [TeamController::class, 'index'])->name('team.index');
+        Route::post('team', [TeamController::class, 'store'])->name('team.store');
+        Route::delete('team/{user}', [TeamController::class, 'destroy'])->name('team.destroy');
+        Route::post('team/{user}/resend-invite', [TeamController::class, 'resendInvite'])->name('team.resend-invite');
+
+        Route::resource('roles', RoleController::class)->except(['show']);
+        Route::get('roles/{role}', [RoleController::class, 'show'])->name('roles.show');
+    });
+
+    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update')->middleware('permission:settings');
+    Route::get('settings', [SettingsController::class, 'index'])->name('settings.index')->middleware('permission:settings');
+    Route::put('settings/password', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::post('settings/sessions/logout-others', [SettingsController::class, 'logoutOtherSessions'])->name('settings.sessions.logout-others');
+    Route::delete('settings/sessions/{sessionId}', [SettingsController::class, 'destroySession'])->name('settings.sessions.destroy');
+    Route::post('settings/documents', [SettingsController::class, 'storeDocument'])->name('settings.documents.store')->middleware('permission:settings');
+    Route::delete('settings/documents/{attachment}', [SettingsController::class, 'destroyDocument'])->name('settings.documents.destroy')->middleware('permission:settings');
+
+    Route::get('settings/two-factor', [TwoFactorController::class, 'show'])->name('settings.two-factor');
+    Route::post('settings/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:two-factor-confirm')->name('settings.two-factor.confirm');
+    Route::post('settings/two-factor/disable', [TwoFactorController::class, 'disable'])->name('settings.two-factor.disable');
+    Route::post('settings/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('settings.two-factor.recovery-codes');
+
+    Route::middleware('permission:settings')->group(function () {
+        Route::get('settings/api-tokens', [ApiTokenController::class, 'index'])->name('settings.api-tokens');
+        Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+        Route::delete('settings/api-tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+    });
+
+    Route::middleware('permission:settings')->group(function () {
+        Route::get('settings/webhooks', [WebhookController::class, 'index'])->name('settings.webhooks.index');
+        Route::post('settings/webhooks', [WebhookController::class, 'store'])->name('settings.webhooks.store');
+        Route::get('settings/webhooks/{webhook}', [WebhookController::class, 'show'])->name('settings.webhooks.show');
+        Route::put('settings/webhooks/{webhook}', [WebhookController::class, 'update'])->name('settings.webhooks.update');
+        Route::post('settings/webhooks/{webhook}/toggle', [WebhookController::class, 'toggle'])->name('settings.webhooks.toggle');
+        Route::post('settings/webhooks/{webhook}/regenerate-secret', [WebhookController::class, 'regenerateSecret'])->name('settings.webhooks.regenerate-secret');
+        Route::post('settings/webhooks/{webhook}/send-test', [WebhookController::class, 'sendTest'])->name('settings.webhooks.send-test');
+        Route::delete('settings/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('settings.webhooks.destroy');
+
+        Route::get('settings/payment-gateways', [PaymentGatewayController::class, 'index'])->name('settings.payment-gateways');
+        Route::post('settings/payment-gateways/{provider}', [PaymentGatewayController::class, 'update'])->name('settings.payment-gateways.update');
+
+        Route::get('settings/whatsapp', [WhatsappSettingsController::class, 'show'])->name('settings.whatsapp');
+        Route::post('settings/whatsapp', [WhatsappSettingsController::class, 'update'])->name('settings.whatsapp.update');
+        Route::post('settings/whatsapp/test', [WhatsappSettingsController::class, 'test'])->name('settings.whatsapp.test');
+
+        Route::get('settings/sms', [SmsSettingsController::class, 'show'])->name('settings.sms');
+        Route::post('settings/sms', [SmsSettingsController::class, 'update'])->name('settings.sms.update');
+        Route::post('settings/sms/test', [SmsSettingsController::class, 'test'])->name('settings.sms.test');
+
+        Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
+        Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
+        Route::post('settings/approvals/lock-date', [ApprovalSettingsController::class, 'updateLockDate'])->name('settings.approvals.lock-date');
+        Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
+    });
+
+    Route::middleware('permission:settings')->prefix('settings/custom-fields')->name('settings.custom-fields.')->group(function () {
+        Route::get('/', [CustomFieldDefinitionController::class, 'index'])->name('index');
+        Route::post('/', [CustomFieldDefinitionController::class, 'store'])->name('store');
+        Route::put('{customField}', [CustomFieldDefinitionController::class, 'update'])->name('update');
+        Route::delete('{customField}', [CustomFieldDefinitionController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::resource('branches', BranchController::class)->except(['show'])->middleware('permission:branches');
+    Route::post('branches/{branch}/make-default', [BranchController::class, 'makeDefault'])->name('branches.make-default')->middleware('permission:branches');
+
+    Route::middleware('permission:settings')->prefix('invoice-templates')->name('invoice-templates.')->group(function () {
+        Route::get('/', [InvoiceTemplateController::class, 'index'])->name('index');
+        Route::post('/', [InvoiceTemplateController::class, 'store'])->name('store');
+        Route::post('use', [InvoiceTemplateController::class, 'useTemplate'])->name('use');
+        Route::put('{invoiceTemplate}', [InvoiceTemplateController::class, 'update'])->name('update');
+        Route::delete('{invoiceTemplate}', [InvoiceTemplateController::class, 'destroy'])->name('destroy');
+        Route::post('{invoiceTemplate}/make-default', [InvoiceTemplateController::class, 'makeDefault'])->name('make-default');
+    });
+
+    // The dashboard and the top-level mode switch are reachable by every
+    // company regardless of plan — Disabled/Phase 1 are meaningful choices
+    // even without the zatca_phase2 plan feature, and a company needs to
+    // be able to see (and select) that its plan doesn't include Phase 2
+    // rather than 404 outright. Everything that actually talks to ZATCA
+    // (the onboarding wizard's steps, sync settings, manual sync) stays
+    // behind the feature gate below, same as before.
+    Route::middleware('permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
+        Route::get('/', [ZatcaController::class, 'dashboard'])->name('dashboard');
+        Route::put('mode', [ZatcaController::class, 'updateMode'])->name('mode.update');
+    });
+
+    Route::middleware(['permission:zatca', 'feature:zatca_phase2'])->prefix('zatca')->name('zatca.')->group(function () {
+        Route::put('settings', [ZatcaController::class, 'updateSettings'])->name('settings.update');
+        Route::post('csr', [ZatcaController::class, 'generateCsr'])->name('csr');
+        Route::post('compliance-csid', [ZatcaController::class, 'issueComplianceCsid'])->name('compliance-csid');
+        Route::post('compliance-check', [ZatcaController::class, 'runComplianceCheck'])->name('compliance-check');
+        Route::post('production-csid', [ZatcaController::class, 'issueProductionCsid'])->name('production-csid');
+        Route::post('reset', [ZatcaController::class, 'resetOnboarding'])->name('reset');
+        Route::post('sync', [ZatcaController::class, 'sync'])->name('sync');
+        Route::post('sync/invoices/{invoice}', [ZatcaController::class, 'syncInvoice'])->name('sync.invoice');
+        Route::post('sync/credit-notes/{creditNote}', [ZatcaController::class, 'syncCreditNote'])->name('sync.credit-note');
+        Route::post('sync/debit-notes/{debitNote}', [ZatcaController::class, 'syncDebitNote'])->name('sync.debit-note');
+    });
+
+    Route::middleware('permission:support')->prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/', [TicketController::class, 'index'])->name('index');
+        Route::get('create', [TicketController::class, 'create'])->name('create');
+        Route::post('/', [TicketController::class, 'store'])->name('store');
+        Route::get('{ticket}', [TicketController::class, 'show'])->name('show');
+        Route::post('{ticket}/reply', [TicketController::class, 'reply'])->name('reply');
+        Route::get('attachments/{attachment}', [TicketController::class, 'downloadAttachment'])->name('attachments.download');
+    });
+});
+
+// Platform admin panel
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,admin_staff'])->group(function () {
+    Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+    // Deliberately outside password.confirm.admin — this is the screen
+    // that satisfies it, so guarding it too would be an infinite redirect.
+    Route::get('confirm-password', [PasswordConfirmationController::class, 'show'])->name('password.confirm');
+    Route::post('confirm-password', [PasswordConfirmationController::class, 'confirm'])->middleware('throttle:admin-password-confirm')->name('password.confirm.store');
+
+    Route::middleware(['admin.permission:companies', 'password.confirm.admin'])->group(function () {
+        Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
+        Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
+        Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
+        Route::post('companies/{company}/extend-trial', [CompanyController::class, 'extendTrial'])->name('companies.extend-trial');
+        Route::post('companies/{company}/cancel-subscription', [CompanyController::class, 'cancelSubscription'])->name('companies.cancel-subscription');
+        Route::post('companies/{company}/resume-subscription', [CompanyController::class, 'resumeSubscription'])->name('companies.resume-subscription');
+        Route::post('companies/{company}/reset-settings', [CompanyController::class, 'resetSettings'])->name('companies.reset-settings');
+        Route::post('companies/{company}/upgrade-plan', [CompanyController::class, 'upgradePlan'])->name('companies.upgrade-plan');
+        Route::post('companies/{company}/downgrade-plan', [CompanyController::class, 'downgradePlan'])->name('companies.downgrade-plan');
+        Route::post('companies/{company}/add-grace-period', [CompanyController::class, 'addGracePeriod'])->name('companies.add-grace-period');
+        Route::post('companies/{company}/pause-subscription', [CompanyController::class, 'pauseSubscription'])->name('companies.pause-subscription');
+        Route::post('companies/{company}/reactivate-subscription', [CompanyController::class, 'reactivateSubscription'])->name('companies.reactivate-subscription');
+        Route::post('companies/{company}/comp-account', [CompanyController::class, 'compAccount'])->name('companies.comp-account');
+        Route::post('companies/{company}/overrides', [CompanyController::class, 'setOverride'])->name('companies.overrides.set');
+        Route::delete('companies/{company}/overrides/{override}', [CompanyController::class, 'clearOverride'])->name('companies.overrides.clear');
+    });
+
+    Route::middleware('admin.permission:companies')->group(function () {
+        Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
+        Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+    });
+
+    // Impersonation grants full access to a tenant's account — kept out of
+    // the delegable 'companies' admin permission (above) and restricted to
+    // super_admin only, so a granular admin role can never be used to gain
+    // full access to a company's data.
+    Route::middleware(['role:super_admin', 'password.confirm.admin'])->group(function () {
+        Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
+    });
+
+    Route::middleware('admin.permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
+        Route::get('/', [AdminZatcaController::class, 'index'])->name('index');
+        Route::get('logs', [AdminZatcaController::class, 'logs'])->name('logs');
+        Route::get('logs/{type}/{log}', [AdminZatcaController::class, 'showLog'])->name('logs.show');
+        Route::get('logs/{type}/{log}/xml', [AdminZatcaController::class, 'downloadXml'])->name('logs.xml');
+
+        Route::middleware('password.confirm.admin')->group(function () {
+            Route::post('logs/{type}/{log}/retry', [AdminZatcaController::class, 'retry'])->name('logs.retry');
+            Route::post('companies/{company}/test-connection', [AdminZatcaController::class, 'testConnection'])->name('companies.test-connection');
+            Route::post('companies/{company}/reset-onboarding', [AdminZatcaController::class, 'resetOnboarding'])->name('companies.reset-onboarding');
+        });
+    });
+
+    Route::middleware('admin.permission:tickets')->prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/', [AdminTicketController::class, 'index'])->name('index');
+        Route::get('{ticket}', [AdminTicketController::class, 'show'])->name('show');
+        Route::post('{ticket}/reply', [AdminTicketController::class, 'reply'])->name('reply');
+        Route::post('{ticket}/note', [AdminTicketController::class, 'addNote'])->name('note');
+        Route::post('{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
+        Route::post('{ticket}/priority', [AdminTicketController::class, 'changePriority'])->name('priority');
+        Route::post('{ticket}/status', [AdminTicketController::class, 'changeStatus'])->name('status');
+        Route::get('attachments/{attachment}', [AdminTicketController::class, 'downloadAttachment'])->name('attachments.download');
+    });
+
+    Route::middleware('admin.permission:plans')->group(function () {
+        Route::resource('plans', PlanController::class)->except(['show']);
+    });
+
+    Route::middleware('admin.permission:coupons')->group(function () {
+        Route::resource('coupons', CouponController::class);
+    });
+
+    Route::middleware('admin.permission:payments')->group(function () {
+        Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+        Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
+        Route::get('payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
+    });
+
+    // Refunding, retrying, confirming, or fabricating a payment changes real
+    // money-record state and a subscription's active/active status — the
+    // same re-auth step required for the comparable-blast-radius Company
+    // actions above (suspend, change-plan, impersonate).
+    Route::middleware(['admin.permission:payments', 'password.confirm.admin'])->group(function () {
+        Route::post('payments/manual', [PaymentController::class, 'storeManual'])->name('payments.manual');
+        Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
+        Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])->name('payments.retry');
+        Route::post('payments/{payment}/confirm-bank-transfer', [PaymentController::class, 'confirmBankTransfer'])->name('payments.confirm-bank-transfer');
+    });
+
+    Route::middleware('admin.permission:activity')->group(function () {
+        Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');
+    });
+
+    // Managing other admin accounts, admin roles, and platform-wide
+    // settings stays super_admin only — never delegable, so a granular
+    // admin role can never be used to escalate itself or another account.
+    Route::middleware('role:super_admin')->group(function () {
+        Route::get('admins', [AdminUserController::class, 'index'])->name('admins.index');
+
+        Route::middleware('password.confirm.admin')->group(function () {
+            Route::post('admins', [AdminUserController::class, 'store'])->name('admins.store');
+            Route::delete('admins/{user}', [AdminUserController::class, 'destroy'])->name('admins.destroy');
+
+            Route::resource('admin-roles', AdminRoleController::class)->only(['store', 'update', 'destroy']);
+        });
+        Route::get('admin-roles', [AdminRoleController::class, 'index'])->name('admin-roles.index');
+
+        Route::get('settings', [PlatformSettingsController::class, 'edit'])->name('settings.edit');
+        Route::post('settings/general', [PlatformSettingsController::class, 'updateGeneral'])->name('settings.general.update');
+        Route::post('settings/identity', [PlatformSettingsController::class, 'updateIdentity'])->name('settings.identity.update');
+        Route::post('settings/branding', [PlatformSettingsController::class, 'updateBranding'])->name('settings.branding');
+        Route::post('settings/signup', [PlatformSettingsController::class, 'updateSignup'])->name('settings.signup.update');
+        Route::post('settings/maintenance', [PlatformSettingsController::class, 'updateMaintenance'])->name('settings.maintenance.update');
+        // Storage credentials decide where every tenant's uploaded files
+        // are written/read — same re-auth requirement as payment gateway
+        // secrets above, since a hijacked/left-open admin session
+        // shouldn't be able to repoint them without a fresh password.
+        Route::middleware('password.confirm.admin')->post('settings/storage', [PlatformSettingsController::class, 'updateStorage'])->name('settings.storage.update');
+        Route::post('settings/system/{action}', [PlatformSettingsController::class, 'runSystemAction'])->name('settings.system.run');
+
+        Route::get('settings/payment-gateways', [AdminPaymentGatewaySettingsController::class, 'index'])->name('settings.payment-gateways');
+        // Live gateway API/webhook secrets decide where subscription money
+        // flows — same re-auth requirement as the payment-mutation routes
+        // above.
+        Route::middleware('password.confirm.admin')->post('settings/payment-gateways/{provider}', [AdminPaymentGatewaySettingsController::class, 'update'])->name('settings.payment-gateways.update');
+
+        Route::resource('certificates', PlatformDocumentController::class)->only(['index', 'store', 'destroy']);
+
+        // Downloading or deleting a raw database dump is at least as
+        // sensitive as the storage/payment-gateway secrets above — same
+        // re-auth requirement. Listing and triggering a fresh one stay
+        // available without it, same as the other system actions.
+        Route::get('backups', [BackupController::class, 'index'])->name('backups.index');
+        Route::post('backups/run', [BackupController::class, 'runNow'])->name('backups.run');
+        Route::post('backups/retention', [BackupController::class, 'updateRetention'])->name('backups.retention');
+        Route::middleware('password.confirm.admin')->group(function () {
+            Route::get('backups/{filename}/download', [BackupController::class, 'download'])->name('backups.download');
+            Route::delete('backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');
+        });
+
+        Route::resource('currencies', CurrencyController::class)->except(['show']);
+
+        Route::get('translations', [TranslationController::class, 'index'])->name('translations.index');
+        Route::post('translations', [TranslationController::class, 'update'])->name('translations.update');
+
+        Route::prefix('cms')->name('cms.')->group(function () {
+            Route::get('/', [CmsController::class, 'index'])->name('pages.index');
+            Route::post('pages', [CmsController::class, 'storePage'])->name('pages.store');
+            Route::put('pages/{cmsPage:slug}', [CmsController::class, 'updatePage'])->name('pages.update');
+            Route::delete('pages/{cmsPage:slug}', [CmsController::class, 'destroyPage'])->name('pages.destroy');
+            Route::get('{page}', [CmsController::class, 'show'])->name('pages.show');
+            Route::post('{page}/sections', [CmsController::class, 'storeSection'])->name('sections.store');
+            Route::get('sections/{section}/edit', [CmsController::class, 'editSection'])->name('sections.edit');
+            Route::put('sections/{section}', [CmsController::class, 'updateSection'])->name('sections.update');
+            Route::delete('sections/{section}', [CmsController::class, 'destroySection'])->name('sections.destroy');
+            Route::post('sections/{section}/move', [CmsController::class, 'moveSection'])->name('sections.move');
+        });
+    });
+});
