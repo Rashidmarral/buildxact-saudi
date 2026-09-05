@@ -13,7 +13,7 @@ class InvoiceTemplate extends Model
         'company_id', 'name', 'name_ar', 'document_type', 'accent_color',
         'layout', 'language_mode', 'table_direction', 'show_signature',
         'signature_label_en', 'signature_label_ar',
-        'show_logo', 'letterhead_path', 'notes_en', 'notes_ar', 'is_default',
+        'show_logo', 'letterhead_path', 'footer_path', 'notes_en', 'notes_ar', 'is_default',
     ];
 
     protected function casts(): array

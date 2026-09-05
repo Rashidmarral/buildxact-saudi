@@ -164,6 +164,18 @@
                         <input type="file" name="letterhead" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <p class="mt-1 text-xs text-slate-400">{{ __('Upload a wide banner image — it replaces the logo/company-name header entirely on this layout.') }}</p>
                     </div>
+                    <div x-show="layout === 'custom_letterhead' || layout === 'bilingual_classic'" x-cloak>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Footer image') }}</label>
+                        @if ($selected->footer_path)
+                            <img src="{{ Storage::url($selected->footer_path) }}" alt="{{ __('Footer') }}" class="mt-2 mb-2 h-16 rounded border border-slate-100 object-contain">
+                            <label class="flex items-center gap-2 text-xs text-slate-500 mb-2">
+                                <input type="checkbox" name="remove_footer" value="1" class="rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                {{ __('Remove this footer image') }}
+                            </label>
+                        @endif
+                        <input type="file" name="footer" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <p class="mt-1 text-xs text-slate-400">{{ __('A wide banner printed at the bottom of every document and voucher on this template — a contact-details strip, a brand pattern, whatever your company prints there.') }}</p>
+                    </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500">{{ __('Footer note (English)') }}</label>
                         <textarea name="notes_en" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ $selected->notes_en }}</textarea>

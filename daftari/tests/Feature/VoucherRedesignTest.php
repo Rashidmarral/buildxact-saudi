@@ -1,0 +1,201 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Account;
+use App\Models\AccountMapping;
+use App\Models\BankAccount;
+use App\Models\Bill;
+use App\Models\Company;
+use App\Models\InvoiceTemplate;
+use App\Models\PaymentVoucher;
+use App\Models\Supplier;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+/**
+ * Feature request: the Payment/Receipt Voucher print design was a plain
+ * key-value list — this rebuilds it to match the classic bilingual
+ * "سند صرف" / Payment Voucher form Saudi companies print for bank/cheque
+ * clearance (amount spelled out in words, a cash/cheque checkbox pair,
+ * bilingual field labels), plus lets each company upload its own footer
+ * banner image (mirroring the existing letterhead upload) and auto-fills
+ * a voucher's party fields from the selected customer/supplier record.
+ */
+class VoucherRedesignTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function makeCompany(): Company
+    {
+        $company = Company::create(['name' => 'Voucher Design Co.', 'slug' => 'voucher-design-'.uniqid()]);
+        Account::seedSystemAccounts($company->id);
+        AccountMapping::seedDefaults($company->id);
+
+        return $company;
+    }
+
+    private function makeOwner(Company $company): User
+    {
+        return User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+    }
+
+    private function makeBankAccount(Company $company, string $bankName = 'Al Rajhi Bank'): BankAccount
+    {
+        return BankAccount::create([
+            'company_id' => $company->id, 'name' => 'Main Account', 'bank_name' => $bankName,
+            'type' => 'bank', 'is_active' => true,
+        ]);
+    }
+
+    public function test_a_cash_payment_voucher_shows_the_amount_spelled_out_and_the_cash_checkbox(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+
+        $response = $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual',
+            'payee_name' => 'Steel Supplies Co.',
+            'party_name_ar' => 'شركة توريد الحديد',
+            'bank_account_id' => $account->id,
+            'date' => now()->toDateString(),
+            'amount' => 1500,
+            'method' => 'cash',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $this->assertNotNull($voucher);
+
+        $show = $this->actingAs($owner)->get(route('app.payment-vouchers.show', $voucher));
+
+        $show->assertOk();
+        $show->assertSee('Steel Supplies Co.');
+        $show->assertSee('شركة توريد الحديد');
+        $show->assertSee('One Thousand Five Hundred Saudi Riyals Only');
+        $show->assertSee('ألف وخمسمائة ريال سعودي فقط لا غير');
+        $show->assertSee(__('Accountant'));
+        $show->assertSee(__('Receiver'));
+    }
+
+    public function test_a_cheque_payment_voucher_shows_the_cheque_number_and_bank(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company, 'Saudi National Bank');
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual',
+            'payee_name' => 'Cheque Recipient',
+            'bank_account_id' => $account->id,
+            'date' => now()->toDateString(),
+            'amount' => 800,
+            'method' => 'cheque',
+            'reference' => 'CHQ-000123',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $show = $this->actingAs($owner)->get(route('app.payment-vouchers.show', $voucher));
+
+        $show->assertOk();
+        $show->assertSee('CHQ-000123');
+        $show->assertSee('Saudi National Bank');
+    }
+
+    public function test_the_payment_voucher_pdf_downloads_with_the_new_layout(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'PDF Test Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 250, 'method' => 'cash',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+
+        $response = $this->actingAs($owner)->get(route('app.payment-vouchers.pdf', $voucher));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_the_create_form_exposes_supplier_details_for_autofill(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        Supplier::create([
+            'company_id' => $company->id, 'name' => 'Autofill Supplier', 'name_ar' => 'مورد التعبئة',
+            'vat_number' => '300000000000003', 'phone' => '0500000000', 'email' => 'supplier@example.com',
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('app.payment-vouchers.create'));
+
+        $response->assertOk();
+        $response->assertSee('300000000000003');
+        $response->assertSee('Autofill Supplier');
+    }
+
+    public function test_a_company_can_upload_and_remove_a_footer_image_on_a_template(): void
+    {
+        Storage::fake('public');
+
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $template = InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Default', 'document_type' => 'all',
+            'layout' => 'bilingual_classic', 'is_default' => true,
+        ]);
+
+        $response = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
+            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'layout' => 'bilingual_classic', 'language_mode' => 'bilingual', 'table_direction' => 'ltr',
+            'footer' => UploadedFile::fake()->image('footer.png', 1600, 200),
+        ]);
+
+        $response->assertRedirect();
+        $template->refresh();
+        $this->assertNotNull($template->footer_path);
+        Storage::disk('public')->assertExists($template->footer_path);
+
+        $removal = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
+            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'layout' => 'bilingual_classic', 'language_mode' => 'bilingual', 'table_direction' => 'ltr',
+            'remove_footer' => '1',
+        ]);
+
+        $removal->assertRedirect();
+        $template->refresh();
+        $this->assertNull($template->footer_path);
+    }
+
+    public function test_a_bill_payment_voucher_defaults_its_purpose_line_from_the_bill(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+        $supplier = Supplier::create(['company_id' => $company->id, 'name' => 'Bill Supplier']);
+        $bill = Bill::create([
+            'company_id' => $company->id, 'supplier_id' => $supplier->id, 'bill_number' => 'BILL-9001',
+            'status' => 'posted', 'bill_date' => now()->toDateString(), 'currency' => $company->currency,
+            'subtotal' => 400, 'vat_total' => 0, 'total' => 400,
+        ]);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'supplier', 'supplier_id' => $supplier->id, 'bill_id' => $bill->id,
+            'payee_name' => $supplier->name, 'bank_account_id' => $account->id,
+            'date' => now()->toDateString(), 'amount' => 400, 'method' => 'bank_transfer',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $show = $this->actingAs($owner)->get(route('app.payment-vouchers.show', $voucher));
+
+        $show->assertOk();
+        $show->assertSee('BILL-9001');
+    }
+}

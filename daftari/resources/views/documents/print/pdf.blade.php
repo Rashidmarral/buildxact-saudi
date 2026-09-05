@@ -19,6 +19,7 @@
     $logoData = $embed($company->logo_path ?? null);
     $stampData = $embed($company->stamp_path ?? null);
     $letterheadData = $embed($template->letterhead_path ?? null);
+    $footerData = $embed($template->footer_path ?? null);
 
     $languageMode = $template->language_mode ?? 'bilingual';
     $tableDirection = $template->table_direction ?? 'ltr';
@@ -351,6 +352,10 @@
             </td>
         </tr>
     </table>
+@endif
+
+@if ($footerData)
+    <img src="{{ $footerData }}" style="width: 100%; margin-top: 20px;" alt="">
 @endif
 
 </body>

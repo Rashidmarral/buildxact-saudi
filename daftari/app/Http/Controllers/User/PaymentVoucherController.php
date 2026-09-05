@@ -45,13 +45,23 @@ class PaymentVoucherController extends Controller
     public function create()
     {
         $company = Auth::user()->company;
+        $suppliers = Supplier::orderBy('name')->get();
+        $clients = Client::orderBy('name')->get();
 
         return view('user.payment-vouchers.form', [
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'expenses' => Expense::whereNull('bank_account_id')->latest('expense_date')->take(100)->get(),
-            'suppliers' => Supplier::orderBy('name')->get(),
-            'clients' => Client::orderBy('name')->get(),
+            'suppliers' => $suppliers,
+            'clients' => $clients,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
+                'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
+                'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
+            ]]),
+            'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
+                'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
+                'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
+            ]]),
         ]);
     }
 

@@ -10,3 +10,7 @@
         {{ $company->name }} @if ($company->name_ar) — {{ $company->name_ar }} @endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }}
     </div>
 @endif
+
+@if ($template?->footer_path)
+    <img src="{{ Storage::url($template->footer_path) }}" alt="" class="w-full object-contain mt-6">
+@endif

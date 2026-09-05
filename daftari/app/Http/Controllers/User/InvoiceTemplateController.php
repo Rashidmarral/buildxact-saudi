@@ -117,19 +117,31 @@ class InvoiceTemplateController extends Controller
             'signature_label_ar' => ['nullable', 'string', 'max:255'],
             'show_logo' => ['nullable', 'boolean'],
             'letterhead' => ['nullable', 'image', 'max:4096'],
+            'footer' => ['nullable', 'image', 'max:4096'],
+            'remove_footer' => ['nullable', 'boolean'],
             'notes_en' => ['nullable', 'string', 'max:2000'],
             'notes_ar' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $data['show_logo'] = $request->boolean('show_logo');
         $data['show_signature'] = $request->boolean('show_signature');
-        unset($data['letterhead']);
+        unset($data['letterhead'], $data['footer'], $data['remove_footer']);
 
         if ($request->hasFile('letterhead')) {
             if ($invoiceTemplate->letterhead_path) {
                 Storage::disk('public')->delete($invoiceTemplate->letterhead_path);
             }
             $data['letterhead_path'] = $request->file('letterhead')->store('letterheads', 'public');
+        }
+
+        if ($request->hasFile('footer')) {
+            if ($invoiceTemplate->footer_path) {
+                Storage::disk('public')->delete($invoiceTemplate->footer_path);
+            }
+            $data['footer_path'] = $request->file('footer')->store('footers', 'public');
+        } elseif ($request->boolean('remove_footer') && $invoiceTemplate->footer_path) {
+            Storage::disk('public')->delete($invoiceTemplate->footer_path);
+            $data['footer_path'] = null;
         }
 
         $invoiceTemplate->update($data);
@@ -141,6 +153,9 @@ class InvoiceTemplateController extends Controller
     {
         if ($invoiceTemplate->letterhead_path) {
             Storage::disk('public')->delete($invoiceTemplate->letterhead_path);
+        }
+        if ($invoiceTemplate->footer_path) {
+            Storage::disk('public')->delete($invoiceTemplate->footer_path);
         }
 
         $invoiceTemplate->delete();

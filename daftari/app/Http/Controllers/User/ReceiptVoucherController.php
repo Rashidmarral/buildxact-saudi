@@ -44,12 +44,22 @@ class ReceiptVoucherController extends Controller
     public function create()
     {
         $company = Auth::user()->company;
+        $clients = Client::orderBy('name')->get();
+        $suppliers = Supplier::orderBy('name')->get();
 
         return view('user.receipt-vouchers.form', [
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
-            'clients' => Client::orderBy('name')->get(),
-            'suppliers' => Supplier::orderBy('name')->get(),
+            'clients' => $clients,
+            'suppliers' => $suppliers,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
+                'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
+                'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
+            ]]),
+            'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
+                'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
+                'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
+            ]]),
         ]);
     }
 

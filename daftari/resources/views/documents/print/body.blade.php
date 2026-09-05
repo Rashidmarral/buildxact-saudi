@@ -477,4 +477,8 @@
     </div>
 @endif
 
+@if ($template && $template->footer_path)
+    <img src="{{ Storage::url($template->footer_path) }}" alt="" class="w-full object-contain mt-8">
+@endif
+
 </div>

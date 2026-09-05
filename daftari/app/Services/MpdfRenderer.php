@@ -26,19 +26,22 @@ class MpdfRenderer
         try {
             $mpdf = $this->makeMpdf();
 
-            $html = view($view, $data + ['embed' => $this->embedHelper()])->render();
-
-            // mPDF parses HTML/CSS internally with PCRE regexes. Our
+            // mPDF parses HTML/CSS internally with PCRE regexes, and our own
+            // diacritic-stripping below runs a PCRE pass over the same
+            // markup — both need this raised before either runs. Our
             // documents embed the logo/stamp/QR as base64 data URIs
             // directly in the markup, which easily pushes a single
-            // WriteHTML() call past PHP's default 1,000,000-step
-            // pcre.backtrack_limit — mPDF then throws instead of
-            // rendering. Raising both limits here (scoped to this
-            // request; ini_set doesn't persist) is mPDF's own documented
-            // fix for this, rather than trying to keep embedded images
-            // artificially small.
+            // preg_replace()/WriteHTML() call past PHP's default
+            // 1,000,000-step pcre.backtrack_limit — silently returning
+            // null (preg_replace) or throwing (mPDF) instead of rendering.
+            // Raising both limits here (scoped to this request; ini_set
+            // doesn't persist) is mPDF's own documented fix for this,
+            // rather than trying to keep embedded images artificially
+            // small.
             ini_set('pcre.backtrack_limit', '10000000');
             ini_set('pcre.recursion_limit', '10000000');
+
+            $html = $this->stripArabicDiacritics(view($view, $data + ['embed' => $this->embedHelper()])->render());
 
             $mpdf->WriteHTML($html);
 
@@ -101,6 +104,22 @@ class MpdfRenderer
             ],
             'tempDir' => $tempDir,
         ]);
+    }
+
+    /**
+     * mPDF's Cairo font throws "This font [cairo] contains MarkGlyphSets -
+     * Not tested yet" the moment it has to shape an Arabic diacritic
+     * (tanween, fatha, damma, kasra, shadda, sukun, ...) with OTL enabled
+     * — a real mPDF/font limitation, not something these templates can
+     * work around by avoiding one specific character, since any future
+     * Arabic string carrying tashkeel would hit the same crash. Diacritics
+     * are near-universally omitted in everyday (non-Quranic) Arabic
+     * writing anyway, so stripping them here is invisible in practice and
+     * keeps every current and future document's PDF path safe.
+     */
+    private function stripArabicDiacritics(string $html): string
+    {
+        return preg_replace('/[\x{0610}-\x{061A}\x{064B}-\x{065F}\x{0670}\x{06D6}-\x{06ED}]/u', '', $html);
     }
 
     /**

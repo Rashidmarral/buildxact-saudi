@@ -3,6 +3,11 @@
 @section('title', $voucher->voucher_number)
 
 @section('content')
+<style>
+    @media print {
+        @page { size: A4; margin: 12mm; }
+    }
+</style>
 <div class="flex items-center justify-between mb-6 print:hidden">
     <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-slate-900">{{ $voucher->voucher_number }}</h2>
@@ -24,7 +29,7 @@
     </div>
 </div>
 
-<div class="max-w-xl bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
+<div class="max-w-3xl bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none print:max-w-none">
     @include('documents.print.chrome-header', ['company' => $voucher->company, 'template' => $template])
     @include('documents.print.voucher-body', ['voucher' => $voucher, 'type' => 'payment'])
     @include('documents.print.chrome-footer', ['company' => $voucher->company, 'template' => $template])

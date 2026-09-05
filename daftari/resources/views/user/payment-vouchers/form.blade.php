@@ -30,7 +30,7 @@
 
             <div id="panel-customer" class="party-panel hidden mb-4">
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Customer') }}</label>
-                <select name="client_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <select name="client_id" id="client_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                     <option value="">{{ __('Select a customer') }}</option>
                     @foreach ($clients as $client)
                         <option value="{{ $client->id }}" @selected(old('client_id') == $client->id)>{{ $client->name }}</option>
@@ -69,27 +69,27 @@
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Party name (Arabic)') }}</label>
-                    <input type="text" name="party_name_ar" value="{{ old('party_name_ar') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="party_name_ar" id="party_name_ar" value="{{ old('party_name_ar') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Party name (English)') }}</label>
-                    <input type="text" name="payee_name" value="{{ old('payee_name') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="payee_name" id="payee_name" value="{{ old('payee_name') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('VAT number') }}</label>
-                    <input type="text" name="party_vat_number" value="{{ old('party_vat_number') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="party_vat_number" id="party_vat_number" value="{{ old('party_vat_number') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Phone') }}</label>
-                    <input type="text" name="party_phone" value="{{ old('party_phone') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="party_phone" id="party_phone" value="{{ old('party_phone') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Email') }}</label>
-                    <input type="email" name="party_email" value="{{ old('party_email') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="email" name="party_email" id="party_email" value="{{ old('party_email') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Address') }}</label>
-                    <input type="text" name="party_address" value="{{ old('party_address') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="party_address" id="party_address" value="{{ old('party_address') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
         </div>
@@ -151,8 +151,15 @@
     </div>
 </form>
 
+@php
+    $suppliersDataJson = $suppliersData;
+    $clientsDataJson = $clientsData;
+@endphp
 <script>
 (function () {
+    const suppliersData = @json($suppliersDataJson);
+    const clientsData = @json($clientsDataJson);
+
     const tabs = document.querySelectorAll('.party-tab');
     const typeInput = document.getElementById('party_type');
     const panels = { customer: document.getElementById('panel-customer'), supplier: document.getElementById('panel-supplier') };
@@ -171,7 +178,22 @@
     tabs.forEach(btn => btn.addEventListener('click', () => activate(btn.dataset.tab)));
     activate(typeInput.value || 'manual');
 
+    function fillPartyFields(data) {
+        if (!data) return;
+        document.getElementById('party_name_ar').value = data.name_ar || '';
+        document.getElementById('payee_name').value = data.name || '';
+        document.getElementById('party_vat_number').value = data.vat_number || '';
+        document.getElementById('party_phone').value = data.phone || '';
+        document.getElementById('party_email').value = data.email || '';
+        document.getElementById('party_address').value = data.address || '';
+    }
+
+    const clientSelect = document.getElementById('client_id');
+    clientSelect.addEventListener('change', () => fillPartyFields(clientsData[clientSelect.value]));
+
     const supplierSelect = document.getElementById('supplier_id');
+    supplierSelect.addEventListener('change', () => fillPartyFields(suppliersData[supplierSelect.value]));
+
     const billSelect = document.getElementById('bill_id');
 
     function loadBills() {
