@@ -98,6 +98,24 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', function ($request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
+
+        // mPDF rendering is CPU-heavy (font shaping, embedded images) and
+        // invoice/quotation email sends both render a PDF and make an
+        // outbound SMTP call — neither had any throttle at all, so a
+        // scripted "download PDF"/"send email" loop (an authenticated
+        // user, or a leaked API token) had no limit besides the plan's
+        // monthly document cap. Keyed per-user, not IP, for the same
+        // shared-office reason as 'api' above.
+        RateLimiter::for('pdf', function ($request) {
+            return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // The public, token-gated pay-link/quotation-view PDF routes have
+        // no authenticated user to key on, and are reachable by anyone who
+        // has (or guesses/leaks) the link — a tighter, IP-keyed limit here.
+        RateLimiter::for('public-pdf', function ($request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
     }
 
     /**

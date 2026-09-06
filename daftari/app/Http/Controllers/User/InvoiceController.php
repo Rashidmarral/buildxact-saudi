@@ -376,6 +376,21 @@ class InvoiceController extends Controller
                 ->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be edited. Issue a credit note to correct it instead.')]);
         }
 
+        // Audit finding CRITICAL-1: update() rebuilt the document from
+        // scratch (items, totals) but never touched the ledger entry or
+        // deducted stock that send() had already posted — editing a sent/
+        // paid invoice silently desynced its journal entry and inventory
+        // from what the invoice itself now showed. Rather than build a
+        // full delete-and-repost (which also has to re-derive stock deltas
+        // across a warehouse/quantity change), editing is restricted to
+        // drafts — exactly how destroy() already treats non-draft invoices,
+        // and how Bills/Credit Notes/Debit Notes/Purchase Returns in this
+        // codebase have no edit action at all once posted.
+        if ($invoice->status !== 'draft') {
+            return redirect()->route('app.invoices.show', $invoice)
+                ->withErrors(['invoice' => __('Only draft invoices can be edited — this invoice has already been sent and posted to the ledger. Cancel it to correct it, or issue a credit note if it has been paid.')]);
+        }
+
         $invoice->load('items');
 
         return view('user.invoices.form', [
@@ -397,6 +412,13 @@ class InvoiceController extends Controller
         if ($invoice->isZatcaLocked()) {
             return redirect()->route('app.invoices.show', $invoice)
                 ->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be edited. Issue a credit note to correct it instead.')]);
+        }
+
+        // See edit() — must also be enforced here, not just when loading the
+        // form, since this action can be reached directly.
+        if ($invoice->status !== 'draft') {
+            return redirect()->route('app.invoices.show', $invoice)
+                ->withErrors(['invoice' => __('Only draft invoices can be edited — this invoice has already been sent and posted to the ledger. Cancel it to correct it, or issue a credit note if it has been paid.')]);
         }
 
         $data = $this->validated($request);

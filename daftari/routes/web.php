@@ -138,11 +138,11 @@ Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('local
 Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('filepath', '.*')->name('files.show');
 
 Route::get('/pay/invoices/{id}/{token}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
-Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->name('public.invoices.pdf');
+Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->middleware('throttle:public-pdf')->name('public.invoices.pdf');
 Route::get('/pay/invoices/{id}/{token}/pay/{provider}', [PublicInvoiceController::class, 'pay'])->name('public.invoices.pay');
 
 Route::get('/view/quotations/{id}/{token}', [PublicQuotationController::class, 'show'])->name('public.quotations.show');
-Route::get('/view/quotations/{id}/{token}/pdf', [PublicQuotationController::class, 'downloadPdf'])->name('public.quotations.pdf');
+Route::get('/view/quotations/{id}/{token}/pdf', [PublicQuotationController::class, 'downloadPdf'])->middleware('throttle:public-pdf')->name('public.quotations.pdf');
 Route::post('/view/quotations/{id}/{token}/accept', [PublicQuotationController::class, 'accept'])->name('public.quotations.accept');
 Route::post('/view/quotations/{id}/{token}/reject', [PublicQuotationController::class, 'reject'])->name('public.quotations.reject');
 
@@ -268,8 +268,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('invoices/{invoice}/attachments', [InvoiceController::class, 'storeAttachment'])->name('invoices.attachments.store');
         Route::delete('invoices/{invoice}/attachments/{attachment}', [InvoiceController::class, 'destroyAttachment'])->name('invoices.attachments.destroy');
         Route::get('invoices/{invoice}/xml', [InvoiceController::class, 'downloadXml'])->name('invoices.xml');
-        Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
-        Route::post('invoices/{invoice}/email', [InvoiceController::class, 'emailInvoice'])->name('invoices.email');
+        Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('invoices.pdf');
+        Route::post('invoices/{invoice}/email', [InvoiceController::class, 'emailInvoice'])->middleware('throttle:pdf')->name('invoices.email');
         Route::post('invoices/{invoice}/whatsapp', [InvoiceController::class, 'sendWhatsapp'])->name('invoices.whatsapp');
         Route::post('invoices/{invoice}/sms', [InvoiceController::class, 'sendSms'])->name('invoices.sms');
 
@@ -277,13 +277,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('credit-notes/{creditNote}/void', [CreditNoteController::class, 'void'])->name('credit-notes.void');
         Route::get('credit-notes/{creditNote}/xml', [CreditNoteController::class, 'downloadXml'])->name('credit-notes.xml');
-        Route::get('credit-notes/{creditNote}/pdf', [CreditNoteController::class, 'downloadPdf'])->name('credit-notes.pdf');
+        Route::get('credit-notes/{creditNote}/pdf', [CreditNoteController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('credit-notes.pdf');
 
         Route::get('debit-notes/eligible-invoices', [DebitNoteController::class, 'eligibleInvoices'])->name('debit-notes.eligible-invoices');
         Route::resource('debit-notes', DebitNoteController::class)->only(['index', 'create', 'store', 'show']);
         Route::post('debit-notes/{debitNote}/void', [DebitNoteController::class, 'void'])->name('debit-notes.void');
         Route::get('debit-notes/{debitNote}/xml', [DebitNoteController::class, 'downloadXml'])->name('debit-notes.xml');
-        Route::get('debit-notes/{debitNote}/pdf', [DebitNoteController::class, 'downloadPdf'])->name('debit-notes.pdf');
+        Route::get('debit-notes/{debitNote}/pdf', [DebitNoteController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('debit-notes.pdf');
 
         Route::middleware('feature:recurring_invoices')->group(function () {
             Route::resource('recurring-invoices', RecurringInvoiceController::class)->except(['show']);
@@ -304,8 +304,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');
         Route::post('quotations/{quotation}/attachments', [QuotationController::class, 'storeAttachment'])->name('quotations.attachments.store');
         Route::delete('quotations/{quotation}/attachments/{attachment}', [QuotationController::class, 'destroyAttachment'])->name('quotations.attachments.destroy');
-        Route::get('quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->name('quotations.pdf');
-        Route::post('quotations/{quotation}/email', [QuotationController::class, 'emailQuotation'])->name('quotations.email');
+        Route::get('quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('quotations.pdf');
+        Route::post('quotations/{quotation}/email', [QuotationController::class, 'emailQuotation'])->middleware('throttle:pdf')->name('quotations.email');
     });
 
     Route::middleware('permission:expenses')->group(function () {
@@ -401,10 +401,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
-        Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->name('receipt-vouchers.pdf');
+        Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.pdf');
         Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
-        Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->name('payment-vouchers.pdf');
+        Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('payment-vouchers.pdf');
         Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
 
         Route::get('bank-accounts/{bankAccount}/reconciliations', [BankReconciliationController::class, 'index'])->name('bank-reconciliations.index');
@@ -434,7 +434,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
         Route::post('bills/{bill}/attachments', [BillController::class, 'storeAttachment'])->name('bills.attachments.store');
         Route::delete('bills/{bill}/attachments/{attachment}', [BillController::class, 'destroyAttachment'])->name('bills.attachments.destroy');
-        Route::get('bills/{bill}/pdf', [BillController::class, 'downloadPdf'])->name('bills.pdf');
+        Route::get('bills/{bill}/pdf', [BillController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('bills.pdf');
 
         Route::middleware('feature:purchase_orders')->group(function () {
             Route::get('reorder-suggestions', [ReorderSuggestionController::class, 'index'])->name('reorder-suggestions.index');
@@ -447,7 +447,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::post('purchase-orders/{purchaseOrder}/bill', [PurchaseOrderController::class, 'storeBill'])->name('purchase-orders.bill-store');
             Route::post('purchase-orders/{purchaseOrder}/attachments', [PurchaseOrderController::class, 'storeAttachment'])->name('purchase-orders.attachments.store');
             Route::delete('purchase-orders/{purchaseOrder}/attachments/{attachment}', [PurchaseOrderController::class, 'destroyAttachment'])->name('purchase-orders.attachments.destroy');
-            Route::get('purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->name('purchase-orders.pdf');
+            Route::get('purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('purchase-orders.pdf');
         });
 
         Route::resource('customs-declarations', CustomsDeclarationController::class)->only(['index', 'store', 'destroy']);
@@ -457,7 +457,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::get('purchase-returns/eligible-bills', [PurchaseReturnController::class, 'eligibleBills'])->name('purchase-returns.eligible-bills');
             Route::resource('purchase-returns', PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
             Route::post('purchase-returns/{purchaseReturn}/void', [PurchaseReturnController::class, 'void'])->name('purchase-returns.void');
-            Route::get('purchase-returns/{purchaseReturn}/pdf', [PurchaseReturnController::class, 'downloadPdf'])->name('purchase-returns.pdf');
+            Route::get('purchase-returns/{purchaseReturn}/pdf', [PurchaseReturnController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('purchase-returns.pdf');
         });
     });
 

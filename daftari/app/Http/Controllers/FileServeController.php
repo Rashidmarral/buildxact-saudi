@@ -26,17 +26,23 @@ use Symfony\Component\HttpFoundation\Response;
  * fine with {filepath}).
  *
  * Only a fixed set of folders is served with no login required — the ones
- * actually rendered on unauthenticated pages (the public invoice-pay link,
- * and the public /certificates marketing page). Everything else uploaded
- * to the 'public' disk (invoice/bill/PO/quotation attachments, company
- * documents, item images) is business data scoped to one tenant, so it's
- * only served to a logged-in user whose company actually owns the
- * matching Attachment/Item row — BelongsToCompany's global scope makes
- * that check tenant-safe for free.
+ * actually rendered on unauthenticated pages: the public invoice-pay link
+ * and /certificates marketing page (company branding images), and the
+ * platform's own marketing site, login page, CMS pages, and outbound
+ * transactional emails (platform/admin branding + CMS content images —
+ * 'platform', 'branding', 'cms'). Everything else uploaded to the 'public'
+ * disk (invoice/bill/PO/quotation attachments, company documents, item
+ * images) is business data scoped to one tenant, so it's only served to a
+ * logged-in user whose company actually owns the matching Attachment/Item
+ * row — BelongsToCompany's global scope makes that check tenant-safe for
+ * free.
  */
 class FileServeController extends Controller
 {
-    private const PUBLIC_PREFIXES = ['logos/', 'stamps/', 'letterheads/', 'footers/', 'watermarks/', 'platform-documents/'];
+    private const PUBLIC_PREFIXES = [
+        'logos/', 'stamps/', 'letterheads/', 'footers/', 'watermarks/', 'platform-documents/',
+        'platform/', 'branding/', 'cms/',
+    ];
 
     public function show(string $filepath): Response
     {

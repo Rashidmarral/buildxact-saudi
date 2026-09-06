@@ -133,6 +133,16 @@ class CustomsDeclarationController extends Controller
     {
         DB::transaction(function () use ($customsDeclaration, $ledger) {
             $ledger->reverse($customsDeclaration->company, 'customs_declaration', $customsDeclaration->id, __('Customs declaration deleted'));
+
+            // If the duty was ever capitalized into item costs, that's a
+            // *separate* posting (postLandedCostAllocation(), keyed under
+            // its own source_type) — reversing only the declaration's own
+            // entry left this one permanently orphaned, overstating
+            // Inventory Asset and understating Expenses forever.
+            if ($customsDeclaration->landed_cost_allocated_at) {
+                $ledger->reverse($customsDeclaration->company, 'customs_declaration_landed_cost', $customsDeclaration->id, __('Customs declaration deleted (landed cost allocation reversed)'));
+            }
+
             $customsDeclaration->delete();
         });
 

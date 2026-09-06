@@ -32,8 +32,12 @@
             </form>
             <button type="button" onclick="document.getElementById('invoice-reject-form').classList.toggle('hidden')" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reject') }}</button>
         @endif
-        {{-- Editable any time it isn't yet part of an immutable ZATCA tax record, not just while still a draft. --}}
-        @if ($invoice->status !== 'cancelled' && ! $invoice->isZatcaLocked())
+        {{-- Draft only: once sent, the ledger entry and any deducted stock
+             are keyed off the invoice's current figures — editing a posted
+             invoice would silently desync both from what the document then
+             shows. Reject a pending-approval invoice back to draft to
+             revise it, or cancel/credit-note a sent one instead. --}}
+        @if ($invoice->status === 'draft')
             <a href="{{ route('app.invoices.edit', $invoice) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
         @endif
         @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid', 'overdue']) && $invoice->remainingCreditableTotal() > 0.01)

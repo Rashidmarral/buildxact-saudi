@@ -122,10 +122,19 @@ class FixedAssetController extends Controller
             ? AccountMapping::resolve($company->id, $fixedAsset->bankAccount->type === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK')
             : AccountMapping::resolve($company->id, 'DEFAULT_BANK');
 
-        $lines = [];
-        if ($fixedAssetsAccount) {
-            $lines[] = ['account_id' => $fixedAssetsAccount->id, 'credit' => (float) $fixedAsset->acquisition_cost];
+        // Audit finding MEDIUM-3: without this guard, a missing
+        // FIXED_ASSETS_DEFAULT mapping silently dropped the line below
+        // instead of failing clearly — the entry would then either post
+        // unbalanced-looking (caught only by post()'s generic imbalance
+        // exception) or, worse, disposal proceeds/gain-loss lines could
+        // post without ever removing the asset's cost from the books.
+        if (! $fixedAssetsAccount) {
+            return back()->withErrors(['disposal' => __('Cannot dispose this asset: no Fixed Assets account mapping is configured. Set one in Settings > Semantic Account Mappings, or link an account directly on the asset.')]);
         }
+
+        $lines = [
+            ['account_id' => $fixedAssetsAccount->id, 'credit' => (float) $fixedAsset->acquisition_cost],
+        ];
         if ($accumulatedAccount && (float) $fixedAsset->accumulated_depreciation > 0) {
             $lines[] = ['account_id' => $accumulatedAccount->id, 'debit' => (float) $fixedAsset->accumulated_depreciation];
         }

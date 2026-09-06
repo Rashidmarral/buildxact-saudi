@@ -19,6 +19,10 @@ class SyncInvoiceToZatca implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $tries = 4;
+
+    public array $backoff = [30, 120, 600];
+
     public function __construct(public readonly int $invoiceId) {}
 
     public function handle(ZatcaSyncService $sync): void

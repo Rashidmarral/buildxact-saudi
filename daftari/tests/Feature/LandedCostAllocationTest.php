@@ -151,4 +151,36 @@ class LandedCostAllocationTest extends TestCase
         $response->assertSessionHasErrors('landed_cost');
         $this->assertNull($declaration->fresh()->landed_cost_allocated_at);
     }
+
+    /**
+     * Audit finding HIGH-2: destroy() only reversed the declaration's own
+     * ledger entry, never the separate landed-cost-allocation entry —
+     * deleting an allocated declaration left the Inventory Asset debit /
+     * Expense credit reclassification permanently posted with nothing left
+     * to explain it.
+     */
+    public function test_deleting_an_allocated_declaration_reverses_both_ledger_entries(): void
+    {
+        $owner = $this->makeOwner();
+        [$item, $bill] = $this->makeBillWithTrackedItem($owner, unitPrice: 100, quantity: 10, purchasePrice: 90);
+
+        $declaration = CustomsDeclaration::create([
+            'company_id' => $owner->company_id, 'declaration_date' => now()->toDateString(),
+            'customs_value' => 1000, 'customs_duty' => 200, 'vat_rate' => 15, 'vat_amount' => 180,
+        ]);
+        $declaration->bills()->sync([$bill->id]);
+
+        // These tests bypass the store() endpoint (which is what normally
+        // calls postCustomsDeclaration()), so post the base entry directly
+        // to set up the same state a real declaration would have.
+        app(\App\Services\Accounting\LedgerPostingService::class)->postCustomsDeclaration($declaration);
+
+        $this->actingAs($owner)->post(route('app.customs-declarations.allocate-landed-cost', $declaration));
+        $declarationId = $declaration->id;
+
+        $this->actingAs($owner)->delete(route('app.customs-declarations.destroy', $declaration));
+
+        $this->assertNotNull(JournalEntry::where('source_type', 'customs_declaration_reversal')->where('source_id', $declarationId)->first());
+        $this->assertNotNull(JournalEntry::where('source_type', 'customs_declaration_landed_cost_reversal')->where('source_id', $declarationId)->first());
+    }
 }
