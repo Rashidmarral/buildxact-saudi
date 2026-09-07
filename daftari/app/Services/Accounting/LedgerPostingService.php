@@ -12,11 +12,13 @@ use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\CustomsDeclaration;
 use App\Models\DebitNote;
+use App\Models\EndOfServiceSettlement;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
 use App\Models\PaymentVoucher;
+use App\Models\PayrollRun;
 use App\Models\PurchaseReturn;
 use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
@@ -639,6 +641,63 @@ class LedgerPostingService
         }
 
         return $this->post($company, 'payment_voucher', $voucher->id, __('Payment voucher :number', ['number' => $voucher->voucher_number]), $voucher->date, $lines);
+    }
+
+    /**
+     * Aggregates every payslip in the run into one entry rather than one
+     * per employee — matches how a real payroll bank transfer works (a
+     * single batch payment), and keeps the ledger from growing an entry
+     * per headcount every pay cycle. GOSI's employee-withheld and
+     * employer-owed shares both land in the same GOSI_PAYABLE liability
+     * (both are ultimately owed to GOSI, just from different sources)
+     * until a separate payment records the actual remittance.
+     */
+    public function postPayrollRun(PayrollRun $payrollRun): ?JournalEntry
+    {
+        $company = $payrollRun->company;
+        $salaryExpense = $this->account($company, 'SALARY_EXPENSE');
+        $gosiExpense = $this->account($company, 'GOSI_EXPENSE');
+        $gosiPayable = $this->account($company, 'GOSI_PAYABLE');
+        $salariesPayable = $this->account($company, 'SALARIES_PAYABLE');
+        $deductionsPayable = $this->account($company, 'PAYROLL_DEDUCTIONS_PAYABLE');
+
+        $this->requireAccounts([
+            'SALARY_EXPENSE' => $salaryExpense,
+            'GOSI_EXPENSE' => $gosiExpense,
+            'GOSI_PAYABLE' => $gosiPayable,
+            'SALARIES_PAYABLE' => $salariesPayable,
+        ], 'payroll run');
+
+        $totalGosi = (float) $payrollRun->total_gosi_employee + (float) $payrollRun->total_gosi_employer;
+
+        $lines = [
+            ['account_id' => $salaryExpense->id, 'debit' => $payrollRun->total_gross, 'memo' => $payrollRun->run_number],
+            ['account_id' => $gosiExpense->id, 'debit' => $payrollRun->total_gosi_employer],
+            ['account_id' => $gosiPayable->id, 'credit' => $totalGosi],
+            ['account_id' => $salariesPayable->id, 'credit' => $payrollRun->total_net],
+        ];
+
+        if ($payrollRun->total_other_deductions > 0 && $deductionsPayable) {
+            $lines[] = ['account_id' => $deductionsPayable->id, 'credit' => $payrollRun->total_other_deductions];
+        }
+
+        return $this->post($company, 'payroll_run', $payrollRun->id, __('Payroll run :number', ['number' => $payrollRun->run_number]), $payrollRun->pay_date, $lines);
+    }
+
+    public function postEndOfServiceSettlement(EndOfServiceSettlement $settlement): ?JournalEntry
+    {
+        $company = $settlement->company;
+        $eosExpense = $this->account($company, 'EOS_EXPENSE');
+        $eosProvision = $this->account($company, 'EOS_PROVISION');
+
+        $this->requireAccounts(['EOS_EXPENSE' => $eosExpense, 'EOS_PROVISION' => $eosProvision], 'end-of-service settlement');
+
+        $lines = [
+            ['account_id' => $eosExpense->id, 'debit' => $settlement->gratuity_amount, 'memo' => $settlement->employee->full_name],
+            ['account_id' => $eosProvision->id, 'credit' => $settlement->gratuity_amount],
+        ];
+
+        return $this->post($company, 'end_of_service_settlement', $settlement->id, __('End-of-service settlement: :name', ['name' => $settlement->employee->full_name]), $settlement->termination_date, $lines);
     }
 
     public function postExpense(Expense $expense): ?JournalEntry

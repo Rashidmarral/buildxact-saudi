@@ -88,6 +88,8 @@ use App\Http\Controllers\User\PhysicalCountController;
 use App\Http\Controllers\User\ItemLotController;
 use App\Http\Controllers\User\ReorderSuggestionController;
 use App\Http\Controllers\User\StockTransferController;
+use App\Http\Controllers\User\EmployeeController;
+use App\Http\Controllers\User\PayrollRunController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
@@ -476,6 +478,19 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('inventory/stock', [InventoryController::class, 'stock'])->name('inventory.stock');
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->name('inventory.valuation');
         Route::get('inventory/profitability', [InventoryController::class, 'profitability'])->name('inventory.profitability');
+    });
+
+    Route::middleware(['permission:payroll', 'module:payroll'])->group(function () {
+        Route::resource('employees', EmployeeController::class)->except(['show']);
+        Route::post('employees/{employee}/terminate', [EmployeeController::class, 'terminate'])->name('employees.terminate');
+
+        Route::resource('payroll', PayrollRunController::class)->only(['index', 'create', 'store', 'show'])->parameters(['payroll' => 'payrollRun']);
+        Route::post('payroll/{payrollRun}/items/{item}', [PayrollRunController::class, 'updateItem'])->name('payroll.items.update');
+        Route::post('payroll/{payrollRun}/approve', [PayrollRunController::class, 'approve'])->name('payroll.approve');
+        Route::post('payroll/{payrollRun}/mark-paid', [PayrollRunController::class, 'markPaid'])->name('payroll.mark-paid');
+        Route::post('payroll/{payrollRun}/cancel', [PayrollRunController::class, 'cancel'])->name('payroll.cancel');
+        Route::get('payroll/{payrollRun}/wps', [PayrollRunController::class, 'downloadWps'])->name('payroll.wps');
+        Route::get('payroll/{payrollRun}/items/{item}/payslip', [PayrollRunController::class, 'payslipPdf'])->middleware('throttle:pdf')->name('payroll.items.payslip');
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');

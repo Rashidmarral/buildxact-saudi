@@ -54,6 +54,7 @@ class Company extends Model
         'zatca_production_request_id', 'zatca_production_csid', 'zatca_production_secret',
         'zatca_last_invoice_hash', 'zatca_linked_at', 'zatca_last_sync_at',
         'project_prefix', 'next_project_number',
+        'employee_prefix', 'next_employee_number', 'payroll_run_prefix', 'next_payroll_run_number',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -85,6 +86,10 @@ class Company extends Model
         'next_journal_number' => 1,
         'project_prefix' => 'PROJ',
         'next_project_number' => 1,
+        'employee_prefix' => 'EMP',
+        'next_employee_number' => 1,
+        'payroll_run_prefix' => 'PR-RUN',
+        'next_payroll_run_number' => 1,
         'primary_customer_type' => 'mixed',
         'negative_number_format' => 'minus',
         'currency' => 'SAR',
@@ -301,6 +306,20 @@ class Company extends Model
         return $this->purchase_return_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
+    public function nextEmployeeNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_employee_number');
+
+        return $this->employee_prefix.'-'.str_pad((string) $number, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function nextPayrollRunNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_payroll_run_number');
+
+        return $this->payroll_run_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
     public function nextQuotationNumber(string $type = 'quotation'): string
     {
         if ($type === 'proforma') {
@@ -420,6 +439,16 @@ class Company extends Model
     public function suppliers(): HasMany
     {
         return $this->hasMany(Supplier::class);
+    }
+
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class);
+    }
+
+    public function payrollRuns(): HasMany
+    {
+        return $this->hasMany(PayrollRun::class);
     }
 
     public function bills(): HasMany

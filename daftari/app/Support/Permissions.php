@@ -38,6 +38,8 @@ class Permissions
             'zatca' => __('ZATCA Integration'),
             'approvals' => __('Approve purchase orders & expenses'),
             'support' => __('Support Tickets'),
+            'payroll' => __('Payroll'),
+            'pos' => __('Point of Sale'),
         ];
     }
 
