@@ -170,10 +170,13 @@ maintenance mode, and more.
 - **Seeders** (`database/seeders/`):
   - `CurrencySeeder`, `PlanSeeder`, `AdminRoleSeeder` — reference data every install needs;
     run automatically by the installer, or manually via `php artisan db:seed --class=...`.
-  - `AdminSeeder` — creates a fallback platform admin (`admin@daftari.local` /
-    `Admin@12345`) for quick local testing. **Change or remove this account before going
-    live** — the installer's own Step 4 creates a proper first administrator instead, so you
-    don't need this seeder at all for a real deployment.
+  - `AdminSeeder` — creates a fallback platform admin (`admin@daftari.local`) for quick local
+    testing, with a random password generated on first run and printed once to the console
+    (not stored anywhere else — capture it then). Only ever touches this account on its first
+    run; a later `migrate --seed` on an already-seeded install leaves whatever password you've
+    since set alone. **Change or remove this account before going live** — the installer's own
+    Step 4 creates a proper first administrator instead, so you don't need this seeder at all
+    for a real deployment.
   - `DemoSeeder` — builds a complete, self-contained sample company ("Al Rashid Trading Co.")
     for demos. Install/remove it any time with `php artisan demo:install` /
     `php artisan demo:reset` (see [Customization](#19-customization) and Module 23's demo-mode

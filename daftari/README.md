@@ -48,7 +48,7 @@ Visit `http://localhost:8000`.
 
 | Role | Email | Password |
 |---|---|---|
-| Platform admin | `admin@daftari.local` | `Admin@12345` |
+| Platform admin | `admin@daftari.local` | randomly generated — printed once by `AdminSeeder` on first `migrate --seed`, check your terminal output |
 | Demo company owner | `owner@daftari.local` | `Demo@12345` |
 | Demo accountant | `accountant@daftari.local` | `Demo@12345` |
 | Demo salesperson | `sales@daftari.local` | `Demo@12345` |

@@ -122,6 +122,23 @@ class InvoiceTotalsTest extends TestCase
         $this->assertSame(105.0, (float) $invoice->total);
     }
 
+    public function test_a_fixed_discount_larger_than_the_subtotal_is_clamped_instead_of_going_negative(): void
+    {
+        $invoice = $this->makeInvoice();
+        $this->addLine($invoice, 1, 100, 15, TaxRate::TYPE_STANDARD);
+
+        $invoice->refresh();
+        $invoice->discount_type = 'fixed';
+        $invoice->discount_value = 500; // fat-fingered: far more than the 100 subtotal
+        $invoice->recalculateTotals();
+
+        // Clamped to the 100 subtotal, so the discount can zero out the net
+        // amount but the VAT still applies — never a negative total.
+        $this->assertSame(100.0, (float) $invoice->subtotal);
+        $this->assertSame(100.0, (float) $invoice->discount_total);
+        $this->assertSame(15.0, (float) $invoice->total);
+    }
+
     public function test_balance_due_reflects_partial_payment(): void
     {
         $invoice = $this->makeInvoice();
