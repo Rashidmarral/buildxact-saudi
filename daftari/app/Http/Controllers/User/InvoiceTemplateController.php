@@ -24,6 +24,8 @@ class InvoiceTemplateController extends Controller
 
     private const TABLE_DIRECTIONS = ['ltr', 'rtl'];
 
+    private const PAGE_SIZES = ['a4', 'letter'];
+
     public function index(Request $request)
     {
         $company = Auth::user()->company;
@@ -109,13 +111,18 @@ class InvoiceTemplateController extends Controller
             'name_ar' => ['nullable', 'string', 'max:255'],
             'document_type' => ['required', Rule::in(self::TYPES)],
             'accent_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'table_header_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'remove_table_header_color' => ['nullable', 'boolean'],
             'layout' => ['required', Rule::in(self::LAYOUTS)],
             'language_mode' => ['required', Rule::in(self::LANGUAGE_MODES)],
             'table_direction' => ['required', Rule::in(self::TABLE_DIRECTIONS)],
+            'page_size' => ['nullable', Rule::in(self::PAGE_SIZES)],
             'show_signature' => ['nullable', 'boolean'],
             'signature_label_en' => ['nullable', 'string', 'max:255'],
             'signature_label_ar' => ['nullable', 'string', 'max:255'],
             'show_logo' => ['nullable', 'boolean'],
+            'show_unit_labels' => ['nullable', 'boolean'],
+            'show_party_vat_number' => ['nullable', 'boolean'],
             'letterhead' => ['nullable', 'image', 'max:4096'],
             'footer' => ['nullable', 'image', 'max:4096'],
             'remove_footer' => ['nullable', 'boolean'],
@@ -124,12 +131,18 @@ class InvoiceTemplateController extends Controller
             'watermark_opacity' => ['nullable', 'integer', 'between:1,100'],
             'notes_en' => ['nullable', 'string', 'max:2000'],
             'notes_ar' => ['nullable', 'string', 'max:2000'],
+            'terms_en' => ['nullable', 'string', 'max:4000'],
+            'terms_ar' => ['nullable', 'string', 'max:4000'],
         ]);
 
         $data['show_logo'] = $request->boolean('show_logo');
         $data['show_signature'] = $request->boolean('show_signature');
+        $data['show_unit_labels'] = $request->boolean('show_unit_labels');
+        $data['show_party_vat_number'] = $request->boolean('show_party_vat_number');
         $data['watermark_opacity'] = $data['watermark_opacity'] ?? $invoiceTemplate->watermark_opacity;
-        unset($data['letterhead'], $data['footer'], $data['remove_footer'], $data['watermark'], $data['remove_watermark']);
+        $data['page_size'] = $data['page_size'] ?? $invoiceTemplate->page_size;
+        $data['table_header_color'] = $request->boolean('remove_table_header_color') ? null : ($data['table_header_color'] ?? $invoiceTemplate->table_header_color);
+        unset($data['letterhead'], $data['footer'], $data['remove_footer'], $data['watermark'], $data['remove_watermark'], $data['remove_table_header_color']);
 
         if ($request->hasFile('letterhead')) {
             if ($invoiceTemplate->letterhead_path) {

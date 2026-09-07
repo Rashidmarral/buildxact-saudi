@@ -10,6 +10,9 @@
     $accent = $template->accent_color ?? '#0f766e';
     $layout = $template->layout ?? 'minimal';
     $showLogo = $template->show_logo ?? true;
+    $tableHeaderColor = $template->table_header_color ?? null;
+    $showUnitLabels = $template->show_unit_labels ?? true;
+    $showPartyVatNumber = $template->show_party_vat_number ?? true;
     $bankAccounts = $doc['bank_accounts'] ?? (($doc['bank_account'] ?? null) ? collect([$doc['bank_account']]) : collect());
 
     // Document language mode: 'bilingual' (default) shows English primary
@@ -75,11 +78,13 @@
                 </td>
                 <td class="w-1/6 px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">@if ($showAr){{ $doc['party_label_ar'] }}@endif</td>
             </tr>
-            <tr class="border-b border-slate-300">
-                <td class="px-3 py-2 font-semibold text-slate-700">{{ __('VAT number') }}</td>
-                <td class="px-3 py-2 text-center text-slate-600">{{ $doc['party']->vat_number ?: '—' }}</td>
-                <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم التسجيل الضريبي</td>
-            </tr>
+            @if ($showPartyVatNumber)
+                <tr class="border-b border-slate-300">
+                    <td class="px-3 py-2 font-semibold text-slate-700">{{ __('VAT number') }}</td>
+                    <td class="px-3 py-2 text-center text-slate-600">{{ $doc['party']->vat_number ?: '—' }}</td>
+                    <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم التسجيل الضريبي</td>
+                </tr>
+            @endif
             @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
                 <tr class="border-b border-slate-300">
                     <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Address') }}</td>
@@ -104,7 +109,7 @@
 
     <table class="w-full text-sm mt-6">
         <thead>
-            <tr class="text-left text-slate-600 border-b-2 border-slate-800">
+            <tr class="text-left text-slate-600 border-b-2 border-slate-800" @if ($tableHeaderColor) style="background-color: {{ $tableHeaderColor }}" @endif>
                 <th class="py-2 ps-1">#</th>
                 <th class="py-2">{{ __('Description') }}<br><span class="font-normal text-xs" dir="rtl">الوصف</span></th>
                 <th class="py-2 text-end">{{ __('Qty') }}<br><span class="font-normal text-xs" dir="rtl">الكمية</span></th>
@@ -127,7 +132,7 @@
                             <p class="mt-1 text-xs text-slate-500">{{ $line->item_description }}</p>
                         @endif
                     </td>
-                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
+                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->vat_amount, 2) }}<br><span class="text-xs text-slate-400">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
@@ -178,6 +183,13 @@
 
     @if ($template && $template->notesFor(app()->getLocale()))
         <div class="mt-2 text-sm text-slate-500 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
+    @endif
+
+    @if ($template && $template->termsFor(app()->getLocale()))
+        <div class="mt-4 text-sm">
+            <h4 class="font-semibold text-slate-800">{{ __('Terms & Conditions') }} <span class="text-xs text-slate-400" dir="rtl">الشروط والأحكام</span></h4>
+            <p class="mt-1 whitespace-pre-line text-slate-600">{{ $template->termsFor(app()->getLocale()) }}</p>
+        </div>
     @endif
 
     @if (!empty($doc['qr_code']) || $company->stamp_path)
@@ -259,7 +271,7 @@
 
     <table class="w-full text-sm mt-5 border border-slate-300">
         <thead>
-            <tr class="bg-slate-50 text-left text-slate-700">
+            <tr class="text-left text-slate-700" style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}">
                 <th class="border border-slate-300 px-2 py-1.5 w-10">Sr</th>
                 <th class="border border-slate-300 px-2 py-1.5">{{ $lbl('Items') }}</th>
                 <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ $lbl('Quantity') }}</th>
@@ -275,7 +287,7 @@
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                     </td>
-                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}@endif</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end font-medium text-slate-900">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                 </tr>
@@ -321,6 +333,13 @@
 
     @if ($template && $template->notesFor(app()->getLocale()))
         <div class="mt-2 text-sm text-slate-500 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
+    @endif
+
+    @if ($template && $template->termsFor(app()->getLocale()))
+        <div class="mt-4 text-sm">
+            <p class="font-semibold text-slate-800">{{ $lbl('Terms & Conditions') }}</p>
+            <p class="mt-1 whitespace-pre-line text-slate-600">{{ $template->termsFor(app()->getLocale()) }}</p>
+        </div>
     @endif
 
     @if (!empty($doc['qr_code']) || $company->stamp_path)
@@ -377,7 +396,7 @@
             <h3 class="text-xs font-semibold uppercase text-slate-400">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</h3>
             <p class="mt-1 font-medium text-slate-800">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</p>
             @if ($secondary($doc['party']->name_ar ?? null))<p class="text-sm text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</p>@endif
-            @if ($doc['party']->vat_number)<p class="text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
+            @if ($showPartyVatNumber && $doc['party']->vat_number)<p class="text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
             @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<p class="text-sm text-slate-500">{{ $doc['party']->fullAddress() }}</p>@endif
             @if (!empty($doc['party']->email))<p class="text-sm text-slate-500">{{ $doc['party']->email }}</p>@endif
         </div>
@@ -396,7 +415,7 @@
 
     <table class="w-full text-sm mt-8">
         <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-200">
+            <tr class="text-left text-slate-500 border-b border-slate-200" @if ($tableHeaderColor) style="background-color: {{ $tableHeaderColor }}" @endif>
                 <th class="py-2">{{ $lbl('Description') }}</th>
                 <th class="py-2 text-end">{{ $lbl('Qty') }}</th>
                 <th class="py-2 text-end">{{ $lbl('Unit price') }}</th>
@@ -411,7 +430,7 @@
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                     </td>
-                    <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
+                    <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
                     <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
                     <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->line_total, 2) }}</td>
@@ -469,6 +488,13 @@
 
     @if ($template && $template->notesFor(app()->getLocale()))
         <div class="mt-2 text-sm text-slate-400 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
+    @endif
+
+    @if ($template && $template->termsFor(app()->getLocale()))
+        <div class="mt-4 pt-2 text-sm">
+            <h4 class="text-xs font-semibold uppercase text-slate-400">{{ $lbl('Terms & Conditions') }}</h4>
+            <p class="mt-1 whitespace-pre-line text-slate-500">{{ $template->termsFor(app()->getLocale()) }}</p>
+        </div>
     @endif
 @endif
 

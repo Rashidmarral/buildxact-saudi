@@ -15,6 +15,9 @@
     $accent = $template->accent_color ?? '#0f766e';
     $layout = $template->layout ?? 'minimal';
     $showLogo = $template->show_logo ?? true;
+    $tableHeaderColor = $template->table_header_color ?? null;
+    $showUnitLabels = $template->show_unit_labels ?? true;
+    $showPartyVatNumber = $template->show_party_vat_number ?? true;
     $bankAccounts = $doc['bank_accounts'] ?? (($doc['bank_account'] ?? null) ? collect([$doc['bank_account']]) : collect());
     $logoData = $embed($company->logo_path ?? null);
     $stampData = $embed($company->stamp_path ?? null);
@@ -85,11 +88,13 @@
             </td>
             <td class="ar" style="width: 18%; padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ $doc['party_label_ar'] ?? __('Party') }}</td>
         </tr>
-        <tr style="border-bottom: 0.5pt solid #cbd5e1;">
-            <td style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ __('VAT number') }}</td>
-            <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">{{ $doc['party']->vat_number ?: '—' }}</td>
-            <td class="ar" style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">رقم التسجيل الضريبي</td>
-        </tr>
+        @if ($showPartyVatNumber)
+            <tr style="border-bottom: 0.5pt solid #cbd5e1;">
+                <td style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ __('VAT number') }}</td>
+                <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">{{ $doc['party']->vat_number ?: '—' }}</td>
+                <td class="ar" style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">رقم التسجيل الضريبي</td>
+            </tr>
+        @endif
         @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
             <tr style="border-bottom: 0.5pt solid #cbd5e1;">
                 <td style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ __('Address') }}</td>
@@ -106,7 +111,7 @@
 
     <table style="margin-top: 14px;">
         <thead>
-            <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt;">
+            <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
                 <th style="padding: 6px 2px;">#</th>
                 <th style="padding: 6px 2px;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
                 <th class="text-end" style="padding: 6px 2px;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
@@ -125,7 +130,7 @@
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                         @if (!empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
+                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
@@ -181,7 +186,7 @@
 
     <table style="margin-top: 12px; border: 0.5pt solid #cbd5e1;">
         <thead>
-            <tr style="background-color: #f8fafc; text-align: left; font-size: 8.5pt;">
+            <tr style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}; text-align: left; font-size: 8.5pt;">
                 <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 8%;">Sr</th>
                 <th style="border: 0.5pt solid #cbd5e1; padding: 5px;">{{ $lbl('Items') }}</th>
                 <th class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 18%;">{{ $lbl('Quantity') }}</th>
@@ -197,7 +202,7 @@
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                     </td>
-                    <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</td>
+                    <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}@endif</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top; font-weight: bold;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                 </tr>
@@ -276,7 +281,7 @@
                 <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</div>
                 <div style="margin-top: 3px; font-weight: bold; color: #1e293b;">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</div>
                 @if ($secondary($doc['party']->name_ar ?? null))<div class="muted ar">{{ $doc['party']->name_ar }}</div>@endif
-                @if ($doc['party']->vat_number)<div class="muted">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</div>@endif
+                @if ($showPartyVatNumber && $doc['party']->vat_number)<div class="muted">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</div>@endif
                 @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<div class="muted">{{ $doc['party']->fullAddress() }}</div>@endif
                 @if (!empty($doc['party']->email))<div class="muted">{{ $doc['party']->email }}</div>@endif
             </td>
@@ -290,7 +295,7 @@
 
     <table style="margin-top: 16px;">
         <thead>
-            <tr style="border-bottom: 0.5pt solid #e2e8f0; text-align: left; color: #64748b; font-size: 9pt;">
+            <tr style="border-bottom: 0.5pt solid #e2e8f0; text-align: left; color: #64748b; font-size: 9pt; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
                 <th style="padding: 5px 0;">{{ $lbl('Description') }}</th>
                 <th class="text-end" style="padding: 5px 0;">{{ $lbl('Qty') }}</th>
                 <th class="text-end" style="padding: 5px 0;">{{ $lbl('Unit price') }}</th>
@@ -305,7 +310,7 @@
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->name_ar }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 5px 0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
+                    <td class="text-end" style="padding: 5px 0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->unit_price) }}</td>
                     <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
                     <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->line_total) }}</td>

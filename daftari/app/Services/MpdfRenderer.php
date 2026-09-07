@@ -24,7 +24,10 @@ class MpdfRenderer
     public function render(string $view, array $data = []): string
     {
         try {
-            $mpdf = $this->makeMpdf();
+            $template = $data['template'] ?? null;
+            $pageSize = ($template instanceof \App\Models\InvoiceTemplate && $template->page_size === 'letter') ? 'Letter' : 'A4';
+
+            $mpdf = $this->makeMpdf($pageSize);
             $embed = $this->embedHelper();
 
             // A template's background watermark is an mPDF page feature
@@ -32,7 +35,6 @@ class MpdfRenderer
             // that can be expressed as regular HTML/CSS the way the logo,
             // stamp and footer banner are — it has to be configured on the
             // Mpdf instance itself before WriteHTML() runs.
-            $template = $data['template'] ?? null;
             if ($template instanceof \App\Models\InvoiceTemplate && $template->watermark_path) {
                 $watermarkData = $embed($template->watermark_path);
                 if ($watermarkData) {
@@ -69,7 +71,7 @@ class MpdfRenderer
         }
     }
 
-    private function makeMpdf(): Mpdf
+    private function makeMpdf(string $pageSize = 'A4'): Mpdf
     {
         $defaultConfig = (new \Mpdf\Config\ConfigVariables())->getDefaults();
         $fontDirs = $defaultConfig['fontDir'];
@@ -86,7 +88,7 @@ class MpdfRenderer
 
         return new Mpdf([
             'mode' => 'utf-8',
-            'format' => 'A4',
+            'format' => $pageSize,
             'margin_left' => 12,
             'margin_right' => 12,
             'margin_top' => 12,

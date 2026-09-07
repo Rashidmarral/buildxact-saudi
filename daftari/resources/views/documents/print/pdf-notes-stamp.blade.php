@@ -12,6 +12,13 @@
     <div class="muted" style="margin-top: 6px; font-size: 8.5pt; white-space: pre-line;">{{ $template->notesFor(app()->getLocale()) }}</div>
 @endif
 
+@if ($template && $template->termsFor(app()->getLocale()))
+    <div class="notes-block">
+        <strong>{{ $lbl('Terms & Conditions') }}</strong>
+        <div class="muted" style="margin-top: 2px; white-space: pre-line;">{{ $template->termsFor(app()->getLocale()) }}</div>
+    </div>
+@endif
+
 @if (!empty($doc['qr_code']) || $stampData)
     <table style="margin-top: 20px;">
         <tr>

@@ -119,6 +119,16 @@
                             </select>
                         </div>
                     </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Table header color') }}</label>
+                        <div class="mt-1 flex items-center gap-2">
+                            <input type="color" name="table_header_color" value="{{ $selected->table_header_color ?: '#f1f5f9' }}" class="h-9 w-full rounded-lg border border-slate-200">
+                            <label class="flex shrink-0 items-center gap-1.5 text-xs text-slate-500">
+                                <input type="checkbox" name="remove_table_header_color" value="1" @checked(! $selected->table_header_color) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                                {{ __('Use layout default') }}
+                            </label>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-slate-500">{{ __('Language') }}</label>
@@ -136,9 +146,24 @@
                             </select>
                         </div>
                     </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('PDF paper size') }}</label>
+                        <select name="page_size" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            <option value="a4" @selected($selected->page_size === 'a4')>{{ __('A4') }}</option>
+                            <option value="letter" @selected($selected->page_size === 'letter')>{{ __('US Letter') }}</option>
+                        </select>
+                    </div>
                     <label class="flex items-center gap-2 text-sm text-slate-700">
                         <input type="checkbox" name="show_logo" value="1" @checked($selected->show_logo) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                         {{ __('Show company logo') }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="show_unit_labels" value="1" @checked($selected->show_unit_labels) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        {{ __('Show unit labels next to quantity (e.g. "pcs", "kg")') }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="show_party_vat_number" value="1" @checked($selected->show_party_vat_number) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        {{ __('Show the client/supplier\'s VAT number') }}
                     </label>
                     <div x-data="{ signature: {{ $selected->show_signature ? 'true' : 'false' }} }">
                         <label class="flex items-center gap-2 text-sm text-slate-700">
@@ -202,6 +227,15 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-500">{{ __('Footer note (Arabic)') }}</label>
                         <textarea name="notes_ar" rows="2" dir="rtl" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ $selected->notes_ar }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Terms & Conditions (English)') }}</label>
+                        <textarea name="terms_en" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ $selected->terms_en }}</textarea>
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Shown as its own labeled section, separate from the footer note above — payment terms, warranty, late-fee policy, etc.') }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Terms & Conditions (Arabic)') }}</label>
+                        <textarea name="terms_ar" rows="3" dir="rtl" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ $selected->terms_ar }}</textarea>
                     </div>
                     <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save template') }}</button>
                 </form>
