@@ -70,7 +70,15 @@ class FeatureLimitManagementTest extends TestCase
         $this->assertTrue(app(FeatureAccessService::class)->enabled($company, 'sales'));
     }
 
-    public function test_planned_features_are_always_disabled(): void
+    /**
+     * Payroll/POS used to be FeatureRegistry's only 'planned' (always-off,
+     * no such module exists) entries; they're now real 'gated' features
+     * (has_payroll/has_pos) — see PlatformFeatureToggleTest for the
+     * platform-wide master switch that now sits above this per-plan gate.
+     * No catalog entry is currently 'planned', but a gated feature a
+     * plan doesn't grant is still correctly off by default.
+     */
+    public function test_a_gated_feature_not_granted_by_the_plan_is_disabled(): void
     {
         $company = $this->makeCompany();
         $this->subscribe($company, $this->makePlan());

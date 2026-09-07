@@ -122,11 +122,14 @@ class PlanController extends Controller
             $data[$column] = $request->boolean($column);
         }
 
-        // has_api/has_whatsapp are Module 07's module-level feature gates
-        // (see FeatureRegistry), not part of the older Plan::FEATURE_KEYS
-        // capability-flag system, so they're set the same way but separately.
+        // has_api/has_whatsapp/has_payroll/has_pos are Module 07's
+        // module-level feature gates (see FeatureRegistry), not part of
+        // the older Plan::FEATURE_KEYS capability-flag system, so they're
+        // set the same way but separately.
         $data['has_api'] = $request->boolean('has_api');
         $data['has_whatsapp'] = $request->boolean('has_whatsapp');
+        $data['has_payroll'] = $request->boolean('has_payroll');
+        $data['has_pos'] = $request->boolean('has_pos');
 
         return $data;
     }

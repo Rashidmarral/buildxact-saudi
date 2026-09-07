@@ -21,10 +21,18 @@ namespace App\Support;
  *     Plan boolean column it reads (nullable — 'multi_branch' is instead
  *     computed from the max_branches limit, see FeatureAccessService).
  *   - 'planned': listed because the request named it, but no such module
- *     exists in the app yet (Payroll, POS) — always returns false. Only
- *     register a 'planned' entry for something genuinely reserved for a
- *     realistic future module; don't invent modules that will never
- *     exist just to fill out a list.
+ *     exists in the app yet — always returns false. Only register a
+ *     'planned' entry for something genuinely reserved for a realistic
+ *     future module; don't invent modules that will never exist just to
+ *     fill out a list.
+ *
+ * Every 'gated' entry can also be switched off for the entire platform —
+ * regardless of which plan a company is on — from Admin > Platform
+ * Settings > Features (see PlatformFeatureToggle and
+ * FeatureAccessService::platformEnabled()). That master switch is meant
+ * for "this module isn't ready for customers yet" or "roll this back
+ * everywhere while we fix an incident," not for per-customer control —
+ * per-company overrides (CompanyOverride) already cover that.
  */
 class FeatureRegistry
 {
@@ -43,8 +51,8 @@ class FeatureRegistry
             'api' => ['label' => __('API'), 'type' => 'gated', 'column' => 'has_api'],
             'advanced_reports' => ['label' => __('Advanced reports'), 'type' => 'gated', 'column' => 'has_financial_statements'],
             'whatsapp' => ['label' => __('WhatsApp'), 'type' => 'gated', 'column' => 'has_whatsapp'],
-            'payroll' => ['label' => __('Payroll'), 'type' => 'planned'],
-            'pos' => ['label' => __('POS'), 'type' => 'planned'],
+            'payroll' => ['label' => __('Payroll'), 'type' => 'gated', 'column' => 'has_payroll'],
+            'pos' => ['label' => __('Point of Sale'), 'type' => 'gated', 'column' => 'has_pos'],
         ];
     }
 

@@ -17,6 +17,8 @@
         'has_zatca_phase2' => __('ZATCA Phase 2 integration (real-time clearance & reporting)'),
         'has_api' => __('API access'),
         'has_whatsapp' => __('WhatsApp notifications'),
+        'has_payroll' => __('Payroll'),
+        'has_pos' => __('Point of Sale'),
     ];
 @endphp
 <form method="POST" action="{{ $plan->exists ? route('admin.plans.update', $plan) : route('admin.plans.store') }}" class="max-w-3xl space-y-6">

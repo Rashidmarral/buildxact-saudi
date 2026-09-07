@@ -19,6 +19,7 @@
             'branding' => __('Branding'),
             'signup' => __('Signup'),
             'maintenance' => __('Maintenance'),
+            'features' => __('Features'),
             'mail' => __('Email'),
             'storage' => __('Storage'),
             'system' => __('System'),
@@ -378,6 +379,31 @@
             </label>
 
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Maintenance settings') }}</button>
+        </form>
+    </div>
+
+    {{-- ============ Features ============ --}}
+    <div x-show="tab === 'features'" x-cloak>
+        <form method="POST" action="{{ route('admin.settings.features.update') }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+            @csrf
+            <div>
+                <h3 class="font-semibold text-slate-900 mb-1">{{ __('Features') }}</h3>
+                <p class="text-sm text-slate-500">{{ __('A platform-wide master switch for each module below. Turning one off hides it for every company immediately, regardless of what their plan includes — use this to soft-launch a new module to nobody yet, or to roll one back during an incident. Which companies get an enabled module still depends on their plan (Plans) or a per-company override (Companies).') }}</p>
+            </div>
+
+            @php
+                $checkedFeatureKeys = old('features', $featureToggles->filter(fn ($t) => $t['enabled'])->keys()->all());
+            @endphp
+            <div class="divide-y divide-slate-100 rounded-lg border border-slate-100">
+                @foreach ($featureToggles as $key => $toggle)
+                    <label class="flex items-center justify-between gap-4 px-4 py-3">
+                        <span class="text-sm font-medium text-slate-700">{{ $toggle['label'] }}</span>
+                        <input type="checkbox" name="features[]" value="{{ $key }}" @checked(in_array($key, $checkedFeatureKeys)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                    </label>
+                @endforeach
+            </div>
+
+            <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Feature settings') }}</button>
         </form>
     </div>
 

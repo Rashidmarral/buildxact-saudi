@@ -5,6 +5,7 @@ namespace App\Services\Features;
 use App\Models\Company;
 use App\Models\CompanyOverride;
 use App\Support\FeatureRegistry;
+use App\Support\PlatformFeatureToggle;
 
 /**
  * The single place to ask "can $company use this module-level feature?"
@@ -12,28 +13,37 @@ use App\Support\FeatureRegistry;
  * the pre-existing Company::hasFeature() / Plan::FEATURE_KEYS system,
  * which this does not replace or touch.
  *
- * Order of precedence: a Super Admin override for this company always
- * wins; otherwise a 'core' feature is always on, a 'planned' one is
- * always off, and a 'gated' one reads its Plan column (or, for
- * multi_branch, is derived from the branches limit) — with a company
- * that has no active subscription never blocked, matching the existing
- * Company::hasFeature()'s same "unrestricted without a subscription"
- * behavior.
+ * Order of precedence: the platform-wide master switch (PlatformFeature
+ * Toggle) is an absolute veto — a super admin switching a 'gated' module
+ * off for the whole platform overrides everything else, including a
+ * per-company override, since it exists precisely for "nobody gets this
+ * right now" (unfinished rollout, incident rollback). If it's on (or the
+ * key isn't 'gated', where the switch doesn't apply), a Super Admin's
+ * per-company override wins next; otherwise a 'core' feature is always
+ * on, a 'planned' one is always off, and a 'gated' one reads its Plan
+ * column (or, for multi_branch, is derived from the branches limit) —
+ * with a company that has no active subscription never blocked, matching
+ * the existing Company::hasFeature()'s same "unrestricted without a
+ * subscription" behavior.
  */
 class FeatureAccessService
 {
     public function enabled(Company $company, string $key): bool
     {
-        $override = $this->override($company, $key);
-
-        if ($override !== null) {
-            return $override;
-        }
-
         $entry = FeatureRegistry::catalog()[$key] ?? null;
 
         if (! $entry) {
             return false;
+        }
+
+        if ($entry['type'] === 'gated' && ! PlatformFeatureToggle::isEnabled($key)) {
+            return false;
+        }
+
+        $override = $this->override($company, $key);
+
+        if ($override !== null) {
+            return $override;
         }
 
         return match ($entry['type']) {

@@ -9,7 +9,9 @@ use App\Models\Currency;
 use App\Models\Plan;
 use App\Models\Setting;
 use App\Support\Countries;
+use App\Support\FeatureRegistry;
 use App\Support\PlatformBranding;
+use App\Support\PlatformFeatureToggle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
@@ -113,8 +115,15 @@ class PlatformSettingsController extends Controller
             'storage_max_upload_size_mb' => (int) Setting::get('storage_max_upload_size_mb', 10),
         ];
 
+        $featureToggles = collect(FeatureRegistry::gatedKeys())
+            ->mapWithKeys(fn ($key) => [$key => [
+                'label' => FeatureRegistry::catalog()[$key]['label'],
+                'enabled' => PlatformFeatureToggle::isEnabled($key),
+            ]]);
+
         return view('admin.settings.edit', [
             'settings' => $settings,
+            'featureToggles' => $featureToggles,
             'branding' => PlatformBranding::all(),
             'plans' => Plan::orderBy('sort_order')->get(),
             'dateFormats' => self::DATE_FORMATS,
@@ -153,6 +162,33 @@ class PlatformSettingsController extends Controller
         AuditLog::record('settings.update_general', null, __('Updated general platform settings'));
 
         return back()->with('status', __('General settings saved.'));
+    }
+
+    /**
+     * Platform-wide master switch per gated FeatureRegistry entry — see
+     * PlatformFeatureToggle and FeatureAccessService::enabled(). A field
+     * missing from the submitted form (an unchecked checkbox) is treated
+     * as "off," so every gated key is set explicitly on every save
+     * rather than only ever being turned on.
+     */
+    public function updateFeatures(Request $request)
+    {
+        $gatedKeys = FeatureRegistry::gatedKeys();
+
+        $request->validate([
+            'features' => ['nullable', 'array'],
+            'features.*' => [Rule::in($gatedKeys)],
+        ]);
+
+        $enabledKeys = $request->input('features', []);
+
+        foreach ($gatedKeys as $key) {
+            PlatformFeatureToggle::setEnabled($key, in_array($key, $enabledKeys, true));
+        }
+
+        AuditLog::record('settings.update_features', null, __('Updated platform feature toggles'));
+
+        return back()->with('status', __('Feature settings saved.'));
     }
 
     public function updateIdentity(Request $request)
