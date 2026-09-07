@@ -4091,6 +4091,7 @@
     "US Letter": "US Letter",
     "Show unit labels next to quantity (e.g. \"pcs\", \"kg\")": "إظهار تسميات الوحدة بجانب الكمية (مثل \"قطعة\"، \"كجم\")",
     "Show the client/supplier's VAT number": "إظهار الرقم الضريبي للعميل/المورد",
+    "Show each item's description below its name": "إظهار وصف كل عنصر أسفل اسمه",
     "Terms & Conditions (English)": "الشروط والأحكام (إنجليزي)",
     "Terms & Conditions (Arabic)": "الشروط والأحكام (عربي)",
     "Shown as its own labeled section, separate from the footer note above — payment terms, warranty, late-fee policy, etc.": "تُعرض كقسم منفصل بعنوانه الخاص عن ملاحظة التذييل أعلاه — شروط الدفع، الضمان، سياسة رسوم التأخير، إلخ.",

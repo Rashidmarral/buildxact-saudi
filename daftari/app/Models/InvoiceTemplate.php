@@ -13,7 +13,7 @@ class InvoiceTemplate extends Model
         'company_id', 'name', 'name_ar', 'document_type', 'accent_color', 'table_header_color',
         'layout', 'language_mode', 'table_direction', 'show_signature',
         'signature_label_en', 'signature_label_ar',
-        'show_logo', 'show_unit_labels', 'show_party_vat_number', 'page_size',
+        'show_logo', 'show_unit_labels', 'show_party_vat_number', 'show_item_description', 'page_size',
         'letterhead_path', 'footer_path', 'watermark_path', 'watermark_opacity',
         'notes_en', 'notes_ar', 'terms_en', 'terms_ar', 'is_default',
     ];
@@ -25,6 +25,7 @@ class InvoiceTemplate extends Model
             'show_signature' => 'boolean',
             'show_unit_labels' => 'boolean',
             'show_party_vat_number' => 'boolean',
+            'show_item_description' => 'boolean',
             'is_default' => 'boolean',
             'watermark_opacity' => 'integer',
         ];

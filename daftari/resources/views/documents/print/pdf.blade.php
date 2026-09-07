@@ -18,6 +18,7 @@
     $tableHeaderColor = $template->table_header_color ?? null;
     $showUnitLabels = $template->show_unit_labels ?? true;
     $showPartyVatNumber = $template->show_party_vat_number ?? true;
+    $showItemDescription = $template->show_item_description ?? true;
     $bankAccounts = $doc['bank_accounts'] ?? (($doc['bank_account'] ?? null) ? collect([$doc['bank_account']]) : collect());
     $logoData = $embed($company->logo_path ?? null);
     $stampData = $embed($company->stamp_path ?? null);
@@ -128,7 +129,7 @@
                     <td style="padding: 6px 2px; vertical-align: top;">
                         <strong>{{ $primary($line->description, $line->name_ar) }}</strong>
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
-                        @if (!empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
+                        @if ($showItemDescription && !empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
@@ -201,6 +202,7 @@
                     <td style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
+                        @if ($showItemDescription && !empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}@endif</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
@@ -309,6 +311,7 @@
                     <td style="padding: 5px 0;">
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->name_ar }}</div>@endif
+                        @if ($showItemDescription && !empty($line->item_description))<div class="muted" style="font-size: 8pt;">{{ $line->item_description }}</div>@endif
                     </td>
                     <td class="text-end" style="padding: 5px 0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->unit_price) }}</td>

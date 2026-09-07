@@ -204,4 +204,71 @@ class InvoiceTemplateLayoutControlsTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-type', 'application/pdf');
     }
+
+    public function test_the_settings_form_saves_show_item_description(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $template = InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Default', 'document_type' => 'all',
+            'layout' => 'minimal', 'is_default' => true,
+        ]);
+
+        $response = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), $this->baseTemplatePayload() + [
+            'show_item_description' => '0',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertFalse($template->refresh()->show_item_description);
+    }
+
+    private function makeInvoiceWithDescribedItem(Company $company): Invoice
+    {
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Description Client']);
+        $item = Item::create(['company_id' => $company->id, 'name' => 'Bearing', 'description' => 'SKF 6205 sealed ball bearing', 'unit_price' => 150]);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-DESC-1',
+            'type' => 'standard', 'status' => 'sent', 'issue_date' => now()->toDateString(),
+            'currency' => $company->currency, 'subtotal' => 150, 'vat_total' => 22.5, 'total' => 172.5,
+        ]);
+        InvoiceItem::create([
+            'invoice_id' => $invoice->id, 'item_id' => $item->id, 'description' => 'Bearing',
+            'item_description' => 'SKF 6205 sealed ball bearing',
+            'quantity' => 1, 'unit_price' => 150, 'vat_rate' => 15, 'vat_amount' => 22.5, 'line_total' => 172.5,
+        ]);
+
+        return $invoice;
+    }
+
+    public function test_show_item_description_true_shows_the_items_description_on_the_invoice(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Default', 'document_type' => 'all',
+            'layout' => 'minimal', 'is_default' => true, 'show_item_description' => true,
+        ]);
+        $invoice = $this->makeInvoiceWithDescribedItem($company);
+
+        $response = $this->actingAs($owner)->get(route('app.invoices.show', $invoice));
+
+        $response->assertOk();
+        $response->assertSee('SKF 6205 sealed ball bearing');
+    }
+
+    public function test_show_item_description_false_hides_the_items_description_on_the_invoice(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Default', 'document_type' => 'all',
+            'layout' => 'minimal', 'is_default' => true, 'show_item_description' => false,
+        ]);
+        $invoice = $this->makeInvoiceWithDescribedItem($company);
+
+        $response = $this->actingAs($owner)->get(route('app.invoices.show', $invoice));
+
+        $response->assertOk();
+        $response->assertDontSee('SKF 6205 sealed ball bearing');
+    }
 }

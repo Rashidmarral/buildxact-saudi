@@ -123,6 +123,7 @@ class InvoiceTemplateController extends Controller
             'show_logo' => ['nullable', 'boolean'],
             'show_unit_labels' => ['nullable', 'boolean'],
             'show_party_vat_number' => ['nullable', 'boolean'],
+            'show_item_description' => ['nullable', 'boolean'],
             'letterhead' => ['nullable', 'image', 'max:4096'],
             'footer' => ['nullable', 'image', 'max:4096'],
             'remove_footer' => ['nullable', 'boolean'],
@@ -139,6 +140,7 @@ class InvoiceTemplateController extends Controller
         $data['show_signature'] = $request->boolean('show_signature');
         $data['show_unit_labels'] = $request->boolean('show_unit_labels');
         $data['show_party_vat_number'] = $request->boolean('show_party_vat_number');
+        $data['show_item_description'] = $request->boolean('show_item_description');
         $data['watermark_opacity'] = $data['watermark_opacity'] ?? $invoiceTemplate->watermark_opacity;
         $data['page_size'] = $data['page_size'] ?? $invoiceTemplate->page_size;
         $data['table_header_color'] = $request->boolean('remove_table_header_color') ? null : ($data['table_header_color'] ?? $invoiceTemplate->table_header_color);

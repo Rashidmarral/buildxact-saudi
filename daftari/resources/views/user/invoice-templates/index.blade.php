@@ -165,6 +165,10 @@
                         <input type="checkbox" name="show_party_vat_number" value="1" @checked($selected->show_party_vat_number) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                         {{ __('Show the client/supplier\'s VAT number') }}
                     </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="show_item_description" value="1" @checked($selected->show_item_description) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        {{ __('Show each item\'s description below its name') }}
+                    </label>
                     <div x-data="{ signature: {{ $selected->show_signature ? 'true' : 'false' }} }">
                         <label class="flex items-center gap-2 text-sm text-slate-700">
                             <input type="checkbox" name="show_signature" value="1" x-model="signature" @checked($selected->show_signature) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">

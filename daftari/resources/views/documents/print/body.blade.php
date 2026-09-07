@@ -13,6 +13,7 @@
     $tableHeaderColor = $template->table_header_color ?? null;
     $showUnitLabels = $template->show_unit_labels ?? true;
     $showPartyVatNumber = $template->show_party_vat_number ?? true;
+    $showItemDescription = $template->show_item_description ?? true;
     $bankAccounts = $doc['bank_accounts'] ?? (($doc['bank_account'] ?? null) ? collect([$doc['bank_account']]) : collect());
 
     // Document language mode: 'bilingual' (default) shows English primary
@@ -128,7 +129,7 @@
                         @if ($secondary($line->name_ar))
                             <p class="mt-1 text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</p>
                         @endif
-                        @if (!empty($line->item_description))
+                        @if ($showItemDescription && !empty($line->item_description))
                             <p class="mt-1 text-xs text-slate-500">{{ $line->item_description }}</p>
                         @endif
                     </td>
@@ -286,6 +287,7 @@
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800">
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                        @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
                     </td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}@endif</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
@@ -429,6 +431,7 @@
                     <td class="py-2">
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                        @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
                     </td>
                     <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>

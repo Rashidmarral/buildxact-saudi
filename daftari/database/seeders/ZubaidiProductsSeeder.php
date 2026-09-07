@@ -44,9 +44,48 @@ use Illuminate\Database\Seeder;
  *   silently dropping or activating them.
  * - ProductGroup, Barcode, Description and Supplier columns were empty for
  *   every row in the export, so they're left unset here.
+ * - A couple of rows (SKUs 234, 235) carry a full work-order writeup in the
+ *   Name column — 300+ characters, past the `items.name` varchar(255)
+ *   limit. Those overflow the column on a real MySQL install even though
+ *   SQLite (used in local dev/testing) silently accepts oversized strings,
+ *   which is why this only surfaced on a production database. normalizeLongName()
+ *   below truncates any such name to a word boundary and keeps the full
+ *   original text as the item's description instead of dropping it —
+ *   applied to every row, not just these two, so a future edit to the
+ *   source data can't reintroduce the same failure.
  */
 class ZubaidiProductsSeeder extends Seeder
 {
+    /**
+     * items.name and items.name_ar are both varchar(255); description is
+     * a text column with no practical limit. When a name is too long to
+     * fit, truncate it at the last word boundary within the limit and
+     * carry the untruncated original into description (never silently
+     * discarding it) so the full text still reaches the PDF via the
+     * per-template "show item description" option.
+     */
+    private function normalizeLongName(array $data, int $limit = 250): array
+    {
+        foreach (['name', 'name_ar'] as $field) {
+            $value = $data[$field] ?? null;
+
+            if ($value === null || mb_strlen($value) <= $limit) {
+                continue;
+            }
+
+            $truncated = mb_substr($value, 0, $limit);
+            $lastSpace = mb_strrpos($truncated, ' ');
+            if ($lastSpace !== false && $lastSpace > 0) {
+                $truncated = mb_substr($truncated, 0, $lastSpace);
+            }
+
+            $data[$field] = rtrim($truncated, " \t\n\r\0\x0B,.-").'…';
+            $data['description'] = trim(($data['description'] ?? '')."\n".$value);
+        }
+
+        return $data;
+    }
+
     public function run(): void
     {
         $company = Company::where('vat_number', '310464560600003')->first();
@@ -442,6 +481,8 @@ class ZubaidiProductsSeeder extends Seeder
         ];
 
         foreach ($items as $data) {
+            $data = $this->normalizeLongName($data);
+
             Item::updateOrCreate(
                 ['company_id' => $company->id, 'sku' => $data['sku']],
                 $data + [
