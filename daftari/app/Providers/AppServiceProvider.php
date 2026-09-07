@@ -32,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureStorageDriver();
+        $this->configureMailDriver();
 
         // Keyed by email+IP (not IP alone) so one attacker can't lock out
         // every other user sharing that IP (offices, NAT, mobile carriers),
@@ -164,6 +165,51 @@ class AppServiceProvider extends ServiceProvider
             // Settings table not migrated yet (fresh install running an
             // early artisan command) — behave as if S3 isn't configured
             // rather than breaking every request.
+        }
+    }
+
+    /**
+     * When a super admin turns on Platform Settings → Email, outgoing mail
+     * (welcome emails, invoice/quotation sends, payment receipts, overdue
+     * reminders, team invites — everything routed through Mail:: or a
+     * queued Mailable) uses these DB-stored SMTP credentials instead of
+     * whatever MAIL_MAILER/.env happens to be set to. Runs before any
+     * mailer is resolved, so no call site needs to change. Left off (the
+     * default), the app behaves exactly as it did before this setting
+     * existed — including MAIL_MAILER's own default of "log", which is
+     * why the settings screen calls this out explicitly as the most common
+     * thing an operator forgets before go-live.
+     */
+    private function configureMailDriver(): void
+    {
+        try {
+            if (! Setting::getBool('mail_smtp_enabled')) {
+                return;
+            }
+
+            $host = Setting::get('mail_smtp_host');
+            $fromAddress = Setting::get('mail_from_address');
+
+            if (! $host || ! $fromAddress) {
+                return;
+            }
+
+            $encryption = Setting::get('mail_smtp_encryption', 'tls');
+
+            config([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.host' => $host,
+                'mail.mailers.smtp.port' => (int) Setting::get('mail_smtp_port', 587),
+                'mail.mailers.smtp.encryption' => $encryption === 'none' ? null : $encryption,
+                'mail.mailers.smtp.username' => Setting::get('mail_smtp_username') ?: null,
+                'mail.mailers.smtp.password' => Setting::get('mail_smtp_password') ?: null,
+                'mail.from.address' => $fromAddress,
+                'mail.from.name' => Setting::get('mail_from_name', config('mail.from.name')),
+            ]);
+        } catch (\Throwable) {
+            // Settings table not migrated yet — fall back to .env's mail
+            // config rather than breaking every request (including the
+            // artisan commands that run migrations in the first place).
         }
     }
 }

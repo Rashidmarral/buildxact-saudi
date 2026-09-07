@@ -715,6 +715,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('settings/branding', [PlatformSettingsController::class, 'updateBranding'])->name('settings.branding');
         Route::post('settings/signup', [PlatformSettingsController::class, 'updateSignup'])->name('settings.signup.update');
         Route::post('settings/maintenance', [PlatformSettingsController::class, 'updateMaintenance'])->name('settings.maintenance.update');
+        // SMTP credentials are the same class of secret as the S3/gateway
+        // ones below — same re-auth requirement.
+        Route::middleware('password.confirm.admin')->group(function () {
+            Route::post('settings/mail', [PlatformSettingsController::class, 'updateMail'])->name('settings.mail.update');
+            Route::post('settings/mail/test', [PlatformSettingsController::class, 'testMail'])->name('settings.mail.test');
+        });
         // Storage credentials decide where every tenant's uploaded files
         // are written/read — same re-auth requirement as payment gateway
         // secrets above, since a hijacked/left-open admin session

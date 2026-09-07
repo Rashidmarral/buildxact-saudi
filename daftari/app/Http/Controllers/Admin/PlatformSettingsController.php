@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\SmtpTestMail;
 use App\Models\AuditLog;
 use App\Models\Currency;
 use App\Models\Plan;
@@ -11,6 +12,7 @@ use App\Support\Countries;
 use App\Support\PlatformBranding;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -89,6 +91,16 @@ class PlatformSettingsController extends Controller
             'maintenance_scheduled_start' => Setting::get('maintenance_scheduled_start', ''),
             'maintenance_scheduled_end' => Setting::get('maintenance_scheduled_end', ''),
             'maintenance_allow_super_admin' => Setting::getBool('maintenance_allow_super_admin', true),
+
+            // Email / SMTP
+            'mail_smtp_enabled' => Setting::getBool('mail_smtp_enabled', false),
+            'mail_smtp_host' => Setting::get('mail_smtp_host', ''),
+            'mail_smtp_port' => Setting::get('mail_smtp_port', '587'),
+            'mail_smtp_encryption' => Setting::get('mail_smtp_encryption', 'tls'),
+            'mail_smtp_username' => Setting::get('mail_smtp_username', ''),
+            'mail_smtp_password_configured' => Setting::isConfigured('mail_smtp_password'),
+            'mail_from_address' => Setting::get('mail_from_address', config('mail.from.address')),
+            'mail_from_name' => Setting::get('mail_from_name', config('mail.from.name')),
 
             // Storage
             'storage_driver' => Setting::get('storage_driver', 'local'),
@@ -252,6 +264,95 @@ class PlatformSettingsController extends Controller
         AuditLog::record('settings.update_maintenance', null, __('Updated maintenance settings'));
 
         return back()->with('status', __('Maintenance settings saved.'));
+    }
+
+    /**
+     * Lets a super admin point outgoing mail at their own SMTP account
+     * instead of editing .env and redeploying — see
+     * AppServiceProvider::configureMailDriver(), which reads these Setting
+     * rows and overrides config('mail.*') on every request when
+     * mail_smtp_enabled is on. Leaving it off keeps the app on whatever
+     * MAIL_MAILER is set to in .env (defaults to "log", i.e. no email sent
+     * at all — the #1 thing an operator forgets before going live).
+     */
+    public function updateMail(Request $request)
+    {
+        $data = $request->validate([
+            'mail_smtp_enabled' => ['nullable', 'boolean'],
+            'mail_smtp_host' => ['nullable', 'string', 'max:255', 'required_if:mail_smtp_enabled,1'],
+            'mail_smtp_port' => ['nullable', 'integer', 'min:1', 'max:65535', 'required_if:mail_smtp_enabled,1'],
+            'mail_smtp_encryption' => ['required', Rule::in(['tls', 'ssl', 'none'])],
+            'mail_smtp_username' => ['nullable', 'string', 'max:255'],
+            'mail_smtp_password' => ['nullable', 'string', 'max:255'],
+            'mail_from_address' => ['required', 'email', 'max:255'],
+            'mail_from_name' => ['required', 'string', 'max:255'],
+        ]);
+
+        Setting::set('mail_smtp_enabled', $request->boolean('mail_smtp_enabled') ? '1' : '0');
+        Setting::set('mail_smtp_host', $data['mail_smtp_host'] ?? '');
+        Setting::set('mail_smtp_port', (string) ($data['mail_smtp_port'] ?? '587'));
+        Setting::set('mail_smtp_encryption', $data['mail_smtp_encryption']);
+        Setting::set('mail_smtp_username', $data['mail_smtp_username'] ?? '');
+        Setting::set('mail_from_address', $data['mail_from_address']);
+        Setting::set('mail_from_name', $data['mail_from_name']);
+
+        // Never re-displayed, so a blank field means "keep the existing
+        // password", not "clear it" — same convention as the S3 secret
+        // fields above.
+        if (filled($data['mail_smtp_password'] ?? null)) {
+            Setting::set('mail_smtp_password', $data['mail_smtp_password'], encrypted: true);
+        }
+
+        AuditLog::record('settings.update_mail', null, __('Updated SMTP mail settings'));
+
+        return back()->with('status', __('Email settings saved.'));
+    }
+
+    /**
+     * Sends one real message through whatever's currently saved (including
+     * an unsaved-but-just-submitted form, so an admin can verify a new
+     * password works before committing to it) — the only way to actually
+     * confirm SMTP credentials are correct short of waiting for a real
+     * customer email to silently fail.
+     */
+    public function testMail(Request $request)
+    {
+        $data = $request->validate([
+            'test_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $overrides = $request->only(['mail_smtp_host', 'mail_smtp_port', 'mail_smtp_encryption', 'mail_smtp_username', 'mail_from_address', 'mail_from_name']);
+        $password = filled($request->input('mail_smtp_password'))
+            ? $request->input('mail_smtp_password')
+            : Setting::get('mail_smtp_password');
+
+        if (blank($overrides['mail_smtp_host'] ?? null)) {
+            return back()->withErrors(['mail_test' => __('Enter and save an SMTP host before sending a test email.')]);
+        }
+
+        config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.host' => $overrides['mail_smtp_host'],
+            'mail.mailers.smtp.port' => (int) ($overrides['mail_smtp_port'] ?: 587),
+            'mail.mailers.smtp.encryption' => ($overrides['mail_smtp_encryption'] ?? 'tls') === 'none' ? null : $overrides['mail_smtp_encryption'],
+            'mail.mailers.smtp.username' => $overrides['mail_smtp_username'] ?? null,
+            'mail.mailers.smtp.password' => $password,
+            'mail.from.address' => $overrides['mail_from_address'] ?: config('mail.from.address'),
+            'mail.from.name' => $overrides['mail_from_name'] ?: config('mail.from.name'),
+        ]);
+
+        try {
+            Mail::to($data['test_email'])
+                ->send(new SmtpTestMail(Setting::get('general_platform_name', config('app.name'))));
+        } catch (\Throwable $e) {
+            AuditLog::record('settings.mail_test_failed', null, __('SMTP test email failed'));
+
+            return back()->withErrors(['mail_test' => __('Failed to send: :message', ['message' => $e->getMessage()])]);
+        }
+
+        AuditLog::record('settings.mail_test_sent', null, __('Sent a test email to verify SMTP settings'));
+
+        return back()->with('status', __('Test email sent to :email.', ['email' => $data['test_email']]));
     }
 
     public function updateStorage(Request $request)

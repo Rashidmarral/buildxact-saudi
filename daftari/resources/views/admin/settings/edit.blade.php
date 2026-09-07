@@ -19,6 +19,7 @@
             'branding' => __('Branding'),
             'signup' => __('Signup'),
             'maintenance' => __('Maintenance'),
+            'mail' => __('Email'),
             'storage' => __('Storage'),
             'system' => __('System'),
         ] as $key => $label)
@@ -378,6 +379,77 @@
 
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Maintenance settings') }}</button>
         </form>
+    </div>
+
+    {{-- ============ Email / SMTP ============ --}}
+    <div x-show="tab === 'mail'" x-cloak x-data="{ enabled: {{ old('mail_smtp_enabled', $settings['mail_smtp_enabled']) ? 'true' : 'false' }} }" class="space-y-6">
+        <form method="POST" action="{{ route('admin.settings.mail.update') }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+            @csrf
+            <div>
+                <h3 class="font-semibold text-slate-900 mb-1">{{ __('Email') }}</h3>
+                <p class="text-sm text-slate-500">{{ __('The SMTP account outgoing mail is sent through — welcome emails, invoice/quotation sends, payment receipts, overdue reminders, team invites. Off by default, meaning the app falls back to whatever MAIL_MAILER is set to in .env (often "log", i.e. no email is actually sent).') }}</p>
+            </div>
+
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="mail_smtp_enabled" value="1" x-model="enabled" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                {{ __('Send email through this SMTP account') }}
+            </label>
+
+            <div x-show="enabled" x-cloak class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <div class="sm:col-span-2">
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('SMTP host') }}</label>
+                    <input type="text" name="mail_smtp_host" value="{{ old('mail_smtp_host', $settings['mail_smtp_host']) }}" placeholder="smtp.example.com" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Port') }}</label>
+                    <input type="number" name="mail_smtp_port" min="1" max="65535" value="{{ old('mail_smtp_port', $settings['mail_smtp_port']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Encryption') }}</label>
+                    <select name="mail_smtp_encryption" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <option value="tls" @selected(old('mail_smtp_encryption', $settings['mail_smtp_encryption']) === 'tls')>{{ __('TLS (port 587, most common)') }}</option>
+                        <option value="ssl" @selected(old('mail_smtp_encryption', $settings['mail_smtp_encryption']) === 'ssl')>{{ __('SSL (port 465)') }}</option>
+                        <option value="none" @selected(old('mail_smtp_encryption', $settings['mail_smtp_encryption']) === 'none')>{{ __('None') }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Username') }}</label>
+                    <input type="text" name="mail_smtp_username" autocomplete="off" value="{{ old('mail_smtp_username', $settings['mail_smtp_username']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Password') }}</label>
+                    <input type="password" name="mail_smtp_password" autocomplete="new-password" placeholder="{{ $settings['mail_smtp_password_configured'] ? __('•••••••• (configured — leave blank to keep)') : __('Not configured') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('From address') }}</label>
+                    <input type="email" name="mail_from_address" required value="{{ old('mail_from_address', $settings['mail_from_address']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('From name') }}</label>
+                    <input type="text" name="mail_from_name" required value="{{ old('mail_from_name', $settings['mail_from_name']) }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+            </div>
+
+            <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Email settings') }}</button>
+        </form>
+
+        <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-3">
+            <div>
+                <h3 class="font-semibold text-slate-900 mb-1">{{ __('Send a test email') }}</h3>
+                <p class="text-sm text-slate-500">{{ __('Save your SMTP settings above first, then confirm they actually work by sending a real test message.') }}</p>
+            </div>
+            <form method="POST" action="{{ route('admin.settings.mail.test') }}" class="flex flex-wrap items-end gap-3">
+                @csrf
+                <div class="flex-1 min-w-[220px]">
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Send to') }}</label>
+                    <input type="email" name="test_email" required value="{{ old('test_email') }}" placeholder="you@example.com" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700">{{ __('Send test email') }}</button>
+            </form>
+            @error('mail_test')
+                <p class="text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </div>
     </div>
 
     {{-- ============ Storage ============ --}}
