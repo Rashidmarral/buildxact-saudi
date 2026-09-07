@@ -4,15 +4,20 @@ namespace App\Mail;
 
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class OverdueInvoiceReminderMail extends Mailable
+class OverdueInvoiceReminderMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
+
+    public int $tries = 4;
+
+    public array $backoff = [30, 120, 600];
 
     /**
      * Ladder tier this reminder belongs to: 1 = friendly (7+ days overdue),

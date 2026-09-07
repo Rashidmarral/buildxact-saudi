@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Quotation;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
@@ -11,14 +12,23 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class QuotationMail extends Mailable
+class QuotationMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
+    public int $tries = 4;
+
+    public array $backoff = [30, 120, 600];
+
+    /** @see InvoiceMail::$pdfBase64 */
+    private readonly string $pdfBase64;
+
     public function __construct(
         public readonly Quotation $quotation,
-        public readonly string $pdfBinary,
-    ) {}
+        string $pdfBinary,
+    ) {
+        $this->pdfBase64 = base64_encode($pdfBinary);
+    }
 
     public function envelope(): Envelope
     {
@@ -47,7 +57,7 @@ class QuotationMail extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromData(fn () => $this->pdfBinary, $this->quotation->quotation_number.'.pdf')
+            Attachment::fromData(fn () => base64_decode($this->pdfBase64), $this->quotation->quotation_number.'.pdf')
                 ->withMime('application/pdf'),
         ];
     }

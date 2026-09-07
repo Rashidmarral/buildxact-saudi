@@ -43,7 +43,7 @@ class InvoiceDunningLadderTest extends TestCase
 
         $this->artisan('invoices:send-overdue-reminders')->assertSuccessful();
 
-        Mail::assertSent(OverdueInvoiceReminderMail::class, fn ($mail) => $mail->invoice->is($invoice) && $mail->tier === 1);
+        Mail::assertQueued(OverdueInvoiceReminderMail::class, fn ($mail) => $mail->invoice->is($invoice) && $mail->tier === 1);
         $this->assertSame(1, $invoice->fresh()->last_reminder_tier);
     }
 
@@ -54,7 +54,7 @@ class InvoiceDunningLadderTest extends TestCase
 
         $this->artisan('invoices:send-overdue-reminders')->assertSuccessful();
 
-        Mail::assertSent(OverdueInvoiceReminderMail::class, fn ($mail) => $mail->invoice->is($invoice) && $mail->tier === 3);
+        Mail::assertQueued(OverdueInvoiceReminderMail::class, fn ($mail) => $mail->invoice->is($invoice) && $mail->tier === 3);
         $this->assertSame(3, $invoice->fresh()->last_reminder_tier);
     }
 
@@ -65,7 +65,7 @@ class InvoiceDunningLadderTest extends TestCase
 
         $this->artisan('invoices:send-overdue-reminders')->assertSuccessful();
 
-        Mail::assertNotSent(OverdueInvoiceReminderMail::class);
+        Mail::assertNotQueued(OverdueInvoiceReminderMail::class);
         $this->assertSame(1, $invoice->fresh()->last_reminder_tier);
     }
 
@@ -76,7 +76,7 @@ class InvoiceDunningLadderTest extends TestCase
 
         $this->artisan('invoices:send-overdue-reminders')->assertSuccessful();
 
-        Mail::assertSent(OverdueInvoiceReminderMail::class, fn ($mail) => $mail->tier === 2);
+        Mail::assertQueued(OverdueInvoiceReminderMail::class, fn ($mail) => $mail->tier === 2);
         $this->assertSame(2, $invoice->fresh()->last_reminder_tier);
     }
 
@@ -87,7 +87,7 @@ class InvoiceDunningLadderTest extends TestCase
 
         $this->artisan('invoices:send-overdue-reminders')->assertSuccessful();
 
-        Mail::assertNotSent(OverdueInvoiceReminderMail::class);
+        Mail::assertNotQueued(OverdueInvoiceReminderMail::class);
     }
 
     public function test_an_invoice_not_yet_seven_days_overdue_gets_no_reminder(): void
@@ -97,7 +97,7 @@ class InvoiceDunningLadderTest extends TestCase
 
         $this->artisan('invoices:send-overdue-reminders')->assertSuccessful();
 
-        Mail::assertNotSent(OverdueInvoiceReminderMail::class);
+        Mail::assertNotQueued(OverdueInvoiceReminderMail::class);
     }
 
     public function test_a_paid_invoice_never_gets_a_reminder_even_if_past_its_due_date(): void
@@ -107,7 +107,7 @@ class InvoiceDunningLadderTest extends TestCase
 
         $this->artisan('invoices:send-overdue-reminders')->assertSuccessful();
 
-        Mail::assertNotSent(OverdueInvoiceReminderMail::class);
+        Mail::assertNotQueued(OverdueInvoiceReminderMail::class);
     }
 
     public function test_the_settings_screen_persists_the_dunning_opt_out(): void

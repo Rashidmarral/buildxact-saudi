@@ -4,15 +4,20 @@ namespace App\Mail;
 
 use App\Models\Subscription;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class SubscriptionExpiringMail extends Mailable
+class SubscriptionExpiringMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
+
+    public int $tries = 4;
+
+    public array $backoff = [30, 120, 600];
 
     public function __construct(
         public readonly Subscription $subscription,
