@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             AdminRoleSeeder::class,
             CmsContentSeeder::class,
             LegalDocumentSeeder::class,
+            IndustryLandingPageSeeder::class,
         ]);
 
         // RealCompanySeeder and PlatformIdentitySeeder deliberately aren't

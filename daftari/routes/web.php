@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentG
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\ComplianceController;
+use App\Http\Controllers\Admin\LeadController as AdminLeadController;
 use App\Http\Controllers\Admin\LegalDocumentController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\TranslationController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\CmsPageController;
 use App\Http\Controllers\Site\HomeController;
+use App\Http\Controllers\Site\LeadController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\User\AccountingHealthController;
@@ -138,6 +140,8 @@ Route::get('/compliance', [HomeController::class, 'compliance'])->name('complian
 Route::get('/certificates', [HomeController::class, 'certificates'])->name('certificates');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit')->middleware('throttle:5,1');
+Route::get('/get-started', [LeadController::class, 'create'])->name('get-started');
+Route::post('/get-started', [LeadController::class, 'store'])->name('get-started.submit')->middleware('throttle:5,1');
 Route::get('/legal/{slug}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('cms-page.show');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
@@ -697,6 +701,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('{ticket}/priority', [AdminTicketController::class, 'changePriority'])->name('priority');
         Route::post('{ticket}/status', [AdminTicketController::class, 'changeStatus'])->name('status');
         Route::get('attachments/{attachment}', [AdminTicketController::class, 'downloadAttachment'])->name('attachments.download');
+    });
+
+    Route::middleware('admin.permission:leads')->prefix('leads')->name('leads.')->group(function () {
+        Route::get('/', [AdminLeadController::class, 'index'])->name('index');
+        Route::get('{lead}', [AdminLeadController::class, 'show'])->name('show');
+        Route::post('{lead}/note', [AdminLeadController::class, 'addNote'])->name('note');
+        Route::post('{lead}/status', [AdminLeadController::class, 'changeStatus'])->name('status');
+        Route::post('{lead}/assign', [AdminLeadController::class, 'assign'])->name('assign');
+        Route::post('{lead}/follow-up', [AdminLeadController::class, 'scheduleFollowUp'])->name('follow-up');
+        Route::post('{lead}/link-company', [AdminLeadController::class, 'linkCompany'])->name('link-company');
     });
 
     Route::middleware('admin.permission:plans')->group(function () {

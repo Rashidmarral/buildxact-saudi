@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Mail\ContactFormMail;
+use App\Models\Lead;
 use App\Models\LegalDocument;
 use App\Models\Plan;
 use App\Models\PlatformDocument;
@@ -65,6 +66,12 @@ class HomeController extends Controller
         if ($supportEmail) {
             Mail::to($supportEmail)->send(new ContactFormMail($data['name'], $data['email'], $data['message']));
         }
+
+        Lead::capture([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'message' => $data['message'],
+        ], 'contact_form', notify: false);
 
         return back()->with('status', __('Thanks for reaching out! Our team will get back to you shortly.'));
     }

@@ -42,6 +42,7 @@
         'pos' => '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10M9 16v4M15 16v4"/><path d="M7 8h5M7 11h3"/><circle cx="16.5" cy="10.5" r="1.5"/>',
         'legal' => '<path d="M12 3v18M6 7l-3.5 6.5a3.5 3.5 0 007 0L6 7zM18 7l-3.5 6.5a3.5 3.5 0 007 0L18 7zM3 7h6M15 7h6M9 21h6"/>',
         'shield-check' => '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
+        'funnel' => '<path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>',
     ];
     $d = $paths[$name] ?? $paths['dashboard'];
 @endphp

@@ -48,6 +48,12 @@ class AdminNav
                 'visible' => fn (User $user) => $user->hasAdminPermission('tickets'),
             ],
             [
+                'route' => 'admin.leads.index',
+                'label' => __('Sales & CRM'),
+                'icon' => 'funnel',
+                'visible' => fn (User $user) => $user->hasAdminPermission('leads'),
+            ],
+            [
                 'route' => 'admin.plans.index',
                 'label' => __('Plans'),
                 'icon' => 'plans',
