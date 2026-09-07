@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ContactFormMail;
 use App\Models\Plan;
 use App\Models\PlatformDocument;
+use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class HomeController extends Controller
 {
@@ -50,13 +53,18 @@ class HomeController extends Controller
 
     public function submitContact(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'message' => ['required', 'string', 'max:5000'],
         ]);
 
-        // No transactional email provider wired up yet — see README.
+        $supportEmail = Setting::get('support_email', config('mail.from.address'));
+
+        if ($supportEmail) {
+            Mail::to($supportEmail)->send(new ContactFormMail($data['name'], $data['email'], $data['message']));
+        }
+
         return back()->with('status', __('Thanks for reaching out! Our team will get back to you shortly.'));
     }
 

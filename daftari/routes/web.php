@@ -131,7 +131,7 @@ Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/compliance', [HomeController::class, 'compliance'])->name('compliance');
 Route::get('/certificates', [HomeController::class, 'certificates'])->name('certificates');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
-Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit');
+Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit')->middleware('throttle:5,1');
 Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('cms-page.show');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
