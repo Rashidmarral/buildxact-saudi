@@ -28,7 +28,7 @@ class Lead extends Model
      */
     public const WON_STAGES = ['paid', 'active', 'renewal'];
 
-    public const SOURCES = ['contact_form', 'get_started', 'zatca_readiness', 'referral', 'manual', 'other'];
+    public const SOURCES = ['contact_form', 'get_started', 'zatca_readiness', 'referral', 'setup_package', 'manual', 'other'];
 
     public const INDUSTRIES = ['contracting', 'trading', 'retail', 'restaurants', 'auto_workshops', 'services', 'other'];
 
@@ -87,6 +87,11 @@ class Lead extends Model
         return $this->hasMany(LeadNote::class)->latest('id');
     }
 
+    public function setupPackageRequest(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(SetupPackageRequest::class);
+    }
+
     public function isWon(): bool
     {
         return in_array($this->status, self::WON_STAGES, true);
@@ -138,6 +143,7 @@ class Lead extends Model
             'get_started' => __('Get started page'),
             'zatca_readiness' => __('ZATCA readiness check'),
             'referral' => __('Referral'),
+            'setup_package' => __('Setup package request'),
             'manual' => __('Added manually'),
             default => __('Other'),
         };

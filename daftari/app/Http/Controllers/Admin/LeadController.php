@@ -64,7 +64,7 @@ class LeadController extends Controller
 
     public function show(Lead $lead)
     {
-        $lead->load(['assignedAdmin', 'convertedCompany', 'notes.author']);
+        $lead->load(['assignedAdmin', 'convertedCompany', 'notes.author', 'setupPackageRequest.setupPackage']);
 
         $history = AuditLog::with('admin')
             ->where('subject_type', Lead::class)
@@ -180,6 +180,22 @@ class LeadController extends Controller
         );
 
         return back()->with('status', __('Company link updated.'));
+    }
+
+    public function updateSetupPackageStatus(Request $request, Lead $lead)
+    {
+        $setupPackageRequest = $lead->setupPackageRequest()->firstOrFail();
+
+        $data = $request->validate([
+            'status' => ['required', 'in:'.implode(',', \App\Models\SetupPackageRequest::STATUSES)],
+        ]);
+
+        $setupPackageRequest->update([
+            'status' => $data['status'],
+            'completed_at' => $data['status'] === 'completed' ? now() : $setupPackageRequest->completed_at,
+        ]);
+
+        return back()->with('status', __('Setup package request updated.'));
     }
 
     /**

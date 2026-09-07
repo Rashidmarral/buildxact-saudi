@@ -114,6 +114,12 @@ class AdminNav
                 'visible' => fn (User $user) => $user->isSuperAdmin(),
             ],
             [
+                'route' => 'admin.setup-packages.index',
+                'label' => __('Setup Packages'),
+                'icon' => 'clipboard',
+                'visible' => fn (User $user) => $user->isSuperAdmin(),
+            ],
+            [
                 'route' => 'admin.cms.pages.index',
                 'label' => __('Website CMS'),
                 'icon' => 'templates',

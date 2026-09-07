@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentG
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Admin\PartnerTypeController;
+use App\Http\Controllers\Admin\SetupPackageController as AdminSetupPackageController;
 use App\Http\Controllers\Partner\DashboardController as PartnerDashboardController;
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\ComplianceController;
@@ -43,6 +44,7 @@ use App\Http\Controllers\Site\CmsPageController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\LeadController;
 use App\Http\Controllers\Site\PartnerController as SitePartnerController;
+use App\Http\Controllers\Site\SetupPackageController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\User\AccountingHealthController;
@@ -150,6 +152,8 @@ Route::post('/get-started', [LeadController::class, 'store'])->name('get-started
 Route::get('/partners/apply', [SitePartnerController::class, 'apply'])->name('partners.apply');
 Route::post('/partners/apply', [SitePartnerController::class, 'submitApply'])->name('partners.apply.submit')->middleware('throttle:5,1');
 Route::get('/r/{code}', [SitePartnerController::class, 'refRedirect'])->name('partner.ref');
+Route::get('/setup-packages', [SetupPackageController::class, 'index'])->name('setup-packages.index');
+Route::post('/setup-packages', [SetupPackageController::class, 'store'])->name('setup-packages.submit')->middleware('throttle:5,1');
 Route::get('/legal/{slug}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('cms-page.show');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
@@ -733,6 +737,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('{lead}/assign', [AdminLeadController::class, 'assign'])->name('assign');
         Route::post('{lead}/follow-up', [AdminLeadController::class, 'scheduleFollowUp'])->name('follow-up');
         Route::post('{lead}/link-company', [AdminLeadController::class, 'linkCompany'])->name('link-company');
+        Route::post('{lead}/setup-package', [AdminLeadController::class, 'updateSetupPackageStatus'])->name('setup-package.update');
     });
 
     Route::middleware('admin.permission:plans')->group(function () {
@@ -820,6 +825,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
 
         Route::resource('currencies', CurrencyController::class)->except(['show']);
         Route::resource('partner-types', PartnerTypeController::class)->except(['show']);
+        Route::resource('setup-packages', AdminSetupPackageController::class)->except(['show']);
 
         Route::get('translations', [TranslationController::class, 'index'])->name('translations.index');
         Route::post('translations', [TranslationController::class, 'update'])->name('translations.update');

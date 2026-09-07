@@ -43,6 +43,26 @@
             </div>
         @endif
 
+        @if ($lead->setupPackageRequest)
+            <div class="bg-white rounded-xl border border-slate-100 p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <span class="text-sm font-semibold text-slate-800">{{ __('Setup package requested:') }}</span>
+                        <span class="text-sm text-slate-600">{{ $lead->setupPackageRequest->setupPackage->name() }}</span>
+                    </div>
+                    <form method="POST" action="{{ route('admin.leads.setup-package.update', $lead) }}" class="flex items-center gap-2">
+                        @csrf
+                        <select name="status" class="rounded-lg border border-slate-200 text-sm">
+                            @foreach (\App\Models\SetupPackageRequest::STATUSES as $value)
+                                <option value="{{ $value }}" @selected($lead->setupPackageRequest->status === $value)>{{ (new \App\Models\SetupPackageRequest(['status' => $value]))->statusLabel() }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">{{ __('Save') }}</button>
+                    </form>
+                </div>
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('admin.leads.note', $lead) }}" class="bg-white rounded-xl border border-slate-100 p-5 space-y-3">
             @csrf
             <label class="block text-sm font-medium text-slate-700">{{ __('Add a note') }}</label>
