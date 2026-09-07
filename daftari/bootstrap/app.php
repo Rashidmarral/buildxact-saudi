@@ -17,6 +17,7 @@ use App\Http\Middleware\EnsureWithinApiLimit;
 use App\Http\Middleware\PrepareInstallerEnvironment;
 use App\Http\Middleware\PreventDemoDestruction;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetSecurityHeaders;
 use App\Http\Middleware\SetTimezone;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -33,6 +34,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Deployed behind a reverse proxy or load balancer (the common
+        // topology on every cloud host this ships to), the *proxy*
+        // terminates TLS and forwards plain http internally — without
+        // trusting its X-Forwarded-Proto header, Laravel would see every
+        // request as insecure, breaking the forced-https URL generation
+        // and secure-cookie detection below. A packaged product with no
+        // fixed deployment topology can't hardcode a specific proxy IP,
+        // so trust them all; buyers on a known, fixed infra can narrow
+        // this to their load balancer's address if they want to.
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(prepend: [
             PrepareInstallerEnvironment::class,
         ]);
@@ -41,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
             SetTimezone::class,
             SetLocale::class,
             CheckMaintenanceMode::class,
+            SetSecurityHeaders::class,
         ]);
 
         // Payment providers POST here with no Laravel session/CSRF token

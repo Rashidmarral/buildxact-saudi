@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Support\DbOverlayTranslationLoader;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 
@@ -33,6 +34,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureStorageDriver();
         $this->configureMailDriver();
+
+        // Go-live audit finding: nothing forced URL generation (redirects,
+        // signed links, asset() calls) onto https in production — a
+        // company reached over plain http would get http:// links back for
+        // password resets, team invites, and payable-invoice links, and
+        // the "secure" session cookie derived from APP_URL's scheme (see
+        // config/session.php) would silently stop being sent. Left off in
+        // local/testing so `php artisan serve` and the test suite are
+        // unaffected.
+        if (! $this->app->environment(['local', 'testing'])) {
+            URL::forceScheme('https');
+        }
 
         // Keyed by email+IP (not IP alone) so one attacker can't lock out
         // every other user sharing that IP (offices, NAT, mobile carriers),

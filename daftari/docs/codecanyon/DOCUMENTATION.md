@@ -102,14 +102,26 @@ php artisan tinker   # create your own super_admin User row, or temporarily
 
 ### Nginx sample server block
 
+Daftari itself sets `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and (in
+production, over an actual https request) `Strict-Transport-Security` on every response — see
+`App\Http\Middleware\SetSecurityHeaders` — so they don't need to be duplicated at the web-server
+level. What nginx still needs to provide is TLS termination and the http → https redirect:
+
 ```nginx
+# Plain-http requests are redirected, never served directly.
 server {
     listen 80;
     server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
     root /path/to/daftari/public;
 
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-Content-Type-Options "nosniff";
+    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
     index index.php;
 
@@ -135,6 +147,11 @@ server {
     }
 }
 ```
+
+If you're behind a load balancer or CDN that terminates TLS for you instead (Cloudflare, an AWS
+ALB, etc.), point that at your origin's plain-http listener and skip the certificate block above —
+Daftari trusts `X-Forwarded-Proto` from any upstream proxy (see `bootstrap/app.php`) so it still
+correctly detects https and issues secure cookies/links in that topology.
 
 ---
 
