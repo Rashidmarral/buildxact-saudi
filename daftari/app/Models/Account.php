@@ -32,6 +32,7 @@ class Account extends Model
         return [
             ['code' => '1000', 'name' => 'Cash', 'name_ar' => 'النقدية', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1100', 'name' => 'Bank', 'name_ar' => 'البنك', 'type' => 'asset', 'normal_balance' => 'debit'],
+            ['code' => '1150', 'name' => 'POS Card Clearing', 'name_ar' => 'حساب وسيط تحصيل نقاط البيع', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1200', 'name' => 'Accounts Receivable', 'name_ar' => 'الذمم المدينة', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1250', 'name' => 'AR – Retentions Receivable', 'name_ar' => 'ذمم مدينة - محتجزات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1300', 'name' => 'VAT Input', 'name_ar' => 'ضريبة القيمة المضافة المدخلات', 'type' => 'asset', 'normal_balance' => 'debit'],

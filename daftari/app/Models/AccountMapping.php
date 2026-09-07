@@ -53,6 +53,7 @@ class AccountMapping extends Model
             'PAYROLL_DEDUCTIONS_PAYABLE' => ['label' => 'Other payroll deductions payable', 'default_code' => '2290'],
             'EOS_EXPENSE' => ['label' => 'End-of-service expense', 'default_code' => '5370'],
             'EOS_PROVISION' => ['label' => 'End-of-service provision', 'default_code' => '2280'],
+            'POS_CARD_CLEARING' => ['label' => 'POS card clearing', 'default_code' => '1150'],
             'RETENTION_PAYABLE' => ['label' => 'Retention payable', 'default_code' => '2200'],
             'WHT_PAYABLE' => ['label' => 'Withholding tax payable', 'default_code' => '2250'],
             'ROUNDING' => ['label' => 'Rounding', 'default_code' => '9000'],

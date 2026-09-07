@@ -19,6 +19,7 @@ use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
 use App\Models\PaymentVoucher;
 use App\Models\PayrollRun;
+use App\Models\PosSale;
 use App\Models\PurchaseReturn;
 use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
@@ -698,6 +699,45 @@ class LedgerPostingService
         ];
 
         return $this->post($company, 'end_of_service_settlement', $settlement->id, __('End-of-service settlement: :name', ['name' => $settlement->employee->full_name]), $settlement->termination_date, $lines);
+    }
+
+    /**
+     * A POS sale is paid in full at the point of sale (split across one
+     * or more tender methods), so unlike postInvoiceIssued() there's no
+     * Accounts Receivable leg — each payment method's own settlement
+     * account is debited directly instead: DEFAULT_CASH for cash,
+     * POS_CARD_CLEARING for card (a real merchant-account settlement lag
+     * exists even though the sale is instant), DEFAULT_BANK for anything
+     * else. subtotal is already net of line-level discounts, so it
+     * (not gross) is what's credited to revenue.
+     */
+    public function postPosSale(PosSale $sale): ?JournalEntry
+    {
+        $company = $sale->company;
+        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
+        $vatOutput = $this->account($company, 'VAT_OUTPUT');
+        $cash = $this->account($company, 'DEFAULT_CASH');
+        $cardClearing = $this->account($company, 'POS_CARD_CLEARING');
+        $bank = $this->account($company, 'DEFAULT_BANK');
+
+        $this->requireAccounts(['DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'POS sale');
+
+        $paymentAccounts = ['cash' => $cash, 'card' => $cardClearing, 'other' => $bank];
+        $lines = [];
+
+        foreach ($sale->payments as $payment) {
+            $account = $paymentAccounts[$payment->method] ?? $bank;
+            $this->requireAccounts(['payment account' => $account], 'POS sale payment');
+            $lines[] = ['account_id' => $account->id, 'debit' => $payment->amount, 'memo' => $sale->sale_number];
+        }
+
+        $lines[] = ['account_id' => $revenue->id, 'credit' => $sale->subtotal];
+
+        if ($sale->vat_total > 0) {
+            $lines[] = ['account_id' => $vatOutput->id, 'credit' => $sale->vat_total];
+        }
+
+        return $this->post($company, 'pos_sale', $sale->id, __('POS sale :number', ['number' => $sale->sale_number]), $sale->created_at, $lines);
     }
 
     public function postExpense(Expense $expense): ?JournalEntry

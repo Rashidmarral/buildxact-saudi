@@ -90,6 +90,8 @@ use App\Http\Controllers\User\ReorderSuggestionController;
 use App\Http\Controllers\User\StockTransferController;
 use App\Http\Controllers\User\EmployeeController;
 use App\Http\Controllers\User\PayrollRunController;
+use App\Http\Controllers\User\PosController;
+use App\Http\Controllers\User\PosRegisterController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
@@ -491,6 +493,20 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('payroll/{payrollRun}/cancel', [PayrollRunController::class, 'cancel'])->name('payroll.cancel');
         Route::get('payroll/{payrollRun}/wps', [PayrollRunController::class, 'downloadWps'])->name('payroll.wps');
         Route::get('payroll/{payrollRun}/items/{item}/payslip', [PayrollRunController::class, 'payslipPdf'])->middleware('throttle:pdf')->name('payroll.items.payslip');
+    });
+
+    Route::middleware(['permission:pos', 'module:pos'])->group(function () {
+        Route::resource('pos-registers', PosRegisterController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        Route::get('pos', [PosController::class, 'terminal'])->name('pos.terminal');
+        Route::get('pos/item-lookup', [PosController::class, 'lookupItem'])->name('pos.item-lookup');
+        Route::post('pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
+        Route::post('pos/shift/{shift}/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
+        Route::get('pos/shift/{shift}', [PosController::class, 'showShift'])->name('pos.shifts.show');
+        Route::post('pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
+        Route::get('pos-sales', [PosController::class, 'index'])->name('pos.sales.index');
+        Route::get('pos-sales/{sale}', [PosController::class, 'showSale'])->name('pos.sales.show');
+        Route::post('pos-sales/{sale}/void', [PosController::class, 'voidSale'])->name('pos.sales.void');
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');

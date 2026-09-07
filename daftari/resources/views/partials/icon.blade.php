@@ -39,6 +39,7 @@
         'moon' => '<path d="M20.5 14.5a8.5 8.5 0 11-9-11 6.8 6.8 0 009 11z"/>',
         'support' => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.25"/><path d="M4.8 4.8l4 4M19.2 4.8l-4 4M4.8 19.2l4-4M19.2 19.2l-4-4"/>',
         'payroll' => '<circle cx="9" cy="8" r="3.25"/><path d="M2.5 20c0-3.6 3-6.2 6.5-6.2S15.5 16.4 15.5 20"/><circle cx="18" cy="16.5" r="3"/><path d="M18 15v3M16.7 16.5h2.6"/>',
+        'pos' => '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10M9 16v4M15 16v4"/><path d="M7 8h5M7 11h3"/><circle cx="16.5" cy="10.5" r="1.5"/>',
     ];
     $d = $paths[$name] ?? $paths['dashboard'];
 @endphp
