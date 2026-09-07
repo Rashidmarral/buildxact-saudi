@@ -15,19 +15,29 @@ use Illuminate\Support\Facades\Storage;
  * 'local' disk under backups/, then prunes anything older than the
  * configurable retention window. Scheduled daily in routes/console.php;
  * also runnable on demand from Admin > Backups.
+ *
+ * Go-live audit finding: the database dump alone left every uploaded
+ * file (company logos/stamps, ZATCA certificates, invoice/bill
+ * attachments, letterheads — all under storage/app/public when the
+ * 'local' disk driver is active) with no backup at all. Also archives
+ * that directory, unless the 'public' disk has been switched to S3
+ * (see AppServiceProvider::configureStorageDriver) — at that point the
+ * files no longer live on this server, and S3's own durability/
+ * versioning is the operator's responsibility to configure, not this
+ * command's.
  */
 class BackupDatabase extends Command
 {
     protected $signature = 'backup:run';
 
-    protected $description = 'Dump the database to storage/app/private/backups and prune old backups past the retention window';
+    protected $description = 'Dump the database and public storage to storage/app/private/backups and prune old backups past the retention window';
 
     public function handle(): int
     {
         $connection = config('database.default');
         $config = config("database.connections.{$connection}");
         $timestamp = now()->format('Y-m-d_His');
-        $filename = "backups/backup-{$connection}-{$timestamp}.sql.gz";
+        $dbFilename = "backups/backup-{$connection}-{$timestamp}.sql.gz";
 
         try {
             $sql = match ($connection) {
@@ -37,16 +47,22 @@ class BackupDatabase extends Command
                 default => throw new \RuntimeException("Unsupported database connection for backup: {$connection}"),
             };
 
-            Storage::disk('local')->put($filename, gzencode($sql, 9));
+            Storage::disk('local')->put($dbFilename, gzencode($sql, 9));
 
-            $sizeKb = round(Storage::disk('local')->size($filename) / 1024, 1);
+            $sizeKb = round(Storage::disk('local')->size($dbFilename) / 1024, 1);
+            $this->info("Database backup created: {$dbFilename} ({$sizeKb} KB)");
+
+            $storageNote = $this->backupPublicStorage($timestamp);
+
             Setting::set('backup_last_run_at', now()->toDateTimeString());
             Setting::set('backup_last_status', 'success');
             Setting::set('backup_last_error', null);
 
             $this->prune();
 
-            $this->info("Backup created: {$filename} ({$sizeKb} KB)");
+            if ($storageNote) {
+                $this->info($storageNote);
+            }
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
@@ -58,6 +74,36 @@ class BackupDatabase extends Command
 
             return self::FAILURE;
         }
+    }
+
+    /**
+     * Returns a status line for the CLI, or null when there's nothing
+     * local to archive (the 'public' disk is on S3).
+     */
+    private function backupPublicStorage(string $timestamp): ?string
+    {
+        if (config('filesystems.disks.public.driver') !== 'local') {
+            return 'Public storage is on S3 — skipped (configure bucket versioning/lifecycle rules there instead).';
+        }
+
+        $root = config('filesystems.disks.public.root');
+
+        if (! $root || ! is_dir($root)) {
+            return null;
+        }
+
+        $filename = "backups/storage-{$timestamp}.tar.gz";
+        $absolutePath = Storage::disk('local')->path($filename);
+
+        $result = Process::run(['tar', '-czf', $absolutePath, '-C', $root, '.']);
+
+        if (! $result->successful()) {
+            throw new \RuntimeException('Public storage archive failed: '.$result->errorOutput());
+        }
+
+        $sizeKb = round(Storage::disk('local')->size($filename) / 1024, 1);
+
+        return "Storage backup created: {$filename} ({$sizeKb} KB)";
     }
 
     private function dumpMysql(array $config): string

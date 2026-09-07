@@ -402,24 +402,34 @@ starts — nothing is lost, but ZATCA sync-now clicks and webhook deliveries won
 
 ## 16. Backup
 
-No backup package is bundled — back up the same two things any Laravel app needs, on
-whatever schedule your data's importance calls for:
+A `backup:run` artisan command is built in and already scheduled daily (see §14, Cron). Each
+run produces two archives under `storage/app/private/backups`, gzip-compressed:
 
-1. **The database** — `mysqldump` (or your host's managed-database backup feature).
-2. **`storage/app/public`** (uploaded logos, attachments, letterheads) — `.env` and the
-   application code itself are recoverable from your own deployment process, but
-   user-uploaded files are not.
+1. **The database** — `mysqldump`/`pg_dump` for MySQL/Postgres, a raw file copy for SQLite.
+2. **`storage/app/public`** (uploaded logos, stamps, ZATCA certificates, invoice/bill
+   attachments, letterheads) — skipped automatically if you've switched the storage disk to
+   S3 in Settings → Storage (Admin), since at that point the files no longer live on this
+   server and S3's own versioning/lifecycle rules are what protects them instead.
 
-A simple daily cron example:
+Retention (how many days of backups to keep before pruning) is configurable from
+**Super Admin → Backups**, which also lists every backup produced, lets you trigger one
+on demand, and download or delete individual files (download requires re-confirming your
+password). The command records its last run time/status/error in Settings so that page —
+and the admin dashboard's "attention needed" widget — can flag a backup that hasn't run or
+has been failing.
+
+This only protects what's on this server. Also keep an off-server copy — point the daily
+cron at your own remote/object storage, or rely on your host's managed-database backup
+feature in addition to (not instead of) `backup:run`:
 
 ```bash
-0 2 * * * mysqldump -u USER -pPASSWORD daftari | gzip > /backups/daftari-$(date +\%F).sql.gz
-0 2 * * * tar -czf /backups/daftari-storage-$(date +\%F).tar.gz /path/to/daftari/storage/app/public
+# already added by the installer/cron setup in §14 — shown here for reference
+0 2 * * * cd /path/to/daftari && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-If you want a more complete, restore-tested backup solution, `spatie/laravel-backup` is a
-well-established package that installs cleanly on top of Laravel 12 — it is not included here,
-so as not to impose a specific backup destination/retention policy on every buyer.
+If you want a more complete, restore-tested backup solution with off-server destinations
+built in, `spatie/laravel-backup` is a well-established package that installs cleanly on
+top of Laravel 12 alongside the command above.
 
 ---
 

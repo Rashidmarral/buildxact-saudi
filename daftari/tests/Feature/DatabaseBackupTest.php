@@ -57,10 +57,40 @@ class DatabaseBackupTest extends TestCase
         $this->artisan('backup:run')->assertExitCode(0);
 
         $files = Storage::disk('local')->files('backups');
-        $this->assertCount(1, $files);
-        $this->assertStringEndsWith('.sql.gz', $files[0]);
+        $this->assertCount(2, $files);
+        $this->assertCount(1, array_filter($files, fn ($f) => str_ends_with($f, '.sql.gz')));
+        $this->assertCount(1, array_filter($files, fn ($f) => str_ends_with($f, '.tar.gz')));
         $this->assertSame('success', Setting::get('backup_last_status'));
         $this->assertNotNull(Setting::get('backup_last_run_at'));
+    }
+
+    public function test_backup_run_also_archives_uploaded_files_from_the_public_disk(): void
+    {
+        $this->useFileBasedSqliteConnection();
+        Storage::disk('public')->put('logos/test-logo.png', 'fake-logo-bytes');
+
+        $this->artisan('backup:run')->assertExitCode(0);
+
+        $archives = array_values(array_filter(
+            Storage::disk('local')->files('backups'),
+            fn ($f) => str_ends_with($f, '.tar.gz')
+        ));
+        $this->assertCount(1, $archives);
+        $this->assertGreaterThan(0, Storage::disk('local')->size($archives[0]));
+
+        Storage::disk('public')->delete('logos/test-logo.png');
+    }
+
+    public function test_backup_run_skips_the_storage_archive_when_the_public_disk_is_s3(): void
+    {
+        $this->useFileBasedSqliteConnection();
+        config(['filesystems.disks.public.driver' => 's3']);
+
+        $this->artisan('backup:run')->assertExitCode(0);
+
+        $files = Storage::disk('local')->files('backups');
+        $this->assertCount(1, $files);
+        $this->assertStringEndsWith('.sql.gz', $files[0]);
     }
 
     public function test_backup_run_prunes_files_older_than_the_retention_window(): void
