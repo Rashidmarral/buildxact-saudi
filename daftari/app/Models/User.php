@@ -100,6 +100,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->role === 'owner';
     }
 
+    public function isPartner(): bool
+    {
+        return $this->role === 'partner';
+    }
+
+    public function partner(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Partner::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

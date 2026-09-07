@@ -54,6 +54,12 @@ class AdminNav
                 'visible' => fn (User $user) => $user->hasAdminPermission('leads'),
             ],
             [
+                'route' => 'admin.partners.index',
+                'label' => __('Partner Program'),
+                'icon' => 'team',
+                'visible' => fn (User $user) => $user->hasAdminPermission('partners'),
+            ],
+            [
                 'route' => 'admin.plans.index',
                 'label' => __('Plans'),
                 'icon' => 'plans',
@@ -99,6 +105,12 @@ class AdminNav
                 'route' => 'admin.currencies.index',
                 'label' => __('Currencies'),
                 'icon' => 'billing',
+                'visible' => fn (User $user) => $user->isSuperAdmin(),
+            ],
+            [
+                'route' => 'admin.partner-types.index',
+                'label' => __('Partner Types'),
+                'icon' => 'plans',
                 'visible' => fn (User $user) => $user->isSuperAdmin(),
             ],
             [

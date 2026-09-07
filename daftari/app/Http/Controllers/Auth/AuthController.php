@@ -76,6 +76,10 @@ class AuthController extends Controller
             return redirect()->intended(route('admin.dashboard'));
         }
 
+        if ($user->isPartner()) {
+            return redirect()->intended(route('partner.dashboard'));
+        }
+
         return redirect()->intended(route('app.dashboard'));
     }
 

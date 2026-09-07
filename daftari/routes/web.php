@@ -13,6 +13,9 @@ use App\Http\Controllers\Admin\PlatformDocumentController;
 use App\Http\Controllers\Admin\PasswordConfirmationController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\CurrencyController;
+use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
+use App\Http\Controllers\Admin\PartnerTypeController;
+use App\Http\Controllers\Partner\DashboardController as PartnerDashboardController;
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\ComplianceController;
 use App\Http\Controllers\Admin\LeadController as AdminLeadController;
@@ -24,6 +27,7 @@ use App\Http\Controllers\Admin\ZatcaController as AdminZatcaController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
+use App\Http\Controllers\Auth\PartnerInviteController;
 use App\Http\Controllers\Auth\TeamInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\FileServeController;
@@ -38,6 +42,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Site\CmsPageController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\LeadController;
+use App\Http\Controllers\Site\PartnerController as SitePartnerController;
 use App\Http\Controllers\Site\ToolsController;
 use App\Http\Controllers\User\AccountController;
 use App\Http\Controllers\User\AccountingHealthController;
@@ -142,6 +147,9 @@ Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit')->middleware('throttle:5,1');
 Route::get('/get-started', [LeadController::class, 'create'])->name('get-started');
 Route::post('/get-started', [LeadController::class, 'store'])->name('get-started.submit')->middleware('throttle:5,1');
+Route::get('/partners/apply', [SitePartnerController::class, 'apply'])->name('partners.apply');
+Route::post('/partners/apply', [SitePartnerController::class, 'submitApply'])->name('partners.apply.submit')->middleware('throttle:5,1');
+Route::get('/r/{code}', [SitePartnerController::class, 'refRedirect'])->name('partner.ref');
 Route::get('/legal/{slug}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('cms-page.show');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
@@ -213,6 +221,8 @@ Route::middleware('guest')->group(function () {
 });
 Route::get('/team/invite/{id}/{hash}', [TeamInviteController::class, 'show'])->middleware('signed')->name('team.invite.accept');
 Route::post('/team/invite/{id}/{hash}', [TeamInviteController::class, 'accept'])->middleware('signed')->name('team.invite.store');
+Route::get('/partner/invite/{id}/{hash}', [PartnerInviteController::class, 'show'])->middleware('signed')->name('partner.invite.accept');
+Route::post('/partner/invite/{id}/{hash}', [PartnerInviteController::class, 'accept'])->middleware('signed')->name('partner.invite.store');
 
 Route::get('/two-factor-challenge', [TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
 Route::post('/two-factor-challenge', [TwoFactorChallengeController::class, 'verify'])->middleware('throttle:two-factor')->name('two-factor.verify');
@@ -703,6 +713,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::get('attachments/{attachment}', [AdminTicketController::class, 'downloadAttachment'])->name('attachments.download');
     });
 
+    Route::middleware('admin.permission:partners')->prefix('partners')->name('partners.')->group(function () {
+        Route::get('/', [AdminPartnerController::class, 'index'])->name('index');
+        Route::get('{partner}', [AdminPartnerController::class, 'show'])->name('show');
+        Route::post('{partner}/approve', [AdminPartnerController::class, 'approve'])->name('approve');
+        Route::post('{partner}/reject', [AdminPartnerController::class, 'reject'])->name('reject');
+        Route::post('{partner}/suspend', [AdminPartnerController::class, 'suspend'])->name('suspend');
+        Route::post('{partner}/reactivate', [AdminPartnerController::class, 'reactivate'])->name('reactivate');
+        Route::post('{partner}/commission', [AdminPartnerController::class, 'updateCommission'])->name('commission');
+        Route::post('referrals/{referral}', [AdminPartnerController::class, 'updateReferral'])->name('referrals.update');
+        Route::post('payouts/{payout}', [AdminPartnerController::class, 'updatePayout'])->name('payouts.update');
+    });
+
     Route::middleware('admin.permission:leads')->prefix('leads')->name('leads.')->group(function () {
         Route::get('/', [AdminLeadController::class, 'index'])->name('index');
         Route::get('{lead}', [AdminLeadController::class, 'show'])->name('show');
@@ -797,6 +819,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         });
 
         Route::resource('currencies', CurrencyController::class)->except(['show']);
+        Route::resource('partner-types', PartnerTypeController::class)->except(['show']);
 
         Route::get('translations', [TranslationController::class, 'index'])->name('translations.index');
         Route::post('translations', [TranslationController::class, 'update'])->name('translations.update');
@@ -827,4 +850,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
             Route::post('zatca-status', [ComplianceController::class, 'updateZatcaStatus'])->name('zatca-status.update');
         });
     });
+});
+
+// A partner (role=partner, company_id null) is neither a tenant company
+// user nor a platform admin, so it gets its own minimal route group —
+// none of the /app group's company-scoped middleware (company.member,
+// company.active, plan limits) applies to it.
+Route::prefix('partner')->name('partner.')->middleware(['auth', 'role:partner'])->group(function () {
+    Route::get('/', [PartnerDashboardController::class, 'index'])->name('dashboard');
+    Route::post('payout-method', [PartnerDashboardController::class, 'updatePayoutMethod'])->name('payout-method.update');
+    Route::post('payouts/request', [PartnerDashboardController::class, 'requestPayout'])->name('payouts.request');
 });

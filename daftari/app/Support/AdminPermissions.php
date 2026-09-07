@@ -26,6 +26,7 @@ class AdminPermissions
             'zatca' => __('ZATCA'),
             'tickets' => __('Support Tickets'),
             'leads' => __('Sales & CRM'),
+            'partners' => __('Partner Program'),
             'activity' => __('Activity log'),
         ];
     }
