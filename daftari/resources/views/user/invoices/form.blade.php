@@ -62,7 +62,7 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
             <select name="client_id" id="pv-client" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a client') }}</option>
                 @foreach ($clients as $client)
-                    <option value="{{ $client->id }}" data-terms-days="{{ $client->payment_terms_days }}" data-vat-registered="{{ $client->is_vat_registered ? '1' : '0' }}" @selected(old('client_id', $invoice->client_id) == $client->id)>{{ $client->name }}</option>
+                    <option value="{{ $client->id }}" data-terms-days="{{ $client->payment_terms_days }}" data-vat-registered="{{ $client->is_vat_registered ? '1' : '0' }}" @selected(old('client_id', $invoice->client_id) == $client->id)>{{ $client->display_name }}</option>
                 @endforeach
             </select>
         </div>
@@ -222,7 +222,7 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
     $catalogJson = \Illuminate\Support\Js::from($items->map(function ($i) {
         return [
             'id' => $i->id,
-            'name' => $i->name,
+            'name' => $i->display_name,
             'unit_price' => (float) $i->unit_price,
             'vat_rate' => (float) $i->vat_rate,
             'barcode' => $i->barcode,

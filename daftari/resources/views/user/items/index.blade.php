@@ -42,7 +42,7 @@
                     @foreach ($items as $item)
                         <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50" data-row-id="{{ $item->id }}">
                             <td class="px-6 py-3"><input type="checkbox" :checked="selected.includes('{{ $item->id }}')" @change="toggleOne('{{ $item->id }}', $event.target.checked)"></td>
-                            <td class="px-6 py-3 font-medium text-slate-800">{{ $item->name }}</td>
+                            <td class="px-6 py-3 font-medium text-slate-800">{{ $item->display_name }}</td>
                             <td class="px-6 py-3 text-slate-500">{{ \App\Support\Money::format($item->unit_price) }}</td>
                             <td class="px-6 py-3 text-slate-500">{{ rtrim(rtrim(number_format($item->vat_rate, 2), '0'), '.') }}%</td>
                             <td class="px-6 py-3">

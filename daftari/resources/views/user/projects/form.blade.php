@@ -42,7 +42,7 @@
             <select name="client_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Search customers…') }}</option>
                 @foreach ($clients as $client)
-                    <option value="{{ $client->id }}" @selected(old('client_id', $project->client_id) == $client->id)>{{ $client->name }}</option>
+                    <option value="{{ $client->id }}" @selected(old('client_id', $project->client_id) == $client->id)>{{ $client->display_name }}</option>
                 @endforeach
             </select>
             <p class="mt-1 text-xs text-slate-400">{{ __('Optional. Link the project to a customer for easier filtering.') }}</p>

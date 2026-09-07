@@ -36,7 +36,7 @@
                 <select name="client_id" id="client_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                     <option value="">{{ __('Select a customer') }}</option>
                     @foreach ($clients as $client)
-                        <option value="{{ $client->id }}" @selected(old('client_id', $voucher->client_id ?? null) == $client->id)>{{ $client->name }}</option>
+                        <option value="{{ $client->id }}" @selected(old('client_id', $voucher->client_id ?? null) == $client->id)>{{ $client->display_name }}</option>
                     @endforeach
                 </select>
                 <p class="mt-1 text-xs text-slate-400">{{ __('For refunds paid back to a customer.') }}</p>
@@ -48,7 +48,7 @@
                     <select name="supplier_id" id="supplier_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         <option value="">{{ __('Select a supplier') }}</option>
                         @foreach ($suppliers as $supplier)
-                            <option value="{{ $supplier->id }}" @selected(old('supplier_id', $voucher->supplier_id ?? null) == $supplier->id)>{{ $supplier->name }}</option>
+                            <option value="{{ $supplier->id }}" @selected(old('supplier_id', $voucher->supplier_id ?? null) == $supplier->id)>{{ $supplier->display_name }}</option>
                         @endforeach
                     </select>
                 </div>

@@ -52,7 +52,7 @@
                 @foreach ($orders as $order)
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.purchase-orders.show', $order) }}'">
                         <td class="px-6 py-3 font-medium text-brand-700">{{ $order->po_number }}</td>
-                        <td class="px-6 py-3">{{ $order->supplier->name }}</td>
+                        <td class="px-6 py-3">{{ $order->supplier->display_name }}</td>
                         <td class="px-6 py-3">{{ $order->order_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($order->total) }}</td>
                         <td class="px-6 py-3">@include('user.purchase-orders.partials.status-badge', ['status' => $order->status])</td>

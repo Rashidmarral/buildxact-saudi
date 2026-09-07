@@ -23,7 +23,7 @@
                 @foreach ($stocks as $stock)
                     @php $low = $stock->item->reorder_point !== null && $stock->quantity <= $stock->item->reorder_point; @endphp
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                        <td class="px-6 py-3 font-medium text-slate-800">{{ $stock->item->name }}</td>
+                        <td class="px-6 py-3 font-medium text-slate-800">{{ $stock->item->display_name }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $stock->warehouse->name }}</td>
                         <td class="px-6 py-3 {{ $low ? 'text-amber-700 font-semibold' : 'text-slate-700' }}">{{ rtrim(rtrim(number_format($stock->quantity, 2), '0'), '.') }} {{ $stock->item->unit }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $stock->item->reorder_point ?? '—' }}</td>

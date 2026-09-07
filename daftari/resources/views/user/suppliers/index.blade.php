@@ -32,7 +32,7 @@
                 @foreach ($suppliers as $supplier)
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3 text-slate-400 font-mono text-xs">{{ $supplier->supplier_code }}</td>
-                        <td class="px-6 py-3 font-medium text-slate-800">{{ $supplier->name }}</td>
+                        <td class="px-6 py-3 font-medium text-slate-800">{{ $supplier->display_name }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $supplier->vat_number ?: '—' }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $supplier->email ?: '—' }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $supplier->phone ?: '—' }}</td>

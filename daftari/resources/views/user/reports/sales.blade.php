@@ -21,7 +21,7 @@
         <label class="block text-xs font-medium text-slate-500">{{ __('Customer') }}</label>
         <select name="client_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">{{ __('All customers') }}</option>
-            @foreach ($clients as $client)<option value="{{ $client->id }}" @selected(request('client_id') == $client->id)>{{ $client->name }}</option>@endforeach
+            @foreach ($clients as $client)<option value="{{ $client->id }}" @selected(request('client_id') == $client->id)>{{ $client->display_name }}</option>@endforeach
         </select>
     </div>
     <div>
@@ -117,7 +117,7 @@
                         <tr class="border-b border-slate-50 last:border-0">
                             <td class="py-2 text-slate-500">{{ $row->invoice->issue_date->format('Y-m-d') }}</td>
                             <td class="py-2"><a href="{{ route('app.invoices.show', $row->invoice) }}" class="text-brand-700 hover:underline">{{ $row->invoice->invoice_number }}</a></td>
-                            <td class="py-2">{{ $row->invoice->client->name ?? '—' }}</td>
+                            <td class="py-2">{{ $row->invoice->client->display_name ?? '—' }}</td>
                             <td class="py-2">{{ $row->line->description }}</td>
                             <td class="py-2 text-end">{{ \App\Support\Money::format($row->line->line_total) }}</td>
                         </tr>

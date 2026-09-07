@@ -59,7 +59,7 @@
                         <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" data-row-id="{{ $bill->id }}" onclick="window.location='{{ route('app.bills.show', $bill) }}'">
                             <td class="px-6 py-3" onclick="event.stopPropagation()"><input type="checkbox" :checked="selected.includes('{{ $bill->id }}')" @change="toggleOne('{{ $bill->id }}', $event.target.checked)"></td>
                             <td class="px-6 py-3 font-medium text-brand-700">{{ $bill->bill_number }}</td>
-                            <td class="px-6 py-3">{{ $bill->supplier->name }}</td>
+                            <td class="px-6 py-3">{{ $bill->supplier->display_name }}</td>
                             <td class="px-6 py-3">{{ $bill->bill_date->format('Y-m-d') }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format($bill->total) }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format(max($bill->balanceDue(), 0)) }}</td>

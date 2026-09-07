@@ -51,7 +51,7 @@ $company = auth()->user()->company;
             <select name="supplier_id" id="pv-supplier" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a supplier') }}</option>
                 @foreach ($suppliers as $supplier)
-                    <option value="{{ $supplier->id }}" @selected(old('supplier_id') == $supplier->id)>{{ $supplier->name }}</option>
+                    <option value="{{ $supplier->id }}" @selected(old('supplier_id') == $supplier->id)>{{ $supplier->display_name }}</option>
                 @endforeach
             </select>
         </div>
@@ -123,7 +123,7 @@ $company = auth()->user()->company;
     $catalogJson = \Illuminate\Support\Js::from($items->map(function ($i) {
         return [
             'id' => $i->id,
-            'name' => $i->name,
+            'name' => $i->display_name,
             'unit_price' => (float) ($i->purchase_price ?? 0),
             'vat_rate' => (float) $i->vat_rate,
             'barcode' => $i->barcode,

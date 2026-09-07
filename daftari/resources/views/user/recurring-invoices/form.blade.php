@@ -32,7 +32,7 @@ $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy
             <select name="client_id" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a client') }}</option>
                 @foreach ($clients as $client)
-                    <option value="{{ $client->id }}" @selected(old('client_id', $recurringInvoice->client_id) == $client->id)>{{ $client->name }}</option>
+                    <option value="{{ $client->id }}" @selected(old('client_id', $recurringInvoice->client_id) == $client->id)>{{ $client->display_name }}</option>
                 @endforeach
             </select>
         </div>
@@ -157,7 +157,7 @@ $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy
     $catalogJson = \Illuminate\Support\Js::from($items->map(function ($i) {
         return [
             'id' => $i->id,
-            'name' => $i->name,
+            'name' => $i->display_name,
             'unit_price' => (float) $i->unit_price,
             'vat_rate' => (float) $i->vat_rate,
             'units' => collect($i->baseUnit ? [['id' => $i->baseUnit->id, 'label' => $i->baseUnit->label(), 'price' => (float) $i->unit_price]] : [])

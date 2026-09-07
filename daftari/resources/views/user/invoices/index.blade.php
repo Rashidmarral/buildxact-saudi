@@ -46,7 +46,7 @@
                         <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" data-row-id="{{ $invoice->id }}" onclick="window.location='{{ route('app.invoices.show', $invoice) }}'">
                             <td class="px-6 py-3" onclick="event.stopPropagation()"><input type="checkbox" :checked="selected.includes('{{ $invoice->id }}')" @change="toggleOne('{{ $invoice->id }}', $event.target.checked)"></td>
                             <td class="px-6 py-3 font-medium text-brand-700">{{ $invoice->invoice_number }}</td>
-                            <td class="px-6 py-3">{{ $invoice->client->name }}</td>
+                            <td class="px-6 py-3">{{ $invoice->client->display_name }}</td>
                             <td class="px-6 py-3">{{ $invoice->issue_date->format('Y-m-d') }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format($invoice->total) }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format(max($invoice->balanceDue(), 0)) }}</td>

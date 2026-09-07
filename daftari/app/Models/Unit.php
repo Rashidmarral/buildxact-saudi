@@ -28,7 +28,9 @@ class Unit extends Model
 
     public function label(): string
     {
-        return $this->symbol ? "{$this->name} ({$this->symbol})" : $this->name;
+        $name = $this->nameFor(app()->getLocale());
+
+        return $this->symbol ? "{$name} ({$this->symbol})" : $name;
     }
 
     /**

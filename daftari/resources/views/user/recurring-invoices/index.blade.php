@@ -28,7 +28,7 @@
                 @foreach ($recurringInvoices as $recurringInvoice)
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="px-6 py-3 font-medium text-slate-800">{{ $recurringInvoice->title }}</td>
-                        <td class="px-6 py-3">{{ $recurringInvoice->client->name }}</td>
+                        <td class="px-6 py-3">{{ $recurringInvoice->client->display_name }}</td>
                         <td class="px-6 py-3">{{ __(ucfirst($recurringInvoice->frequency)) }}</td>
                         <td class="px-6 py-3">{{ $recurringInvoice->status === 'active' ? $recurringInvoice->next_run_date->format('Y-m-d') : '—' }}</td>
                         <td class="px-6 py-3">{{ $recurringInvoice->generated_count }}</td>

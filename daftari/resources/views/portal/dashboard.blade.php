@@ -3,7 +3,7 @@
 @section('title', __('Dashboard'))
 
 @section('content')
-<h1 class="text-xl font-bold text-slate-900 mb-1">{{ __('Welcome, :name', ['name' => $client->name]) }}</h1>
+<h1 class="text-xl font-bold text-slate-900 mb-1">{{ __('Welcome, :name', ['name' => $client->display_name]) }}</h1>
 <p class="text-sm text-slate-500 mb-6">{{ $client->company->name }}</p>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">

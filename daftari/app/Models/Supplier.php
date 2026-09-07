@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\HasBilingualName;
 use App\Models\Concerns\HasCustomFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Supplier extends Model
 {
-    use BelongsToCompany, HasCustomFields;
+    use BelongsToCompany, HasBilingualName, HasCustomFields;
 
     public const CUSTOM_FIELD_ENTITY_TYPE = 'supplier';
 

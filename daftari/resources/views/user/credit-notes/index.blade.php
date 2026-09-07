@@ -32,7 +32,7 @@
                         <td class="px-6 py-3 font-medium text-brand-700">{{ $creditNote->credit_note_number }}</td>
                         <td class="px-6 py-3">{{ $creditNote->issue_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $creditNote->invoice->invoice_number }}</td>
-                        <td class="px-6 py-3">{{ $creditNote->client->name }}</td>
+                        <td class="px-6 py-3">{{ $creditNote->client->display_name }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($creditNote->total) }}</td>
                         <td class="px-6 py-3">
                             @if ($creditNote->status === 'void')

@@ -27,7 +27,7 @@
                 <select name="supplier_id" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">{{ __('Select a supplier') }}</option>
                     @foreach ($suppliers as $supplier)
-                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                        <option value="{{ $supplier->id }}">{{ $supplier->display_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -54,7 +54,7 @@
                                     <input type="checkbox" class="suggestion-check rounded border-slate-300 text-brand-600 focus:ring-brand-500" data-index="{{ $i }}" checked>
                                     <input type="hidden" name="items[{{ $i }}][item_id]" value="{{ $row['stock']->item_id }}">
                                 </td>
-                                <td class="py-3 pe-3 font-medium text-slate-800">{{ $row['stock']->item->name }}</td>
+                                <td class="py-3 pe-3 font-medium text-slate-800">{{ $row['stock']->item->display_name }}</td>
                                 <td class="py-3 pe-3">{{ $row['stock']->warehouse->name }}</td>
                                 <td class="py-3 pe-3">{{ rtrim(rtrim(number_format($row['stock']->quantity, 2), '0'), '.') }}</td>
                                 <td class="py-3 pe-3">{{ rtrim(rtrim(number_format($row['stock']->item->reorder_point, 2), '0'), '.') }}</td>

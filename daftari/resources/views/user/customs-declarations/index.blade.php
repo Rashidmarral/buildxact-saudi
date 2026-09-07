@@ -46,7 +46,7 @@
                         <td class="px-6 py-3 font-medium text-slate-800">{{ $declaration->declaration_number ?: '#'.$declaration->id }}</td>
                         <td class="px-6 py-3">{{ $declaration->declaration_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $declaration->port_of_entry ?: '—' }}</td>
-                        <td class="px-6 py-3">{{ $declaration->supplier->name ?? '—' }}</td>
+                        <td class="px-6 py-3">{{ $declaration->supplier->display_name ?? '—' }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($declaration->customs_value) }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($declaration->vat_amount) }}</td>
                         <td class="px-6 py-3">
@@ -109,7 +109,7 @@
                 <select id="declaration-supplier" name="supplier_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">{{ __('Select supplier') }}</option>
                     @foreach ($suppliers as $supplier)
-                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                        <option value="{{ $supplier->id }}">{{ $supplier->display_name }}</option>
                     @endforeach
                 </select>
                 <p class="text-xs text-slate-400 mt-1">{{ __('Optional. Links the declaration to a supplier record.') }}</p>

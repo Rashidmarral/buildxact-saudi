@@ -49,7 +49,7 @@
                     <tr>
                         <td>{{ $row->issue_date?->format('Y-m-d') }}</td>
                         <td>{{ $row->invoice_number }}</td>
-                        <td>{{ $row->client->name ?? '' }}</td>
+                        <td>{{ $row->client->display_name ?? '' }}</td>
                         <td class="amount">{{ number_format((float) $row->subtotal, 2) }}</td>
                         <td class="amount">{{ number_format((float) $row->vat_total, 2) }}</td>
                         <td class="amount">{{ number_format((float) $row->total, 2) }}</td>
@@ -75,7 +75,7 @@
                     <tr>
                         <td>{{ $row->bill_date?->format('Y-m-d') }}</td>
                         <td>{{ $row->bill_number }}</td>
-                        <td>{{ $row->supplier->name ?? '' }}</td>
+                        <td>{{ $row->supplier->display_name ?? '' }}</td>
                         <td class="amount">{{ number_format((float) $row->subtotal, 2) }}</td>
                         <td class="amount">{{ number_format((float) $row->vat_total, 2) }}</td>
                         <td class="amount">{{ number_format((float) $row->total, 2) }}</td>

@@ -43,7 +43,7 @@
                 @foreach ($adjustments as $adjustment)
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3">{{ $adjustment->date->format('Y-m-d') }}</td>
-                        <td class="px-6 py-3">{{ $adjustment->item->name }}</td>
+                        <td class="px-6 py-3">{{ $adjustment->item->display_name }}</td>
                         <td class="px-6 py-3">{{ $adjustment->warehouse->name }}</td>
                         <td class="px-6 py-3">
                             @if ($adjustment->type === 'increase')
@@ -90,7 +90,7 @@
             <select name="item_id" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select tracked item') }}</option>
                 @foreach ($items as $item)
-                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                    <option value="{{ $item->id }}">{{ $item->display_name }}</option>
                 @endforeach
             </select>
         </div>

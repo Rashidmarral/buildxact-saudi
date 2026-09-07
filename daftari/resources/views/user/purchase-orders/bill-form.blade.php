@@ -6,7 +6,7 @@
 <div class="flex items-center justify-between mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Bill purchase order') }}</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ __('Creating a bill against :number for :supplier', ['number' => $order->po_number, 'supplier' => $order->supplier->name]) }}</p>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Creating a bill against :number for :supplier', ['number' => $order->po_number, 'supplier' => $order->supplier->display_name]) }}</p>
     </div>
     <a href="{{ route('app.purchase-orders.show', $order) }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
 </div>

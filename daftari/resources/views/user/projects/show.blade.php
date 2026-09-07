@@ -16,7 +16,7 @@
             <h2 class="text-lg font-semibold text-slate-900">{{ $project->name }}</h2>
             <span class="text-xs font-mono text-slate-400">{{ $project->code }}</span>
         </div>
-        @if ($project->client)<p class="text-sm text-slate-500 mt-1">{{ $project->client->name }}</p>@endif
+        @if ($project->client)<p class="text-sm text-slate-500 mt-1">{{ $project->client->display_name }}</p>@endif
     </div>
     <div class="flex items-center gap-3">
         <a href="{{ route('app.projects.edit', $project) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
@@ -59,7 +59,7 @@
                     @foreach ($project->invoices as $invoice)
                         <tr class="border-b border-slate-50 last:border-0">
                             <td class="py-2"><a href="{{ route('app.invoices.show', $invoice) }}" class="text-brand-700 hover:underline">{{ $invoice->invoice_number }}</a></td>
-                            <td class="py-2 text-slate-500">{{ $invoice->client->name ?? '—' }}</td>
+                            <td class="py-2 text-slate-500">{{ $invoice->client->display_name ?? '—' }}</td>
                             <td class="py-2 text-end">{{ \App\Support\Money::format($invoice->total) }}</td>
                         </tr>
                     @endforeach

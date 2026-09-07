@@ -32,7 +32,7 @@
                         <td class="px-6 py-3 font-medium text-brand-700">{{ $debitNote->debit_note_number }}</td>
                         <td class="px-6 py-3">{{ $debitNote->issue_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $debitNote->invoice->invoice_number }}</td>
-                        <td class="px-6 py-3">{{ $debitNote->client->name }}</td>
+                        <td class="px-6 py-3">{{ $debitNote->client->display_name }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($debitNote->total) }}</td>
                         <td class="px-6 py-3">
                             @if ($debitNote->status === 'void')

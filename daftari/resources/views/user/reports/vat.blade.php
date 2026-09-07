@@ -38,14 +38,14 @@
         <label class="block text-xs font-medium text-slate-500">{{ __('Customer') }}</label>
         <select name="client_id" onchange="this.form.submit()" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">{{ __('All customers') }}</option>
-            @foreach ($clients as $client)<option value="{{ $client->id }}" @selected(request('client_id') == $client->id)>{{ $client->name }}</option>@endforeach
+            @foreach ($clients as $client)<option value="{{ $client->id }}" @selected(request('client_id') == $client->id)>{{ $client->display_name }}</option>@endforeach
         </select>
     </div>
     <div>
         <label class="block text-xs font-medium text-slate-500">{{ __('Supplier') }}</label>
         <select name="supplier_id" onchange="this.form.submit()" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">{{ __('All suppliers') }}</option>
-            @foreach ($suppliers as $supplier)<option value="{{ $supplier->id }}" @selected(request('supplier_id') == $supplier->id)>{{ $supplier->name }}</option>@endforeach
+            @foreach ($suppliers as $supplier)<option value="{{ $supplier->id }}" @selected(request('supplier_id') == $supplier->id)>{{ $supplier->display_name }}</option>@endforeach
         </select>
     </div>
 </form>
@@ -131,7 +131,7 @@
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="py-2 px-4 text-slate-500">{{ $row->issue_date?->format('Y-m-d') }}</td>
                         <td class="py-2 px-4"><a href="{{ route('app.invoices.show', $row) }}" class="text-brand-600 hover:underline">{{ $row->invoice_number }}</a></td>
-                        <td class="py-2 px-4">{{ $row->client->name ?? '—' }}</td>
+                        <td class="py-2 px-4">{{ $row->client->display_name ?? '—' }}</td>
                         <td class="py-2 px-4 text-slate-500">{{ $row->client->vat_number ?? '—' }}</td>
                         <td class="py-2 px-4 text-slate-500">{{ $row->warehouse->name ?? '—' }}</td>
                         <td class="py-2 px-4 text-end">{{ \App\Support\Money::format($row->subtotal) }}</td>
@@ -170,7 +170,7 @@
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="py-2 px-4 text-slate-500">{{ $row->bill_date?->format('Y-m-d') }}</td>
                         <td class="py-2 px-4"><a href="{{ route('app.bills.show', $row) }}" class="text-brand-600 hover:underline">{{ $row->bill_number }}</a></td>
-                        <td class="py-2 px-4">{{ $row->supplier->name ?? '—' }}</td>
+                        <td class="py-2 px-4">{{ $row->supplier->display_name ?? '—' }}</td>
                         <td class="py-2 px-4 text-slate-500">{{ $row->supplier->vat_number ?? '—' }}</td>
                         <td class="py-2 px-4 text-end">{{ \App\Support\Money::format($row->subtotal) }}</td>
                         <td class="py-2 px-4 text-end">{{ \App\Support\Money::format($row->discount_total) }}</td>

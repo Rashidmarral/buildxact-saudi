@@ -32,7 +32,7 @@
                         <td class="px-6 py-3 font-medium text-brand-700">{{ $purchaseReturn->return_number }}</td>
                         <td class="px-6 py-3">{{ $purchaseReturn->issue_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $purchaseReturn->bill->bill_number }}</td>
-                        <td class="px-6 py-3">{{ $purchaseReturn->supplier->name }}</td>
+                        <td class="px-6 py-3">{{ $purchaseReturn->supplier->display_name }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($purchaseReturn->total) }}</td>
                         <td class="px-6 py-3">
                             @if ($purchaseReturn->status === 'void')

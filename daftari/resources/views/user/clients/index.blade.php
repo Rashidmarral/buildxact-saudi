@@ -46,7 +46,7 @@
                             <td class="px-6 py-3"><input type="checkbox" :checked="selected.includes('{{ $client->id }}')" @change="toggleOne('{{ $client->id }}', $event.target.checked)"></td>
                             <td class="px-6 py-3 text-slate-400 font-mono text-xs">{{ $client->client_code }}</td>
                             <td class="px-6 py-3 font-medium text-slate-800">
-                                {{ $client->name }}
+                                {{ $client->display_name }}
                                 <span class="ms-1 text-xs text-slate-400">({{ $client->type === 'individual' ? __('Individual') : __('Company') }})</span>
                             </td>
                             <td class="px-6 py-3 text-slate-500">{{ $client->vat_number ?: '—' }}</td>
