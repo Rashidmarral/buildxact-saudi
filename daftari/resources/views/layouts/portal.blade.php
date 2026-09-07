@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title') · Daftari</title>
+    @php
+        $__favicon = request()->attributes->get('portalClient')?->company?->favicon_path;
+    @endphp
+    @if ($__favicon)
+        <link rel="icon" href="{{ Storage::url($__favicon) }}">
+    @endif
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">

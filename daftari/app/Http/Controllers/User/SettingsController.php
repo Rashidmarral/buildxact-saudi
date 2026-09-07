@@ -105,17 +105,25 @@ class SettingsController extends Controller
             'default_branch_id' => ['nullable', Rule::exists('branches', 'id')->where('company_id', $companyId)],
             'default_bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
             'logo' => ['nullable', 'image', 'max:2048'],
+            'favicon' => ['nullable', 'image', 'mimes:png,ico,jpg,jpeg,webp', 'max:512'],
             'stamp' => ['nullable', 'image', 'max:2048'],
         ]);
 
         $company = Auth::user()->company;
-        unset($data['logo'], $data['stamp']);
+        unset($data['logo'], $data['favicon'], $data['stamp']);
 
         if ($request->hasFile('logo')) {
             if ($company->logo_path) {
                 Storage::disk('public')->delete($company->logo_path);
             }
             $data['logo_path'] = $request->file('logo')->store('logos', 'public');
+        }
+
+        if ($request->hasFile('favicon')) {
+            if ($company->favicon_path) {
+                Storage::disk('public')->delete($company->favicon_path);
+            }
+            $data['favicon_path'] = $request->file('favicon')->store('favicons', 'public');
         }
 
         if ($request->hasFile('stamp') && $company->hasFeature('stamps')) {

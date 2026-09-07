@@ -17,6 +17,12 @@
         })();
     </script>
     <title>@yield('title') · Daftari</title>
+    @php
+        $__favicon = auth()->user()?->company?->favicon_path;
+    @endphp
+    @if ($__favicon)
+        <link rel="icon" href="{{ Storage::url($__favicon) }}">
+    @endif
     <link rel="manifest" href="/manifest.webmanifest">
     <meta name="theme-color" content="#0f9068">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">

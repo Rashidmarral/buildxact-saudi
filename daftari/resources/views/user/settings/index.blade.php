@@ -47,6 +47,19 @@
                 <p class="mt-1 text-xs text-slate-400">{{ __('Used on invoices, quotations, and other documents when the active template shows the logo.') }}</p>
             </div>
             <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Browser tab icon (favicon)') }}</label>
+                <div class="mt-1 flex items-center gap-4">
+                    @if ($company->favicon_path)
+                        <img src="{{ Storage::url($company->favicon_path) }}" alt="{{ __('Favicon') }}" class="h-8 w-8 rounded border border-slate-200 object-contain bg-white">
+                        <a href="{{ Storage::url($company->favicon_path) }}" target="_blank" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('View') }}</a>
+                    @else
+                        <div class="h-8 w-8 rounded border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-[10px]">{{ __('None') }}</div>
+                    @endif
+                    <input type="file" name="favicon" accept="image/png,image/x-icon,image/jpeg,image/webp" class="text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-600 hover:file:bg-slate-200">
+                </div>
+                <p class="mt-1 text-xs text-slate-400">{{ __('Shown as your browser tab icon so your team can tell your account apart from other open tabs. Falls back to the platform icon when not set.') }}</p>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Company stamp') }}</label>
                 <div class="mt-1 flex items-center gap-4">
                     @if ($company->stamp_path)
