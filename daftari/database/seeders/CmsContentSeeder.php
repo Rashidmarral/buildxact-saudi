@@ -43,8 +43,8 @@ class CmsContentSeeder extends Seeder
     private function seedHome(): void
     {
         $this->section('home', 'hero', 1, [
-            'badge_en' => 'ZATCA-ready e-invoicing',
-            'badge_ar' => 'فوترة إلكترونية متوافقة مع متطلبات هيئة الزكاة والضريبة والجمارك',
+            'badge_en' => 'Built to support ZATCA e-invoicing',
+            'badge_ar' => 'مصمم لدعم متطلبات الفوترة الإلكترونية لهيئة الزكاة والضريبة والجمارك',
             'title_en' => 'VAT invoicing & accounting, built for Saudi businesses',
             'title_ar' => 'فوترة ضريبة القيمة المضافة والمحاسبة، مصممة للشركات السعودية',
             'subtitle_en' => 'Daftari is a subscription-based accounting platform for Saudi companies — create compliant VAT invoices with QR codes, track expenses, manage clients, and see your VAT position at a glance. Bilingual Arabic/English, priced in SAR.',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Mail\ContactFormMail;
+use App\Models\LegalDocument;
 use App\Models\Plan;
 use App\Models\PlatformDocument;
 use App\Models\Setting;
@@ -68,12 +69,10 @@ class HomeController extends Controller
         return back()->with('status', __('Thanks for reaching out! Our team will get back to you shortly.'));
     }
 
-    public function legal(string $page)
+    public function legal(string $slug)
     {
-        if (! in_array($page, ['terms', 'privacy'], true)) {
-            abort(404);
-        }
+        $document = LegalDocument::where('slug', $slug)->firstOrFail();
 
-        return view('site.legal', compact('page'));
+        return view('site.legal', compact('document'));
     }
 }

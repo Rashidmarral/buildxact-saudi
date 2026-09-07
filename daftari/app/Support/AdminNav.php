@@ -113,6 +113,18 @@ class AdminNav
                 'icon' => 'settings',
                 'visible' => fn (User $user) => $user->isSuperAdmin(),
             ],
+            [
+                'route' => 'admin.legal-documents.index',
+                'label' => __('Legal Documents'),
+                'icon' => 'legal',
+                'visible' => fn (User $user) => $user->isSuperAdmin(),
+            ],
+            [
+                'route' => 'admin.compliance.index',
+                'label' => __('Compliance Readiness'),
+                'icon' => 'shield-check',
+                'visible' => fn (User $user) => $user->isSuperAdmin(),
+            ],
         ];
     }
 

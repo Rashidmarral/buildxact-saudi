@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\LegalDocumentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -12,11 +13,20 @@ use Tests\TestCase;
  * terms reviewed by your legal counsel before going live." — lawyer-
  * unreviewed placeholder copy shipping to real paying customers. Both
  * pages now carry real, substantive content tailored to what Daftari
- * actually does (subscriptions, ZATCA e-invoicing, PDPL).
+ * actually does (subscriptions, ZATCA e-invoicing, PDPL), rendered from
+ * the admin-editable LegalDocument table (LegalDocumentSeeder) rather
+ * than hardcoded in the view.
  */
 class LegalPagesTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(LegalDocumentSeeder::class);
+    }
 
     public static function pages(): array
     {

@@ -22,13 +22,21 @@ use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
  */
 class RichText
 {
-    public static function sanitize(?string $html): ?string
+    /**
+     * $maxInputLength defaults to marketing-copy scale; legal documents
+     * (LegalDocument) pass a larger value since a full Terms of Service
+     * or Privacy Policy, sectioned with h2 headings, comfortably exceeds
+     * the default 20000-char budget sized for short CMS body blurbs.
+     */
+    public static function sanitize(?string $html, int $maxInputLength = 20000): ?string
     {
         if ($html === null || trim($html) === '') {
             return null;
         }
 
         $config = (new HtmlSanitizerConfig())
+            ->allowElement('h2')
+            ->allowElement('h3')
             ->allowElement('p')
             ->allowElement('br')
             ->allowElement('b')
@@ -44,7 +52,7 @@ class RichText
             ->forceAttribute('a', 'target', '_blank')
             ->allowLinkSchemes(['https', 'mailto', 'tel'])
             ->allowRelativeLinks()
-            ->withMaxInputLength(20000);
+            ->withMaxInputLength($maxInputLength);
 
         return (new HtmlSanitizer($config))->sanitize($html);
     }
@@ -56,14 +64,14 @@ class RichText
      * save) and legacy plain text seeded before the editor existed, which
      * used a blank line between paragraphs instead of real <p> tags.
      */
-    public static function toHtml(?string $body): ?string
+    public static function toHtml(?string $body, int $maxInputLength = 20000): ?string
     {
         if ($body === null || trim($body) === '') {
             return null;
         }
 
         if (str_contains($body, '<') && str_contains($body, '>')) {
-            return self::sanitize($body);
+            return self::sanitize($body, $maxInputLength);
         }
 
         return collect(explode("\n\n", $body))

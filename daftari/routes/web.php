@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\PasswordConfirmationController;
 use App\Http\Controllers\Admin\PaymentGatewaySettingsController as AdminPaymentGatewaySettingsController;
 use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\CmsController;
+use App\Http\Controllers\Admin\ComplianceController;
+use App\Http\Controllers\Admin\LegalDocumentController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\TranslationController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
@@ -136,7 +138,7 @@ Route::get('/compliance', [HomeController::class, 'compliance'])->name('complian
 Route::get('/certificates', [HomeController::class, 'certificates'])->name('certificates');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'submitContact'])->name('contact.submit')->middleware('throttle:5,1');
-Route::get('/legal/{page}', [HomeController::class, 'legal'])->name('legal');
+Route::get('/legal/{slug}', [HomeController::class, 'legal'])->name('legal');
 Route::get('/pages/{slug}', [CmsPageController::class, 'show'])->name('cms-page.show');
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
 Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('filepath', '.*')->name('files.show');
@@ -796,6 +798,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
             Route::put('sections/{section}', [CmsController::class, 'updateSection'])->name('sections.update');
             Route::delete('sections/{section}', [CmsController::class, 'destroySection'])->name('sections.destroy');
             Route::post('sections/{section}/move', [CmsController::class, 'moveSection'])->name('sections.move');
+        });
+
+        Route::prefix('legal-documents')->name('legal-documents.')->group(function () {
+            Route::get('/', [LegalDocumentController::class, 'index'])->name('index');
+            Route::get('{legalDocument}/edit', [LegalDocumentController::class, 'edit'])->name('edit');
+            Route::put('{legalDocument}', [LegalDocumentController::class, 'update'])->name('update');
+        });
+
+        Route::prefix('compliance')->name('compliance.')->group(function () {
+            Route::get('/', [ComplianceController::class, 'index'])->name('index');
+            Route::post('activities', [ComplianceController::class, 'storeActivity'])->name('activities.store');
+            Route::delete('activities/{platformActivity}', [ComplianceController::class, 'destroyActivity'])->name('activities.destroy');
+            Route::post('zatca-status', [ComplianceController::class, 'updateZatcaStatus'])->name('zatca-status.update');
         });
     });
 });
