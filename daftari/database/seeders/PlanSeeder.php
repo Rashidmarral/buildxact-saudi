@@ -47,6 +47,8 @@ class PlanSeeder extends Seeder
                 'has_zatca_phase2' => false,
                 'has_api' => false,
                 'has_whatsapp' => false,
+                'has_payroll' => false,
+                'has_pos' => false,
                 'features' => [
                     'VAT-compliant invoicing with ZATCA QR codes',
                     'Up to 30 invoices / month',
@@ -85,6 +87,8 @@ class PlanSeeder extends Seeder
                 'has_zatca_phase2' => true,
                 'has_api' => true,
                 'has_whatsapp' => true,
+                'has_payroll' => false,
+                'has_pos' => true,
                 'features' => [
                     'Everything in Invoicing',
                     'Unlimited invoices',
@@ -93,6 +97,7 @@ class PlanSeeder extends Seeder
                     'Purchase orders & debit notes',
                     'Financial statements & VAT return report',
                     'Company stamp on documents',
+                    'Point of sale (POS)',
                     'Up to 5 users',
                     'Priority support',
                 ],
@@ -128,9 +133,12 @@ class PlanSeeder extends Seeder
                 'has_zatca_phase2' => true,
                 'has_api' => true,
                 'has_whatsapp' => true,
+                'has_payroll' => true,
+                'has_pos' => true,
                 'features' => [
                     'Everything in Essential',
                     'Unlimited users, branches & warehouses',
+                    'Full payroll (GOSI, WPS, end-of-service)',
                     'Cost centers',
                     'Custom roles & permissions',
                     'Dedicated account manager',

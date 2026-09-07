@@ -4326,5 +4326,8 @@
     "This sale was voided.": "تم إلغاء هذا البيع.",
     "Time": "الوقت",
     "Void sale": "إلغاء البيع",
-    "Voided": "ملغى"
+    "Voided": "ملغى",
+    "Payroll & Point of Sale": "الرواتب ونقطة البيع",
+    "Full WPS-compliant payroll (GOSI, end-of-service, payslips)": "رواتب متوافقة بالكامل مع نظام حماية الأجور (التأمينات، نهاية الخدمة، قسائم الرواتب)",
+    "Retail point of sale (registers, shifts, split payments, ZATCA receipts)": "نقطة بيع للتجزئة (صناديق، ورديات، دفع مقسّم، إيصالات متوافقة مع هيئة الزكاة)"
 }

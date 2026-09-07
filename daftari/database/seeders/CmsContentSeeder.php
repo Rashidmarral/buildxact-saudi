@@ -16,10 +16,23 @@ use Illuminate\Database\Seeder;
  */
 class CmsContentSeeder extends Seeder
 {
+    /**
+     * about/contact are excluded from the coarse "page already has content"
+     * skip below: two data migrations (expand_cms_content_and_add_global_
+     * blocks, add_payroll_pos_and_expand_marketing_content) pre-create a
+     * handful of rows for exactly those two pages before this seeder ever
+     * runs on a fresh install, so the generic check would see "this page
+     * already has a section" and skip seeding the rest of it entirely —
+     * no hero, no pillars, no contact methods. seedAbout()/seedContact()
+     * are themselves fully idempotent per-section instead, so it's safe
+     * to always call them.
+     */
+    private const ALWAYS_RESEED_PAGES = ['about', 'contact'];
+
     public function run(): void
     {
         foreach (CmsSection::PAGES as $page) {
-            if (CmsSection::query()->where('page', $page)->exists()) {
+            if (! in_array($page, self::ALWAYS_RESEED_PAGES, true) && CmsSection::query()->where('page', $page)->exists()) {
                 continue;
             }
 
@@ -70,6 +83,8 @@ class CmsContentSeeder extends Seeder
             ['🎨', 'Invoice & document templates', 'قوالب الفواتير والمستندات', 'Multiple document templates and layouts, with your logo, stamp, and letterhead, that unify the look of your paperwork.', 'قوالب وتخطيطات متعددة للمستندات، بشعارك وختمك وترويستك، توحّد شكل مستنداتك.'],
             ['🌍', 'Bilingual, RTL-ready', 'ثنائي اللغة، وجاهز للعرض من اليمين لليسار', 'Full Arabic and English interface with proper right-to-left layout.', 'واجهة كاملة بالعربية والإنجليزية مع تخطيط صحيح من اليمين إلى اليسار.'],
             ['🔔', 'In-app notifications & 2FA', 'الإشعارات داخل التطبيق والتحقق بخطوتين', 'Stay on top of what needs attention, and secure your account with two-factor authentication.', 'تابع كل ما يحتاج انتباهك، وأمّن حسابك بالتحقق بخطوتين.'],
+            ['🧮', 'Full payroll, GOSI & WPS', 'رواتب كاملة والتأمينات ونظام حماية الأجور', 'Employee records, monthly payroll runs with GOSI employee/employer contributions, WPS bank-file export, payslips, and end-of-service gratuity — all posted to your books automatically.', 'سجلات الموظفين ودورات رواتب شهرية مع اشتراكات التأمينات الاجتماعية للموظف وصاحب العمل، وملف بنكي لنظام حماية الأجور، وقسائم رواتب، ومكافأة نهاية الخدمة — تُرحّل جميعها تلقائيًا إلى سجلاتك المحاسبية.'],
+            ['🛒', 'Point of sale (POS)', 'نقطة البيع', 'A touch-friendly checkout for retail counters — barcode scan, split cash/card payments, register shifts with a Z-report reconciliation, and a ZATCA-compliant QR receipt on every sale.', 'شاشة دفع سريعة الاستخدام لمنافذ البيع بالتجزئة — مسح الباركود، ودفع مقسّم نقدًا وبالبطاقة، وورديات صندوق مع تسوية تقرير Z، وإيصال بيع يتضمن رمز QR متوافقًا مع هيئة الزكاة والضريبة والجمارك.'],
         ];
         foreach ($featureRows as $i => [$icon, $tEn, $tAr, $bEn, $bAr]) {
             $this->item($features, $i + 1, ['icon' => $icon, 'title_en' => $tEn, 'title_ar' => $tAr, 'body_en' => $bEn, 'body_ar' => $bAr]);
@@ -90,8 +105,8 @@ class CmsContentSeeder extends Seeder
         $this->section('features', 'hero', 1, [
             'title_en' => 'Features — everything for VAT invoicing, in one place',
             'title_ar' => 'المزايا — كل ما يخص فوترة ضريبة القيمة المضافة، في مكان واحد',
-            'subtitle_en' => 'Daftari brings invoicing, expenses, purchasing, inventory, accounting, and VAT reporting together for Saudi businesses. Almost everything below is live today; the couple of items still in progress are clearly marked.',
-            'subtitle_ar' => 'يجمع دفتري بين الفوترة والمصروفات والمشتريات والمخزون والمحاسبة وتقارير ضريبة القيمة المضافة في مكان واحد للأعمال السعودية. كل ما يظهر أدناه تقريبًا متاح اليوم؛ والعنصران القليلان قيد التطوير موضّحان بوضوح.',
+            'subtitle_en' => 'Daftari brings invoicing, expenses, purchasing, inventory, accounting, payroll, point of sale, and VAT reporting together for Saudi businesses — one connected platform instead of a patchwork of tools. Everything below is live today.',
+            'subtitle_ar' => 'يجمع دفتري بين الفوترة والمصروفات والمشتريات والمخزون والمحاسبة والرواتب ونقطة البيع وتقارير ضريبة القيمة المضافة في منصة واحدة متكاملة للأعمال السعودية، بدلًا من أدوات متفرقة. كل ما يظهر أدناه متاح اليوم بالكامل.',
         ]);
 
         $grid = $this->section('features', 'feature_grid', 2);
@@ -115,6 +130,8 @@ class CmsContentSeeder extends Seeder
             ['🎨', 'Invoice & document templates', 'قوالب الفواتير والمستندات', 'Multiple document templates and layouts, with your logo, stamp, and letterhead, that unify the look of your paperwork.', 'قوالب وتخطيطات متعددة للمستندات، بشعارك وختمك وترويستك، توحّد شكل مستنداتك.'],
             ['🏦', 'Account reconciliation', 'تسوية الحسابات', 'Match bank and cash activity against your records so your numbers reflect reality.', 'طابق الحركة البنكية والنقدية مع سجلاتك حتى تعكس أرقامك واقع منشأتك.'],
             ['🌍', 'Multi-currency', 'تعدد العملات', 'Work in more than one currency and track exchange rates clearly.', 'اعمل بأكثر من عملة وتتبع أسعار الصرف بوضوح.'],
+            ['🧮', 'Full payroll, GOSI & WPS', 'رواتب كاملة والتأمينات ونظام حماية الأجور', 'Employee records, monthly payroll runs with GOSI employee/employer contributions, WPS bank-file export, payslips, and end-of-service gratuity — all posted to your books automatically.', 'سجلات الموظفين ودورات رواتب شهرية مع اشتراكات التأمينات الاجتماعية للموظف وصاحب العمل، وملف بنكي لنظام حماية الأجور، وقسائم رواتب، ومكافأة نهاية الخدمة — تُرحّل جميعها تلقائيًا إلى سجلاتك المحاسبية.'],
+            ['🛒', 'Point of sale (POS)', 'نقطة البيع', 'A touch-friendly checkout for retail counters — barcode scan, split cash/card payments, register shifts with a Z-report reconciliation, and a ZATCA-compliant QR receipt on every sale.', 'شاشة دفع سريعة الاستخدام لمنافذ البيع بالتجزئة — مسح الباركود، ودفع مقسّم نقدًا وبالبطاقة، وورديات صندوق مع تسوية تقرير Z، وإيصال بيع يتضمن رمز QR متوافقًا مع هيئة الزكاة والضريبة والجمارك.'],
         ];
         foreach ($rows as $i => [$icon, $tEn, $tAr, $bEn, $bAr]) {
             $this->item($grid, $i + 1, ['icon' => $icon, 'title_en' => $tEn, 'title_ar' => $tAr, 'body_en' => $bEn, 'body_ar' => $bAr]);
@@ -138,27 +155,91 @@ class CmsContentSeeder extends Seeder
         ]);
     }
 
+    /**
+     * Fully idempotent per-section (unlike most other seed*() methods in
+     * this class, which assume they only ever run once on a page with
+     * zero content) — see ALWAYS_RESEED_PAGES above. Two earlier data
+     * migrations pre-create a couple of rows for the about/contact pages
+     * before this seeder ever runs on a fresh install, so every section
+     * here is only created if a matching one doesn't already exist. This
+     * converges to the same end state whether the page is completely
+     * empty, partially seeded by a migration, or already fully seeded.
+     */
     private function seedAbout(): void
     {
-        $this->section('about', 'text', 1, [
-            'title_en' => 'About Daftari',
-            'title_ar' => 'عن دفتري',
-            'body_en' => "Daftari was built for one reason: Saudi businesses deserve accounting software that speaks their language — literally and in terms of VAT compliance, SAR pricing, and local business practices.\n\nWe focus on the everyday workflow of a growing business: quote a client, invoice them with the correct VAT and a compliant QR code, track what is owed, log your expenses, and know your VAT position before the return is due — without hiring an accountant just to keep the books straight.",
-            'body_ar' => "بُني دفتري لسبب واحد: الشركات السعودية تستحق برنامج محاسبة يتحدث لغتها — حرفيًا ومن حيث الامتثال الضريبي، والتسعير بالريال، وممارسات الأعمال المحلية.\n\nنركّز على سير العمل اليومي للأعمال النامية: قدّم عرض سعر لعميلك، أصدر له فاتورة بالضريبة الصحيحة ورمز QR متوافق، وتتبّع المستحقات، وسجّل مصروفاتك، واعرف وضعك الضريبي قبل موعد الإقرار — دون الحاجة لتوظيف محاسب فقط لتنظيم سجلاتك.",
-        ]);
+        $hero = CmsSection::query()->where('page', 'about')->where('title_en', 'About Daftari')->first()
+            ?? $this->section('about', 'text', 1, [
+                'title_en' => 'About Daftari',
+                'title_ar' => 'عن دفتري',
+                'body_en' => "Daftari was built for one reason: Saudi businesses deserve accounting software that speaks their language — literally and in terms of VAT compliance, SAR pricing, and local business practices.\n\nWe focus on the everyday workflow of a growing business: quote a client, invoice them with the correct VAT and a compliant QR code, track what is owed, log your expenses, and know your VAT position before the return is due — without hiring an accountant just to keep the books straight.",
+                'body_ar' => "بُني دفتري لسبب واحد: الشركات السعودية تستحق برنامج محاسبة يتحدث لغتها — حرفيًا ومن حيث الامتثال الضريبي، والتسعير بالريال، وممارسات الأعمال المحلية.\n\nنركّز على سير العمل اليومي للأعمال النامية: قدّم عرض سعر لعميلك، أصدر له فاتورة بالضريبة الصحيحة ورمز QR متوافق، وتتبّع المستحقات، وسجّل مصروفاتك، واعرف وضعك الضريبي قبل موعد الإقرار — دون الحاجة لتوظيف محاسب فقط لتنظيم سجلاتك.",
+            ]);
 
-        $pillars = $this->section('about', 'feature_grid', 2);
-        $this->item($pillars, 1, ['title_en' => 'Compliance first', 'title_ar' => 'الامتثال أولًا', 'body_en' => 'Every invoice includes standards-based VAT calculation and a scannable QR code.', 'body_ar' => 'تتضمن كل فاتورة احتسابًا للضريبة وفق المعايير المعتمدة ورمز QR قابل للمسح.']);
-        $this->item($pillars, 2, ['title_en' => 'Built for Arabic & English', 'title_ar' => 'مصمم للعربية والإنجليزية', 'body_en' => 'A genuinely bilingual product with right-to-left layout, not a translated afterthought.', 'body_ar' => 'منتج ثنائي اللغة بالفعل، مصمم بتخطيط من اليمين إلى اليسار، وليس ترجمة لاحقة.']);
-        $this->item($pillars, 3, ['title_en' => 'Fair, transparent pricing', 'title_ar' => 'أسعار عادلة وشفافة', 'body_en' => 'Simple SAR pricing with no hidden fees — upgrade, downgrade, or cancel anytime.', 'body_ar' => 'تسعير بسيط بالريال السعودي بدون رسوم خفية — رقّي باقتك أو خفّضها أو ألغِ اشتراكك في أي وقت.']);
+        $pillars = CmsSection::query()->where('page', 'about')->where('type', 'feature_grid')->first()
+            ?? $this->section('about', 'feature_grid', 2);
+        $pillarRows = [
+            ['Compliance first', 'الامتثال أولًا', 'Every invoice includes standards-based VAT calculation and a scannable QR code.', 'تتضمن كل فاتورة احتسابًا للضريبة وفق المعايير المعتمدة ورمز QR قابل للمسح.'],
+            ['Built for Arabic & English', 'مصمم للعربية والإنجليزية', 'A genuinely bilingual product with right-to-left layout, not a translated afterthought.', 'منتج ثنائي اللغة بالفعل، مصمم بتخطيط من اليمين إلى اليسار، وليس ترجمة لاحقة.'],
+            ['Fair, transparent pricing', 'أسعار عادلة وشفافة', 'Simple SAR pricing with no hidden fees — upgrade, downgrade, or cancel anytime.', 'تسعير بسيط بالريال السعودي بدون رسوم خفية — رقّي باقتك أو خفّضها أو ألغِ اشتراكك في أي وقت.'],
+        ];
+        foreach ($pillarRows as $i => [$tEn, $tAr, $bEn, $bAr]) {
+            if ($pillars->items()->where('title_en', $tEn)->exists()) {
+                continue;
+            }
+            $this->item($pillars, $i + 1, ['title_en' => $tEn, 'title_ar' => $tAr, 'body_en' => $bEn, 'body_ar' => $bAr]);
+        }
 
-        $this->section('about', 'text', 3, [
-            'title_en' => 'How we build Daftari',
-            'title_ar' => 'كيف نبني دفتري',
-            'body_en' => "We ship the modules a growing Saudi business actually needs — invoicing, purchasing, inventory, accounting, and ZATCA compliance — as one connected product instead of bolted-together add-ons.\n\nSupport comes from people who understand Saudi VAT and e-invoicing, not a generic help desk, so when a question is specific to your business, you get a specific answer.",
-            'body_ar' => "نبني الوحدات التي تحتاجها فعليًا منشأة سعودية نامية — الفوترة والمشتريات والمخزون والمحاسبة والامتثال لهيئة الزكاة والضريبة والجمارك — كمنتج واحد متكامل بدلًا من إضافات منفصلة.\n\nيأتي الدعم من أشخاص يفهمون ضريبة القيمة المضافة والفوترة الإلكترونية في السعودية، لا مركز دعم عام، فحين يكون سؤالك خاصًا بمنشأتك، تحصل على إجابة محددة.",
-            'image_position' => 'right',
-        ]);
+        $howWeBuild = CmsSection::query()->where('page', 'about')->where('title_en', 'How we build Daftari')->first()
+            ?? $this->section('about', 'text', 3, [
+                'title_en' => 'How we build Daftari',
+                'title_ar' => 'كيف نبني دفتري',
+                'body_en' => "We ship the modules a growing Saudi business actually needs — invoicing, purchasing, inventory, accounting, payroll, point of sale, and ZATCA compliance — as one connected product instead of bolted-together add-ons.\n\nSupport comes from people who understand Saudi VAT and e-invoicing, not a generic help desk, so when a question is specific to your business, you get a specific answer.",
+                'body_ar' => "نبني الوحدات التي تحتاجها فعليًا منشأة سعودية نامية — الفوترة والمشتريات والمخزون والمحاسبة والرواتب ونقطة البيع والامتثال لهيئة الزكاة والضريبة والجمارك — كمنتج واحد متكامل بدلًا من إضافات منفصلة.\n\nيأتي الدعم من أشخاص يفهمون ضريبة القيمة المضافة والفوترة الإلكترونية في السعودية، لا مركز دعم عام، فحين يكون سؤالك خاصًا بمنشأتك، تحصل على إجابة محددة.",
+                'image_position' => 'right',
+            ]);
+
+        $stats = CmsSection::query()->where('page', 'about')->where('type', 'stats')->first()
+            ?? $this->section('about', 'stats', 4, [
+                'title_en' => 'One platform, every module',
+                'title_ar' => 'منصة واحدة، بكل الوحدات',
+            ]);
+        $statRows = [
+            ['10+', '10+', 'Connected modules', 'وحدات مترابطة'],
+            ['Phase 1 & 2', 'المرحلتان 1 و2', 'ZATCA e-invoicing', 'الفوترة الإلكترونية لهيئة الزكاة'],
+            ['GOSI & WPS', 'التأمينات ونظام الأجور', 'Compliant payroll', 'رواتب متوافقة مع الأنظمة'],
+            ['AR / EN', 'عربي / إنجليزي', 'Fully bilingual, RTL-ready', 'ثنائي اللغة بالكامل وجاهز لليمين-يسار'],
+        ];
+        foreach ($statRows as $i => [$tEn, $tAr, $sEn, $sAr]) {
+            if ($stats->items()->where('title_en', $tEn)->exists()) {
+                continue;
+            }
+            $this->item($stats, $i + 1, ['title_en' => $tEn, 'title_ar' => $tAr, 'subtitle_en' => $sEn, 'subtitle_ar' => $sAr]);
+        }
+
+        $testimonials = CmsSection::query()->where('page', 'about')->where('type', 'testimonials')->first()
+            ?? $this->section('about', 'testimonials', 5, [
+                'title_en' => 'What business owners say',
+                'title_ar' => 'ماذا يقول أصحاب الأعمال',
+            ]);
+        $testimonialRows = [
+            ['We moved our invoicing, purchasing, and VAT reporting into Daftari in an afternoon. Having payroll and POS in the same place now means our accountant only looks in one place at month end.', 'نقلنا فوترتنا ومشترياتنا وتقارير ضريبة القيمة المضافة إلى دفتري في يوم واحد. وجود الرواتب ونقطة البيع في نفس المكان الآن يعني أن محاسبنا ينظر في مكان واحد فقط في نهاية الشهر.', 'Finance Manager', 'مدير مالي', 'Contracting business', 'شركة مقاولات'],
+            ['The GOSI and WPS calculations used to take our bookkeeper a full day every month. Now the payroll run does it in minutes and posts straight to the books.', 'كانت حسابات التأمينات ونظام حماية الأجور تستغرق من محاسبنا يومًا كاملًا كل شهر. الآن تتم دورة الرواتب خلال دقائق وتُرحّل مباشرة إلى السجلات.', 'Owner', 'صاحب المنشأة', 'Retail chain', 'سلسلة متاجر تجزئة'],
+            ['Our cashiers picked up the POS screen in minutes, and every receipt already carries a proper ZATCA QR code — one less thing to worry about.', 'تعلّم أمناء الصندوق لدينا استخدام شاشة نقطة البيع خلال دقائق، وكل إيصال يحمل رمز QR متوافقًا مع هيئة الزكاة والضريبة — أمر أقل نقلقه.', 'Operations Lead', 'مسؤول العمليات', 'Food & beverage outlet', 'منفذ أغذية ومشروبات'],
+        ];
+        foreach ($testimonialRows as $i => [$bEn, $bAr, $tEn, $tAr, $sEn, $sAr]) {
+            if ($testimonials->items()->where('title_en', $tEn)->exists()) {
+                continue;
+            }
+            $this->item($testimonials, $i + 1, ['title_en' => $tEn, 'title_ar' => $tAr, 'subtitle_en' => $sEn, 'subtitle_ar' => $sAr, 'body_en' => $bEn, 'body_ar' => $bAr]);
+        }
+
+        // Sections above are found-or-created rather than always freshly
+        // inserted, so two of them can come from a data migration that ran
+        // before this seeder with its own sort_order — pin the final
+        // display order explicitly rather than trusting insertion order.
+        foreach ([$hero, $pillars, $howWeBuild, $stats, $testimonials] as $order => $section) {
+            $section->update(['sort_order' => $order + 1]);
+        }
     }
 
     private function seedCompliance(): void
@@ -212,39 +293,72 @@ class CmsContentSeeder extends Seeder
         ]);
     }
 
+    /**
+     * Fully idempotent per-section — see the doc comment on seedAbout().
+     * An earlier data migration already creates the contact page's faq
+     * section (with its first 3 questions) before this seeder ever runs
+     * on a fresh install, so the hero/contact_info/social_links sections
+     * below must be created independently of that, and the faq section
+     * itself must be reused rather than duplicated.
+     */
     private function seedContact(): void
     {
-        $this->section('contact', 'hero', 1, [
-            'title_en' => 'Contact us',
-            'title_ar' => 'تواصل معنا',
-            'subtitle_en' => 'Our team is ready to help. Choose what works best for you.',
-            'subtitle_ar' => 'فريقنا جاهز للمساعدة. اختر الطريقة الأنسب لك.',
-        ]);
+        $hero = CmsSection::query()->where('page', 'contact')->where('type', 'hero')->first()
+            ?? $this->section('contact', 'hero', 1, [
+                'title_en' => 'Contact us',
+                'title_ar' => 'تواصل معنا',
+                'subtitle_en' => 'Our team is ready to help. Choose what works best for you.',
+                'subtitle_ar' => 'فريقنا جاهز للمساعدة. اختر الطريقة الأنسب لك.',
+            ]);
 
-        $methods = $this->section('contact', 'contact_info', 2);
-        $this->item($methods, 1, ['icon' => '✉️', 'title_en' => 'Email', 'title_ar' => 'البريد الإلكتروني', 'subtitle_en' => 'For support and general inquiries', 'subtitle_ar' => 'للدعم والاستفسارات العامة', 'body_en' => 'support@daftari.app', 'body_ar' => 'support@daftari.app', 'meta' => ['url' => 'mailto:support@daftari.app']]);
-        $this->item($methods, 2, ['icon' => '📞', 'title_en' => 'Phone', 'title_ar' => 'الجوال', 'subtitle_en' => 'Call us during business hours', 'subtitle_ar' => 'اتصل بنا خلال ساعات العمل', 'body_en' => '+966 11 000 0000', 'body_ar' => '+966 11 000 0000', 'meta' => ['url' => 'tel:+966110000000']]);
-        $this->item($methods, 3, ['icon' => '💬', 'title_en' => 'WhatsApp', 'title_ar' => 'واتساب', 'subtitle_en' => 'Message us directly on WhatsApp', 'subtitle_ar' => 'راسلنا مباشرة عبر واتساب', 'body_en' => '+966 50 000 0000', 'body_ar' => '+966 50 000 0000', 'meta' => ['url' => '#']]);
+        $methods = CmsSection::query()->where('page', 'contact')->where('type', 'contact_info')->first()
+            ?? $this->section('contact', 'contact_info', 2);
+        $methodRows = [
+            ['✉️', 'Email', 'البريد الإلكتروني', 'For support and general inquiries', 'للدعم والاستفسارات العامة', 'support@daftari.app', 'support@daftari.app', 'mailto:support@daftari.app'],
+            ['📞', 'Phone', 'الجوال', 'Call us during business hours', 'اتصل بنا خلال ساعات العمل', '+966 11 000 0000', '+966 11 000 0000', 'tel:+966110000000'],
+            ['💬', 'WhatsApp', 'واتساب', 'Message us directly on WhatsApp', 'راسلنا مباشرة عبر واتساب', '+966 50 000 0000', '+966 50 000 0000', '#'],
+            ['🤝', 'Sales', 'المبيعات', 'Questions before you buy, or need a plan recommendation', 'أسئلة قبل الشراء أو تحتاج توصية بالباقة المناسبة', 'sales@daftari.app', 'sales@daftari.app', 'mailto:sales@daftari.app'],
+        ];
+        foreach ($methodRows as $i => [$icon, $tEn, $tAr, $sEn, $sAr, $bEn, $bAr, $url]) {
+            if ($methods->items()->where('title_en', $tEn)->exists()) {
+                continue;
+            }
+            $this->item($methods, $i + 1, ['icon' => $icon, 'title_en' => $tEn, 'title_ar' => $tAr, 'subtitle_en' => $sEn, 'subtitle_ar' => $sAr, 'body_en' => $bEn, 'body_ar' => $bAr, 'meta' => ['url' => $url]]);
+        }
 
         // Hidden by default — no real profile URLs to publish yet. An admin
         // turns this on from Website CMS once they've added real links.
-        $this->section('contact', 'social_links', 3, [
-            'title_en' => 'Follow us',
-            'title_ar' => 'تابعنا',
-            'is_active' => false,
-        ]);
+        $social = CmsSection::query()->where('page', 'contact')->where('type', 'social_links')->first()
+            ?? $this->section('contact', 'social_links', 3, [
+                'title_en' => 'Follow us',
+                'title_ar' => 'تابعنا',
+                'is_active' => false,
+            ]);
 
-        $faq = $this->section('contact', 'faq', 4, [
-            'title_en' => 'Before you reach out',
-            'title_ar' => 'قبل أن تتواصل معنا',
-        ]);
+        $faq = CmsSection::query()->where('page', 'contact')->where('type', 'faq')->first()
+            ?? $this->section('contact', 'faq', 4, [
+                'title_en' => 'Before you reach out',
+                'title_ar' => 'قبل أن تتواصل معنا',
+            ]);
         $contactQa = [
             ['How quickly do you respond?', 'ما مدى سرعة الرد؟', 'We aim to respond to support and sales messages within one business day.', 'نسعى للرد على رسائل الدعم والمبيعات خلال يوم عمل واحد.'],
             ['I have a question about my subscription or an invoice.', 'لدي سؤال حول اشتراكي أو إحدى الفواتير.', 'Email support with your company name and, if relevant, the invoice or payment reference — that lets us look into it right away.', 'راسلنا عبر البريد الإلكتروني مع اسم منشأتك، وإن كان الأمر متعلقًا بفاتورة أو دفعة، أرفق المرجع الخاص بها — ليتسنى لنا معالجة الأمر فورًا.'],
             ['Can I get help setting up ZATCA Phase 2?', 'هل يمكنني الحصول على مساعدة لإعداد المرحلة الثانية من هيئة الزكاة؟', 'Yes — message us and we\'ll walk you through connecting your ZATCA credentials from the ZATCA section of your dashboard.', 'نعم — راسلنا وسنرشدك خطوة بخطوة لربط بيانات اعتماد هيئة الزكاة من قسم ZATCA في لوحة التحكم.'],
+            ['Does Daftari include payroll and a point of sale?', 'هل يشمل دفتري الرواتب ونقطة البيع؟', 'Yes — full WPS-compliant payroll with GOSI and end-of-service calculations, and a retail point of sale with split payments and ZATCA receipts, are both built into the platform on qualifying plans.', 'نعم — الرواتب الكاملة المتوافقة مع نظام حماية الأجور مع حسابات التأمينات ومكافأة نهاية الخدمة، ونقطة بيع للتجزئة مع دفع مقسّم وإيصالات متوافقة مع هيئة الزكاة، كلاهما مدمج في المنصة ضمن الباقات المؤهلة.'],
+            ['Can I try Daftari with my team before deciding?', 'هل يمكنني تجربة دفتري مع فريقي قبل اتخاذ القرار؟', 'Yes — every plan starts with a free trial, no credit card required, so you and your team can try real invoicing, payroll, and POS workflows before you commit.', 'نعم — تبدأ كل باقة بتجربة مجانية دون الحاجة لبطاقة ائتمان، حتى تتمكن أنت وفريقك من تجربة سير عمل حقيقي للفوترة والرواتب ونقطة البيع قبل الالتزام.'],
         ];
         foreach ($contactQa as $i => [$qEn, $qAr, $aEn, $aAr]) {
+            if ($faq->items()->where('title_en', $qEn)->exists()) {
+                continue;
+            }
             $this->item($faq, $i + 1, ['title_en' => $qEn, 'title_ar' => $qAr, 'body_en' => $aEn, 'body_ar' => $aAr]);
+        }
+
+        // See the matching comment at the end of seedAbout() — pin the
+        // final display order explicitly since some of these sections
+        // can be found rather than freshly created.
+        foreach ([$hero, $methods, $social, $faq] as $order => $section) {
+            $section->update(['sort_order' => $order + 1]);
         }
     }
 

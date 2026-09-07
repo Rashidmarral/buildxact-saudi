@@ -16,6 +16,36 @@ document.addEventListener('alpine:init', () => {
         observer.observe(el);
     });
 
+    // Subtle mouse-tilt "3D" effect for marketing cards (feature tiles, the
+    // hero mockup, pricing cards): rotates the element toward the cursor on
+    // a 3D perspective and lifts it slightly, resetting smoothly on leave.
+    // Skipped entirely for touch input (no hover) and for users who asked
+    // the OS for reduced motion.
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canHover = window.matchMedia('(hover: hover)').matches;
+
+    Alpine.directive('tilt', (el, { modifiers }) => {
+        if (prefersReducedMotion || !canHover) {
+            return;
+        }
+
+        const maxDeg = modifiers.includes('lg') ? 10 : 6;
+        el.classList.add('tilt-card');
+
+        el.addEventListener('mousemove', (event) => {
+            const rect = el.getBoundingClientRect();
+            const px = (event.clientX - rect.left) / rect.width - 0.5;
+            const py = (event.clientY - rect.top) / rect.height - 0.5;
+            el.style.setProperty('--tilt-x', `${(-py * maxDeg).toFixed(2)}deg`);
+            el.style.setProperty('--tilt-y', `${(px * maxDeg).toFixed(2)}deg`);
+        });
+
+        el.addEventListener('mouseleave', () => {
+            el.style.setProperty('--tilt-x', '0deg');
+            el.style.setProperty('--tilt-y', '0deg');
+        });
+    });
+
     // Minimal rich-text editor for Website CMS body fields (Admin\CmsController
     // sanitizes on save via App\Support\RichText — this is only the input side).
     // Backed by document.execCommand: deprecated in spec but still universally

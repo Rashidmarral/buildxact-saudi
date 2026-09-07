@@ -162,6 +162,58 @@
         @apply bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-500 bg-clip-text text-transparent;
     }
 
+    /*
+     * "3D" marketing-page treatment: a perspective wrapper plus a
+     * mouse-driven tilt (see the `x-tilt` Alpine directive in app.js,
+     * which sets the --tilt-x/--tilt-y custom properties on mousemove)
+     * and a set of slow-drifting ambient orb shapes for hero/CTA
+     * backgrounds. Kept as a handful of reusable classes rather than
+     * inline transforms so every marketing page picks up the same
+     * depth language.
+     */
+    .perspective {
+        perspective: 1600px;
+    }
+
+    .tilt-card {
+        --tilt-x: 0deg;
+        --tilt-y: 0deg;
+        transform: perspective(1000px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateZ(0);
+        transform-style: preserve-3d;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+        will-change: transform;
+    }
+
+    .tilt-card:hover {
+        box-shadow: 0 4px 12px 0 rgb(15 23 42 / 0.05), 0 24px 40px -14px rgb(15 23 42 / 0.18);
+    }
+
+    /* Content inside a .tilt-card that should pop toward the viewer —
+       icons, badges — pairs with the parent's preserve-3d. */
+    .tilt-pop {
+        transform: translateZ(40px);
+    }
+
+    .orb-3d {
+        position: absolute;
+        border-radius: 9999px;
+        filter: blur(40px);
+        pointer-events: none;
+        animation: drift 12s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .tilt-card {
+            transition: none;
+        }
+        .orb-3d,
+        .animate-float,
+        .animate-drift,
+        .animate-spin-slow {
+            animation: none !important;
+        }
+    }
+
     /* Modern lift/shadow treatment for the app's existing primary (brand-600) and
        secondary (bordered) buttons — scoped to real <a>/<button> elements only,
        so avatars, badges and static chips using the same colors stay untouched. */

@@ -8,17 +8,17 @@
     @elseif ($section->title())
         <div class="mb-10"></div>
     @endif
-    <div class="grid gap-6 md:grid-cols-3">
+    <div class="perspective grid gap-6 md:grid-cols-3">
         @foreach ($section->items as $i => $item)
-            <div x-data x-reveal style="animation-delay: {{ ($i % 6) * 70 }}ms" class="card-hover relative rounded-2xl border border-slate-100 bg-white p-6">
+            <div x-data x-reveal x-tilt style="animation-delay: {{ ($i % 6) * 70 }}ms" class="relative rounded-2xl border border-slate-100 bg-white p-6 transition-shadow duration-300 hover:shadow-card-hover">
                 @if ($item->icon && preg_match('/^[a-z][a-z-]*$/', $item->icon))
-                    <div class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-soft">
+                    <div class="tilt-pop inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-soft">
                         @include('partials.icon', ['name' => $item->icon, 'class' => 'h-5 w-5'])
                     </div>
                 @elseif ($item->icon)
-                    <div class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-2xl">{{ $item->icon }}</div>
+                    <div class="tilt-pop inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-2xl">{{ $item->icon }}</div>
                 @else
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700 text-sm font-bold">{{ $i + 1 }}</span>
+                    <span class="tilt-pop inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700 text-sm font-bold">{{ $i + 1 }}</span>
                 @endif
                 <h3 class="mt-4 font-semibold text-slate-900">{{ $item->title() }}</h3>
                 <div class="prose-cms mt-2 text-sm text-slate-500">{!! $item->bodyHtml() !!}</div>

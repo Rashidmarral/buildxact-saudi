@@ -16,15 +16,15 @@
     </div>
 </section>
 
-<section class="mx-auto max-w-6xl px-6 pb-16 grid md:grid-cols-3 gap-8">
+<section class="perspective mx-auto max-w-6xl px-6 pb-16 grid md:grid-cols-3 gap-8">
     @foreach ($plans as $plan)
         @php
             $yearlyMonthlyEquivalent = $plan->price_yearly > 0 ? $plan->price_yearly / 12 : 0;
             $yearlyMonthlyOriginal = $plan->price_yearly_original > 0 ? $plan->price_yearly_original / 12 : 0;
         @endphp
-        <div class="rounded-2xl border {{ $loop->index === 1 ? 'border-brand-500 shadow-lg ring-1 ring-brand-500' : 'border border-slate-200' }} bg-white p-8 flex flex-col relative">
+        <div x-data {{ $loop->index === 1 ? 'x-tilt.lg' : 'x-tilt' }} class="rounded-2xl border {{ $loop->index === 1 ? 'border-brand-500 shadow-lg ring-1 ring-brand-500 md:-translate-y-2' : 'border border-slate-200' }} bg-white p-8 flex flex-col relative transition-shadow duration-300 hover:shadow-card-hover">
             @if ($loop->index === 1)
-                <span class="self-start mb-3 rounded-full bg-brand-600 text-white text-xs font-semibold px-3 py-1">{{ __('Best value') }}</span>
+                <span class="tilt-pop self-start mb-3 rounded-full bg-brand-600 text-white text-xs font-semibold px-3 py-1">{{ __('Best value') }}</span>
             @endif
             <h3 class="text-xl font-bold text-slate-900">{{ app()->getLocale() === 'ar' && $plan->name_ar ? $plan->name_ar : $plan->name }}</h3>
 
@@ -121,6 +121,10 @@
             [__('Financial statements (balance sheet & income statement)'), fn ($p) => $boolCell($p->has_financial_statements)],
             [__('VAT return report'), fn ($p) => $boolCell($p->has_vat_return_report)],
             [__('Cost centers'), fn ($p) => $boolCell($p->has_cost_centers)],
+        ]],
+        [__('Payroll & Point of Sale'), [
+            [__('Full WPS-compliant payroll (GOSI, end-of-service, payslips)'), fn ($p) => $boolCell($p->has_payroll)],
+            [__('Retail point of sale (registers, shifts, split payments, ZATCA receipts)'), fn ($p) => $boolCell($p->has_pos)],
         ]],
         [__('Team & customization'), [
             [__('Team members'), fn ($p) => $limitCell($p->max_users)],
