@@ -121,6 +121,7 @@ class PurchaseReturnController extends Controller
                 'reason' => $data['reason'] ?? null,
                 'status' => 'issued',
                 'currency' => $bill->currency,
+                'exchange_rate' => $bill->exchange_rate,
             ]);
 
             foreach ($data['items'] as $row) {

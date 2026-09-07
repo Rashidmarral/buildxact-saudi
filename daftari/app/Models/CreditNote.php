@@ -15,7 +15,7 @@ class CreditNote extends Model
     protected $fillable = [
         'company_id', 'invoice_id', 'client_id', 'branch_id', 'created_by',
         'credit_note_number', 'issue_date', 'reason', 'status',
-        'subtotal', 'vat_total', 'total', 'currency', 'qr_code',
+        'subtotal', 'vat_total', 'total', 'currency', 'exchange_rate', 'qr_code',
     ];
 
     protected function casts(): array

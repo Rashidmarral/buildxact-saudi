@@ -122,6 +122,7 @@ class CreditNoteController extends Controller
                 'reason' => $data['reason'] ?? null,
                 'status' => 'issued',
                 'currency' => $invoice->currency,
+                'exchange_rate' => $invoice->exchange_rate,
             ]);
 
             foreach ($data['items'] as $row) {

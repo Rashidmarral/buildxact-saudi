@@ -312,10 +312,19 @@ class LedgerPostingService
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'credit note');
 
+        // Same base-currency conversion as postInvoiceIssued() — a credit
+        // note against a foreign-currency invoice previously posted its
+        // raw foreign-currency subtotal/vat_total/total straight into the
+        // base-currency ledger with no conversion at all.
+        $rate = (float) $creditNote->exchange_rate ?: 1.0;
+        $subtotal = round((float) $creditNote->subtotal * $rate, 2);
+        $vatTotal = round((float) $creditNote->vat_total * $rate, 2);
+        $total = round($subtotal + $vatTotal, 2);
+
         $lines = [
-            ['account_id' => $revenue->id, 'debit' => $creditNote->subtotal, 'memo' => $creditNote->credit_note_number],
-            ['account_id' => $vatOutput->id, 'debit' => $creditNote->vat_total],
-            ['account_id' => $ar->id, 'credit' => $creditNote->total],
+            ['account_id' => $revenue->id, 'debit' => $subtotal, 'memo' => $creditNote->credit_note_number],
+            ['account_id' => $vatOutput->id, 'debit' => $vatTotal],
+            ['account_id' => $ar->id, 'credit' => $total],
         ];
 
         return $this->post($company, 'credit_note', $creditNote->id, __('Credit note :number', ['number' => $creditNote->credit_note_number]), $creditNote->issue_date, $lines);
@@ -337,10 +346,16 @@ class LedgerPostingService
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'debit note');
 
+        // Same base-currency conversion as postCreditNote()/postInvoiceIssued().
+        $rate = (float) $debitNote->exchange_rate ?: 1.0;
+        $subtotal = round((float) $debitNote->subtotal * $rate, 2);
+        $vatTotal = round((float) $debitNote->vat_total * $rate, 2);
+        $total = round($subtotal + $vatTotal, 2);
+
         $lines = [
-            ['account_id' => $ar->id, 'debit' => $debitNote->total, 'memo' => $debitNote->debit_note_number],
-            ['account_id' => $revenue->id, 'credit' => $debitNote->subtotal],
-            ['account_id' => $vatOutput->id, 'credit' => $debitNote->vat_total],
+            ['account_id' => $ar->id, 'debit' => $total, 'memo' => $debitNote->debit_note_number],
+            ['account_id' => $revenue->id, 'credit' => $subtotal],
+            ['account_id' => $vatOutput->id, 'credit' => $vatTotal],
         ];
 
         return $this->post($company, 'debit_note', $debitNote->id, __('Debit note :number', ['number' => $debitNote->debit_note_number]), $debitNote->issue_date, $lines);
@@ -573,10 +588,18 @@ class LedgerPostingService
 
         $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap, 'DEFAULT_OPERATING_EXPENSES' => $expenseAccount, 'VAT_INPUT' => $vatInput], 'purchase return');
 
+        // Same base-currency conversion as postCreditNote() — a return
+        // against a foreign-currency bill previously posted its raw
+        // foreign-currency amounts straight into the base-currency ledger.
+        $rate = (float) $purchaseReturn->exchange_rate ?: 1.0;
+        $subtotal = round((float) $purchaseReturn->subtotal * $rate, 2);
+        $vatTotal = round((float) $purchaseReturn->vat_total * $rate, 2);
+        $total = round($subtotal + $vatTotal, 2);
+
         $lines = [
-            ['account_id' => $ap->id, 'debit' => $purchaseReturn->total, 'memo' => $purchaseReturn->return_number],
-            ['account_id' => $expenseAccount->id, 'credit' => $purchaseReturn->subtotal],
-            ['account_id' => $vatInput->id, 'credit' => $purchaseReturn->vat_total],
+            ['account_id' => $ap->id, 'debit' => $total, 'memo' => $purchaseReturn->return_number],
+            ['account_id' => $expenseAccount->id, 'credit' => $subtotal],
+            ['account_id' => $vatInput->id, 'credit' => $vatTotal],
         ];
 
         return $this->post($company, 'purchase_return', $purchaseReturn->id, __('Purchase return :number', ['number' => $purchaseReturn->return_number]), $purchaseReturn->issue_date, $lines);
