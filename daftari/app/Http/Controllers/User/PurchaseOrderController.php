@@ -320,6 +320,8 @@ class PurchaseOrderController extends Controller
                     'unit_id' => $poItem->unit_id,
                     'purchase_order_item_id' => $poItem->id,
                     'description' => $row['description'],
+                    'name_ar' => $poItem->name_ar,
+                    'item_description' => $poItem->item_description,
                     'quantity' => $row['quantity'],
                     'unit_price' => $row['unit_price'],
                     'vat_rate' => $row['vat_rate'],
@@ -388,11 +390,18 @@ class PurchaseOrderController extends Controller
     private function syncItems(PurchaseOrder $order, array $items): void
     {
         foreach ($items as $sort => $row) {
+            // See InvoiceController::syncItems — freezes the item's Arabic
+            // name/description so later product edits don't rewrite this
+            // purchase order's historical display.
+            $item = ! empty($row['item_id']) ? Item::find($row['item_id']) : null;
+
             $line = new PurchaseOrderItem([
                 'purchase_order_id' => $order->id,
                 'item_id' => $row['item_id'] ?? null,
                 'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
+                'name_ar' => $item?->name_ar,
+                'item_description' => $item?->description,
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
                 'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($order->company_id),

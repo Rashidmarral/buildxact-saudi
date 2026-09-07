@@ -357,11 +357,18 @@ class BillController extends Controller
     private function syncItems(Bill $bill, array $items): void
     {
         foreach ($items as $sort => $row) {
+            // See InvoiceController::syncItems — freezes the item's Arabic
+            // name/description so later product edits don't rewrite this
+            // bill's historical display.
+            $item = ! empty($row['item_id']) ? Item::find($row['item_id']) : null;
+
             $line = new BillItem([
                 'bill_id' => $bill->id,
                 'item_id' => $row['item_id'] ?? null,
                 'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
+                'name_ar' => $item?->name_ar,
+                'item_description' => $item?->description,
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
                 'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($bill->company_id),

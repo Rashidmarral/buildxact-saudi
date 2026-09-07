@@ -121,9 +121,9 @@
                 <tr style="border-bottom: 0.5pt solid #e2e8f0;">
                     <td style="padding: 6px 2px; vertical-align: top; color: #64748b;">{{ $index + 1 }}</td>
                     <td style="padding: 6px 2px; vertical-align: top;">
-                        <strong>{{ $primary($line->description, $line->item?->name_ar) }}</strong>
-                        @if ($secondary($line->item?->name_ar))<div class="ar">{{ $line->item->name_ar }}</div>@endif
-                        @if (!empty($line->item?->description))<div class="muted">{{ $line->item->description }}</div>@endif
+                        <strong>{{ $primary($line->description, $line->name_ar) }}</strong>
+                        @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
+                        @if (!empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
@@ -194,8 +194,8 @@
                 <tr>
                     <td style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top; color: #64748b;">{{ $index + 1 }}</td>
                     <td style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">
-                        {{ $primary($line->description, $line->item?->name_ar) }}
-                        @if ($secondary($line->item?->name_ar))<div class="ar">{{ $line->item->name_ar }}</div>@endif
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                     </td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
@@ -302,8 +302,8 @@
             @foreach ($doc['lines'] as $line)
                 <tr style="border-bottom: 0.5pt solid #f1f5f9;">
                     <td style="padding: 5px 0;">
-                        {{ $primary($line->description, $line->item?->name_ar) }}
-                        @if ($secondary($line->item?->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->item->name_ar }}</div>@endif
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->name_ar }}</div>@endif
                     </td>
                     <td class="text-end" style="padding: 5px 0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
                     <td class="text-end" style="padding: 5px 0;">{{ \App\Support\Money::format($line->unit_price) }}</td>

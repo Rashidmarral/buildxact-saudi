@@ -121,11 +121,20 @@ class RecurringInvoice extends Model
             ]);
 
             foreach ($this->items()->orderBy('sort_order')->get() as $sort => $templateItem) {
+                // Snapshot the Arabic name/description from the Item as it
+                // stands right now — this is the moment the real invoice is
+                // actually created, not when the recurring template was set
+                // up — so it freezes the same way a manually-created
+                // invoice's line does (see InvoiceController::syncItems).
+                $item = $templateItem->item_id ? \App\Models\Item::find($templateItem->item_id) : null;
+
                 $line = new InvoiceItem([
                     'invoice_id' => $invoice->id,
                     'item_id' => $templateItem->item_id,
                     'unit_id' => $templateItem->unit_id,
                     'description' => $templateItem->description,
+                    'name_ar' => $item?->name_ar,
+                    'item_description' => $item?->description,
                     'quantity' => $templateItem->quantity,
                     'unit_price' => $templateItem->unit_price,
                     'vat_rate' => $templateItem->vat_rate,

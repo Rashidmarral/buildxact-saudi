@@ -785,11 +785,19 @@ class InvoiceController extends Controller
     private function syncItems(Invoice $invoice, array $items): void
     {
         foreach ($items as $sort => $row) {
+            // Snapshot the item's Arabic name/description at the moment
+            // this line is created — the print templates read these frozen
+            // columns rather than the live Item, so editing the product
+            // later doesn't retroactively rewrite an already-issued invoice.
+            $item = ! empty($row['item_id']) ? Item::find($row['item_id']) : null;
+
             $line = new InvoiceItem([
                 'invoice_id' => $invoice->id,
                 'item_id' => $row['item_id'] ?? null,
                 'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
+                'name_ar' => $item?->name_ar,
+                'item_description' => $item?->description,
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
                 'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($invoice->company_id),

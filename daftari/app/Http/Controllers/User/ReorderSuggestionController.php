@@ -82,10 +82,14 @@ class ReorderSuggestionController extends Controller
             ]);
 
             foreach ($data['items'] as $sort => $row) {
+                $item = Item::find($row['item_id']);
+
                 $line = new PurchaseOrderItem([
                     'purchase_order_id' => $order->id,
                     'item_id' => $row['item_id'],
-                    'description' => Item::find($row['item_id'])?->name ?? '',
+                    'description' => $item?->name ?? '',
+                    'name_ar' => $item?->name_ar,
+                    'item_description' => $item?->description,
                     'quantity' => $row['quantity'],
                     'unit_price' => $row['unit_price'],
                     'vat_rate' => TaxRate::defaultRate($order->company_id),

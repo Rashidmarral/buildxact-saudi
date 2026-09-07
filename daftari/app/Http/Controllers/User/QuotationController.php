@@ -428,6 +428,8 @@ class QuotationController extends Controller
                     'item_id' => $qItem->item_id,
                     'unit_id' => $qItem->unit_id,
                     'description' => $qItem->description,
+                    'name_ar' => $qItem->name_ar,
+                    'item_description' => $qItem->item_description,
                     'quantity' => $qItem->quantity,
                     'unit_price' => $qItem->unit_price,
                     'vat_rate' => $qItem->vat_rate,
@@ -484,11 +486,18 @@ class QuotationController extends Controller
     private function syncItems(Quotation $quotation, array $items): void
     {
         foreach ($items as $sort => $row) {
+            // See InvoiceController::syncItems — freezes the item's Arabic
+            // name/description so later product edits don't rewrite this
+            // quotation's historical display.
+            $item = ! empty($row['item_id']) ? Item::find($row['item_id']) : null;
+
             $line = new QuotationItem([
                 'quotation_id' => $quotation->id,
                 'item_id' => $row['item_id'] ?? null,
                 'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
+                'name_ar' => $item?->name_ar,
+                'item_description' => $item?->description,
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
                 'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($quotation->company_id),

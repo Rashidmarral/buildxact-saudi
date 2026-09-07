@@ -119,12 +119,12 @@
                 <tr class="border-b border-slate-200 align-top">
                     <td class="py-3 ps-1 text-slate-500">{{ $index + 1 }}</td>
                     <td class="py-3 max-w-xs">
-                        <p class="font-semibold text-slate-800">{{ $primary($line->description, $line->item?->name_ar) }}</p>
-                        @if ($secondary($line->item?->name_ar))
-                            <p class="mt-1 text-xs text-slate-500" dir="rtl">{{ $line->item->name_ar }}</p>
+                        <p class="font-semibold text-slate-800">{{ $primary($line->description, $line->name_ar) }}</p>
+                        @if ($secondary($line->name_ar))
+                            <p class="mt-1 text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</p>
                         @endif
-                        @if (!empty($line->item?->description))
-                            <p class="mt-1 text-xs text-slate-500">{{ $line->item->description }}</p>
+                        @if (!empty($line->item_description))
+                            <p class="mt-1 text-xs text-slate-500">{{ $line->item_description }}</p>
                         @endif
                     </td>
                     <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
@@ -272,8 +272,8 @@
                 <tr>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-500">{{ $index + 1 }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800">
-                        {{ $primary($line->description, $line->item?->name_ar) }}
-                        @if ($secondary($line->item?->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->item->name_ar }}</span>@endif
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                     </td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} {{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
@@ -408,8 +408,8 @@
             @foreach ($doc['lines'] as $line)
                 <tr class="border-b border-slate-50">
                     <td class="py-2">
-                        {{ $primary($line->description, $line->item?->name_ar) }}
-                        @if ($secondary($line->item?->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->item->name_ar }}</span>@endif
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                     </td>
                     <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} <span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span></td>
                     <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>

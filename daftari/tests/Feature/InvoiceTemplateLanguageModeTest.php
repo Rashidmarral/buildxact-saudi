@@ -55,7 +55,7 @@ class InvoiceTemplateLanguageModeTest extends TestCase
         ]);
 
         InvoiceItem::create([
-            'invoice_id' => $invoice->id, 'item_id' => $item->id, 'description' => $item->name,
+            'invoice_id' => $invoice->id, 'item_id' => $item->id, 'description' => $item->name, 'name_ar' => $item->name_ar,
             'quantity' => 1, 'unit_price' => 100, 'vat_rate' => 15, 'vat_amount' => 15, 'line_total' => 115,
         ]);
 

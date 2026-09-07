@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PurchaseReturnItem extends Model
 {
     protected $fillable = [
-        'purchase_return_id', 'bill_item_id', 'unit_id', 'description', 'quantity',
+        'purchase_return_id', 'bill_item_id', 'unit_id', 'description', 'name_ar', 'item_description', 'quantity',
         'unit_price', 'vat_rate', 'vat_amount', 'line_total',
     ];
 

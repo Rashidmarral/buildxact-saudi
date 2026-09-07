@@ -139,6 +139,11 @@ class CreditNoteController extends Controller
                     'invoice_item_id' => $row['invoice_item_id'] ?? null,
                     'unit_id' => $sourceLine?->unit_id,
                     'description' => $row['description'],
+                    // Carried over from the invoice line's own frozen
+                    // snapshot (see InvoiceController::syncItems) rather
+                    // than re-read from the live Item.
+                    'name_ar' => $sourceLine?->name_ar,
+                    'item_description' => $sourceLine?->item_description,
                     'quantity' => $row['quantity'],
                     'unit_price' => $row['unit_price'],
                     'vat_rate' => $row['vat_rate'],

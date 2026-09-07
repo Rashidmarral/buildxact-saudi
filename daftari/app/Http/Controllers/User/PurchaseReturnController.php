@@ -141,6 +141,11 @@ class PurchaseReturnController extends Controller
                     'bill_item_id' => $row['bill_item_id'] ?? null,
                     'unit_id' => $sourceLine?->unit_id,
                     'description' => $row['description'],
+                    // Carried over from the bill line's own frozen snapshot
+                    // (see BillController::syncItems) rather than re-read
+                    // from the live Item.
+                    'name_ar' => $sourceLine?->name_ar,
+                    'item_description' => $sourceLine?->item_description,
                     'quantity' => $row['quantity'],
                     'unit_price' => $row['unit_price'],
                     'vat_rate' => $row['vat_rate'],
