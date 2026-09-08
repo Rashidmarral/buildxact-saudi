@@ -86,11 +86,29 @@
                 <p class="text-sm text-slate-400">{{ __('No related subscription.') }}</p>
             @endif
 
-            <h3 class="font-semibold text-slate-900 mt-6 mb-2">{{ __('Related invoice') }}</h3>
-            @if ($payment->status === 'paid')
-                <a href="{{ route('admin.payments.receipt', $payment) }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Download receipt PDF') }}</a>
-            @else
+            <h3 class="font-semibold text-slate-900 mt-6 mb-2">{{ __('Tax invoice') }}</h3>
+            @if ($payment->status !== 'paid')
                 <p class="text-sm text-slate-400">{{ __('No receipt — this payment was never completed.') }}</p>
+            @elseif (! $invoice)
+                <p class="text-sm text-slate-400">{{ __('No real tax invoice — platform billing isn\'t configured, or this payment predates it. A plain receipt was sent instead.') }}</p>
+                <a href="{{ route('admin.payments.receipt', $payment) }}" class="mt-1 inline-block text-sm font-semibold text-brand-700 hover:underline">{{ __('Download receipt PDF') }}</a>
+            @else
+                <div class="flex items-center justify-between">
+                    <span class="font-mono text-sm font-medium text-slate-800">{{ $invoice->invoice_number }}</span>
+                    @if ($zatcaLog)
+                        <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{{ $zatcaLog->status === 'cleared' ? __('ZATCA Phase 2 — Cleared') : __('ZATCA Phase 2 — Reported') }}</span>
+                    @else
+                        <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{{ __('ZATCA Phase 1 — QR only') }}</span>
+                    @endif
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-4">
+                    <a href="{{ route('admin.payments.receipt', $payment) }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Download Phase 1 invoice (PDF)') }}</a>
+                    @if ($zatcaLog)
+                        <a href="{{ route('admin.zatca.logs.xml', ['invoice', $zatcaLog->id]) }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Download Phase 2 invoice (XML)') }}</a>
+                    @else
+                        <span class="text-xs text-slate-400">{{ __('Phase 2 XML becomes available once the billing company is ZATCA-onboarded and this invoice has synced.') }}</span>
+                    @endif
+                </div>
             @endif
         </div>
     </div>

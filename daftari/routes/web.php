@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\TranslationController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Admin\ZatcaController as AdminZatcaController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
@@ -692,6 +693,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     // full access to a company's data.
     Route::middleware(['role:super_admin', 'password.confirm.admin'])->group(function () {
         Route::post('companies/{company}/impersonate', [CompanyController::class, 'impersonate'])->name('companies.impersonate');
+    });
+
+    Route::middleware('admin.permission:reports')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('vat', [AdminReportController::class, 'vat'])->name('vat');
     });
 
     Route::middleware('admin.permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {

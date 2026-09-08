@@ -72,8 +72,42 @@ class PaymentController extends Controller
 
         $gateways = array_merge(PaymentGateway::PROVIDERS, [PaymentGateway::BANK_TRANSFER, 'manual']);
         $plans = Plan::orderBy('sort_order')->get(['id', 'name']);
+        $invoicesByReference = $this->platformInvoicesByReference($payments->pluck('reference'));
 
-        return view('admin.payments.index', compact('payments', 'owners', 'gateways', 'plans'));
+        return view('admin.payments.index', compact('payments', 'owners', 'gateways', 'plans', 'invoicesByReference'));
+    }
+
+    /**
+     * Batch tax-invoice lookup for a page of payments, keyed by payment
+     * reference — a single query regardless of page size, instead of one
+     * platformInvoiceFor() call per row.
+     */
+    private function platformInvoicesByReference($references): \Illuminate\Support\Collection
+    {
+        $billingCompanyId = Setting::get('platform_billing_company_id');
+        $references = $references->filter()->unique()->values();
+
+        if (! $billingCompanyId || $references->isEmpty()) {
+            return collect();
+        }
+
+        $invoices = Invoice::withoutGlobalScopes()
+            ->where('company_id', $billingCompanyId)
+            ->whereHas('invoicePayments', fn ($q) => $q->whereIn('reference', $references))
+            ->with([
+                'invoicePayments' => fn ($q) => $q->whereIn('reference', $references),
+                'zatcaInvoiceLogs' => fn ($q) => $q->whereIn('status', ['cleared', 'reported'])->latest('id'),
+            ])
+            ->get();
+
+        $map = collect();
+        foreach ($invoices as $invoice) {
+            foreach ($invoice->invoicePayments as $invoicePayment) {
+                $map->put($invoicePayment->reference, $invoice);
+            }
+        }
+
+        return $map;
     }
 
     public function show(int $payment)
@@ -99,7 +133,12 @@ class PaymentController extends Controller
 
         $timeline = $this->buildTimeline($payment, $webhookEvents, $auditLogs);
 
-        return view('admin.payments.show', compact('payment', 'owner', 'webhookEvents', 'auditLogs', 'timeline'));
+        $invoice = $this->platformInvoiceFor($payment);
+        $zatcaLog = $invoice
+            ? $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first()
+            : null;
+
+        return view('admin.payments.show', compact('payment', 'owner', 'webhookEvents', 'auditLogs', 'timeline', 'invoice', 'zatcaLog'));
     }
 
     /**

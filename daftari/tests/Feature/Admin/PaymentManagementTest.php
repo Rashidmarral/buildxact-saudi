@@ -104,6 +104,62 @@ class PaymentManagementTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // Index: Tax invoice column
+    // ---------------------------------------------------------------
+
+    public function test_index_shows_the_invoice_number_and_zatca_phase_badge_for_each_payment(): void
+    {
+        $billingCompany = $this->makeCompany(['name' => 'Dynamic Core Contracting Company', 'vat_number' => '314526094900003', 'currency' => 'SAR']);
+        Account::seedSystemAccounts($billingCompany->id);
+        AccountMapping::seedDefaults($billingCompany->id);
+        TaxRate::seedDefaults($billingCompany->id);
+        Setting::set('platform_billing_company_id', $billingCompany->id);
+
+        $plan = $this->makePlan();
+        $company = $this->makeCompany();
+        $subscription = Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+        $payment = $this->makePaidPayment($company, $subscription, ['reference' => 'REF-INDEX-UNIQUE']);
+        $invoice = app(PlatformInvoiceService::class)->createInvoiceForPayment($payment);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.index'));
+
+        $response->assertOk()
+            ->assertSee($invoice->invoice_number)
+            ->assertSee(__('Phase 1'));
+    }
+
+    public function test_index_lookup_is_a_single_query_regardless_of_page_size(): void
+    {
+        $billingCompany = $this->makeCompany(['name' => 'Dynamic Core Contracting Company', 'vat_number' => '314526094900003', 'currency' => 'SAR']);
+        Account::seedSystemAccounts($billingCompany->id);
+        AccountMapping::seedDefaults($billingCompany->id);
+        TaxRate::seedDefaults($billingCompany->id);
+        Setting::set('platform_billing_company_id', $billingCompany->id);
+
+        $plan = $this->makePlan();
+        foreach (range(1, 3) as $i) {
+            $company = $this->makeCompany(['name' => "Payer $i"]);
+            $subscription = Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+            $payment = $this->makePaidPayment($company, $subscription, ['reference' => "REF-BATCH-$i"]);
+            app(PlatformInvoiceService::class)->createInvoiceForPayment($payment);
+        }
+
+        $invoiceRelatedQueries = 0;
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$invoiceRelatedQueries) {
+            if (preg_match('/\b(invoices|invoice_payments|zatca_invoice_logs)\b/', $query->sql)) {
+                $invoiceRelatedQueries++;
+            }
+        });
+
+        $this->actingAs($this->makeAdmin())->get(route('admin.payments.index'))->assertOk();
+
+        // Exactly 3 queries — the invoice lookup itself, plus its two eager
+        // loads (invoicePayments, zatcaInvoiceLogs) — no matter how many
+        // payment rows are on the page. One query per row would blow this up.
+        $this->assertSame(3, $invoiceRelatedQueries, 'Payments index should not N+1 the invoice lookup.');
+    }
+
+    // ---------------------------------------------------------------
     // Show page
     // ---------------------------------------------------------------
 
@@ -121,7 +177,7 @@ class PaymentManagementTest extends TestCase
             ->assertSee(__('Payment information'))
             ->assertSee(__('Gateway response'))
             ->assertSee(__('Related subscription'))
-            ->assertSee(__('Related invoice'))
+            ->assertSee(__('Tax invoice'))
             ->assertSee(__('Timeline'))
             ->assertSee(__('Audit history'))
             ->assertSee('Khalid Owner');
@@ -144,6 +200,83 @@ class PaymentManagementTest extends TestCase
         $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.show', $payment));
 
         $response->assertOk()->assertSee('moy_1');
+    }
+
+    // ---------------------------------------------------------------
+    // Tax invoice section (Phase 1 PDF / Phase 2 XML download)
+    // ---------------------------------------------------------------
+
+    public function test_show_page_offers_only_a_plain_receipt_when_platform_billing_is_not_configured(): void
+    {
+        $plan = $this->makePlan();
+        $company = $this->makeCompany();
+        $subscription = Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly', 'current_period_end' => now()->addMonth()]);
+        $payment = $this->makePaidPayment($company, $subscription);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.show', $payment));
+
+        $response->assertOk()
+            ->assertSee(__('Download receipt PDF'))
+            ->assertDontSee(__('Download Phase 1 invoice (PDF)'))
+            ->assertDontSee(__('Download Phase 2 invoice (XML)'));
+    }
+
+    public function test_show_page_offers_the_phase1_pdf_when_a_real_invoice_exists_without_a_cleared_zatca_log(): void
+    {
+        $billingCompany = $this->makeCompany(['name' => 'Dynamic Core Contracting Company', 'vat_number' => '314526094900003', 'currency' => 'SAR']);
+        Account::seedSystemAccounts($billingCompany->id);
+        AccountMapping::seedDefaults($billingCompany->id);
+        TaxRate::seedDefaults($billingCompany->id);
+        Setting::set('platform_billing_company_id', $billingCompany->id);
+
+        $plan = $this->makePlan();
+        $company = $this->makeCompany();
+        $subscription = Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+        $payment = $this->makePaidPayment($company, $subscription);
+        $invoice = app(PlatformInvoiceService::class)->createInvoiceForPayment($payment);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.show', $payment));
+
+        $response->assertOk()
+            ->assertSee($invoice->invoice_number)
+            ->assertSee(__('ZATCA Phase 1 — QR only'))
+            ->assertSee(__('Download Phase 1 invoice (PDF)'))
+            ->assertDontSee(__('Download Phase 2 invoice (XML)'));
+    }
+
+    public function test_show_page_offers_the_phase2_xml_once_the_invoice_has_a_cleared_zatca_log(): void
+    {
+        $billingCompany = $this->makeCompany(['name' => 'Dynamic Core Contracting Company', 'vat_number' => '314526094900003', 'currency' => 'SAR']);
+        Account::seedSystemAccounts($billingCompany->id);
+        AccountMapping::seedDefaults($billingCompany->id);
+        TaxRate::seedDefaults($billingCompany->id);
+        Setting::set('platform_billing_company_id', $billingCompany->id);
+
+        $plan = $this->makePlan();
+        $company = $this->makeCompany();
+        $subscription = Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+        $payment = $this->makePaidPayment($company, $subscription);
+        $invoice = app(PlatformInvoiceService::class)->createInvoiceForPayment($payment);
+
+        $log = \App\Models\ZatcaInvoiceLog::create([
+            'company_id' => $billingCompany->id,
+            'invoice_id' => $invoice->id,
+            'environment' => 'production',
+            'invoice_type' => 'standard',
+            'direction' => 'clearance',
+            'status' => 'cleared',
+            'request_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'invoice_hash' => 'hash-'.uniqid(),
+            'xml_payload' => '<Invoice></Invoice>',
+            'cleared_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.show', $payment));
+
+        $response->assertOk()
+            ->assertSee(__('ZATCA Phase 2 — Cleared'))
+            ->assertSee(__('Download Phase 1 invoice (PDF)'))
+            ->assertSee(route('admin.zatca.logs.xml', ['invoice', $log->id]), false);
     }
 
     // ---------------------------------------------------------------

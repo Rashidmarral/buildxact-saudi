@@ -84,6 +84,12 @@ class AdminNav
                 'visible' => fn (User $user) => $user->hasAdminPermission('payments'),
             ],
             [
+                'route' => 'admin.reports.vat',
+                'label' => __('VAT Report'),
+                'icon' => 'reports',
+                'visible' => fn (User $user) => $user->hasAdminPermission('reports'),
+            ],
+            [
                 'route' => 'admin.activity.index',
                 'label' => __('Activity log'),
                 'icon' => 'activity',

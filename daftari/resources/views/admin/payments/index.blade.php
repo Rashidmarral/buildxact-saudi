@@ -105,12 +105,17 @@
                         <th class="px-4 py-3 font-medium">{{ __('Gateway') }}</th>
                         <th class="px-4 py-3 font-medium">{{ __('Transaction ID') }}</th>
                         <th class="px-4 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-4 py-3 font-medium">{{ __('Tax invoice') }}</th>
                         <th class="px-6 py-3"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($payments as $payment)
-                        @php $owner = $owners->get($payment->company_id); @endphp
+                        @php
+                            $owner = $owners->get($payment->company_id);
+                            $invoice = $invoicesByReference->get($payment->reference);
+                            $zatcaLog = $invoice?->zatcaInvoiceLogs->first();
+                        @endphp
                         <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                             <td class="px-6 py-3">{{ optional($payment->paid_at ?? $payment->created_at)->format('Y-m-d') ?? '—' }}</td>
                             <td class="px-4 py-3">{{ $payment->company_name }}</td>
@@ -121,6 +126,24 @@
                             <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $payment->reference ?: '—' }}</td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold {{ $payment->statusBadgeClasses() }}">{{ $payment->statusLabel() }}</span>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                @if (! $invoice)
+                                    <span class="text-xs text-slate-400">—</span>
+                                @else
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono text-xs text-slate-600">{{ $invoice->invoice_number }}</span>
+                                        @if ($zatcaLog)
+                                            <span class="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">{{ __('Phase 2') }}</span>
+                                        @else
+                                            <span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{{ __('Phase 1') }}</span>
+                                        @endif
+                                        <a href="{{ route('admin.payments.receipt', $payment) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('PDF') }}</a>
+                                        @if ($zatcaLog)
+                                            <a href="{{ route('admin.zatca.logs.xml', ['invoice', $zatcaLog->id]) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('XML') }}</a>
+                                        @endif
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-6 py-3 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>

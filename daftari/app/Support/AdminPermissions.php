@@ -24,6 +24,7 @@ class AdminPermissions
             'coupons' => __('Coupons'),
             'payments' => __('Payments'),
             'zatca' => __('ZATCA'),
+            'reports' => __('Reports'),
             'tickets' => __('Support Tickets'),
             'leads' => __('Sales & CRM'),
             'sales_center' => __('Sales Center'),
@@ -41,7 +42,7 @@ class AdminPermissions
     {
         return [
             'support' => ['companies', 'zatca', 'tickets', 'activity'],
-            'billing' => ['payments', 'plans', 'coupons'],
+            'billing' => ['payments', 'plans', 'coupons', 'reports'],
             'read_only' => self::keys(),
         ];
     }
