@@ -366,93 +366,104 @@
     <div class="mt-10 text-center text-xs text-slate-400">{{ $lbl('Page 1 of 1') }}</div>
 
 @else
-    {{-- minimal / bordered / boxed — the original three layouts. --}}
-    @if ($layout === 'bordered' && $accent)
-        <div class="h-2 rounded-full mb-6 -mt-2" style="background-color: {{ $accent }}"></div>
-    @endif
-    <div class="flex justify-between items-start {{ $layout === 'bordered' && $accent ? 'border-s-4 ps-4' : '' }}" @if ($layout === 'bordered' && $accent) style="border-color: {{ $accent }}" @endif>
-        <div class="flex items-center gap-3">
+    {{-- minimal / bordered / boxed — a single professional foundation
+         shared by all three, differentiated only by the left accent
+         stripe (bordered) and the fully accent-filled totals card
+         (boxed). This is what every zero-config company sees, including
+         every real ZATCA tax invoice PlatformInvoiceService generates
+         for a subscription payment — so it needed to look like a real
+         business's invoice, not a bare table. --}}
+    <div class="h-1.5 rounded-full mb-6" style="background-color: {{ $accent }}"></div>
+
+    <div class="flex justify-between items-start {{ $layout === 'bordered' ? 'border-s-4 ps-4' : '' }}" @if ($layout === 'bordered') style="border-color: {{ $accent }}" @endif>
+        <div class="flex items-center gap-4">
             @if ($showLogo && $company->logo_path)
-                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-12 w-12 rounded-lg object-cover border border-slate-100">
+                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-16 w-16 rounded-xl object-cover ring-1 ring-slate-100 shadow-sm">
             @endif
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">{{ $primary($company->name, $company->name_ar) }}</h1>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ $primary($company->name, $company->name_ar) }}</h1>
                 @if ($secondary($company->name_ar))<p class="text-sm font-medium text-slate-600" dir="rtl">{{ $company->name_ar }}</p>@endif
-                @if ($company->vat_number)<p class="text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $company->vat_number }}</p>@endif
-                @if ($company->address)<p class="text-sm text-slate-500">{{ $company->address }}</p>@endif
+                @if ($company->vat_number)
+                    <span class="mt-1.5 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{{ $lbl('VAT') }} {{ $company->vat_number }}</span>
+                @endif
+                @if ($company->address)<p class="mt-1 text-sm text-slate-500">{{ $company->address }}</p>@endif
             </div>
         </div>
         <div class="text-end">
-            <h2 class="text-xl font-bold" style="color: {{ $layout === 'minimal' && $accent ? $accent : '#0f172a' }}">
+            <span class="inline-block rounded-lg px-4 py-1.5 text-sm font-bold text-white" style="background-color: {{ $accent }}">
                 {{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}
-            </h2>
-            @if ($secondary($doc['type_label_ar'] ?? null))<p class="text-xs text-slate-400" dir="rtl">{{ $doc['type_label_ar'] }}</p>@endif
-            <p class="text-sm text-slate-500">{{ $doc['number'] }}</p>
+            </span>
+            @if ($secondary($doc['type_label_ar'] ?? null))<p class="mt-1 text-xs text-slate-400" dir="rtl">{{ $doc['type_label_ar'] }}</p>@endif
+            <p class="mt-2 text-sm font-semibold text-slate-700">{{ $doc['number'] }}</p>
             <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</p>
             @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</p>@endif
         </div>
     </div>
 
-    <div class="mt-8 grid grid-cols-2 gap-8">
-        <div>
-            <h3 class="text-xs font-semibold uppercase text-slate-400">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</h3>
-            <p class="mt-1 font-medium text-slate-800">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</p>
+    <div class="mt-8 grid grid-cols-2 gap-4">
+        <div class="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</h3>
+            <p class="mt-1.5 font-semibold text-slate-800">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</p>
             @if ($secondary($doc['party']->name_ar ?? null))<p class="text-sm text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</p>@endif
-            @if ($showPartyVatNumber && $doc['party']->vat_number)<p class="text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
+            @if ($showPartyVatNumber && $doc['party']->vat_number)<p class="mt-1 text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
             @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<p class="text-sm text-slate-500">{{ $doc['party']->fullAddress() }}</p>@endif
             @if (!empty($doc['party']->email))<p class="text-sm text-slate-500">{{ $doc['party']->email }}</p>@endif
         </div>
-        <div class="text-end">
+        <div class="rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-end">
             @if (!empty($doc['qr_code']))
                 @if (!empty($doc['zatca_status']))
-                    <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                    <p class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                         {{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}
                     </p>
                 @endif
-                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="ms-auto h-40 w-40" onerror="this.style.display='none'">
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="ms-auto h-32 w-32" onerror="this.style.display='none'">
                 <p class="mt-1 text-xs text-slate-400">{{ $lbl('Scan to verify invoice details') }}</p>
             @endif
         </div>
     </div>
 
-    <table class="w-full text-sm mt-8">
-        <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-200" @if ($tableHeaderColor) style="background-color: {{ $tableHeaderColor }}" @endif>
-                <th class="py-2">{{ $lbl('Description') }}</th>
-                <th class="py-2 text-end">{{ $lbl('Qty') }}</th>
-                <th class="py-2 text-end">{{ $lbl('Unit price') }}</th>
-                <th class="py-2 text-end">{{ $lbl('VAT') }}</th>
-                <th class="py-2 text-end">{{ $lbl('Total') }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($doc['lines'] as $line)
-                <tr class="border-b border-slate-50">
-                    <td class="py-2">
-                        {{ $primary($line->description, $line->name_ar) }}
-                        @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
-                        @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
-                    </td>
-                    <td class="py-2 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
-                    <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
-                    <td class="py-2 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->line_total, 2) }}</td>
+    <div class="mt-8 overflow-hidden rounded-xl border border-slate-100">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-start text-white" style="background-color: {{ $tableHeaderColor ?: $accent }}">
+                    <th class="py-3 px-4 text-xs font-semibold uppercase tracking-wide">{{ $lbl('Description') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Qty') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Unit price') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('VAT') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Total') }}</th>
                 </tr>
-            @endforeach
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach ($doc['lines'] as $i => $line)
+                    <tr class="{{ $i % 2 === 1 ? 'bg-slate-50/70' : '' }} border-b border-slate-100 last:border-0">
+                        <td class="py-3 px-4">
+                            {{ $primary($line->description, $line->name_ar) }}
+                            @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                            @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
+                        </td>
+                        <td class="py-3 px-4 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
+                        <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
+                        <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
+                        <td class="py-3 px-4 text-end font-medium text-slate-900">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->line_total, 2) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
+    @php $boxed = $layout === 'boxed'; @endphp
     <div class="mt-6 flex justify-end">
-        <div class="w-full max-w-xs space-y-2 text-sm {{ $layout === 'boxed' && $accent ? 'rounded-lg p-4 text-white' : '' }}" @if ($layout === 'boxed' && $accent) style="background-color: {{ $accent }}" @endif>
-            @php
-                $boxed = $layout === 'boxed' && $accent;
-            @endphp
+        <div class="w-full max-w-xs space-y-2 rounded-xl border p-4 text-sm {{ $boxed ? 'text-white border-transparent' : 'border-slate-100' }}" @if ($boxed) style="background-color: {{ $accent }}" @endif>
             <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Subtotal') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
             @if (($doc['discount_total'] ?? 0) > 0)
                 <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
             @endif
             <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('VAT') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
-            <div class="flex justify-between font-bold text-base pt-2 border-t {{ $boxed ? 'border-white/30 text-white' : 'border-slate-200 text-slate-900' }}"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+            @if ($boxed)
+                <div class="flex justify-between border-t border-white/30 pt-2 text-base font-bold text-white"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+            @else
+                <div class="flex justify-between rounded-lg px-3 py-2 text-base font-bold text-white" style="background-color: {{ $accent }}"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+            @endif
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 @php
                     $rowColor = 'text-slate-500';
@@ -472,11 +483,9 @@
     </div>
 
     @if ($bankAccounts->isNotEmpty())
-        @php
-            $ba = $bankAccounts->first();
-        @endphp
-        <div class="mt-8 pt-4 border-t border-slate-100 text-sm">
-            <h4 class="text-xs font-semibold uppercase text-slate-400 mb-1">{{ $lbl('Payment details') }}</h4>
+        @php $ba = $bankAccounts->first(); @endphp
+        <div class="mt-8 rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-sm">
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">{{ $lbl('Payment details') }}</h4>
             <p class="text-slate-600">
                 {{ $ba->name }}
                 @if ($ba->bank_name) — {{ $ba->bank_name }} @endif
@@ -486,7 +495,7 @@
     @endif
 
     @if (!empty($doc['notes']))
-        <div class="mt-8 pt-4 border-t border-slate-100 text-sm text-slate-500 whitespace-pre-line">{{ $doc['notes'] }}</div>
+        <div class="mt-6 pt-4 border-t border-slate-100 text-sm text-slate-500 whitespace-pre-line">{{ $doc['notes'] }}</div>
     @endif
 
     @if ($template && $template->notesFor(app()->getLocale()))
@@ -495,10 +504,14 @@
 
     @if ($template && $template->termsFor(app()->getLocale()))
         <div class="mt-4 pt-2 text-sm">
-            <h4 class="text-xs font-semibold uppercase text-slate-400">{{ $lbl('Terms & Conditions') }}</h4>
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $lbl('Terms & Conditions') }}</h4>
             <p class="mt-1 whitespace-pre-line text-slate-500">{{ $template->termsFor(app()->getLocale()) }}</p>
         </div>
     @endif
+
+    <div class="mt-10 border-t border-slate-100 pt-4 text-center text-xs text-slate-400">
+        {{ $company->name }} @if ($company->name_ar) — {{ $company->name_ar }} @endif &nbsp;·&nbsp; {{ $doc['number'] }}
+    </div>
 @endif
 
 @if ($template && $template->show_signature)
