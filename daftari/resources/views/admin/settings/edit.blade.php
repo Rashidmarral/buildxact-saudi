@@ -191,14 +191,32 @@
             </div>
 
             <div class="pt-4 border-t border-slate-100">
-                <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Bill subscriptions through this company') }}</label>
+                <div class="flex items-center gap-2">
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Bill subscriptions through this company') }}</label>
+                    <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">{{ __('One-time setup') }}</span>
+                </div>
                 <select name="platform_billing_company_id" class="mt-1 w-full max-w-md rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <option value="">{{ __('Not set — send a plain payment receipt') }}</option>
                     @foreach ($billingCompanies as $billingCompany)
                         <option value="{{ $billingCompany->id }}" @selected((string) old('platform_billing_company_id', $settings['platform_billing_company_id']) === (string) $billingCompany->id)>{{ $billingCompany->name }}</option>
                     @endforeach
                 </select>
-                <p class="mt-1 text-xs text-slate-400">{{ __('Pick your own real business among your tenant accounts and every subscription payment becomes a real ZATCA-compliant tax invoice — issued from that company to the paying customer, with a QR code and posted to that company\'s own books. Leave unset to keep sending a plain payment receipt with no tax-invoice fields.') }}</p>
+                <p class="mt-1 text-xs text-slate-400">{{ __('Set this once. From then on every subscription payment — from any customer, forever — automatically becomes a real ZATCA-compliant tax invoice issued from the company you pick here, with no further action from you. You never need to choose a company again per payment. Leave unset to keep sending a plain payment receipt with no tax-invoice fields.') }}</p>
+
+                @if ($currentBillingCompany)
+                    <div class="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs">
+                        <p class="font-semibold text-slate-700">{{ __('Currently billing subscriptions through') }}: {{ $currentBillingCompany->name }}</p>
+                        @if ($currentBillingCompany->isZatcaOnboarded())
+                            <p class="mt-1 text-emerald-700">{{ __('ZATCA Phase 2 is already onboarded for this company — subscription invoices sync for Phase 2 automatically alongside its other invoices. No separate setup needed.') }}</p>
+                        @else
+                            <p class="mt-1 text-slate-500">{{ __('This company is not yet ZATCA Phase 2 onboarded, so subscription invoices currently get a Phase 1 QR code only. Complete onboarding for this company (once) to get Phase 2 XML for subscription invoices too — the same sync will then cover them alongside its other invoices automatically.') }}</p>
+                        @endif
+                        <div class="mt-2 flex flex-wrap gap-3">
+                            <a href="{{ route('admin.zatca.index', ['q' => $currentBillingCompany->name]) }}" class="font-semibold text-brand-700 hover:underline">{{ __('View ZATCA status for this company') }}</a>
+                            <a href="{{ route('admin.reports.vat', ['company_id' => $currentBillingCompany->id]) }}" class="font-semibold text-brand-700 hover:underline">{{ __('View this company\'s VAT report') }}</a>
+                        </div>
+                    </div>
+                @endif
 
                 <label class="mt-4 block text-xs font-semibold uppercase text-slate-500">{{ __('Subscription invoice number prefix') }}</label>
                 <input type="text" name="platform_billing_invoice_prefix" maxlength="10" placeholder="SUB" value="{{ old('platform_billing_invoice_prefix', $settings['platform_billing_invoice_prefix']) }}" class="mt-1 w-full max-w-[160px] rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">

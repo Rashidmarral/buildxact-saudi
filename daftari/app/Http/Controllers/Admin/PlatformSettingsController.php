@@ -134,6 +134,7 @@ class PlatformSettingsController extends Controller
             'countries' => self::COUNTRIES,
             'currencies' => Currency::query()->active()->orderBy('sort_order')->get(),
             'billingCompanies' => Company::orderBy('name')->limit(500)->get(['id', 'name']),
+            'currentBillingCompany' => Company::find(Setting::get('platform_billing_company_id')),
             'languages' => self::LANGUAGES,
             'timezones' => \DateTimeZone::listIdentifiers(),
             'appVersion' => config('daftari.version'),

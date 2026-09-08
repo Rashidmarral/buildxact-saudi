@@ -4671,5 +4671,12 @@
     "No invoices in this period.": "لا توجد فواتير في هذه الفترة.",
     "Invoice #": "رقم الفاتورة",
     "Subscription resale": "إعادة بيع الاشتراك",
-    "Own business": "النشاط التجاري الخاص"
+    "Own business": "النشاط التجاري الخاص",
+    "One-time setup": "إعداد لمرة واحدة",
+    "Set this once. From then on every subscription payment — from any customer, forever — automatically becomes a real ZATCA-compliant tax invoice issued from the company you pick here, with no further action from you. You never need to choose a company again per payment. Leave unset to keep sending a plain payment receipt with no tax-invoice fields.": "قم بتعيين هذا مرة واحدة فقط. بعد ذلك، تتحول كل عملية دفع اشتراك — من أي عميل، وإلى الأبد — تلقائيًا إلى فاتورة ضريبية حقيقية متوافقة مع زاتكا وتصدر من الشركة التي تختارها هنا، دون أي إجراء إضافي منك. لن تحتاج أبدًا لاختيار شركة مرة أخرى لكل عملية دفع. اتركه غير محدد للاستمرار في إرسال إيصال دفع عادي بدون حقول فاتورة ضريبية.",
+    "Currently billing subscriptions through": "يتم حاليًا فوترة الاشتراكات من خلال",
+    "ZATCA Phase 2 is already onboarded for this company — subscription invoices sync for Phase 2 automatically alongside its other invoices. No separate setup needed.": "تم بالفعل تفعيل المرحلة الثانية من زاتكا لهذه الشركة — تتم مزامنة فواتير الاشتراك للمرحلة الثانية تلقائيًا مع باقي فواتيرها. لا حاجة لإعداد منفصل.",
+    "This company is not yet ZATCA Phase 2 onboarded, so subscription invoices currently get a Phase 1 QR code only. Complete onboarding for this company (once) to get Phase 2 XML for subscription invoices too — the same sync will then cover them alongside its other invoices automatically.": "لم يتم تفعيل المرحلة الثانية من زاتكا لهذه الشركة بعد، لذلك تحصل فواتير الاشتراك حاليًا على رمز QR للمرحلة الأولى فقط. أكمل تفعيل هذه الشركة (مرة واحدة) للحصول على ملف XML للمرحلة الثانية لفواتير الاشتراك أيضًا — وستغطيها نفس عملية المزامنة تلقائيًا مع باقي فواتيرها.",
+    "View ZATCA status for this company": "عرض حالة زاتكا لهذه الشركة",
+    "View this company's VAT report": "عرض تقرير ضريبة القيمة المضافة لهذه الشركة"
 }
