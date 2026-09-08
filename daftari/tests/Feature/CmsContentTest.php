@@ -83,6 +83,36 @@ class CmsContentTest extends TestCase
         $response->assertDontSee('Should disappear');
     }
 
+    public function test_saving_a_contact_info_item_never_html_entity_encodes_its_plain_value(): void
+    {
+        // Regression: CmsController::updateSection() used to run every
+        // item's body through RichText::sanitize() (an HTML round-trip)
+        // unconditionally, which numeric-entity-encodes '+' and '@' —
+        // turning a phone number/email into "&#43;966..."/"...&#64;...".
+        // contact_info items hold a plain value, edited via a plain text
+        // input, and must be saved and rendered as-is.
+        $section = CmsSection::create(['page' => 'contact', 'type' => 'contact_info', 'sort_order' => 1]);
+
+        $this->actingAs($this->makeSuperAdmin())->put(route('admin.cms.sections.update', $section), [
+            'is_active' => '1',
+            'items' => [
+                ['title_en' => 'Phone', 'body_en' => '+966538069288', 'body_ar' => '+966538069288'],
+                ['title_en' => 'Email', 'body_en' => 'support@daftari.app', 'body_ar' => 'support@daftari.app'],
+            ],
+        ])->assertRedirect();
+
+        $section->refresh();
+        $this->assertSame('+966538069288', $section->items->firstWhere('title_en', 'Phone')->body_en);
+        $this->assertSame('support@daftari.app', $section->items->firstWhere('title_en', 'Email')->body_en);
+
+        $response = $this->get(route('contact'));
+        $response->assertOk();
+        $response->assertSee('+966538069288');
+        $response->assertSee('support@daftari.app');
+        $response->assertDontSee('&#43;');
+        $response->assertDontSee('&#64;');
+    }
+
     public function test_deleting_a_section_removes_its_items_too(): void
     {
         $section = CmsSection::create(['page' => 'home', 'type' => 'faq', 'sort_order' => 1]);

@@ -203,8 +203,8 @@ class CmsController extends Controller
             'title_ar' => $data['title_ar'] ?? null,
             'subtitle_en' => $data['subtitle_en'] ?? null,
             'subtitle_ar' => $data['subtitle_ar'] ?? null,
-            'body_en' => RichText::sanitize($data['body_en'] ?? null),
-            'body_ar' => RichText::sanitize($data['body_ar'] ?? null),
+            'body_en' => $section->type === 'contact_info' ? ($data['body_en'] ?? null) : RichText::sanitize($data['body_en'] ?? null),
+            'body_ar' => $section->type === 'contact_info' ? ($data['body_ar'] ?? null) : RichText::sanitize($data['body_ar'] ?? null),
             'link_url' => $data['link_url'] ?? null,
             'link_text_en' => $data['link_text_en'] ?? null,
             'link_text_ar' => $data['link_text_ar'] ?? null,
@@ -270,8 +270,16 @@ class CmsController extends Controller
                     'title_ar' => $item['title_ar'] ?? null,
                     'subtitle_en' => $item['subtitle_en'] ?? null,
                     'subtitle_ar' => $item['subtitle_ar'] ?? null,
-                    'body_en' => RichText::sanitize($item['body_en'] ?? null),
-                    'body_ar' => RichText::sanitize($item['body_ar'] ?? null),
+                    // contact_info items hold a plain value (an email/phone
+                    // number, edited via a plain text input, not the rich-
+                    // text toolbar — see resources/views/admin/cms/edit.blade.php)
+                    // and are always rendered through {{ }}, never {!! !!}.
+                    // Running RichText::sanitize()'s HTML round-trip on a
+                    // bare string like "+9665..." or "support@daftari.app"
+                    // numeric-entity-encodes '+' and '@', corrupting it —
+                    // so only actually-rich item types get sanitized here.
+                    'body_en' => $section->type === 'contact_info' ? ($item['body_en'] ?? null) : RichText::sanitize($item['body_en'] ?? null),
+                    'body_ar' => $section->type === 'contact_info' ? ($item['body_ar'] ?? null) : RichText::sanitize($item['body_ar'] ?? null),
                     'meta' => filled($item['url'] ?? null) ? ['url' => $item['url']] : null,
                 ]);
             }
