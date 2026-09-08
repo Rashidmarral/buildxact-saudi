@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayWebhookEvent;
 use App\Models\Plan;
+use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\MpdfRenderer;
@@ -113,15 +115,46 @@ class PaymentController extends Controller
         $payment = Payment::withoutGlobalScopes()->with(['plan', 'company'])->findOrFail($payment);
         abort_unless($payment->status === 'paid', 404);
 
-        $pdf = $renderer->render('documents.print.saas-receipt', [
-            'payment' => $payment,
-            'company' => $payment->company,
-        ]);
+        $invoice = $this->platformInvoiceFor($payment);
+
+        if ($invoice) {
+            $pdf = $renderer->render('documents.print.pdf', $invoice->pdfData());
+            $filename = $invoice->invoice_number.'.pdf';
+        } else {
+            $pdf = $renderer->render('documents.print.saas-receipt', [
+                'payment' => $payment,
+                'company' => $payment->company,
+            ]);
+            $filename = 'receipt-'.$payment->id.'.pdf';
+        }
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="receipt-'.$payment->id.'.pdf"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
+    }
+
+    /**
+     * The real ZATCA tax invoice PlatformInvoiceService created for this
+     * payment, when platform billing is configured (see
+     * PaymentSettlementService::sendSubscriptionReceipt()) — matched via
+     * the InvoicePayment.reference it was recorded with, since a platform
+     * Payment has no direct foreign key to the Invoice it produced. Null
+     * when platform billing isn't configured, or for a payment made
+     * before it was (the plain receipt template still applies then).
+     */
+    private function platformInvoiceFor(Payment $payment): ?Invoice
+    {
+        $billingCompanyId = Setting::get('platform_billing_company_id');
+
+        if (! $billingCompanyId || ! $payment->reference) {
+            return null;
+        }
+
+        return Invoice::withoutGlobalScopes()
+            ->where('company_id', $billingCompanyId)
+            ->whereHas('invoicePayments', fn ($q) => $q->where('reference', $payment->reference))
+            ->first();
     }
 
     /**

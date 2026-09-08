@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Account;
+use App\Models\AccountMapping;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Payment;
@@ -9,8 +11,11 @@ use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayWebhookEvent;
 use App\Models\PaymentTransaction;
 use App\Models\Plan;
+use App\Models\Setting;
 use App\Models\Subscription;
+use App\Models\TaxRate;
 use App\Models\User;
+use App\Services\Billing\PlatformInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -139,6 +144,46 @@ class PaymentManagementTest extends TestCase
         $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.show', $payment));
 
         $response->assertOk()->assertSee('moy_1');
+    }
+
+    // ---------------------------------------------------------------
+    // Receipt
+    // ---------------------------------------------------------------
+
+    public function test_receipt_serves_the_real_tax_invoice_when_platform_billing_is_configured(): void
+    {
+        $billingCompany = $this->makeCompany(['name' => 'Dynamic Core Contracting Company', 'vat_number' => '314526094900003', 'currency' => 'SAR']);
+        Account::seedSystemAccounts($billingCompany->id);
+        AccountMapping::seedDefaults($billingCompany->id);
+        TaxRate::seedDefaults($billingCompany->id);
+        Setting::set('platform_billing_company_id', $billingCompany->id);
+
+        $plan = $this->makePlan();
+        $company = $this->makeCompany();
+        $subscription = Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+        $payment = $this->makePaidPayment($company, $subscription);
+
+        $invoice = app(PlatformInvoiceService::class)->createInvoiceForPayment($payment);
+        $this->assertNotNull($invoice, 'PlatformInvoiceService should create a real invoice once billing is configured.');
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.receipt', $payment->id));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringContainsString($invoice->invoice_number, $response->headers->get('Content-Disposition'));
+    }
+
+    public function test_receipt_falls_back_to_the_plain_template_when_platform_billing_is_not_configured(): void
+    {
+        $plan = $this->makePlan();
+        $company = $this->makeCompany();
+        $subscription = Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly']);
+        $payment = $this->makePaidPayment($company, $subscription);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.payments.receipt', $payment->id));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Disposition', 'attachment; filename="receipt-'.$payment->id.'.pdf"');
     }
 
     // ---------------------------------------------------------------
