@@ -250,4 +250,63 @@ class Invoice extends Model
     {
         return $this->balanceDue() <= 0.0;
     }
+
+    /**
+     * Shared data shape for rendering this invoice through
+     * documents.print.pdf — used by InvoiceController::downloadPdf()/
+     * emailInvoice(), and by PlatformInvoiceService for the platform's own
+     * real ZATCA subscription invoices, so both paths render through the
+     * exact same tested template rather than two parallel PDF layouts.
+     */
+    public function pdfData(): array
+    {
+        $this->loadMissing('items', 'client', 'bankAccount');
+
+        $bankAccount = $this->bankAccount ?? $this->company->defaultBankAccount();
+
+        $doc = [
+            'type_label' => $this->type === 'simplified' ? __('Simplified tax invoice') : __('Standard tax invoice'),
+            'type_label_ar' => $this->type === 'simplified' ? 'فاتورة ضريبية مبسّطة' : 'فاتورة ضريبية عادية',
+            'number' => $this->invoice_number,
+            'date_label' => __('Issued'),
+            'date' => $this->issue_date,
+            'date2_label' => __('Due'),
+            'date2_label_ar' => 'الاستحقاق',
+            'date2' => $this->due_date,
+            'party_label' => __('Bill to'),
+            'party_label_ar' => 'العميل',
+            'party' => $this->client,
+            'qr_code' => $this->qr_code,
+            'zatca_status' => $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
+            'lines' => $this->items,
+            'currency' => $this->currency,
+            'subtotal' => $this->subtotal,
+            'discount_total' => $this->discount_total,
+            'discount_percent' => $this->discount_type === 'percentage' ? $this->discount_value : null,
+            'vat_total' => $this->vat_total,
+            'total' => $this->total,
+            'extra_rows' => array_values(array_filter([
+                $this->currency !== $this->company->currency ? [
+                    'label' => __(':currency equivalent (rate :rate)', ['currency' => $this->company->currency, 'rate' => rtrim(rtrim(number_format($this->exchange_rate, 6), '0'), '.')]),
+                    'value' => round($this->total * $this->exchange_rate, 2),
+                    'currency' => $this->company->currency,
+                ] : null,
+                $this->retention_amount > 0 ? [
+                    'label' => __('Retention held').' ('.rtrim(rtrim(number_format($this->retention_rate, 2), '0'), '.').'%)',
+                    'value' => $this->retention_amount,
+                ] : null,
+                ['label' => __('Paid'), 'value' => $this->amount_paid],
+                \App\Support\Money::balanceRow($this->balanceDue()),
+            ])),
+            'bank_account' => $bankAccount,
+            'salesperson' => $this->salesperson,
+            'notes' => $this->notes,
+        ];
+
+        return [
+            'doc' => $doc,
+            'company' => $this->company,
+            'template' => $this->company->defaultTemplateFor('invoice'),
+        ];
+    }
 }

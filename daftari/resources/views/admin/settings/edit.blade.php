@@ -190,6 +190,17 @@
                 </div>
             </div>
 
+            <div class="pt-4 border-t border-slate-100">
+                <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Bill subscriptions through this company') }}</label>
+                <select name="platform_billing_company_id" class="mt-1 w-full max-w-md rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('Not set — send a plain payment receipt') }}</option>
+                    @foreach ($billingCompanies as $billingCompany)
+                        <option value="{{ $billingCompany->id }}" @selected((string) old('platform_billing_company_id', $settings['platform_billing_company_id']) === (string) $billingCompany->id)>{{ $billingCompany->name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-400">{{ __('Pick your own real business among your tenant accounts and every subscription payment becomes a real ZATCA-compliant tax invoice — issued from that company to the paying customer, with a QR code and posted to that company\'s own books. Leave unset to keep sending a plain payment receipt with no tax-invoice fields.') }}</p>
+            </div>
+
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Identity settings') }}</button>
         </form>
     </div>

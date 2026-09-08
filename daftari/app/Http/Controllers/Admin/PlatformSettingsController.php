@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\SmtpTestMail;
 use App\Models\AuditLog;
+use App\Models\Company;
 use App\Models\Currency;
 use App\Models\Plan;
 use App\Models\Setting;
@@ -73,6 +74,7 @@ class PlatformSettingsController extends Controller
             'platform_phone' => Setting::get('platform_phone', ''),
             'platform_email' => Setting::get('platform_email', config('daftari.billing.email')),
             'platform_website' => Setting::get('platform_website', ''),
+            'platform_billing_company_id' => Setting::get('platform_billing_company_id', ''),
 
             // Signup
             'trial_days' => Setting::get('trial_days', (string) config('daftari.trial_days')),
@@ -130,6 +132,7 @@ class PlatformSettingsController extends Controller
             'timeFormats' => self::TIME_FORMATS,
             'countries' => self::COUNTRIES,
             'currencies' => Currency::query()->active()->orderBy('sort_order')->get(),
+            'billingCompanies' => Company::orderBy('name')->limit(500)->get(['id', 'name']),
             'languages' => self::LANGUAGES,
             'timezones' => \DateTimeZone::listIdentifiers(),
             'appVersion' => config('daftari.version'),
@@ -204,11 +207,12 @@ class PlatformSettingsController extends Controller
             'platform_phone' => ['nullable', 'string', 'max:30'],
             'platform_email' => ['nullable', 'email', 'max:255'],
             'platform_website' => ['nullable', 'url', 'max:255'],
+            'platform_billing_company_id' => ['nullable', 'exists:companies,id'],
             'logo' => ['nullable', 'image', 'max:'.$maxKb],
             'favicon' => ['nullable', 'image', 'mimes:png,ico,jpg,jpeg,webp', 'max:'.$maxKb],
         ]);
 
-        foreach (['platform_name', 'platform_name_ar', 'platform_vat_number', 'platform_cr_number', 'platform_address', 'platform_phone', 'platform_email', 'platform_website'] as $key) {
+        foreach (['platform_name', 'platform_name_ar', 'platform_vat_number', 'platform_cr_number', 'platform_address', 'platform_phone', 'platform_email', 'platform_website', 'platform_billing_company_id'] as $key) {
             Setting::set($key, $data[$key] ?? '');
         }
 

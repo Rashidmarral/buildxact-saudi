@@ -13,7 +13,7 @@
 | {{ __('Date') }} | {{ $payment->paid_at->format('Y-m-d') }} |
 @endcomponent
 
-{{ __('A copy of your receipt is attached to this email.') }}
+{{ $invoice ? __('Your tax invoice :number is attached to this email.', ['number' => $invoice->invoice_number]) : __('A copy of your receipt is attached to this email.') }}
 
 {{ __('Thanks,') }}<br>
 {{ config('app.name') }}

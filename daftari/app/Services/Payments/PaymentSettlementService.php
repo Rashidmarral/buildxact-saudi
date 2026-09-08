@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\Webhook;
 use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\Billing\PlatformInvoiceService;
 use App\Services\MpdfRenderer;
 use Illuminate\Support\Facades\Mail;
 
@@ -83,11 +84,21 @@ class PaymentSettlementService
         $payment->loadMissing('plan', 'company');
         $company = $payment->company;
 
+        // Real ZATCA-compliant tax invoice when the operator has
+        // designated one of their own tenant companies as their billing
+        // identity (Setting 'platform_billing_company_id') — otherwise
+        // createInvoiceForPayment() returns null and behavior is
+        // unchanged from before this feature existed: a plain payment
+        // confirmation with no tax-invoice fields.
+        $invoice = app(PlatformInvoiceService::class)->createInvoiceForPayment($payment);
+
         $renderer = app(MpdfRenderer::class);
-        $pdf = $renderer->render('documents.print.saas-receipt', ['payment' => $payment, 'company' => $company]);
+        $pdf = $invoice
+            ? $renderer->render('documents.print.pdf', $invoice->pdfData())
+            : $renderer->render('documents.print.saas-receipt', ['payment' => $payment, 'company' => $company]);
 
         foreach ($company->owners as $owner) {
-            Mail::to($owner->email)->send(new PaymentReceiptMail($payment, $pdf));
+            Mail::to($owner->email)->send(new PaymentReceiptMail($payment, $pdf, $invoice));
             $owner->notify(new GenericNotification(
                 title: __('Payment received'),
                 body: __(':amount :currency for the :plan plan', [

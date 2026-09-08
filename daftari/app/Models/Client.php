@@ -21,6 +21,7 @@ class Client extends Model
         'street_name', 'building_number', 'district', 'city', 'state', 'country',
         'postal_code', 'notes',
         'lead_source', 'next_follow_up_date', 'last_contacted_at',
+        'platform_billed_company_id',
     ];
 
     protected function casts(): array

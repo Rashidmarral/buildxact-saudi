@@ -205,7 +205,7 @@ class InvoiceController extends Controller
 
     public function downloadPdf(Invoice $invoice, MpdfRenderer $renderer)
     {
-        $pdf = $renderer->render('documents.print.pdf', $this->pdfData($invoice));
+        $pdf = $renderer->render('documents.print.pdf', $invoice->pdfData());
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -221,7 +221,7 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => __('This client has no email address on file. Add one on the client record first.')]);
         }
 
-        $pdfBinary = $renderer->render('documents.print.pdf', $this->pdfData($invoice));
+        $pdfBinary = $renderer->render('documents.print.pdf', $invoice->pdfData());
 
         Mail::to($recipient)->send(new InvoiceMail($invoice, $pdfBinary));
 
@@ -301,58 +301,6 @@ class InvoiceController extends Controller
         AuditLog::record('invoice.sms_sent', $invoice, __('Sent invoice #:number via SMS', ['number' => $invoice->invoice_number]));
 
         return back()->with('status', __('Invoice sent via SMS.'));
-    }
-
-    private function pdfData(Invoice $invoice): array
-    {
-        $invoice->loadMissing('items', 'client', 'bankAccount');
-
-        $bankAccount = $invoice->bankAccount ?? $invoice->company->defaultBankAccount();
-
-        $doc = [
-            'type_label' => $invoice->type === 'simplified' ? __('Simplified tax invoice') : __('Standard tax invoice'),
-            'type_label_ar' => $invoice->type === 'simplified' ? 'فاتورة ضريبية مبسّطة' : 'فاتورة ضريبية عادية',
-            'number' => $invoice->invoice_number,
-            'date_label' => __('Issued'),
-            'date' => $invoice->issue_date,
-            'date2_label' => __('Due'),
-            'date2_label_ar' => 'الاستحقاق',
-            'date2' => $invoice->due_date,
-            'party_label' => __('Bill to'),
-            'party_label_ar' => 'العميل',
-            'party' => $invoice->client,
-            'qr_code' => $invoice->qr_code,
-            'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
-            'lines' => $invoice->items,
-            'currency' => $invoice->currency,
-            'subtotal' => $invoice->subtotal,
-            'discount_total' => $invoice->discount_total,
-            'discount_percent' => $invoice->discount_type === 'percentage' ? $invoice->discount_value : null,
-            'vat_total' => $invoice->vat_total,
-            'total' => $invoice->total,
-            'extra_rows' => array_values(array_filter([
-                $invoice->currency !== $invoice->company->currency ? [
-                    'label' => __(':currency equivalent (rate :rate)', ['currency' => $invoice->company->currency, 'rate' => rtrim(rtrim(number_format($invoice->exchange_rate, 6), '0'), '.')]),
-                    'value' => round($invoice->total * $invoice->exchange_rate, 2),
-                    'currency' => $invoice->company->currency,
-                ] : null,
-                $invoice->retention_amount > 0 ? [
-                    'label' => __('Retention held').' ('.rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.').'%)',
-                    'value' => $invoice->retention_amount,
-                ] : null,
-                ['label' => __('Paid'), 'value' => $invoice->amount_paid],
-                \App\Support\Money::balanceRow($invoice->balanceDue()),
-            ])),
-            'bank_account' => $bankAccount,
-            'salesperson' => $invoice->salesperson,
-            'notes' => $invoice->notes,
-        ];
-
-        return [
-            'doc' => $doc,
-            'company' => $invoice->company,
-            'template' => $invoice->company->defaultTemplateFor('invoice'),
-        ];
     }
 
     public function downloadXml(Invoice $invoice)

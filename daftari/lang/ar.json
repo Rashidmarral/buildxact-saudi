@@ -4583,5 +4583,12 @@
     "Leave blank to show \"Contact us for pricing\" instead of a fixed price.": "اتركه فارغًا لعرض \"تواصل معنا للتسعير\" بدلاً من سعر ثابت.",
     "Active (visible on the public setup packages page)": "نشط (مرئي في صفحة باقات الإعداد العامة)",
     "Save setup package": "حفظ باقة الإعداد",
-    "Setup package requested:": "باقة الإعداد المطلوبة:"
+    "Setup package requested:": "باقة الإعداد المطلوبة:",
+    "Subscription payment reference: :reference": "مرجع دفع الاشتراك: :reference",
+    ":plan subscription (:cycle)": "اشتراك :plan (:cycle)",
+    "Your :app tax invoice :number": "فاتورتك الضريبية من :app رقم :number",
+    "Your tax invoice :number is attached to this email.": "تم إرفاق فاتورتك الضريبية رقم :number بهذه الرسالة.",
+    "Bill subscriptions through this company": "إصدار فواتير الاشتراكات من خلال هذه الشركة",
+    "Not set — send a plain payment receipt": "غير محدد — إرسال إيصال دفع عادي",
+    "Pick your own real business among your tenant accounts and every subscription payment becomes a real ZATCA-compliant tax invoice — issued from that company to the paying customer, with a QR code and posted to that company's own books. Leave unset to keep sending a plain payment receipt with no tax-invoice fields.": "اختر شركتك الحقيقية من بين حسابات المستأجرين لديك، وستتحول كل دفعة اشتراك إلى فاتورة ضريبية حقيقية متوافقة مع فوترة زاتكا — صادرة من تلك الشركة إلى العميل الدافع، تحمل رمز QR ومرحّلة إلى دفاتر تلك الشركة. اتركه بدون تحديد للاستمرار في إرسال إيصال دفع عادي بدون بيانات فاتورة ضريبية."
 }
