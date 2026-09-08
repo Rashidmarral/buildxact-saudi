@@ -20,6 +20,7 @@ use App\Http\Controllers\Partner\DashboardController as PartnerDashboardControll
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\ComplianceController;
 use App\Http\Controllers\Admin\LeadController as AdminLeadController;
+use App\Http\Controllers\Admin\SalesCenterController;
 use App\Http\Controllers\Admin\LegalDocumentController;
 use App\Http\Controllers\Admin\PlatformSettingsController;
 use App\Http\Controllers\Admin\TranslationController;
@@ -738,6 +739,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('{lead}/follow-up', [AdminLeadController::class, 'scheduleFollowUp'])->name('follow-up');
         Route::post('{lead}/link-company', [AdminLeadController::class, 'linkCompany'])->name('link-company');
         Route::post('{lead}/setup-package', [AdminLeadController::class, 'updateSetupPackageStatus'])->name('setup-package.update');
+    });
+
+    Route::middleware('admin.permission:sales_center')->prefix('sales-center')->name('sales-center.')->group(function () {
+        Route::get('/', [SalesCenterController::class, 'plan'])->name('plan');
+        Route::post('targets', [SalesCenterController::class, 'updateTargets'])->name('targets.update');
+        Route::post('restart', [SalesCenterController::class, 'restart'])->name('restart');
+        Route::get('tools', [SalesCenterController::class, 'tools'])->name('tools');
     });
 
     Route::middleware('admin.permission:plans')->group(function () {

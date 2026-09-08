@@ -54,6 +54,12 @@ class AdminNav
                 'visible' => fn (User $user) => $user->hasAdminPermission('leads'),
             ],
             [
+                'route' => 'admin.sales-center.plan',
+                'label' => __('Sales Center'),
+                'icon' => 'sales',
+                'visible' => fn (User $user) => $user->hasAdminPermission('sales_center'),
+            ],
+            [
                 'route' => 'admin.partners.index',
                 'label' => __('Partner Program'),
                 'icon' => 'team',
