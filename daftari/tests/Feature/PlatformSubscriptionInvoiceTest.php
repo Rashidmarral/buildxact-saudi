@@ -97,6 +97,10 @@ class PlatformSubscriptionInvoiceTest extends TestCase
         $this->assertSame('paid', $invoice->status);
         $this->assertSame('standard', $invoice->type);
         $this->assertNotNull($invoice->qr_code);
+        // Its own numbering series (default prefix "SUB"), never the
+        // billing company's own regular invoice_number sequence — see
+        // test_subscription_invoices_never_share_or_skip_numbers_with_the_billing_companys_own_invoices().
+        $this->assertSame('SUB-00001', $invoice->invoice_number);
         $this->assertEqualsWithDelta(230.0, (float) $invoice->total, 0.001);
         $this->assertEqualsWithDelta(230.0, (float) $invoice->amount_paid, 0.001);
         // VAT-inclusive pricing: subtotal + vat_total must reconstruct the
@@ -149,6 +153,42 @@ class PlatformSubscriptionInvoiceTest extends TestCase
 
         $this->assertSame(1, Client::where('company_id', $billingCompany->id)->count());
         $this->assertSame(2, Invoice::where('company_id', $billingCompany->id)->count());
+    }
+
+    public function test_subscription_invoices_never_share_or_skip_numbers_with_the_billing_companys_own_invoices(): void
+    {
+        // Directly requested by the operator, who also runs a real
+        // second business (construction/services) through this same
+        // billing company: their own invoices and platform-generated
+        // subscription invoices must never look interleaved or leave
+        // gaps in either series.
+        $billingCompany = $this->makeBillingCompany();
+        Setting::set('platform_billing_company_id', $billingCompany->id);
+
+        $this->assertSame('INV-00001', $billingCompany->nextInvoiceNumber());
+
+        $payment = $this->makePayingCompanyWithPayment();
+        app(PaymentSettlementService::class)->sendSubscriptionReceipt($payment);
+        $subscriptionInvoice = Invoice::where('company_id', $billingCompany->id)->firstOrFail();
+        $this->assertSame('SUB-00001', $subscriptionInvoice->invoice_number);
+
+        // The billing company's own invoice sequence is completely
+        // unaffected by the subscription invoice that was just created.
+        $billingCompany->refresh();
+        $this->assertSame('INV-00002', $billingCompany->nextInvoiceNumber());
+    }
+
+    public function test_the_subscription_invoice_prefix_is_configurable(): void
+    {
+        $billingCompany = $this->makeBillingCompany();
+        Setting::set('platform_billing_company_id', $billingCompany->id);
+        Setting::set('platform_billing_invoice_prefix', 'SAAS');
+
+        $payment = $this->makePayingCompanyWithPayment();
+        app(PaymentSettlementService::class)->sendSubscriptionReceipt($payment);
+
+        $invoice = Invoice::where('company_id', $billingCompany->id)->firstOrFail();
+        $this->assertSame('SAAS-00001', $invoice->invoice_number);
     }
 
     public function test_the_operator_is_never_billed_for_its_own_subscription(): void

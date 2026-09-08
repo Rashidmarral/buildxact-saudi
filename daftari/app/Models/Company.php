@@ -288,6 +288,22 @@ class Company extends Model
         return $this->invoice_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * A separate numbering series from nextInvoiceNumber(), used only by
+     * PlatformInvoiceService for real ZATCA tax invoices it generates on
+     * subscription payments — so an operator who also runs their own
+     * real business through this same company account (e.g. their own
+     * construction/services invoices) never sees the two interleaved or
+     * skipping numbers because of each other.
+     */
+    public function nextPlatformInvoiceNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_platform_invoice_number');
+        $prefix = Setting::get('platform_billing_invoice_prefix') ?: 'SUB';
+
+        return $prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
     public function nextCreditNoteNumber(): string
     {
         $number = $this->nextSequenceNumber('next_credit_note_number');

@@ -4645,5 +4645,7 @@
     "WhatsApp opening message": "رسالة افتتاحية عبر واتساب",
     "Won (actual / target)": "الفوز (الفعلي / المستهدف)",
     "Won, all time": "إجمالي الفوز منذ البداية",
-    "current": "الحالي"
+    "current": "الحالي",
+    "Subscription invoice number prefix": "بادئة ترقيم فواتير الاشتراك",
+    "Subscription invoices get their own separate number sequence (e.g. SUB-00001) so they never share or skip numbers with that company's own regular invoices — useful if your billing company also runs a real business of its own through this account.": "تحصل فواتير الاشتراك على تسلسل ترقيم مستقل خاص بها (مثل SUB-00001) بحيث لا تتشارك الأرقام أو تتسبب في تخطي أرقام فواتير تلك الشركة العادية — مفيد إذا كانت شركة الفوترة الخاصة بك تدير أيضًا نشاطًا تجاريًا حقيقيًا من خلال هذا الحساب."
 }

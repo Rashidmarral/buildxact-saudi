@@ -199,6 +199,10 @@
                     @endforeach
                 </select>
                 <p class="mt-1 text-xs text-slate-400">{{ __('Pick your own real business among your tenant accounts and every subscription payment becomes a real ZATCA-compliant tax invoice — issued from that company to the paying customer, with a QR code and posted to that company\'s own books. Leave unset to keep sending a plain payment receipt with no tax-invoice fields.') }}</p>
+
+                <label class="mt-4 block text-xs font-semibold uppercase text-slate-500">{{ __('Subscription invoice number prefix') }}</label>
+                <input type="text" name="platform_billing_invoice_prefix" maxlength="10" placeholder="SUB" value="{{ old('platform_billing_invoice_prefix', $settings['platform_billing_invoice_prefix']) }}" class="mt-1 w-full max-w-[160px] rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <p class="mt-1 text-xs text-slate-400">{{ __('Subscription invoices get their own separate number sequence (e.g. SUB-00001) so they never share or skip numbers with that company\'s own regular invoices — useful if your billing company also runs a real business of its own through this account.') }}</p>
             </div>
 
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Identity settings') }}</button>

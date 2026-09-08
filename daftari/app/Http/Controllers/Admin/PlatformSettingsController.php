@@ -75,6 +75,7 @@ class PlatformSettingsController extends Controller
             'platform_email' => Setting::get('platform_email', config('daftari.billing.email')),
             'platform_website' => Setting::get('platform_website', ''),
             'platform_billing_company_id' => Setting::get('platform_billing_company_id', ''),
+            'platform_billing_invoice_prefix' => Setting::get('platform_billing_invoice_prefix', 'SUB'),
 
             // Signup
             'trial_days' => Setting::get('trial_days', (string) config('daftari.trial_days')),
@@ -208,11 +209,12 @@ class PlatformSettingsController extends Controller
             'platform_email' => ['nullable', 'email', 'max:255'],
             'platform_website' => ['nullable', 'url', 'max:255'],
             'platform_billing_company_id' => ['nullable', 'exists:companies,id'],
+            'platform_billing_invoice_prefix' => ['nullable', 'string', 'max:10'],
             'logo' => ['nullable', 'image', 'max:'.$maxKb],
             'favicon' => ['nullable', 'image', 'mimes:png,ico,jpg,jpeg,webp', 'max:'.$maxKb],
         ]);
 
-        foreach (['platform_name', 'platform_name_ar', 'platform_vat_number', 'platform_cr_number', 'platform_address', 'platform_phone', 'platform_email', 'platform_website', 'platform_billing_company_id'] as $key) {
+        foreach (['platform_name', 'platform_name_ar', 'platform_vat_number', 'platform_cr_number', 'platform_address', 'platform_phone', 'platform_email', 'platform_website', 'platform_billing_company_id', 'platform_billing_invoice_prefix'] as $key) {
             Setting::set($key, $data[$key] ?? '');
         }
 

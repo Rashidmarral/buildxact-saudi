@@ -75,7 +75,7 @@ class PlatformInvoiceService
             $invoice = Invoice::create([
                 'company_id' => $billingCompany->id,
                 'client_id' => $client->id,
-                'invoice_number' => $billingCompany->nextInvoiceNumber(),
+                'invoice_number' => $billingCompany->nextPlatformInvoiceNumber(),
                 'type' => 'standard',
                 'status' => 'draft',
                 'issue_date' => ($payment->paid_at ?? now())->toDateString(),
