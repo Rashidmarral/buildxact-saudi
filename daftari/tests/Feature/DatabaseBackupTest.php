@@ -159,4 +159,88 @@ class DatabaseBackupTest extends TestCase
 
         $response->assertNotFound();
     }
+
+    // ---------------------------------------------------------------
+    // Configurable dump-tool path (App\Support\DatabaseDumpTool) — bug
+    // report: mysqldump failed on a Windows server with "'mysqldump' is
+    // not recognized as an internal or external command" because
+    // MySQL's bin folder wasn't on that server's PATH, even though the
+    // binary itself was installed. Tested directly against the small
+    // stateless helper class rather than through the full backup:run
+    // command, which would otherwise need a real/faked non-sqlite
+    // connection under a swapped 'database.default' — not worth the
+    // transaction-handling complexity that adds to every other test in
+    // this RefreshDatabase-backed class.
+    // ---------------------------------------------------------------
+
+    public function test_dump_tool_path_defaults_to_the_bare_command_name(): void
+    {
+        $this->assertSame('mysqldump', \App\Support\DatabaseDumpTool::mysqldumpPath());
+        $this->assertSame('pg_dump', \App\Support\DatabaseDumpTool::pgDumpPath());
+    }
+
+    public function test_dump_tool_path_reflects_a_saved_setting(): void
+    {
+        Setting::set('backup_mysqldump_path', 'C:\\xampp\\mysql\\bin\\mysqldump.exe');
+
+        $this->assertSame('C:\\xampp\\mysql\\bin\\mysqldump.exe', \App\Support\DatabaseDumpTool::mysqldumpPath());
+    }
+
+    public function test_a_missing_binary_failure_gets_a_helpful_path_hint(): void
+    {
+        $message = \App\Support\DatabaseDumpTool::failureMessage(
+            'mysqldump',
+            'mysqldump',
+            "'mysqldump' is not recognized as an internal or external command, operable program or batch file.",
+        );
+
+        $this->assertStringContainsString("isn't on this server's PATH", $message);
+        $this->assertStringContainsString('Admin > Backups', $message);
+    }
+
+    public function test_a_missing_binary_failure_on_linux_also_gets_the_hint(): void
+    {
+        $message = \App\Support\DatabaseDumpTool::failureMessage(
+            'mysqldump',
+            'mysqldump',
+            'sh: 1: mysqldump: command not found',
+        );
+
+        $this->assertStringContainsString("isn't on this server's PATH", $message);
+    }
+
+    public function test_a_real_database_error_does_not_get_the_path_hint(): void
+    {
+        $message = \App\Support\DatabaseDumpTool::failureMessage(
+            'mysqldump',
+            'mysqldump',
+            'mysqldump: Got error: 1045: Access denied for user',
+        );
+
+        $this->assertStringNotContainsString('PATH', $message);
+        $this->assertStringContainsString('Access denied', $message);
+    }
+
+    public function test_an_admin_can_save_a_custom_mysqldump_path(): void
+    {
+        $admin = $this->makeSuperAdmin();
+
+        $response = $this->actingAs($admin)->post(route('admin.backups.dump-paths'), [
+            'mysqldump_path' => 'C:\\xampp\\mysql\\bin\\mysqldump.exe',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertSame('C:\\xampp\\mysql\\bin\\mysqldump.exe', Setting::get('backup_mysqldump_path'));
+        $this->assertSame('pg_dump', Setting::get('backup_pgdump_path'));
+    }
+
+    public function test_leaving_the_dump_path_blank_resets_it_to_the_bare_command(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        Setting::set('backup_mysqldump_path', 'C:\\xampp\\mysql\\bin\\mysqldump.exe');
+
+        $this->actingAs($admin)->post(route('admin.backups.dump-paths'), ['mysqldump_path' => '']);
+
+        $this->assertSame('mysqldump', Setting::get('backup_mysqldump_path'));
+    }
 }

@@ -4691,5 +4691,11 @@
     "Every document waiting to be cleared or reported to ZATCA for this company — its own invoices and, if this is your subscription-billing company, subscription invoices too, listed together exactly as ZATCA sees them.": "كل مستند في انتظار المصادقة أو الإبلاغ لزاتكا لهذه الشركة — فواتيرها الخاصة، وإذا كانت هذه شركة فوترة الاشتراكات، فواتير الاشتراك أيضًا، مدرجة معًا تمامًا كما تراها زاتكا.",
     "Back to ZATCA": "الرجوع إلى زاتكا",
     "Sync everything at once, or pick a specific document below to sync it on its own.": "قم بمزامنة كل شيء دفعة واحدة، أو اختر مستندًا معينًا أدناه لمزامنته بمفرده.",
-    "or sync one at a time": "أو المزامنة واحدًا تلو الآخر"
+    "or sync one at a time": "أو المزامنة واحدًا تلو الآخر",
+    "Database dump tool path": "مسار أداة تفريغ قاعدة البيانات",
+    "If backups fail with \"mysqldump is not recognized\" or \"command not found\", the dump tool exists but isn't on this server's PATH — paste its full path here instead of editing server PATH settings.": "إذا فشلت النسخ الاحتياطية برسالة \"mysqldump is not recognized\" أو \"command not found\"، فإن أداة التفريغ موجودة لكنها غير موجودة في متغير PATH لهذا الخادم — الصق مسارها الكامل هنا بدلاً من تعديل إعدادات PATH على الخادم.",
+    "mysqldump path": "مسار mysqldump",
+    "Windows example": "مثال ويندوز",
+    "pg_dump path": "مسار pg_dump",
+    "Only used if this install runs on PostgreSQL — currently": "يُستخدم فقط إذا كان هذا التثبيت يعمل على PostgreSQL — حاليًا"
 }

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Setting;
+use App\Support\DatabaseDumpTool;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
@@ -106,10 +107,17 @@ class BackupDatabase extends Command
         return "Storage backup created: {$filename} ({$sizeKb} KB)";
     }
 
+    /**
+     * The binary path is configurable (Admin > Backups) — see
+     * App\Support\DatabaseDumpTool — for servers where mysqldump exists
+     * but isn't on PATH (common on Windows/XAMPP/WAMP installs).
+     */
     private function dumpMysql(array $config): string
     {
+        $binary = DatabaseDumpTool::mysqldumpPath();
+
         $args = [
-            'mysqldump',
+            $binary,
             '--host='.$config['host'],
             '--port='.$config['port'],
             '--user='.$config['username'],
@@ -122,7 +130,7 @@ class BackupDatabase extends Command
         $result = Process::env(['MYSQL_PWD' => $config['password']])->run($args);
 
         if (! $result->successful()) {
-            throw new \RuntimeException('mysqldump failed: '.$result->errorOutput());
+            throw new \RuntimeException(DatabaseDumpTool::failureMessage($binary, 'mysqldump', $result->errorOutput()));
         }
 
         return $result->output();
@@ -130,8 +138,10 @@ class BackupDatabase extends Command
 
     private function dumpPgsql(array $config): string
     {
+        $binary = DatabaseDumpTool::pgDumpPath();
+
         $args = [
-            'pg_dump',
+            $binary,
             '--host='.$config['host'],
             '--port='.$config['port'],
             '--username='.$config['username'],
@@ -142,7 +152,7 @@ class BackupDatabase extends Command
         $result = Process::env(['PGPASSWORD' => $config['password']])->run($args);
 
         if (! $result->successful()) {
-            throw new \RuntimeException('pg_dump failed: '.$result->errorOutput());
+            throw new \RuntimeException(DatabaseDumpTool::failureMessage($binary, 'pg_dump', $result->errorOutput()));
         }
 
         return $result->output();

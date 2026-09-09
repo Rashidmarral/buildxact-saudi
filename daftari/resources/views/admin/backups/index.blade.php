@@ -47,6 +47,27 @@
     </div>
 </div>
 
+<div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+    <h2 class="font-semibold text-slate-900 mb-1">{{ __('Database dump tool path') }}</h2>
+    <p class="text-xs text-slate-500 mb-3">{{ __('If backups fail with "mysqldump is not recognized" or "command not found", the dump tool exists but isn\'t on this server\'s PATH — paste its full path here instead of editing server PATH settings.') }}</p>
+    <form method="POST" action="{{ route('admin.backups.dump-paths') }}" class="grid sm:grid-cols-2 gap-4">
+        @csrf
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('mysqldump path') }}</label>
+            <input type="text" name="mysqldump_path" value="{{ old('mysqldump_path', $mysqldumpPath) }}" placeholder="mysqldump" class="mt-1 w-full rounded-lg border border-slate-200 font-mono text-sm focus:border-brand-500 focus:ring-brand-500">
+            <p class="text-xs text-slate-400 mt-1">{{ __('Windows example') }}: <code>C:\xampp\mysql\bin\mysqldump.exe</code></p>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('pg_dump path') }}</label>
+            <input type="text" name="pgdump_path" value="{{ old('pgdump_path', $pgDumpPath) }}" placeholder="pg_dump" class="mt-1 w-full rounded-lg border border-slate-200 font-mono text-sm focus:border-brand-500 focus:ring-brand-500">
+            <p class="text-xs text-slate-400 mt-1">{{ __('Only used if this install runs on PostgreSQL — currently') }}: <strong>{{ $connection }}</strong></p>
+        </div>
+        <div class="sm:col-span-2">
+            <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Save') }}</button>
+        </div>
+    </form>
+</div>
+
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($files->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No backups yet.') }}</p>

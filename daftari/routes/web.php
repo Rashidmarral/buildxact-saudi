@@ -836,6 +836,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::get('backups', [BackupController::class, 'index'])->name('backups.index');
         Route::post('backups/run', [BackupController::class, 'runNow'])->name('backups.run');
         Route::post('backups/retention', [BackupController::class, 'updateRetention'])->name('backups.retention');
+        Route::post('backups/dump-paths', [BackupController::class, 'updateDumpPaths'])->name('backups.dump-paths');
         Route::middleware('password.confirm.admin')->group(function () {
             Route::get('backups/{filename}/download', [BackupController::class, 'download'])->name('backups.download');
             Route::delete('backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');

@@ -34,6 +34,9 @@ class BackupController extends Controller
             'lastRunAt' => Setting::get('backup_last_run_at'),
             'lastStatus' => Setting::get('backup_last_status'),
             'lastError' => Setting::get('backup_last_error'),
+            'connection' => config('database.default'),
+            'mysqldumpPath' => Setting::get('backup_mysqldump_path', 'mysqldump'),
+            'pgDumpPath' => Setting::get('backup_pgdump_path', 'pg_dump'),
         ]);
     }
 
@@ -58,6 +61,27 @@ class BackupController extends Controller
         AuditLog::record('backups.update_retention', null, __('Set backup retention to :days day(s)', ['days' => $data['retention_days']]));
 
         return back()->with('status', __('Backup retention updated.'));
+    }
+
+    /**
+     * Bug report: mysqldump failing with "'mysqldump' is not recognized"
+     * on a Windows server where MySQL is installed but its bin folder
+     * isn't on PATH. Lets an operator point straight at the binary
+     * instead of needing shell/PATH access on their own server.
+     */
+    public function updateDumpPaths(Request $request)
+    {
+        $data = $request->validate([
+            'mysqldump_path' => ['nullable', 'string', 'max:255'],
+            'pgdump_path' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        Setting::set('backup_mysqldump_path', filled($data['mysqldump_path'] ?? null) ? $data['mysqldump_path'] : 'mysqldump');
+        Setting::set('backup_pgdump_path', filled($data['pgdump_path'] ?? null) ? $data['pgdump_path'] : 'pg_dump');
+
+        AuditLog::record('backups.update_dump_paths', null, __('Updated the database dump tool path(s)'));
+
+        return back()->with('status', __('Dump tool path saved.'));
     }
 
     public function download(Request $request, string $filename)
