@@ -76,6 +76,7 @@
                 <th class="px-4 py-3 font-medium">{{ __('Last submission') }}</th>
                 <th class="px-4 py-3 font-medium">{{ __('Last successful submission') }}</th>
                 <th class="px-4 py-3 font-medium">{{ __('Failed submissions') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Pending sync') }}</th>
                 <th class="px-6 py-3"></th>
             </tr>
         </thead>
@@ -103,6 +104,22 @@
                     <td class="px-4 py-3">{{ $lastSub ? \Illuminate\Support\Carbon::parse($lastSub)->format('Y-m-d H:i') : '—' }}</td>
                     <td class="px-4 py-3">{{ $lastOk ? \Illuminate\Support\Carbon::parse($lastOk)->format('Y-m-d H:i') : '—' }}</td>
                     <td class="px-4 py-3 {{ ($failedCounts[$company->id] ?? 0) > 0 ? 'text-red-600 font-medium' : '' }}">{{ $failedCounts[$company->id] ?? 0 }}</td>
+                    <td class="px-4 py-3">
+                        @php $pending = $pendingCounts[$company->id] ?? null; @endphp
+                        @if ($pending === null)
+                            <span class="text-slate-300">—</span>
+                        @elseif ($pending === 0)
+                            <span class="text-slate-400">0</span>
+                        @else
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold text-amber-700">{{ $pending }}</span>
+                                <form method="POST" action="{{ route('admin.zatca.companies.sync', $company) }}" onsubmit="return confirm('{{ __('Sync all :count pending document(s) for :name now?', ['count' => $pending, 'name' => $company->name]) }}')">
+                                    @csrf
+                                    <button type="submit" class="rounded-full bg-brand-600 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-brand-700">{{ __('Sync now') }}</button>
+                                </form>
+                            </div>
+                        @endif
+                    </td>
                     <td class="px-6 py-3 text-right whitespace-nowrap">
                         <div x-data="{ open: false }" class="relative inline-block text-start">
                             <button type="button" @click="open = !open" class="text-brand-700 hover:underline">{{ __('Actions') }}</button>
@@ -124,7 +141,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="10" class="px-6 py-8 text-center text-slate-400">{{ __('No companies match these filters.') }}</td></tr>
+                <tr><td colspan="11" class="px-6 py-8 text-center text-slate-400">{{ __('No companies match these filters.') }}</td></tr>
             @endforelse
         </tbody>
     </table>

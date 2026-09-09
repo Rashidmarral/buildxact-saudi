@@ -4678,5 +4678,13 @@
     "ZATCA Phase 2 is already onboarded for this company — subscription invoices sync for Phase 2 automatically alongside its other invoices. No separate setup needed.": "تم بالفعل تفعيل المرحلة الثانية من زاتكا لهذه الشركة — تتم مزامنة فواتير الاشتراك للمرحلة الثانية تلقائيًا مع باقي فواتيرها. لا حاجة لإعداد منفصل.",
     "This company is not yet ZATCA Phase 2 onboarded, so subscription invoices currently get a Phase 1 QR code only. Complete onboarding for this company (once) to get Phase 2 XML for subscription invoices too — the same sync will then cover them alongside its other invoices automatically.": "لم يتم تفعيل المرحلة الثانية من زاتكا لهذه الشركة بعد، لذلك تحصل فواتير الاشتراك حاليًا على رمز QR للمرحلة الأولى فقط. أكمل تفعيل هذه الشركة (مرة واحدة) للحصول على ملف XML للمرحلة الثانية لفواتير الاشتراك أيضًا — وستغطيها نفس عملية المزامنة تلقائيًا مع باقي فواتيرها.",
     "View ZATCA status for this company": "عرض حالة زاتكا لهذه الشركة",
-    "View this company's VAT report": "عرض تقرير ضريبة القيمة المضافة لهذه الشركة"
+    "View this company's VAT report": "عرض تقرير ضريبة القيمة المضافة لهذه الشركة",
+    "Sync all :count pending document(s) for :name now?": "مزامنة جميع المستندات المعلقة (:count) لـ :name الآن؟",
+    "Sync mode": "وضع المزامنة",
+    "nothing syncs on its own; use \"Sync now\" below (or the same button in Admin → ZATCA) whenever you want to push pending invoices to ZATCA.": "لا تتم أي مزامنة تلقائيًا؛ استخدم \"مزامنة الآن\" أدناه (أو نفس الزر في لوحة الإدارة ← زاتكا) في أي وقت تريد فيه إرسال الفواتير المعلقة إلى زاتكا.",
+    "pending invoices sync automatically on this cadence; \"Sync now\" below pushes them immediately instead of waiting.": "تتم مزامنة الفواتير المعلقة تلقائيًا حسب هذا التكرار؛ \"مزامنة الآن\" أدناه ترسلها فورًا بدلاً من الانتظار.",
+    ":count pending": ":count معلقة",
+    "Sync all pending document(s) for :name now?": "مزامنة جميع المستندات المعلقة لـ :name الآن؟",
+    "This company must complete ZATCA onboarding before its invoices can be synced.": "يجب أن تكمل هذه الشركة تفعيل زاتكا قبل أن يتم مزامنة فواتيرها.",
+    "No pending invoices, credit notes, or debit notes to sync for :name.": "لا توجد فواتير أو إشعارات دائن أو إشعارات مدين معلقة لمزامنتها لـ :name."
 }

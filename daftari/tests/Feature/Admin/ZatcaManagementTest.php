@@ -20,13 +20,22 @@ use Tests\TestCase;
  * KPIs, the company ZATCA status table, the integration-logs listing across
  * both zatca_invoice_logs/zatca_credit_note_logs, the retry guard (never
  * resubmits an already cleared/reported document), the connectivity-only
- * test-connection action, the admin-triggered onboarding reset, and the
- * security guarantees: no private key/secret ever rendered or written to
- * the audit log, every mutating action audit-logged, permission gating.
+ * test-connection action, the admin-triggered onboarding reset, the
+ * pending-sync bulk action (the admin-side "Sync now"), and the security
+ * guarantees: no private key/secret ever rendered or written to the audit
+ * log, every mutating action audit-logged, permission gating.
  */
 class ZatcaManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Same throwaway self-signed certificate shape used in
+     * ZatcaPerDocumentSyncTest — needed so submit()'s certificate parsing
+     * succeeds and execution reaches the real HTTP call, which Http::fake()
+     * intercepts.
+     */
+    private const TEST_CSID = 'MIIDBzCCAe+gAwIBAgIUBSx0rLzK3YZPX+xqWHd5Snjpe5AwDQYJKoZIhvcNAQELBQAwEzERMA8GA1UEAwwIdGVzdC1lZ3MwHhcNMjYwODMwMjAzODAyWhcNMzYwODI3MjAzODAyWjATMREwDwYDVQQDDAh0ZXN0LWVnczCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALq2jcY9XpSEhbetKvAAcMAP7Hjp5uJk7eo8luKn5Rgl9QqM/Bwgjuz6xKKASmn6QSaZOk44wdafGJvi/5MQ9fDVO1bCEUWDFVbMDblBxEjBe3N9FsQ33u4x1uZAUndQMaBukxH3+XxW7bGGCfkYJwJaDbSA6HAPF8kOzFNVjQKmyf3vOHa3uajxwMG4XKXqifFFhmn4jgCIhD5Nd6tLvY0dLMjD+MG7EVLPJCf0BGIMbyRJR6KWbz+lcCrO8hAC2UPX9jObTcz/kQQSDXWS8XnKjxyCr+BTVWZNYfIGOz3Y8YMM36IHBsHG/mIT3GXX6KKK4T9MmoGXcV87pV0dQusCAwEAAaNTMFEwHQYDVR0OBBYEFMVsaLNnewpMwUC33hHUv1RhoyBPMB8GA1UdIwQYMBaAFMVsaLNnewpMwUC33hHUv1RhoyBPMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAKJPnEQOZlEPhevrJxthiJ2qZnemUKvvrdCJ1e5TqWG3+H2q+35dKjPE3QbPCnJtuw9iL54nkby8DiGrHRowJ5BcoxJbFernKLljBxCxRHOAp7M//nDXrYfWwrdDUqd4GE/T0buNrrCLSLEWdMxS1vEh4j/CV8h9wh9EVS7jgo99487iY/PxolzU5+Wjb+bxsgkrySpKhZt3En4A0jq3+3bP5bdFkj1fhmoAYzcIzUZj9ldcwrqesHGkF+SpGxRh6fll6pHZUnP+zqJH3Jqy1Ccer+M/MVmuqKQtwnMSb4yfRn8u9ffmzAAsBXnCSaceZYaYRPh/dubVhFrie20ODXY=';
 
     private function makeAdmin(): User
     {
@@ -73,6 +82,108 @@ class ZatcaManagementTest extends TestCase
             'error_message' => 'HTTP 400: {"message":"validation error"}',
             'submitted_at' => now(),
         ], $overrides));
+    }
+
+    /**
+     * A company like the operator's own "Dynamic Core Contracting Company"
+     * — already ZATCA Phase 2 onboarded for its real business, no
+     * subscription of its own (Company::hasFeature() treats an absent
+     * subscription as full access), zatca_sync_frequency left at its
+     * 'manual' default so nothing auto-syncs.
+     */
+    private function makeOnboardedCompany(array $overrides = []): Company
+    {
+        return $this->makeCompany(array_merge([
+            'zatca_integration_mode' => Company::ZATCA_MODE_PHASE2,
+            'zatca_onboarding_status' => 'onboarded',
+            'zatca_production_csid' => self::TEST_CSID,
+            'zatca_production_secret' => 'secret-value',
+        ], $overrides));
+    }
+
+    private function makePendingInvoice(Company $company, string $type = 'standard'): Invoice
+    {
+        return $this->makeInvoice($company, [
+            'type' => $type,
+            'status' => 'sent',
+            'subtotal' => 100,
+            'vat_total' => 15,
+            'total' => 115,
+        ]);
+    }
+
+    // ---------------------------------------------------------------
+    // Manual "Sync now" for pending documents (admin-side)
+    // ---------------------------------------------------------------
+
+    public function test_admin_can_sync_all_pending_invoices_for_a_company_at_once(): void
+    {
+        Http::fake(['*' => Http::response(['clearedInvoice' => 'stamp'], 200)]);
+        $admin = $this->makeAdmin();
+        $company = $this->makeOnboardedCompany();
+        $invoiceA = $this->makePendingInvoice($company);
+        $invoiceB = $this->makePendingInvoice($company);
+
+        $response = $this->withConfirmedPassword($admin)
+            ->post(route('admin.zatca.companies.sync', $company));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+        $this->assertSame('cleared', ZatcaInvoiceLog::where('invoice_id', $invoiceA->id)->latest('id')->first()->status);
+        $this->assertSame('cleared', ZatcaInvoiceLog::where('invoice_id', $invoiceB->id)->latest('id')->first()->status);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'zatca.sync_pending', 'company_id' => $company->id]);
+    }
+
+    public function test_sync_pending_requires_the_company_to_be_onboarded_first(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeCompany(); // never onboarded
+        $this->makePendingInvoice($company);
+
+        $response = $this->withConfirmedPassword($admin)
+            ->post(route('admin.zatca.companies.sync', $company));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertSame(0, ZatcaInvoiceLog::where('company_id', $company->id)->count());
+    }
+
+    public function test_sync_pending_flashes_a_status_message_when_there_is_nothing_to_sync(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeOnboardedCompany();
+
+        $response = $this->withConfirmedPassword($admin)
+            ->post(route('admin.zatca.companies.sync', $company));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+        $this->assertSame(0, ZatcaInvoiceLog::where('company_id', $company->id)->count());
+    }
+
+    public function test_index_page_shows_the_pending_count_and_a_sync_now_button(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeOnboardedCompany(['name' => 'Pending Sync Co']);
+        $this->makePendingInvoice($company);
+        $this->makePendingInvoice($company);
+
+        $response = $this->actingAs($admin)->get(route('admin.zatca.index'));
+
+        $response->assertOk()
+            ->assertSee('Pending Sync Co')
+            ->assertSee(__('Sync now'))
+            ->assertSee(route('admin.zatca.companies.sync', $company), false);
+    }
+
+    public function test_index_page_shows_zero_pending_with_no_sync_button_when_nothing_is_pending(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->makeOnboardedCompany(['name' => 'Fully Synced Co']);
+
+        $response = $this->actingAs($admin)->get(route('admin.zatca.index'));
+
+        $response->assertOk()->assertSee('Fully Synced Co')->assertDontSee(__('Sync now'));
     }
 
     // ---------------------------------------------------------------

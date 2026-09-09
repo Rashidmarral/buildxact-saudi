@@ -708,6 +708,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::middleware('password.confirm.admin')->group(function () {
             Route::post('logs/{type}/{log}/retry', [AdminZatcaController::class, 'retry'])->name('logs.retry');
             Route::post('companies/{company}/test-connection', [AdminZatcaController::class, 'testConnection'])->name('companies.test-connection');
+            Route::post('companies/{company}/sync', [AdminZatcaController::class, 'syncPending'])->name('companies.sync');
             Route::post('companies/{company}/reset-onboarding', [AdminZatcaController::class, 'resetOnboarding'])->name('companies.reset-onboarding');
         });
     });

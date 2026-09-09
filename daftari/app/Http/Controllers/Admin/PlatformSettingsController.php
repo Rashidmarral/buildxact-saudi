@@ -12,6 +12,7 @@ use App\Models\Setting;
 use App\Support\Countries;
 use App\Support\FeatureRegistry;
 use App\Support\PlatformBranding;
+use App\Services\Zatca\ZatcaSyncService;
 use App\Support\PlatformFeatureToggle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -49,7 +50,7 @@ class PlatformSettingsController extends Controller
         return Currency::query()->active()->orderBy('sort_order')->pluck('code')->all();
     }
 
-    public function edit()
+    public function edit(ZatcaSyncService $sync)
     {
         $settings = [
             // General
@@ -124,6 +125,13 @@ class PlatformSettingsController extends Controller
                 'enabled' => PlatformFeatureToggle::isEnabled($key),
             ]]);
 
+        $currentBillingCompany = Company::find(Setting::get('platform_billing_company_id'));
+        $currentBillingCompanyPendingSyncCount = $currentBillingCompany?->isZatcaOnboarded()
+            ? $sync->pendingInvoices($currentBillingCompany)->count()
+                + $sync->pendingCreditNotes($currentBillingCompany)->count()
+                + $sync->pendingDebitNotes($currentBillingCompany)->count()
+            : null;
+
         return view('admin.settings.edit', [
             'settings' => $settings,
             'featureToggles' => $featureToggles,
@@ -134,7 +142,8 @@ class PlatformSettingsController extends Controller
             'countries' => self::COUNTRIES,
             'currencies' => Currency::query()->active()->orderBy('sort_order')->get(),
             'billingCompanies' => Company::orderBy('name')->limit(500)->get(['id', 'name']),
-            'currentBillingCompany' => Company::find(Setting::get('platform_billing_company_id')),
+            'currentBillingCompany' => $currentBillingCompany,
+            'currentBillingCompanyPendingSyncCount' => $currentBillingCompanyPendingSyncCount,
             'languages' => self::LANGUAGES,
             'timezones' => \DateTimeZone::listIdentifiers(),
             'appVersion' => config('daftari.version'),

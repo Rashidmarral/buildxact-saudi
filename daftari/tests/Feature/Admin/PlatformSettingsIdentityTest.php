@@ -64,6 +64,46 @@ class PlatformSettingsIdentityTest extends TestCase
 
         $response = $this->actingAs($this->makeAdmin())->get(route('admin.settings.edit'));
 
-        $response->assertOk()->assertSee(__('ZATCA Phase 2 is already onboarded for this company — subscription invoices sync for Phase 2 automatically alongside its other invoices. No separate setup needed.'));
+        $response->assertOk()->assertSee(__('ZATCA Phase 2 is already onboarded for this company — subscription invoices join the same sync queue as its other invoices, no separate setup needed.'));
+    }
+
+    public function test_offers_a_sync_now_button_when_the_billing_company_has_pending_documents(): void
+    {
+        $company = Company::create([
+            'name' => 'Dynamic Core Contracting Company',
+            'slug' => 'dcc-'.uniqid(),
+            'zatca_onboarding_status' => 'onboarded',
+            'zatca_production_csid' => 'csid-123',
+            'zatca_integration_mode' => Company::ZATCA_MODE_PHASE2,
+        ]);
+        Setting::set('platform_billing_company_id', $company->id);
+        $client = \App\Models\Client::create(['company_id' => $company->id, 'name' => 'A Client']);
+        \App\Models\Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),
+            'type' => 'standard', 'status' => 'sent', 'issue_date' => now(), 'currency' => 'SAR',
+            'subtotal' => 100, 'vat_total' => 15, 'total' => 115,
+        ]);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.settings.edit'));
+
+        $response->assertOk()
+            ->assertSee(__('Sync now'))
+            ->assertSee(route('admin.zatca.companies.sync', $company), false);
+    }
+
+    public function test_hides_the_sync_now_button_when_the_billing_company_has_nothing_pending(): void
+    {
+        $company = Company::create([
+            'name' => 'Dynamic Core Contracting Company',
+            'slug' => 'dcc-'.uniqid(),
+            'zatca_onboarding_status' => 'onboarded',
+            'zatca_production_csid' => 'csid-123',
+            'zatca_integration_mode' => Company::ZATCA_MODE_PHASE2,
+        ]);
+        Setting::set('platform_billing_company_id', $company->id);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.settings.edit'));
+
+        $response->assertOk()->assertDontSee(route('admin.zatca.companies.sync', $company), false);
     }
 }

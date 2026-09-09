@@ -47,7 +47,7 @@ class ZatcaController extends Controller
         'zatca_linked_at' => null,
     ];
 
-    public function index(Request $request)
+    public function index(Request $request, ZatcaSyncService $sync)
     {
         $latestSubscriptionIds = Subscription::withoutGlobalScopes()
             ->selectRaw('MAX(id) as id')
@@ -93,6 +93,18 @@ class ZatcaController extends Controller
 
         [$lastSubmission, $lastSuccessful, $failedCounts] = $this->perCompanyAggregates($companies->pluck('id'));
 
+        // Only computed for already-onboarded companies on this page — the
+        // "Sync now" button only ever shows for those, and this page's
+        // pagination caps it at 20 companies, so it stays cheap without
+        // needing a dedicated aggregate query.
+        $pendingCounts = $companies
+            ->filter(fn (Company $company) => $company->isZatcaOnboarded())
+            ->mapWithKeys(fn (Company $company) => [
+                $company->id => $sync->pendingInvoices($company)->count()
+                    + $sync->pendingCreditNotes($company)->count()
+                    + $sync->pendingDebitNotes($company)->count(),
+            ]);
+
         $recentErrors = $this->recentErrors();
 
         return view('admin.zatca.index', [
@@ -101,6 +113,7 @@ class ZatcaController extends Controller
             'lastSubmission' => $lastSubmission,
             'lastSuccessful' => $lastSuccessful,
             'failedCounts' => $failedCounts,
+            'pendingCounts' => $pendingCounts,
             'recentErrors' => $recentErrors,
         ]);
     }
@@ -271,6 +284,58 @@ class ZatcaController extends Controller
                 ? __('ZATCA :env gateway is reachable (HTTP :status, :ms ms).', ['env' => $company->zatca_environment, 'status' => $result['http_status'], 'ms' => $result['latency_ms']])
                 : __('Could not reach the ZATCA :env gateway: :error', ['env' => $company->zatca_environment, 'error' => $result['error']])
         );
+    }
+
+    /**
+     * The admin-side equivalent of a company owner's own "Sync now"
+     * (App\Http\Controllers\User\ZatcaController::sync) — submits every
+     * pending invoice, credit note, and debit note for this company to
+     * ZATCA in one go. Exists so a company whose sync frequency is
+     * "manual only" (the default for every company, including a
+     * subscription-billing company's SUB- invoices mixed in with its own)
+     * can be driven from the Super Admin panel without switching into
+     * that company's own tenant account.
+     */
+    public function syncPending(Company $company, ZatcaSyncService $sync)
+    {
+        if (! $company->isZatcaOnboarded()) {
+            return back()->with('error', __('This company must complete ZATCA onboarding before its invoices can be synced.'));
+        }
+
+        $invoices = $sync->pendingInvoices($company);
+        $creditNotes = $sync->pendingCreditNotes($company);
+        $debitNotes = $sync->pendingDebitNotes($company);
+
+        if ($invoices->isEmpty() && $creditNotes->isEmpty() && $debitNotes->isEmpty()) {
+            return back()->with('status', __('No pending invoices, credit notes, or debit notes to sync for :name.', ['name' => $company->name]));
+        }
+
+        $cleared = 0;
+        $failed = 0;
+
+        foreach ($invoices as $invoice) {
+            $log = $sync->submit($invoice);
+            in_array($log->status, ['cleared', 'reported'], true) ? $cleared++ : $failed++;
+        }
+
+        foreach ($creditNotes as $creditNote) {
+            $log = $sync->submitCreditNote($creditNote);
+            in_array($log->status, ['cleared', 'reported'], true) ? $cleared++ : $failed++;
+        }
+
+        foreach ($debitNotes as $debitNote) {
+            $log = $sync->submitDebitNote($debitNote);
+            in_array($log->status, ['cleared', 'reported'], true) ? $cleared++ : $failed++;
+        }
+
+        AuditLog::record(
+            'zatca.sync_pending',
+            $company,
+            __('Manually synced pending ZATCA documents for :name — :cleared synced, :failed failed', ['name' => $company->name, 'cleared' => $cleared, 'failed' => $failed]),
+            companyId: $company->id,
+        );
+
+        return back()->with('status', __(':cleared document(s) synced, :failed failed. See the log below.', ['cleared' => $cleared, 'failed' => $failed]));
     }
 
     /**

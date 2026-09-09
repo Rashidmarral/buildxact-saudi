@@ -207,7 +207,26 @@
                     <div class="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs">
                         <p class="font-semibold text-slate-700">{{ __('Currently billing subscriptions through') }}: {{ $currentBillingCompany->name }}</p>
                         @if ($currentBillingCompany->isZatcaOnboarded())
-                            <p class="mt-1 text-emerald-700">{{ __('ZATCA Phase 2 is already onboarded for this company — subscription invoices sync for Phase 2 automatically alongside its other invoices. No separate setup needed.') }}</p>
+                            <p class="mt-1 text-emerald-700">{{ __('ZATCA Phase 2 is already onboarded for this company — subscription invoices join the same sync queue as its other invoices, no separate setup needed.') }}</p>
+                            <p class="mt-1 text-slate-500">
+                                {{ __('Sync mode') }}: <span class="font-semibold text-slate-700">{{ $currentBillingCompany->zatca_sync_frequency === 'manual' ? __('Manual only') : ucfirst($currentBillingCompany->zatca_sync_frequency) }}</span>
+                                @if ($currentBillingCompany->zatca_sync_frequency === 'manual')
+                                    — {{ __('nothing syncs on its own; use "Sync now" below (or the same button in Admin → ZATCA) whenever you want to push pending invoices to ZATCA.') }}
+                                @else
+                                    — {{ __('pending invoices sync automatically on this cadence; "Sync now" below pushes them immediately instead of waiting.') }}
+                                @endif
+                            </p>
+                            @if ($currentBillingCompanyPendingSyncCount !== null)
+                                <div class="mt-2 flex items-center gap-2">
+                                    <span class="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">{{ __(':count pending', ['count' => $currentBillingCompanyPendingSyncCount]) }}</span>
+                                    @if ($currentBillingCompanyPendingSyncCount > 0)
+                                        <form method="POST" action="{{ route('admin.zatca.companies.sync', $currentBillingCompany) }}" onsubmit="return confirm('{{ __('Sync all pending document(s) for :name now?', ['name' => $currentBillingCompany->name]) }}')">
+                                            @csrf
+                                            <button type="submit" class="rounded-full bg-brand-600 px-2.5 py-0.5 font-semibold text-white hover:bg-brand-700">{{ __('Sync now') }}</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @endif
                         @else
                             <p class="mt-1 text-slate-500">{{ __('This company is not yet ZATCA Phase 2 onboarded, so subscription invoices currently get a Phase 1 QR code only. Complete onboarding for this company (once) to get Phase 2 XML for subscription invoices too — the same sync will then cover them alongside its other invoices automatically.') }}</p>
                         @endif
