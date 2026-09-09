@@ -221,6 +221,26 @@ class DatabaseBackupTest extends TestCase
         $this->assertStringContainsString('Access denied', $message);
     }
 
+    /**
+     * Bug report (follow-up, once the path fix above was applied): a
+     * Windows server's own network stack (Winsock) failing to
+     * initialize for the mysqldump.exe process — the binary now runs
+     * fine, it just can't open a socket. Standard fix is resetting the
+     * Winsock catalog and rebooting, not anything about credentials or
+     * PATH — this must get its own distinct hint, not the PATH one.
+     */
+    public function test_a_winsock_provider_failure_gets_the_netsh_winsock_reset_hint(): void
+    {
+        $message = \App\Support\DatabaseDumpTool::failureMessage(
+            'C:\\xampp\\mysql\\bin\\mysqldump.exe',
+            'mysqldump',
+            'mysqldump.exe: Got error: 2004: "Can\'t create TCP/IP socket (10106)" when trying to connect',
+        );
+
+        $this->assertStringContainsString('netsh winsock reset catalog', $message);
+        $this->assertStringNotContainsString("isn't on this server's PATH", $message);
+    }
+
     public function test_an_admin_can_save_a_custom_mysqldump_path(): void
     {
         $admin = $this->makeSuperAdmin();
