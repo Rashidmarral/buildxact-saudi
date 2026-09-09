@@ -224,6 +224,7 @@
                                             @csrf
                                             <button type="submit" class="rounded-full bg-brand-600 px-2.5 py-0.5 font-semibold text-white hover:bg-brand-700">{{ __('Sync now') }}</button>
                                         </form>
+                                        <a href="{{ route('admin.zatca.companies.pending', $currentBillingCompany) }}" class="font-semibold text-brand-700 hover:underline">{{ __('or sync one at a time') }}</a>
                                     @endif
                                 </div>
                             @endif

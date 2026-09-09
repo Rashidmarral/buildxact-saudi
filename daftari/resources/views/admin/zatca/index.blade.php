@@ -112,7 +112,7 @@
                             <span class="text-slate-400">0</span>
                         @else
                             <div class="flex items-center gap-2">
-                                <span class="font-semibold text-amber-700">{{ $pending }}</span>
+                                <a href="{{ route('admin.zatca.companies.pending', $company) }}" class="font-semibold text-amber-700 hover:underline">{{ $pending }}</a>
                                 <form method="POST" action="{{ route('admin.zatca.companies.sync', $company) }}" onsubmit="return confirm('{{ __('Sync all :count pending document(s) for :name now?', ['count' => $pending, 'name' => $company->name]) }}')">
                                     @csrf
                                     <button type="submit" class="rounded-full bg-brand-600 px-2.5 py-0.5 text-xs font-semibold text-white hover:bg-brand-700">{{ __('Sync now') }}</button>

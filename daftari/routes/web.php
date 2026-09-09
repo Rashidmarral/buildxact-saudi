@@ -704,11 +704,15 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::get('logs', [AdminZatcaController::class, 'logs'])->name('logs');
         Route::get('logs/{type}/{log}', [AdminZatcaController::class, 'showLog'])->name('logs.show');
         Route::get('logs/{type}/{log}/xml', [AdminZatcaController::class, 'downloadXml'])->name('logs.xml');
+        Route::get('companies/{company}/pending', [AdminZatcaController::class, 'pendingDocuments'])->name('companies.pending');
 
         Route::middleware('password.confirm.admin')->group(function () {
             Route::post('logs/{type}/{log}/retry', [AdminZatcaController::class, 'retry'])->name('logs.retry');
             Route::post('companies/{company}/test-connection', [AdminZatcaController::class, 'testConnection'])->name('companies.test-connection');
             Route::post('companies/{company}/sync', [AdminZatcaController::class, 'syncPending'])->name('companies.sync');
+            Route::post('invoices/{invoice}/sync', [AdminZatcaController::class, 'syncOneInvoice'])->name('invoices.sync');
+            Route::post('credit-notes/{creditNote}/sync', [AdminZatcaController::class, 'syncOneCreditNote'])->name('credit-notes.sync');
+            Route::post('debit-notes/{debitNote}/sync', [AdminZatcaController::class, 'syncOneDebitNote'])->name('debit-notes.sync');
             Route::post('companies/{company}/reset-onboarding', [AdminZatcaController::class, 'resetOnboarding'])->name('companies.reset-onboarding');
         });
     });

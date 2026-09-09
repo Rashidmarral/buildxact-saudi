@@ -187,6 +187,96 @@ class ZatcaManagementTest extends TestCase
     }
 
     // ---------------------------------------------------------------
+    // Per-document sync — the operator asked for the option to sync
+    // one invoice at a time as an alternative to syncing everything at
+    // once, mirroring the tenant dashboard's own per-document buttons.
+    // ---------------------------------------------------------------
+
+    public function test_pending_documents_page_lists_each_invoice_with_its_own_sync_button(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeOnboardedCompany();
+        $invoiceA = $this->makePendingInvoice($company);
+        $invoiceB = $this->makePendingInvoice($company);
+
+        $response = $this->actingAs($admin)->get(route('admin.zatca.companies.pending', $company));
+
+        $response->assertOk()
+            ->assertSee($invoiceA->invoice_number)
+            ->assertSee($invoiceB->invoice_number)
+            ->assertSee(route('admin.zatca.invoices.sync', $invoiceA), false)
+            ->assertSee(route('admin.zatca.invoices.sync', $invoiceB), false);
+    }
+
+    public function test_pending_documents_page_shows_a_nothing_pending_message_when_empty(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeOnboardedCompany();
+
+        $response = $this->actingAs($admin)->get(route('admin.zatca.companies.pending', $company));
+
+        $response->assertOk()->assertSee(__('Nothing pending — every eligible document has been synced.'));
+    }
+
+    public function test_admin_can_sync_a_single_invoice_without_touching_the_others(): void
+    {
+        Http::fake(['*' => Http::response(['clearedInvoice' => 'stamp'], 200)]);
+        $admin = $this->makeAdmin();
+        $company = $this->makeOnboardedCompany();
+        $invoiceA = $this->makePendingInvoice($company);
+        $invoiceB = $this->makePendingInvoice($company);
+
+        $response = $this->withConfirmedPassword($admin)
+            ->post(route('admin.zatca.invoices.sync', $invoiceA));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+        $this->assertSame('cleared', ZatcaInvoiceLog::where('invoice_id', $invoiceA->id)->latest('id')->first()->status);
+        $this->assertSame(0, ZatcaInvoiceLog::where('invoice_id', $invoiceB->id)->count());
+        $this->assertDatabaseHas('audit_logs', ['action' => 'zatca.sync_one', 'company_id' => $company->id]);
+    }
+
+    public function test_syncing_a_single_credit_note_and_debit_note_from_admin(): void
+    {
+        Http::fake(['*' => Http::response(['clearedInvoice' => 'stamp'], 200)]);
+        $admin = $this->makeAdmin();
+        $company = $this->makeOnboardedCompany();
+        $invoice = $this->makePendingInvoice($company);
+        $client = Client::find($invoice->client_id);
+
+        $creditNote = CreditNote::create([
+            'company_id' => $company->id, 'invoice_id' => $invoice->id, 'client_id' => $client->id,
+            'credit_note_number' => 'CN-1', 'issue_date' => now(), 'status' => 'issued', 'currency' => $company->currency,
+            'subtotal' => 100, 'vat_total' => 15, 'total' => 115,
+        ]);
+        $debitNote = \App\Models\DebitNote::create([
+            'company_id' => $company->id, 'invoice_id' => $invoice->id, 'client_id' => $client->id,
+            'debit_note_number' => 'DN-1', 'issue_date' => now(), 'status' => 'issued', 'currency' => $company->currency,
+            'subtotal' => 50, 'vat_total' => 7.5, 'total' => 57.5,
+        ]);
+
+        $creditResponse = $this->withConfirmedPassword($admin)->post(route('admin.zatca.credit-notes.sync', $creditNote));
+        $debitResponse = $this->withConfirmedPassword($admin)->post(route('admin.zatca.debit-notes.sync', $debitNote));
+
+        $creditResponse->assertSessionHas('status');
+        $debitResponse->assertSessionHas('status');
+    }
+
+    public function test_syncing_one_invoice_requires_the_company_to_be_onboarded_first(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeCompany(); // never onboarded
+        $invoice = $this->makePendingInvoice($company);
+
+        $response = $this->withConfirmedPassword($admin)
+            ->post(route('admin.zatca.invoices.sync', $invoice));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertSame(0, ZatcaInvoiceLog::where('invoice_id', $invoice->id)->count());
+    }
+
+    // ---------------------------------------------------------------
     // Dashboard KPIs
     // ---------------------------------------------------------------
 

@@ -4686,5 +4686,10 @@
     ":count pending": ":count معلقة",
     "Sync all pending document(s) for :name now?": "مزامنة جميع المستندات المعلقة لـ :name الآن؟",
     "This company must complete ZATCA onboarding before its invoices can be synced.": "يجب أن تكمل هذه الشركة تفعيل زاتكا قبل أن يتم مزامنة فواتيرها.",
-    "No pending invoices, credit notes, or debit notes to sync for :name.": "لا توجد فواتير أو إشعارات دائن أو إشعارات مدين معلقة لمزامنتها لـ :name."
+    "No pending invoices, credit notes, or debit notes to sync for :name.": "لا توجد فواتير أو إشعارات دائن أو إشعارات مدين معلقة لمزامنتها لـ :name.",
+    "Pending ZATCA sync": "مزامنة زاتكا المعلقة",
+    "Every document waiting to be cleared or reported to ZATCA for this company — its own invoices and, if this is your subscription-billing company, subscription invoices too, listed together exactly as ZATCA sees them.": "كل مستند في انتظار المصادقة أو الإبلاغ لزاتكا لهذه الشركة — فواتيرها الخاصة، وإذا كانت هذه شركة فوترة الاشتراكات، فواتير الاشتراك أيضًا، مدرجة معًا تمامًا كما تراها زاتكا.",
+    "Back to ZATCA": "الرجوع إلى زاتكا",
+    "Sync everything at once, or pick a specific document below to sync it on its own.": "قم بمزامنة كل شيء دفعة واحدة، أو اختر مستندًا معينًا أدناه لمزامنته بمفرده.",
+    "or sync one at a time": "أو المزامنة واحدًا تلو الآخر"
 }

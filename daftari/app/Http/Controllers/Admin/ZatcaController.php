@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
+use App\Models\CreditNote;
+use App\Models\DebitNote;
+use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaDebitNoteLog;
@@ -336,6 +339,101 @@ class ZatcaController extends Controller
         );
 
         return back()->with('status', __(':cleared document(s) synced, :failed failed. See the log below.', ['cleared' => $cleared, 'failed' => $failed]));
+    }
+
+    /**
+     * Lists this company's pending invoices/credit notes/debit notes one
+     * row at a time, each with its own "Sync" button — the admin-side
+     * equivalent of the "pick a specific document to sync it first" table
+     * on a company's own ZATCA dashboard, for an admin who wants to sync
+     * documents individually rather than all at once via syncPending().
+     */
+    public function pendingDocuments(Company $company, ZatcaSyncService $sync)
+    {
+        $onboarded = $company->isZatcaOnboarded();
+
+        return view('admin.zatca.pending', [
+            'company' => $company,
+            'pendingInvoices' => $onboarded ? $sync->pendingInvoices($company)->load('client') : collect(),
+            'pendingCreditNotes' => $onboarded ? $sync->pendingCreditNotes($company)->load('client') : collect(),
+            'pendingDebitNotes' => $onboarded ? $sync->pendingDebitNotes($company)->load('client') : collect(),
+        ]);
+    }
+
+    /**
+     * Route-model-binding {invoice}/{creditNote}/{debitNote} directly
+     * would apply BelongsToCompany's global scope against Auth::user()'s
+     * company — null for an admin — and 404 every request before this
+     * method ran. Resolved manually instead, same pattern as every other
+     * cross-company lookup in the admin panel (e.g. Admin\PaymentController).
+     */
+    public function syncOneInvoice(int $invoice, ZatcaSyncService $sync)
+    {
+        $invoice = Invoice::withoutGlobalScopes()->with('company')->findOrFail($invoice);
+
+        if (! $invoice->company->isZatcaOnboarded()) {
+            return back()->with('error', __('Complete ZATCA onboarding for this company before syncing invoices.'));
+        }
+
+        $log = $sync->submit($invoice);
+
+        AuditLog::record(
+            'zatca.sync_one',
+            $invoice->company,
+            __('Manually synced invoice :number (:company) — new status: :status', ['number' => $invoice->invoice_number, 'company' => $invoice->company->name, 'status' => $log->status]),
+            companyId: $invoice->company_id,
+        );
+
+        return $this->syncOneResult($log->status, $invoice->invoice_number, $log->error_message);
+    }
+
+    public function syncOneCreditNote(int $creditNote, ZatcaSyncService $sync)
+    {
+        $creditNote = CreditNote::withoutGlobalScopes()->with('company')->findOrFail($creditNote);
+
+        if (! $creditNote->company->isZatcaOnboarded()) {
+            return back()->with('error', __('Complete ZATCA onboarding for this company before syncing credit notes.'));
+        }
+
+        $log = $sync->submitCreditNote($creditNote);
+
+        AuditLog::record(
+            'zatca.sync_one',
+            $creditNote->company,
+            __('Manually synced credit note :number (:company) — new status: :status', ['number' => $creditNote->credit_note_number, 'company' => $creditNote->company->name, 'status' => $log->status]),
+            companyId: $creditNote->company_id,
+        );
+
+        return $this->syncOneResult($log->status, $creditNote->credit_note_number, $log->error_message);
+    }
+
+    public function syncOneDebitNote(int $debitNote, ZatcaSyncService $sync)
+    {
+        $debitNote = DebitNote::withoutGlobalScopes()->with('company')->findOrFail($debitNote);
+
+        if (! $debitNote->company->isZatcaOnboarded()) {
+            return back()->with('error', __('Complete ZATCA onboarding for this company before syncing debit notes.'));
+        }
+
+        $log = $sync->submitDebitNote($debitNote);
+
+        AuditLog::record(
+            'zatca.sync_one',
+            $debitNote->company,
+            __('Manually synced debit note :number (:company) — new status: :status', ['number' => $debitNote->debit_note_number, 'company' => $debitNote->company->name, 'status' => $log->status]),
+            companyId: $debitNote->company_id,
+        );
+
+        return $this->syncOneResult($log->status, $debitNote->debit_note_number, $log->error_message);
+    }
+
+    private function syncOneResult(string $status, string $number, ?string $errorMessage)
+    {
+        if (in_array($status, ['cleared', 'reported'], true)) {
+            return back()->with('status', __(':number synced successfully.', ['number' => $number]));
+        }
+
+        return back()->with('error', __(':number failed to sync: :error', ['number' => $number, 'error' => $errorMessage ?? __('Unknown error')]));
     }
 
     /**
