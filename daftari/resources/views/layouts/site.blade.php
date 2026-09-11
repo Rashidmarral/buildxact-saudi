@@ -195,6 +195,16 @@
                 @endforeach
             </div>
         @endif
+        @php($__legalDocuments = \App\Models\LegalDocument::orderBy('sort_order')->get())
+        @if ($__legalDocuments->isNotEmpty())
+            <div class="border-t border-slate-200 py-4">
+                <div class="mx-auto max-w-7xl flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-6 text-xs text-slate-400">
+                    @foreach ($__legalDocuments as $__legalDocument)
+                        <a href="{{ route('legal', $__legalDocument->slug) }}" class="hover:text-brand-700">{{ $__legalDocument->title() }}</a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
         <div class="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
             &copy; {{ now()->year }} {{ $__branding['name'] }}. {{ __('All rights reserved.') }}
         </div>

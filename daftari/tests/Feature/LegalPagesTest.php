@@ -68,4 +68,21 @@ class LegalPagesTest extends TestCase
 
         $response->assertNotFound();
     }
+
+    /**
+     * Bug report: legal documents (Refund Policy included) were fully built
+     * in Admin — CRUD, content, the public /legal/{slug} route — but the
+     * site footer never linked to any of them, so a visitor had no way to
+     * find them without already knowing the exact URL. The footer now
+     * lists every LegalDocument, published or still in review.
+     */
+    public function test_the_site_footer_links_to_every_legal_document_including_refund_policy(): void
+    {
+        $response = $this->get(route('home'));
+
+        $response->assertOk();
+        $response->assertSee(route('legal', 'refund-policy'), false);
+        $response->assertSee(route('legal', 'terms'), false);
+        $response->assertSee(route('legal', 'cookie-policy'), false);
+    }
 }
