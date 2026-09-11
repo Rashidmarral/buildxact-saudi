@@ -1,5 +1,11 @@
 # BuildXact Saudi
 
+> **Note:** this repository also contains a second, unrelated product — **Daftari**, a Laravel
+> subscription VAT invoicing/accounting SaaS for Saudi businesses — in the [`daftari/`](daftari/)
+> subdirectory, with its own README. It shares no code with the construction-management app
+> documented below; it was added as a separate Laravel project because this session's GitHub
+> integration could only push to this existing repository, not create a new one.
+
 A construction management & job costing SaaS platform for Saudi Arabia's contractors,
 builders, and developers — inspired by [BuildXact](https://www.buildxact.com/), rebuilt from
 scratch in plain PHP for the Saudi market (bilingual Arabic/English, SAR pricing, ZATCA-ready
