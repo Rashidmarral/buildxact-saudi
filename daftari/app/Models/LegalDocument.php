@@ -47,4 +47,32 @@ class LegalDocument extends Model
     {
         return $this->status === 'published';
     }
+
+    /**
+     * Full titles (e.g. "Data Processing & Confidentiality Terms") are too
+     * long for a footer column. Keyed by the fixed slug rather than the
+     * admin-editable title, so an operator renaming the document doesn't
+     * silently lose its short label.
+     */
+    private const SHORT_LABELS = [
+        'terms' => ['en' => 'Terms', 'ar' => 'الشروط'],
+        'privacy' => ['en' => 'Privacy', 'ar' => 'الخصوصية'],
+        'cookie-policy' => ['en' => 'Cookies', 'ar' => 'الكوكيز'],
+        'subscription-agreement' => ['en' => 'Subscription', 'ar' => 'الاشتراك'],
+        'refund-policy' => ['en' => 'Refunds', 'ar' => 'الاسترداد'],
+        'data-processing-agreement' => ['en' => 'Data Processing', 'ar' => 'معالجة البيانات'],
+        'customer-responsibilities' => ['en' => 'Responsibilities', 'ar' => 'المسؤوليات'],
+        'zatca-disclaimer' => ['en' => 'ZATCA Disclaimer', 'ar' => 'إخلاء المسؤولية'],
+    ];
+
+    public function shortTitle(): string
+    {
+        $label = self::SHORT_LABELS[$this->slug] ?? null;
+
+        if (! $label) {
+            return $this->title() ?? $this->slug;
+        }
+
+        return app()->getLocale() === 'ar' ? $label['ar'] : $label['en'];
+    }
 }

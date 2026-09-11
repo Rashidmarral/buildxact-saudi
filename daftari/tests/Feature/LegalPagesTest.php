@@ -73,8 +73,10 @@ class LegalPagesTest extends TestCase
      * Bug report: legal documents (Refund Policy included) were fully built
      * in Admin — CRUD, content, the public /legal/{slug} route — but the
      * site footer never linked to any of them, so a visitor had no way to
-     * find them without already knowing the exact URL. The footer now
-     * lists every LegalDocument, published or still in review.
+     * find them without already knowing the exact URL. They now join the
+     * existing "Company" footer column alongside Terms/Privacy, using a
+     * short label (e.g. "Refunds") since the full titles are too long for
+     * a footer link.
      */
     public function test_the_site_footer_links_to_every_legal_document_including_refund_policy(): void
     {
@@ -82,7 +84,20 @@ class LegalPagesTest extends TestCase
 
         $response->assertOk();
         $response->assertSee(route('legal', 'refund-policy'), false);
-        $response->assertSee(route('legal', 'terms'), false);
+        $response->assertSee(route('legal', 'terms', false), false);
         $response->assertSee(route('legal', 'cookie-policy'), false);
+        $response->assertSee('Refunds');
+        $response->assertSee('Cookies');
+    }
+
+    public function test_terms_and_privacy_are_not_duplicated_in_the_footer(): void
+    {
+        $response = $this->get(route('home'));
+
+        $response->assertOk();
+        $html = $response->getContent();
+
+        $this->assertSame(1, substr_count($html, route('legal', 'terms', false).'"'));
+        $this->assertSame(1, substr_count($html, route('legal', 'privacy', false).'"'));
     }
 }

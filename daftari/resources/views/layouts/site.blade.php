@@ -166,6 +166,7 @@
             </div>
             @php($__footerColumns = \App\Models\CmsSection::query()->where('page', 'global')->where('type', 'footer_links')->where('is_active', true)->orderBy('sort_order')->with(['items' => fn ($q) => $q->where('is_active', true)])->get())
             @php($__footerPages = \App\Models\CmsPage::query()->where('is_system', false)->where('is_active', true)->where('show_in_footer', true)->orderBy('sort_order')->get())
+            @php($__legalDocuments = \App\Models\LegalDocument::orderBy('sort_order')->get())
             @foreach ($__footerColumns as $__footerColumn)
                 <div>
                     <h4 class="font-semibold text-slate-700">{{ $__footerColumn->title() }}</h4>
@@ -176,6 +177,13 @@
                         @if ($__footerColumn->title_en === 'Resources')
                             @foreach ($__footerPages as $__footerPage)
                                 <li><a href="{{ $__footerPage->publicUrl() }}" class="hover:text-brand-700">{{ $__footerPage->name() }}</a></li>
+                            @endforeach
+                        @endif
+                        @if ($__footerColumn->title_en === 'Company')
+                            @php($__existingLegalUrls = $__footerColumn->items->pluck('meta.url')->filter()->values()->all())
+                            @foreach ($__legalDocuments as $__legalDocument)
+                                @continue(in_array(route('legal', $__legalDocument->slug, false), $__existingLegalUrls))
+                                <li><a href="{{ route('legal', $__legalDocument->slug) }}" class="hover:text-brand-700">{{ $__legalDocument->shortTitle() }}</a></li>
                             @endforeach
                         @endif
                     </ul>
@@ -193,16 +201,6 @@
                         {{ $__socialItem->title() }}
                     </a>
                 @endforeach
-            </div>
-        @endif
-        @php($__legalDocuments = \App\Models\LegalDocument::orderBy('sort_order')->get())
-        @if ($__legalDocuments->isNotEmpty())
-            <div class="border-t border-slate-200 py-4">
-                <div class="mx-auto max-w-7xl flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-6 text-xs text-slate-400">
-                    @foreach ($__legalDocuments as $__legalDocument)
-                        <a href="{{ route('legal', $__legalDocument->slug) }}" class="hover:text-brand-700">{{ $__legalDocument->title() }}</a>
-                    @endforeach
-                </div>
             </div>
         @endif
         <div class="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
