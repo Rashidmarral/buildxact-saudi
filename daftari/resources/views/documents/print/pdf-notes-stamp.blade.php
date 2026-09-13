@@ -4,18 +4,18 @@
 @if (!empty($doc['notes']))
     <div class="notes-block">
         <strong>{{ $lbl('Notes') }}</strong>
-        <div class="muted" style="margin-top: 2px; white-space: pre-line;">{{ $doc['notes'] }}</div>
+        @include('documents.print.pdf-notes-list', ['text' => $doc['notes'], 'accent' => $accent])
     </div>
 @endif
 
 @if ($template && $template->notesFor(app()->getLocale()))
-    <div class="muted" style="margin-top: 6px; font-size: 8.5pt; white-space: pre-line;">{{ $template->notesFor(app()->getLocale()) }}</div>
+    @include('documents.print.pdf-notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'textStyle' => 'color: #64748b; font-size: 8.5pt;'])
 @endif
 
 @if ($template && $template->termsFor(app()->getLocale()))
     <div class="notes-block">
         <strong>{{ $lbl('Terms & Conditions') }}</strong>
-        <div class="muted" style="margin-top: 2px; white-space: pre-line;">{{ $template->termsFor(app()->getLocale()) }}</div>
+        @include('documents.print.pdf-notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent])
     </div>
 @endif
 

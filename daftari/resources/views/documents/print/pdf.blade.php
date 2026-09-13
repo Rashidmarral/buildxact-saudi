@@ -131,7 +131,7 @@
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                     <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
@@ -144,6 +144,8 @@
     @include('documents.print.pdf-bank-totals', ['doc' => $doc, 'bankAccounts' => $bankAccounts])
 
     @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 140])
+
+    @include('documents.print.pdf-signature')
 
     <div class="footer-note">
         {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }} &nbsp;·&nbsp; {{ $doc['number'] }}
@@ -204,7 +206,7 @@
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}@endif</td>
+                    <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}@endif</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="text-end" style="border: 0.5pt solid #cbd5e1; padding: 5px; vertical-align: top; font-weight: bold;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                 </tr>
@@ -248,6 +250,8 @@
     @endif
 
     @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 130])
+
+    @include('documents.print.pdf-signature')
 
     <div class="footer-note">{{ $lbl('Page 1 of 1') }}</div>
 
@@ -321,7 +325,7 @@
                         @if ($secondary($line->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted" style="font-size: 8pt;">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 8px 10px;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 8px 10px;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 8px 10px;">{{ \App\Support\Money::format($line->unit_price) }}</td>
                     <td class="text-end" style="padding: 8px 10px;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
                     <td class="text-end" style="padding: 8px 10px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($line->line_total) }}</td>
@@ -366,22 +370,11 @@
 
     @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 120])
 
+    @include('documents.print.pdf-signature')
+
     <div class="footer-note">
         {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ $doc['number'] }}
     </div>
-@endif
-
-@if ($template && $template->show_signature)
-    <table style="margin-top: 40px;">
-        <tr>
-            <td style="width: 60%;"></td>
-            <td style="width: 40%; text-align: center;">
-                <div style="border-bottom: 0.75pt solid #94a3b8; height: 40px;"></div>
-                <div class="muted" style="margin-top: 6px;">{{ $primary($template->signature_label_en ?: __('Authorized Signature'), $template->signature_label_ar) }}</div>
-                @if ($secondary($template->signature_label_ar))<div class="muted ar">{{ $template->signature_label_ar }}</div>@endif
-            </td>
-        </tr>
-    </table>
 @endif
 
 @if ($footerData)
