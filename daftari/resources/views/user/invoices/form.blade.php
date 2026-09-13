@@ -151,6 +151,7 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
             <table class="w-full text-sm" id="items-table">
                 <thead>
                     <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="py-2 pe-2 w-6"></th>
                         <th class="py-2 pe-3 font-medium w-1/4">{{ __('Item') }}</th>
                         <th class="py-2 pe-3 font-medium">{{ __('Description') }}</th>
                         <th class="py-2 pe-3 font-medium w-20">{{ __('Qty') }}</th>
@@ -283,6 +284,37 @@ const EXISTING = {!! $existingJson !!};
 const tbody = document.getElementById('items-body');
 let rowIndex = 0;
 
+// Drag-and-drop line reordering: dragging only starts from the grip
+// handle (never from an input/select inside the row, so text selection
+// and normal field interaction stay untouched), then moves the whole
+// <tr> to wherever the pointer is over another row. Input `name`
+// attributes keep their original items[N] index after a move — the
+// server re-ranks sort_order from submission order, not that index.
+let draggedRow = null;
+
+tbody.addEventListener('dragstart', (e) => {
+    const handle = e.target.closest('[data-role="drag-handle"]');
+    if (!handle) return;
+    draggedRow = handle.closest('tr');
+    draggedRow.classList.add('opacity-40');
+    e.dataTransfer.effectAllowed = 'move';
+});
+
+tbody.addEventListener('dragend', () => {
+    if (draggedRow) draggedRow.classList.remove('opacity-40');
+    draggedRow = null;
+});
+
+tbody.addEventListener('dragover', (e) => {
+    if (!draggedRow) return;
+    e.preventDefault();
+    const targetRow = e.target.closest('tr');
+    if (!targetRow || targetRow === draggedRow) return;
+    const rect = targetRow.getBoundingClientRect();
+    const before = (e.clientY - rect.top) / rect.height < 0.5;
+    tbody.insertBefore(draggedRow, before ? targetRow : targetRow.nextSibling);
+});
+
 const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
 function fmt(n) {
     return CURRENCY_SYMBOL + ' ' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -294,6 +326,9 @@ function addRow(data) {
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-50';
     tr.innerHTML = `
+        <td class="py-2 pe-2 text-center align-middle">
+            <span draggable="true" data-role="drag-handle" class="inline-block cursor-grab select-none text-slate-300 hover:text-slate-500 active:cursor-grabbing" title="${@json(__('Drag to reorder'))}">⠿</span>
+        </td>
         <td class="py-2 pe-3">
             <select data-role="item" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="">${@json(__('Custom'))}</option>

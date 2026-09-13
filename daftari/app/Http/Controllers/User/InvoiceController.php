@@ -732,7 +732,12 @@ class InvoiceController extends Controller
 
     private function syncItems(Invoice $invoice, array $items): void
     {
-        foreach ($items as $sort => $row) {
+        // array_values() re-ranks by submission order rather than the
+        // original items[N] index — the line-item table supports drag
+        // reordering, which moves a row's DOM position without renaming
+        // its input names, so sort_order must come from where the row
+        // landed, not the index it was first created with.
+        foreach (array_values($items) as $sort => $row) {
             // Snapshot the item's Arabic name/description at the moment
             // this line is created — the print templates read these frozen
             // columns rather than the live Item, so editing the product

@@ -133,7 +133,7 @@
                             <p class="mt-1 text-xs text-slate-500">{{ $line->item_description }}</p>
                         @endif
                     </td>
-                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                     <td class="py-3 text-end text-slate-700">{{ number_format($line->vat_amount, 2) }}<br><span class="text-xs text-slate-400">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
@@ -178,18 +178,18 @@
     @if (!empty($doc['notes']))
         <div class="mt-8 text-sm">
             <h4 class="font-semibold text-slate-800">{{ __('Notes') }} <span class="text-xs text-slate-400" dir="rtl">ملاحظات</span></h4>
-            <p class="mt-1 whitespace-pre-line text-slate-600">{{ $doc['notes'] }}</p>
+            @include('documents.print.notes-list', ['text' => $doc['notes'], 'accent' => $accent])
         </div>
     @endif
 
     @if ($template && $template->notesFor(app()->getLocale()))
-        <div class="mt-2 text-sm text-slate-500 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
+        @include('documents.print.notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'class' => 'mt-2 text-slate-500'])
     @endif
 
     @if ($template && $template->termsFor(app()->getLocale()))
         <div class="mt-4 text-sm">
             <h4 class="font-semibold text-slate-800">{{ __('Terms & Conditions') }} <span class="text-xs text-slate-400" dir="rtl">الشروط والأحكام</span></h4>
-            <p class="mt-1 whitespace-pre-line text-slate-600">{{ $template->termsFor(app()->getLocale()) }}</p>
+            @include('documents.print.notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent])
         </div>
     @endif
 
@@ -211,6 +211,8 @@
             @endif
         </div>
     @endif
+
+    @include('documents.print.signature')
 
     <div class="mt-10 border-t border-slate-200 pt-3 text-center text-xs text-slate-400">
         {{ $company->name }} @if ($company->name_ar) — {{ $company->name_ar }} @endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }} &nbsp;·&nbsp; {{ $doc['number'] }}
@@ -289,7 +291,7 @@
                         @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                         @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
                     </td>
-                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}@endif</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}@endif</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="border border-slate-300 px-2 py-1.5 align-top text-end font-medium text-slate-900">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                 </tr>
@@ -330,17 +332,19 @@
     @endif
 
     @if (!empty($doc['notes']))
-        <div class="mt-6 text-sm text-slate-600 whitespace-pre-line">{{ $doc['notes'] }}</div>
+        <div class="mt-6 text-sm">
+            @include('documents.print.notes-list', ['text' => $doc['notes'], 'accent' => $accent])
+        </div>
     @endif
 
     @if ($template && $template->notesFor(app()->getLocale()))
-        <div class="mt-2 text-sm text-slate-500 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
+        @include('documents.print.notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'class' => 'mt-2 text-slate-500'])
     @endif
 
     @if ($template && $template->termsFor(app()->getLocale()))
         <div class="mt-4 text-sm">
             <p class="font-semibold text-slate-800">{{ $lbl('Terms & Conditions') }}</p>
-            <p class="mt-1 whitespace-pre-line text-slate-600">{{ $template->termsFor(app()->getLocale()) }}</p>
+            @include('documents.print.notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent])
         </div>
     @endif
 
@@ -362,6 +366,8 @@
             @endif
         </div>
     @endif
+
+    @include('documents.print.signature')
 
     <div class="mt-10 text-center text-xs text-slate-400">{{ $lbl('Page 1 of 1') }}</div>
 
@@ -441,7 +447,7 @@
                             @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                             @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
                         </td>
-                        <td class="py-3 px-4 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ $line->unit?->nameFor(app()->getLocale()) ?? $line->item?->unit }}</span>@endif</td>
+                        <td class="py-3 px-4 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
                         <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
                         <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
                         <td class="py-3 px-4 text-end font-medium text-slate-900">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->line_total, 2) }}</td>
@@ -495,36 +501,26 @@
     @endif
 
     @if (!empty($doc['notes']))
-        <div class="mt-6 pt-4 border-t border-slate-100 text-sm text-slate-500 whitespace-pre-line">{{ $doc['notes'] }}</div>
+        <div class="mt-6 pt-4 border-t border-slate-100 text-sm">
+            @include('documents.print.notes-list', ['text' => $doc['notes'], 'accent' => $accent, 'class' => 'text-slate-500'])
+        </div>
     @endif
 
     @if ($template && $template->notesFor(app()->getLocale()))
-        <div class="mt-2 text-sm text-slate-400 whitespace-pre-line">{{ $template->notesFor(app()->getLocale()) }}</div>
+        @include('documents.print.notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'class' => 'mt-2 text-slate-400'])
     @endif
 
     @if ($template && $template->termsFor(app()->getLocale()))
         <div class="mt-4 pt-2 text-sm">
             <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $lbl('Terms & Conditions') }}</h4>
-            <p class="mt-1 whitespace-pre-line text-slate-500">{{ $template->termsFor(app()->getLocale()) }}</p>
+            @include('documents.print.notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent, 'class' => 'text-slate-500'])
         </div>
     @endif
 
+    @include('documents.print.signature')
+
     <div class="mt-10 border-t border-slate-100 pt-4 text-center text-xs text-slate-400">
         {{ $company->name }} @if ($company->name_ar) — {{ $company->name_ar }} @endif &nbsp;·&nbsp; {{ $doc['number'] }}
-    </div>
-@endif
-
-@if ($template && $template->show_signature)
-    <div class="mt-14 flex justify-end">
-        <div class="w-56 text-center">
-            <div class="h-16 border-b border-slate-400"></div>
-            <p class="mt-2 text-sm text-slate-600">
-                @if ($showEn){{ $primary($template->signature_label_en ?: __('Authorized Signature'), $template->signature_label_ar) }}@endif
-                @if ($showAr && $languageMode === 'bilingual' && $template->signature_label_ar)
-                    <span dir="rtl" class="block text-xs text-slate-500">{{ $template->signature_label_ar }}</span>
-                @endif
-            </p>
-        </div>
     </div>
 @endif
 

@@ -485,7 +485,10 @@ class QuotationController extends Controller
 
     private function syncItems(Quotation $quotation, array $items): void
     {
-        foreach ($items as $sort => $row) {
+        // See InvoiceController::syncItems — array_values() re-ranks by
+        // submission order so drag-reordered rows persist in their new
+        // position rather than the index they were first created with.
+        foreach (array_values($items) as $sort => $row) {
             // See InvoiceController::syncItems — freezes the item's Arabic
             // name/description so later product edits don't rewrite this
             // quotation's historical display.
