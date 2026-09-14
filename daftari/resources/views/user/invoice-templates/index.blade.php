@@ -119,15 +119,34 @@
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500">{{ __('Table header color') }}</label>
-                        <div class="mt-1 flex items-center gap-2">
-                            <input type="color" name="table_header_color" value="{{ $selected->table_header_color ?: '#f1f5f9' }}" class="h-9 w-full rounded-lg border border-slate-200">
-                            <label class="flex shrink-0 items-center gap-1.5 text-xs text-slate-500">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500">{{ __('Table header color') }}</label>
+                            <div class="mt-1 flex items-center gap-2">
+                                <input type="color" name="table_header_color" value="{{ $selected->table_header_color ?: '#f1f5f9' }}" class="h-9 w-full rounded-lg border border-slate-200">
+                            </div>
+                            <label class="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                                 <input type="checkbox" name="remove_table_header_color" value="1" @checked(! $selected->table_header_color) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                                 {{ __('Use layout default') }}
                             </label>
                         </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500">{{ __('Totals color') }}</label>
+                            <div class="mt-1 flex items-center gap-2">
+                                <input type="color" name="totals_color" value="{{ $selected->totalsColor() }}" class="h-9 w-full rounded-lg border border-slate-200">
+                            </div>
+                            <label class="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                                <input type="checkbox" name="remove_totals_color" value="1" @checked(! $selected->totals_color) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                                {{ __('Same as accent color') }}
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Spacing') }}</label>
+                        <select name="density" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            <option value="compact" @selected($selected->density === 'compact')>{{ __('Compact — fits more on one page') }}</option>
+                            <option value="comfortable" @selected($selected->density === 'comfortable')>{{ __('Comfortable — more breathing room') }}</option>
+                        </select>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -168,6 +187,10 @@
                     <label class="flex items-center gap-2 text-sm text-slate-700">
                         <input type="checkbox" name="show_item_description" value="1" @checked($selected->show_item_description) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                         {{ __('Show each item\'s description below its name') }}
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="show_vat_column" value="1" @checked($selected->show_vat_column) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        {{ __('Show the per-line VAT column (totals still include VAT either way)') }}
                     </label>
                     <div x-data="{ signature: {{ $selected->show_signature ? 'true' : 'false' }} }">
                         <label class="flex items-center gap-2 text-sm text-slate-700">

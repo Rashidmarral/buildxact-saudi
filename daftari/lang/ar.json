@@ -4697,5 +4697,11 @@
     "mysqldump path": "مسار mysqldump",
     "Windows example": "مثال ويندوز",
     "pg_dump path": "مسار pg_dump",
-    "Only used if this install runs on PostgreSQL — currently": "يُستخدم فقط إذا كان هذا التثبيت يعمل على PostgreSQL — حاليًا"
+    "Only used if this install runs on PostgreSQL — currently": "يُستخدم فقط إذا كان هذا التثبيت يعمل على PostgreSQL — حاليًا",
+    "Totals color": "لون الإجماليات",
+    "Same as accent color": "نفس لون التمييز",
+    "Spacing": "التباعد",
+    "Compact — fits more on one page": "مضغوط — يلائم المزيد في صفحة واحدة",
+    "Comfortable — more breathing room": "مريح — مساحة أكبر بين العناصر",
+    "Show the per-line VAT column (totals still include VAT either way)": "إظهار عمود ضريبة القيمة المضافة لكل سطر (تبقى الإجماليات شاملة للضريبة في كل الحالات)"
 }

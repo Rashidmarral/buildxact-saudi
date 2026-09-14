@@ -10,10 +10,10 @@ class InvoiceTemplate extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'name', 'name_ar', 'document_type', 'accent_color', 'table_header_color',
-        'layout', 'language_mode', 'table_direction', 'show_signature',
+        'company_id', 'name', 'name_ar', 'document_type', 'accent_color', 'table_header_color', 'totals_color',
+        'layout', 'density', 'language_mode', 'table_direction', 'show_signature',
         'signature_label_en', 'signature_label_ar',
-        'show_logo', 'show_unit_labels', 'show_party_vat_number', 'show_item_description', 'page_size',
+        'show_logo', 'show_unit_labels', 'show_party_vat_number', 'show_item_description', 'show_vat_column', 'page_size',
         'letterhead_path', 'footer_path', 'watermark_path', 'watermark_opacity',
         'notes_en', 'notes_ar', 'terms_en', 'terms_ar', 'is_default',
     ];
@@ -26,6 +26,7 @@ class InvoiceTemplate extends Model
             'show_unit_labels' => 'boolean',
             'show_party_vat_number' => 'boolean',
             'show_item_description' => 'boolean',
+            'show_vat_column' => 'boolean',
             'is_default' => 'boolean',
             'watermark_opacity' => 'integer',
         ];
@@ -46,5 +47,17 @@ class InvoiceTemplate extends Model
         $label = $locale === 'ar' ? ($this->signature_label_ar ?: $this->signature_label_en) : $this->signature_label_en;
 
         return $label ?: __('Authorized Signature');
+    }
+
+    /** Falls back to the shared accent color when no separate totals
+     * color has been chosen — most companies want one brand color. */
+    public function totalsColor(): string
+    {
+        return $this->totals_color ?: ($this->accent_color ?: '#0f766e');
+    }
+
+    public function isCompact(): bool
+    {
+        return $this->density !== 'comfortable';
     }
 }

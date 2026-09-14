@@ -13,7 +13,20 @@
 --}}
 @php
     $accent = $template->accent_color ?? '#0f766e';
+    $totalsColor = $template ? $template->totalsColor() : $accent;
+    $showVatColumn = $template->show_vat_column ?? true;
     $layout = $template->layout ?? 'minimal';
+    // "Compact" (the default) is what lets a short 2-3 line invoice fit
+    // on a single page — see PdfPageDensityTest. "Comfortable" restores
+    // more breathing room between sections for companies that don't mind
+    // spilling onto an extra page.
+    $isCompact = ! $template || $template->isCompact();
+    $sectionGap = $isCompact ? 10 : 18;
+    $headerGap = $isCompact ? 10 : 16;
+    $qrGap = $isCompact ? 10 : 20;
+    $signatureGap = $isCompact ? 18 : 40;
+    $footerGap = $isCompact ? 10 : 18;
+    $notesGap = $isCompact ? 8 : 14;
     $showLogo = $template->show_logo ?? true;
     $tableHeaderColor = $template->table_header_color ?? null;
     $showUnitLabels = $template->show_unit_labels ?? true;
@@ -55,9 +68,9 @@
        needs meaningfully more physical area for the same module count to
        stay scannable. */
     .qr-img { width: 180px; height: 180px; }
-    .footer-note { margin-top: 10px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 6px; }
+    .footer-note { margin-top: {{ $footerGap }}px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: {{ $isCompact ? 6 : 8 }}px; }
     .stamp-img { width: 130px; height: 130px; }
-    .notes-block { margin-top: 8px; font-size: 9pt; }
+    .notes-block { margin-top: {{ $notesGap }}px; font-size: 9pt; }
 </style>
 </head>
 <body>
@@ -70,17 +83,17 @@
      regardless of the body's own direction. --}}
 
 @if ($layout === 'bilingual_classic')
-    <table style="border: 1.5pt solid {{ $accent }}; margin-bottom: 8px;"><tr><td style="height: 6px;"></td></tr></table>
+    <table style="border: 1.5pt solid {{ $accent }}; margin-bottom: {{ $sectionGap }}px;"><tr><td style="height: 6px;"></td></tr></table>
 
     @include('documents.print.pdf-bilingual-header', ['company' => $company, 'showLogo' => $showLogo, 'logoData' => $logoData])
 
-    <table style="margin-top: 10px; border-bottom: 1.5pt solid #1e293b; padding-bottom: 5px;">
+    <table style="margin-top: {{ $headerGap }}px; border-bottom: 1.5pt solid #1e293b; padding-bottom: 5px;">
         <tr><td style="text-align: center; font-size: 17pt; font-weight: bold; color: #0f172a; padding-bottom: 5px;">
             <span class="ar">{{ $doc['type_label_ar'] ?? '' }}</span> &nbsp; {{ $doc['type_label'] }}
         </td></tr>
     </table>
 
-    <table style="margin-top: 8px; border: 0.5pt solid #cbd5e1;">
+    <table style="margin-top: {{ $sectionGap }}px; border: 0.5pt solid #cbd5e1;">
         <tr style="border-bottom: 0.5pt solid #cbd5e1;">
             <td style="width: 18%; padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ $doc['party_label'] }}</td>
             <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">
@@ -110,15 +123,17 @@
         </tr>
     </table>
 
-    <table style="margin-top: 8px;">
+    <table style="margin-top: {{ $sectionGap }}px;">
         <thead>
             <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
                 <th style="padding: 4px 2px;">#</th>
                 <th style="padding: 4px 2px;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
                 <th class="text-end" style="padding: 4px 2px;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
                 <th class="text-end" style="padding: 4px 2px;">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
-                <th class="text-end" style="padding: 4px 2px;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
-                <th class="text-end" style="padding: 4px 2px;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
+                @if ($showVatColumn)
+                    <th class="text-end" style="padding: 4px 2px;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
+                    <th class="text-end" style="padding: 4px 2px;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
+                @endif
                 <th class="text-end" style="padding: 4px 2px;">{{ __('Line amount') }}<br><span class="ar" style="font-weight: normal;">المجموع</span></th>
             </tr>
         </thead>
@@ -133,8 +148,10 @@
                     </td>
                     <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
-                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
-                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
+                    @if ($showVatColumn)
+                        <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                        <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
+                    @endif
                     <td class="text-end" style="padding: 4px 2px; vertical-align: top; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
                 </tr>
             @endforeach
@@ -288,7 +305,7 @@
         </tr>
     </table>
 
-    <table style="margin-top: 10px;">
+    <table style="margin-top: {{ $sectionGap }}px;">
         <tr>
             <td style="width: 49%; vertical-align: top; background-color: #f8fafc; padding: 7px 10px;">
                 <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</div>
@@ -307,13 +324,15 @@
         </tr>
     </table>
 
-    <table style="margin-top: 10px; border: 0.5pt solid #e2e8f0;">
+    <table style="margin-top: {{ $sectionGap }}px; border: 0.5pt solid #e2e8f0;">
         <thead>
             <tr style="text-align: left; color: #ffffff; font-size: 9pt; background-color: {{ $tableHeaderColor ?: $accent }};">
                 <th style="padding: 6px 10px;">{{ $lbl('Description') }}</th>
                 <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Qty') }}</th>
                 <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Unit price') }}</th>
-                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('VAT') }}</th>
+                @if ($showVatColumn)
+                    <th class="text-end" style="padding: 6px 10px;">{{ $lbl('VAT') }}</th>
+                @endif
                 <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Total') }}</th>
             </tr>
         </thead>
@@ -327,7 +346,9 @@
                     </td>
                     <td class="text-end" style="padding: 6px 10px;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
                     <td class="text-end" style="padding: 6px 10px;">{{ \App\Support\Money::format($line->unit_price) }}</td>
-                    <td class="text-end" style="padding: 6px 10px;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
+                    @if ($showVatColumn)
+                        <td class="text-end" style="padding: 6px 10px;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
+                    @endif
                     <td class="text-end" style="padding: 6px 10px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($line->line_total) }}</td>
                 </tr>
             @endforeach
@@ -335,10 +356,10 @@
     </table>
 
     @php $boxed = $layout === 'boxed'; @endphp
-    <table style="margin-top: 8px;">
+    <table style="margin-top: {{ $sectionGap }}px;">
         <tr>
             <td style="width: 55%;"></td>
-            <td style="width: 45%; border: 0.5pt solid #e2e8f0; @if ($boxed) background-color: {{ $accent }}; border-color: {{ $accent }}; @endif padding: 8px 10px;">
+            <td style="width: 45%; border: 0.5pt solid #e2e8f0; @if ($boxed) background-color: {{ $totalsColor }}; border-color: {{ $totalsColor }}; @endif padding: 8px 10px;">
                 <table>
                     <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                     @if (($doc['discount_total'] ?? 0) > 0)
@@ -348,7 +369,7 @@
                     @if ($boxed)
                         <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @else
-                        <tr><td colspan="2" style="padding: 6px 0 0;"><table style="background-color: {{ $accent }};"><tr><td style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
+                        <tr><td colspan="2" style="padding: 6px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
                     @endif
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($row['value']) }}</td></tr>
@@ -360,7 +381,7 @@
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
-        <table style="margin-top: 10px; background-color: #f8fafc;">
+        <table style="margin-top: {{ $sectionGap }}px; background-color: #f8fafc;">
             <tr><td style="padding: 7px 10px; font-size: 9pt;">
                 <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px;">{{ $lbl('Payment details') }}</div>
                 <div class="muted">{{ $ba->name }}@if ($ba->bank_name) — {{ $ba->bank_name }} @endif @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }}@endif</div>

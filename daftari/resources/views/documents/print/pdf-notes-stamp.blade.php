@@ -20,7 +20,7 @@
 @endif
 
 @if (!empty($doc['qr_code']) || $stampData)
-    <table style="margin-top: 10px;">
+    <table style="margin-top: {{ $qrGap }}px;">
         <tr>
             <td style="width: 50%;"></td>
             @if (!empty($doc['qr_code']))

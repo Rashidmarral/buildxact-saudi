@@ -1,5 +1,5 @@
 {{-- Bank details (left) + totals (right), shared by the bilingual_classic layout. --}}
-<table style="margin-top: 8px;">
+<table style="margin-top: {{ $sectionGap }}px;">
     <tr>
         <td style="width: 55%; vertical-align: top; font-size: 9.5pt;">
             @if ($bankAccounts->isNotEmpty())

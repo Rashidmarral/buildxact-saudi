@@ -7,11 +7,11 @@
     @include, not a component, so the parent's variables carry over).
 --}}
 @if ($template && $template->show_signature)
-    <table style="margin-top: 18px;">
+    <table style="margin-top: {{ $signatureGap }}px;">
         <tr>
             <td style="width: 60%;"></td>
             <td style="width: 40%; text-align: center;">
-                <div style="border-bottom: 0.75pt solid #94a3b8; height: 26px;"></div>
+                <div style="border-bottom: 0.75pt solid #94a3b8; height: {{ $template->isCompact() ? 26 : 40 }}px;"></div>
                 <div class="muted" style="margin-top: 4px;">{{ $primary($template->signature_label_en ?: __('Authorized Signature'), $template->signature_label_ar) }}</div>
                 @if ($secondary($template->signature_label_ar))<div class="muted ar">{{ $template->signature_label_ar }}</div>@endif
             </td>

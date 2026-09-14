@@ -20,6 +20,8 @@ class InvoiceTemplateController extends Controller
 
     private const LAYOUTS = ['minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead'];
 
+    private const DENSITIES = ['compact', 'comfortable'];
+
     private const LANGUAGE_MODES = ['bilingual', 'english_only', 'arabic_only'];
 
     private const TABLE_DIRECTIONS = ['ltr', 'rtl'];
@@ -113,7 +115,10 @@ class InvoiceTemplateController extends Controller
             'accent_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'table_header_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'remove_table_header_color' => ['nullable', 'boolean'],
+            'totals_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'remove_totals_color' => ['nullable', 'boolean'],
             'layout' => ['required', Rule::in(self::LAYOUTS)],
+            'density' => ['nullable', Rule::in(self::DENSITIES)],
             'language_mode' => ['required', Rule::in(self::LANGUAGE_MODES)],
             'table_direction' => ['required', Rule::in(self::TABLE_DIRECTIONS)],
             'page_size' => ['nullable', Rule::in(self::PAGE_SIZES)],
@@ -124,6 +129,7 @@ class InvoiceTemplateController extends Controller
             'show_unit_labels' => ['nullable', 'boolean'],
             'show_party_vat_number' => ['nullable', 'boolean'],
             'show_item_description' => ['nullable', 'boolean'],
+            'show_vat_column' => ['nullable', 'boolean'],
             'letterhead' => ['nullable', 'image', 'max:4096'],
             'footer' => ['nullable', 'image', 'max:4096'],
             'remove_footer' => ['nullable', 'boolean'],
@@ -141,10 +147,13 @@ class InvoiceTemplateController extends Controller
         $data['show_unit_labels'] = $request->boolean('show_unit_labels');
         $data['show_party_vat_number'] = $request->boolean('show_party_vat_number');
         $data['show_item_description'] = $request->boolean('show_item_description');
+        $data['show_vat_column'] = $request->boolean('show_vat_column');
         $data['watermark_opacity'] = $data['watermark_opacity'] ?? $invoiceTemplate->watermark_opacity;
         $data['page_size'] = $data['page_size'] ?? $invoiceTemplate->page_size;
+        $data['density'] = $data['density'] ?? $invoiceTemplate->density;
         $data['table_header_color'] = $request->boolean('remove_table_header_color') ? null : ($data['table_header_color'] ?? $invoiceTemplate->table_header_color);
-        unset($data['letterhead'], $data['footer'], $data['remove_footer'], $data['watermark'], $data['remove_watermark'], $data['remove_table_header_color']);
+        $data['totals_color'] = $request->boolean('remove_totals_color') ? null : ($data['totals_color'] ?? $invoiceTemplate->totals_color);
+        unset($data['letterhead'], $data['footer'], $data['remove_footer'], $data['watermark'], $data['remove_watermark'], $data['remove_table_header_color'], $data['remove_totals_color']);
 
         if ($request->hasFile('letterhead')) {
             if ($invoiceTemplate->letterhead_path) {

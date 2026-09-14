@@ -1,6 +1,7 @@
 @php
     $compact = $compact ?? false;
     $accent = $tpl->accent_color;
+    $totalsColor = $tpl->totals_color ?? $accent;
     $layout = $tpl->layout;
     $pad = $compact ? 'p-3' : 'p-5';
     $textSize = $compact ? 'text-[8px]' : 'text-xs';
@@ -62,7 +63,7 @@
     </div>
 
     @if ($layout === 'boxed')
-        <div class="mt-3 rounded-lg p-2 text-white flex justify-between font-semibold" style="background-color: {{ $accent }}">
+        <div class="mt-3 rounded-lg p-2 text-white flex justify-between font-semibold" style="background-color: {{ $totalsColor }}">
             <span>{{ __('Total') }}</span><span>1,983.75</span>
         </div>
     @else
@@ -72,7 +73,22 @@
     @endif
     @endif
 
-    @if (! $compact && $tpl->notesFor(app()->getLocale()) ?? null)
-        <p class="mt-3 text-slate-400 border-t border-slate-100 pt-2">{{ $tpl->notesFor(app()->getLocale()) }}</p>
+    @if (! $compact)
+        @php
+            // Same bilingual rule the real document follows: English
+            // primary unless the template is arabic_only — never keyed
+            // off the viewer's own UI locale (app()->getLocale()), which
+            // showed the wrong language whenever they didn't match. See
+            // documents/print/template-notes.blade.php for the full
+            // story. Guarded behind `! $compact` (like the old code) so
+            // this never touches a starter preset's plain stdClass,
+            // which has no notes_en/notes_ar at all.
+            $__previewNotes = ($tpl->language_mode ?? 'bilingual') === 'arabic_only' && $tpl->notes_ar
+                ? $tpl->notes_ar
+                : $tpl->notes_en;
+        @endphp
+        @if ($__previewNotes)
+            <p class="mt-3 text-slate-400 border-t border-slate-100 pt-2">{{ $__previewNotes }}</p>
+        @endif
     @endif
 </div>

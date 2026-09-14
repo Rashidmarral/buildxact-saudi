@@ -38,7 +38,7 @@ class PdfPageDensityTest extends TestCase
         return base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
     }
 
-    private function makeRealisticInvoice(string $layout, int $itemCount = 3): Invoice
+    private function makeRealisticInvoice(string $layout, int $itemCount = 3, string $density = 'compact'): Invoice
     {
         $logoPath = 'logos/density-test-'.uniqid().'.png';
         $stampPath = 'stamps/density-test-'.uniqid().'.png';
@@ -62,7 +62,7 @@ class PdfPageDensityTest extends TestCase
         ]);
         InvoiceTemplate::create([
             'company_id' => $company->id, 'name' => 'Default', 'document_type' => 'all',
-            'layout' => $layout, 'is_default' => true, 'show_signature' => true,
+            'layout' => $layout, 'density' => $density, 'is_default' => true, 'show_signature' => true,
             'notes_en' => "Thank you for your business.\nAll amounts are in Saudi Riyals (SAR).",
             'terms_en' => "Payment is due within 15 days of the invoice date.\nGoods remain the property of the seller until paid in full.\nLate payments may incur a 2% monthly surcharge.",
         ]);
@@ -106,5 +106,25 @@ class PdfPageDensityTest extends TestCase
         $pdf = app(MpdfRenderer::class)->render('documents.print.pdf', $invoice->pdfData());
 
         $this->assertSame(1, $this->countPdfPages($pdf), "Layout \"{$layout}\" spilled a 3-item invoice onto a second page.");
+    }
+
+    /**
+     * Flexibility request: a "density" toggle on the template, so a
+     * company that doesn't mind an extra page can opt back into more
+     * generous spacing. Comparing the same invoice at both settings
+     * proves the toggle actually changes the rendered spacing rather
+     * than being a no-op field.
+     */
+    public function test_comfortable_density_uses_visibly_more_spacing_than_compact(): void
+    {
+        $compactInvoice = $this->makeRealisticInvoice('minimal', 3, 'compact');
+        $comfortableInvoice = $this->makeRealisticInvoice('minimal', 3, 'comfortable');
+
+        $compactHtml = view('documents.print.pdf', $compactInvoice->pdfData() + ['embed' => fn () => null])->render();
+        $comfortableHtml = view('documents.print.pdf', $comfortableInvoice->pdfData() + ['embed' => fn () => null])->render();
+
+        $this->assertStringContainsString('.notes-block { margin-top: 8px;', $compactHtml);
+        $this->assertStringContainsString('.notes-block { margin-top: 14px;', $comfortableHtml);
+        $this->assertStringNotContainsString('.notes-block { margin-top: 14px;', $compactHtml);
     }
 }
