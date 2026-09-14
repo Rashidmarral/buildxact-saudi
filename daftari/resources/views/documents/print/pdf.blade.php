@@ -296,7 +296,7 @@
                 @if ($company->address)<div class="muted" style="margin-top: 4px;">{{ $company->address }}</div>@endif
             </td>
             <td style="width: 40%; vertical-align: top; text-align: right;">
-                <table style="margin-left: auto;"><tr><td style="background-color: {{ $accent }}; color: #ffffff; font-size: 11pt; font-weight: bold; padding: 6px 14px;">{{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}</td></tr></table>
+                <table style="margin-left: auto;"><tr><td style="background-color: {{ $accent }}; color: #ffffff; font-size: 11pt; font-weight: bold; padding: 6px 14px; border-radius: 999px;">{{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}</td></tr></table>
                 @if ($secondary($doc['type_label_ar'] ?? null))<div class="muted ar" style="margin-top: 4px;">{{ $doc['type_label_ar'] }}</div>@endif
                 <div style="margin-top: 6px; font-weight: bold; color: #334155;">{{ $doc['number'] }}</div>
                 <div class="muted">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
@@ -307,7 +307,7 @@
 
     <table style="margin-top: {{ $sectionGap }}px;">
         <tr>
-            <td style="width: 49%; vertical-align: top; background-color: #f8fafc; padding: 7px 10px;">
+            <td style="width: 49%; vertical-align: top; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 7px 10px;">
                 <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</div>
                 <div style="margin-top: 4px; font-weight: bold; color: #1e293b;">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</div>
                 @if ($secondary($doc['party']->name_ar ?? null))<div class="muted ar">{{ $doc['party']->name_ar }}</div>@endif
@@ -316,7 +316,7 @@
                 @if (!empty($doc['party']->email))<div class="muted">{{ $doc['party']->email }}</div>@endif
             </td>
             <td style="width: 2%;"></td>
-            <td style="width: 49%; vertical-align: top; text-align: right; background-color: #f8fafc; padding: 7px 10px;">
+            <td style="width: 49%; vertical-align: top; text-align: right; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 7px 10px;">
                 @if (!empty($doc['zatca_status']))
                     <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div>
                 @endif
@@ -359,7 +359,7 @@
     <table style="margin-top: {{ $sectionGap }}px;">
         <tr>
             <td style="width: 55%;"></td>
-            <td style="width: 45%; border: 0.5pt solid #e2e8f0; @if ($boxed) background-color: {{ $totalsColor }}; border-color: {{ $totalsColor }}; @endif padding: 8px 10px;">
+            <td style="width: 45%; border: 0.5pt solid #e2e8f0; border-radius: 14px; @if ($boxed) background-color: {{ $totalsColor }}; border-color: {{ $totalsColor }}; @endif padding: 8px 10px;">
                 <table>
                     <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                     @if (($doc['discount_total'] ?? 0) > 0)
@@ -369,7 +369,7 @@
                     @if ($boxed)
                         <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @else
-                        <tr><td colspan="2" style="padding: 6px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
+                        <tr><td colspan="2" style="padding: 6px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
                     @endif
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($row['value']) }}</td></tr>
@@ -381,8 +381,8 @@
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
-        <table style="margin-top: {{ $sectionGap }}px; background-color: #f8fafc;">
-            <tr><td style="padding: 7px 10px; font-size: 9pt;">
+        <table style="margin-top: {{ $sectionGap }}px;">
+            <tr><td style="background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 7px 10px; font-size: 9pt;">
                 <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px;">{{ $lbl('Payment details') }}</div>
                 <div class="muted">{{ $ba->name }}@if ($ba->bank_name) — {{ $ba->bank_name }} @endif @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }}@endif</div>
             </td></tr>

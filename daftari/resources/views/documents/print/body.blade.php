@@ -406,7 +406,7 @@
             </div>
         </div>
         <div class="text-end">
-            <span class="inline-block rounded-lg px-4 py-1.5 text-sm font-bold text-white" style="background-color: {{ $accent }}">
+            <span class="inline-block rounded-full px-4 py-1.5 text-sm font-bold text-white" style="background-color: {{ $accent }}">
                 {{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}
             </span>
             @if ($secondary($doc['type_label_ar'] ?? null))<p class="mt-1 text-xs text-slate-400" dir="rtl">{{ $doc['type_label_ar'] }}</p>@endif
@@ -417,7 +417,7 @@
     </div>
 
     <div class="mt-8 grid grid-cols-2 gap-4">
-        <div class="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card">
             <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</h3>
             <p class="mt-1.5 font-semibold text-slate-800">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</p>
             @if ($secondary($doc['party']->name_ar ?? null))<p class="text-sm text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</p>@endif
@@ -425,7 +425,7 @@
             @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<p class="text-sm text-slate-500">{{ $doc['party']->fullAddress() }}</p>@endif
             @if (!empty($doc['party']->email))<p class="text-sm text-slate-500">{{ $doc['party']->email }}</p>@endif
         </div>
-        <div class="rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-end">
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card text-end">
             @if (!empty($doc['qr_code']))
                 @if (!empty($doc['zatca_status']))
                     <p class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
@@ -438,7 +438,7 @@
         </div>
     </div>
 
-    <div class="mt-8 overflow-hidden rounded-xl border border-slate-100">
+    <div class="mt-8 overflow-hidden rounded-2xl border border-slate-100 shadow-card">
         <table class="w-full text-sm">
             <thead>
                 <tr class="text-start text-white" style="background-color: {{ $tableHeaderColor ?: $accent }}">
@@ -473,7 +473,7 @@
 
     @php $boxed = $layout === 'boxed'; @endphp
     <div class="mt-6 flex justify-end">
-        <div class="w-full max-w-xs space-y-2 rounded-xl border p-4 text-sm {{ $boxed ? 'text-white border-transparent' : 'border-slate-100' }}" @if ($boxed) style="background-color: {{ $totalsColor }}" @endif>
+        <div class="w-full max-w-xs space-y-2 rounded-2xl border p-4 text-sm shadow-card {{ $boxed ? 'text-white border-transparent' : 'border-slate-100' }}" @if ($boxed) style="background-color: {{ $totalsColor }}" @endif>
             <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Subtotal') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
             @if (($doc['discount_total'] ?? 0) > 0)
                 <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
@@ -482,7 +482,7 @@
             @if ($boxed)
                 <div class="flex justify-between border-t border-white/30 pt-2 text-base font-bold text-white"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
             @else
-                <div class="flex justify-between rounded-lg px-3 py-2 text-base font-bold text-white" style="background-color: {{ $totalsColor }}"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+                <div class="flex justify-between rounded-xl px-3 py-2 text-base font-bold text-white" style="background-color: {{ $totalsColor }}"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
             @endif
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 @php
@@ -504,7 +504,7 @@
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
-        <div class="mt-8 rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-sm">
+        <div class="mt-8 rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card text-sm">
             <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">{{ $lbl('Payment details') }}</h4>
             <p class="text-slate-600">
                 {{ $ba->name }}
