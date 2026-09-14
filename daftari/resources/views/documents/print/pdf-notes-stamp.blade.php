@@ -8,19 +8,19 @@
     </div>
 @endif
 
-@if ($template && $template->notesFor(app()->getLocale()))
-    @include('documents.print.pdf-notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'textStyle' => 'color: #64748b; font-size: 8.5pt;'])
+@if ($template && ($template->notes_en || $template->notes_ar))
+    @include('documents.print.pdf-template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'textStyle' => 'color: #64748b; font-size: 8.5pt;'])
 @endif
 
-@if ($template && $template->termsFor(app()->getLocale()))
+@if ($template && ($template->terms_en || $template->terms_ar))
     <div class="notes-block">
         <strong>{{ $lbl('Terms & Conditions') }}</strong>
-        @include('documents.print.pdf-notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent])
+        @include('documents.print.pdf-template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent])
     </div>
 @endif
 
 @if (!empty($doc['qr_code']) || $stampData)
-    <table style="margin-top: 20px;">
+    <table style="margin-top: 10px;">
         <tr>
             <td style="width: 50%;"></td>
             @if (!empty($doc['qr_code']))

@@ -315,4 +315,83 @@ class LineItemReorderAndPrintFormattingTest extends TestCase
         $this->assertNotFalse($footerLinePos);
         $this->assertLessThan($footerLinePos, $signaturePos);
     }
+
+    // ------------------------------------------------------------------
+    // Bug report: a bilingual-mode document's template Notes showed
+    // Arabic only. notesFor()/termsFor() picked a single language keyed
+    // off app()->getLocale() — the current VIEWER's own UI language
+    // (e.g. an admin whose account is set to Arabic), not the document's
+    // language_mode. Simulating that exact trigger below: the app locale
+    // is set to Arabic while the template's language_mode is bilingual,
+    // which used to make notesFor()/termsFor() return notes_ar/terms_ar
+    // only — English should still appear as the primary language.
+    // ------------------------------------------------------------------
+
+    public function test_bilingual_template_notes_and_terms_show_both_languages_even_when_the_viewers_own_locale_is_arabic(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Default', 'document_type' => 'all',
+            'layout' => 'minimal', 'language_mode' => 'bilingual', 'is_default' => true,
+            'notes_en' => 'Thank you for your business',
+            'notes_ar' => 'شكرا لتعاملكم معنا',
+            'terms_en' => 'Payment due within 15 days',
+            'terms_ar' => 'الدفع خلال 15 يومًا',
+        ]);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client']);
+
+        $this->actingAs($owner)->post(route('app.invoices.store'), [
+            'client_id' => $client->id,
+            'type' => 'standard',
+            'issue_date' => now()->toDateString(),
+            'items' => [
+                ['description' => 'Consulting', 'quantity' => 1, 'unit_price' => 500, 'vat_rate' => 15],
+            ],
+        ])->assertSessionDoesntHaveErrors();
+
+        $invoice = Invoice::latest('id')->first();
+
+        app()->setLocale('ar');
+
+        $response = $this->get(route('app.invoices.show', $invoice));
+        $response->assertOk();
+        $response->assertSee('Thank you for your business');
+        $response->assertSee('شكرا لتعاملكم معنا');
+        $response->assertSee('Payment due within 15 days');
+        $response->assertSee('الدفع خلال 15 يومًا');
+
+        $html = $this->renderPdfHtml($invoice->fresh());
+        $this->assertStringContainsString('Thank you for your business', $html);
+        $this->assertStringContainsString('شكرا لتعاملكم معنا', $html);
+        $this->assertStringContainsString('Payment due within 15 days', $html);
+        $this->assertStringContainsString('الدفع خلال 15 يومًا', $html);
+    }
+
+    public function test_english_only_template_notes_never_show_arabic(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Default', 'document_type' => 'all',
+            'layout' => 'minimal', 'language_mode' => 'english_only', 'is_default' => true,
+            'notes_en' => 'English only note',
+            'notes_ar' => 'ملاحظة بالعربية فقط',
+        ]);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client']);
+
+        $this->actingAs($owner)->post(route('app.invoices.store'), [
+            'client_id' => $client->id,
+            'type' => 'standard',
+            'issue_date' => now()->toDateString(),
+            'items' => [
+                ['description' => 'Consulting', 'quantity' => 1, 'unit_price' => 500, 'vat_rate' => 15],
+            ],
+        ])->assertSessionDoesntHaveErrors();
+
+        $invoice = Invoice::latest('id')->first();
+        $response = $this->get(route('app.invoices.show', $invoice));
+
+        $response->assertOk();
+        $response->assertSee('English only note');
+        $response->assertDontSee('ملاحظة بالعربية فقط');
+    }
 }

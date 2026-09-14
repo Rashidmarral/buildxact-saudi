@@ -55,9 +55,9 @@
        needs meaningfully more physical area for the same module count to
        stay scannable. */
     .qr-img { width: 180px; height: 180px; }
-    .footer-note { margin-top: 18px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 8px; }
+    .footer-note { margin-top: 10px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 6px; }
     .stamp-img { width: 130px; height: 130px; }
-    .notes-block { margin-top: 14px; font-size: 9pt; }
+    .notes-block { margin-top: 8px; font-size: 9pt; }
 </style>
 </head>
 <body>
@@ -70,72 +70,72 @@
      regardless of the body's own direction. --}}
 
 @if ($layout === 'bilingual_classic')
-    <table style="border: 1.5pt solid {{ $accent }}; margin-bottom: 12px;"><tr><td style="height: 6px;"></td></tr></table>
+    <table style="border: 1.5pt solid {{ $accent }}; margin-bottom: 8px;"><tr><td style="height: 6px;"></td></tr></table>
 
     @include('documents.print.pdf-bilingual-header', ['company' => $company, 'showLogo' => $showLogo, 'logoData' => $logoData])
 
-    <table style="margin-top: 16px; border-bottom: 1.5pt solid #1e293b; padding-bottom: 8px;">
-        <tr><td style="text-align: center; font-size: 17pt; font-weight: bold; color: #0f172a; padding-bottom: 8px;">
+    <table style="margin-top: 10px; border-bottom: 1.5pt solid #1e293b; padding-bottom: 5px;">
+        <tr><td style="text-align: center; font-size: 17pt; font-weight: bold; color: #0f172a; padding-bottom: 5px;">
             <span class="ar">{{ $doc['type_label_ar'] ?? '' }}</span> &nbsp; {{ $doc['type_label'] }}
         </td></tr>
     </table>
 
-    <table style="margin-top: 12px; border: 0.5pt solid #cbd5e1;">
+    <table style="margin-top: 8px; border: 0.5pt solid #cbd5e1;">
         <tr style="border-bottom: 0.5pt solid #cbd5e1;">
-            <td style="width: 18%; padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ $doc['party_label'] }}</td>
-            <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">
+            <td style="width: 18%; padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ $doc['party_label'] }}</td>
+            <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">
                 {{ $doc['party']->name }}
                 @if (!empty($doc['party']->name_ar))<div class="ar">{{ $doc['party']->name_ar }}</div>@endif
             </td>
-            <td class="ar" style="width: 18%; padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ $doc['party_label_ar'] ?? __('Party') }}</td>
+            <td class="ar" style="width: 18%; padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ $doc['party_label_ar'] ?? __('Party') }}</td>
         </tr>
         @if ($showPartyVatNumber)
             <tr style="border-bottom: 0.5pt solid #cbd5e1;">
-                <td style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ __('VAT number') }}</td>
-                <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">{{ $doc['party']->vat_number ?: '—' }}</td>
-                <td class="ar" style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">رقم التسجيل الضريبي</td>
+                <td style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ __('VAT number') }}</td>
+                <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ $doc['party']->vat_number ?: '—' }}</td>
+                <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">رقم التسجيل الضريبي</td>
             </tr>
         @endif
         @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
             <tr style="border-bottom: 0.5pt solid #cbd5e1;">
-                <td style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ __('Address') }}</td>
-                <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">{{ $doc['party']->fullAddress() }}</td>
-                <td class="ar" style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">العنوان</td>
+                <td style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ __('Address') }}</td>
+                <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ $doc['party']->fullAddress() }}</td>
+                <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">العنوان</td>
             </tr>
         @endif
         <tr>
-            <td style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">{{ __('Number') }}</td>
-            <td style="padding: 6px 8px; text-align: center; font-size: 9.5pt;">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
-            <td class="ar" style="padding: 6px 8px; font-weight: bold; font-size: 9.5pt;">رقم | التاريخ</td>
+            <td style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ __('Number') }}</td>
+            <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
+            <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">رقم | التاريخ</td>
         </tr>
     </table>
 
-    <table style="margin-top: 14px;">
+    <table style="margin-top: 8px;">
         <thead>
             <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
-                <th style="padding: 6px 2px;">#</th>
-                <th style="padding: 6px 2px;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
-                <th class="text-end" style="padding: 6px 2px;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
-                <th class="text-end" style="padding: 6px 2px;">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
-                <th class="text-end" style="padding: 6px 2px;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
-                <th class="text-end" style="padding: 6px 2px;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
-                <th class="text-end" style="padding: 6px 2px;">{{ __('Line amount') }}<br><span class="ar" style="font-weight: normal;">المجموع</span></th>
+                <th style="padding: 4px 2px;">#</th>
+                <th style="padding: 4px 2px;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
+                <th class="text-end" style="padding: 4px 2px;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
+                <th class="text-end" style="padding: 4px 2px;">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
+                <th class="text-end" style="padding: 4px 2px;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
+                <th class="text-end" style="padding: 4px 2px;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
+                <th class="text-end" style="padding: 4px 2px;">{{ __('Line amount') }}<br><span class="ar" style="font-weight: normal;">المجموع</span></th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $index => $line)
                 <tr style="border-bottom: 0.5pt solid #e2e8f0;">
-                    <td style="padding: 6px 2px; vertical-align: top; color: #64748b;">{{ $index + 1 }}</td>
-                    <td style="padding: 6px 2px; vertical-align: top;">
+                    <td style="padding: 4px 2px; vertical-align: top; color: #64748b;">{{ $index + 1 }}</td>
+                    <td style="padding: 4px 2px; vertical-align: top;">
                         <strong>{{ $primary($line->description, $line->name_ar) }}</strong>
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
-                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
-                    <td class="text-end" style="padding: 6px 2px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
-                    <td class="text-end" style="padding: 6px 2px; vertical-align: top; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
+                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
+                    <td class="text-end" style="padding: 4px 2px; vertical-align: top; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -288,9 +288,9 @@
         </tr>
     </table>
 
-    <table style="margin-top: 18px;">
+    <table style="margin-top: 10px;">
         <tr>
-            <td style="width: 49%; vertical-align: top; background-color: #f8fafc; padding: 10px 12px;">
+            <td style="width: 49%; vertical-align: top; background-color: #f8fafc; padding: 7px 10px;">
                 <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</div>
                 <div style="margin-top: 4px; font-weight: bold; color: #1e293b;">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</div>
                 @if ($secondary($doc['party']->name_ar ?? null))<div class="muted ar">{{ $doc['party']->name_ar }}</div>@endif
@@ -299,7 +299,7 @@
                 @if (!empty($doc['party']->email))<div class="muted">{{ $doc['party']->email }}</div>@endif
             </td>
             <td style="width: 2%;"></td>
-            <td style="width: 49%; vertical-align: top; text-align: right; background-color: #f8fafc; padding: 10px 12px;">
+            <td style="width: 49%; vertical-align: top; text-align: right; background-color: #f8fafc; padding: 7px 10px;">
                 @if (!empty($doc['zatca_status']))
                     <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div>
                 @endif
@@ -307,38 +307,38 @@
         </tr>
     </table>
 
-    <table style="margin-top: 18px; border: 0.5pt solid #e2e8f0;">
+    <table style="margin-top: 10px; border: 0.5pt solid #e2e8f0;">
         <thead>
             <tr style="text-align: left; color: #ffffff; font-size: 9pt; background-color: {{ $tableHeaderColor ?: $accent }};">
-                <th style="padding: 8px 10px;">{{ $lbl('Description') }}</th>
-                <th class="text-end" style="padding: 8px 10px;">{{ $lbl('Qty') }}</th>
-                <th class="text-end" style="padding: 8px 10px;">{{ $lbl('Unit price') }}</th>
-                <th class="text-end" style="padding: 8px 10px;">{{ $lbl('VAT') }}</th>
-                <th class="text-end" style="padding: 8px 10px;">{{ $lbl('Total') }}</th>
+                <th style="padding: 6px 10px;">{{ $lbl('Description') }}</th>
+                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Qty') }}</th>
+                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Unit price') }}</th>
+                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('VAT') }}</th>
+                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Total') }}</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $i => $line)
                 <tr style="border-bottom: 0.5pt solid #f1f5f9; @if ($i % 2 === 1) background-color: #f8fafc; @endif">
-                    <td style="padding: 8px 10px;">
+                    <td style="padding: 6px 10px;">
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted" style="font-size: 8pt;">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 8px 10px;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="text-end" style="padding: 8px 10px;">{{ \App\Support\Money::format($line->unit_price) }}</td>
-                    <td class="text-end" style="padding: 8px 10px;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
-                    <td class="text-end" style="padding: 8px 10px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($line->line_total) }}</td>
+                    <td class="text-end" style="padding: 6px 10px;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 6px 10px;">{{ \App\Support\Money::format($line->unit_price) }}</td>
+                    <td class="text-end" style="padding: 6px 10px;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
+                    <td class="text-end" style="padding: 6px 10px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($line->line_total) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
     @php $boxed = $layout === 'boxed'; @endphp
-    <table style="margin-top: 14px;">
+    <table style="margin-top: 8px;">
         <tr>
             <td style="width: 55%;"></td>
-            <td style="width: 45%; border: 0.5pt solid #e2e8f0; @if ($boxed) background-color: {{ $accent }}; border-color: {{ $accent }}; @endif padding: 12px;">
+            <td style="width: 45%; border: 0.5pt solid #e2e8f0; @if ($boxed) background-color: {{ $accent }}; border-color: {{ $accent }}; @endif padding: 8px 10px;">
                 <table>
                     <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                     @if (($doc['discount_total'] ?? 0) > 0)
@@ -360,8 +360,8 @@
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
-        <table style="margin-top: 18px; background-color: #f8fafc;">
-            <tr><td style="padding: 10px 12px; font-size: 9pt;">
+        <table style="margin-top: 10px; background-color: #f8fafc;">
+            <tr><td style="padding: 7px 10px; font-size: 9pt;">
                 <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px;">{{ $lbl('Payment details') }}</div>
                 <div class="muted">{{ $ba->name }}@if ($ba->bank_name) — {{ $ba->bank_name }} @endif @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }}@endif</div>
             </td></tr>

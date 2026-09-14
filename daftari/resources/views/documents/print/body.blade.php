@@ -182,14 +182,16 @@
         </div>
     @endif
 
-    @if ($template && $template->notesFor(app()->getLocale()))
-        @include('documents.print.notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'class' => 'mt-2 text-slate-500'])
+    @if ($template && ($template->notes_en || $template->notes_ar))
+        <div class="mt-2 text-sm">
+            @include('documents.print.template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-500'])
+        </div>
     @endif
 
-    @if ($template && $template->termsFor(app()->getLocale()))
+    @if ($template && ($template->terms_en || $template->terms_ar))
         <div class="mt-4 text-sm">
             <h4 class="font-semibold text-slate-800">{{ __('Terms & Conditions') }} <span class="text-xs text-slate-400" dir="rtl">الشروط والأحكام</span></h4>
-            @include('documents.print.notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent])
+            @include('documents.print.template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent])
         </div>
     @endif
 
@@ -337,14 +339,16 @@
         </div>
     @endif
 
-    @if ($template && $template->notesFor(app()->getLocale()))
-        @include('documents.print.notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'class' => 'mt-2 text-slate-500'])
+    @if ($template && ($template->notes_en || $template->notes_ar))
+        <div class="mt-2 text-sm">
+            @include('documents.print.template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-500'])
+        </div>
     @endif
 
-    @if ($template && $template->termsFor(app()->getLocale()))
+    @if ($template && ($template->terms_en || $template->terms_ar))
         <div class="mt-4 text-sm">
             <p class="font-semibold text-slate-800">{{ $lbl('Terms & Conditions') }}</p>
-            @include('documents.print.notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent])
+            @include('documents.print.template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent])
         </div>
     @endif
 
@@ -506,14 +510,16 @@
         </div>
     @endif
 
-    @if ($template && $template->notesFor(app()->getLocale()))
-        @include('documents.print.notes-list', ['text' => $template->notesFor(app()->getLocale()), 'accent' => $accent, 'class' => 'mt-2 text-slate-400'])
+    @if ($template && ($template->notes_en || $template->notes_ar))
+        <div class="mt-2 text-sm">
+            @include('documents.print.template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-400'])
+        </div>
     @endif
 
-    @if ($template && $template->termsFor(app()->getLocale()))
+    @if ($template && ($template->terms_en || $template->terms_ar))
         <div class="mt-4 pt-2 text-sm">
             <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $lbl('Terms & Conditions') }}</h4>
-            @include('documents.print.notes-list', ['text' => $template->termsFor(app()->getLocale()), 'accent' => $accent, 'class' => 'text-slate-500'])
+            @include('documents.print.template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-500'])
         </div>
     @endif
 

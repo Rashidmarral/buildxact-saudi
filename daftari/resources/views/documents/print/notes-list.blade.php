@@ -7,7 +7,8 @@
     still renders correctly, as one bulleted point.
 
     Params: $text (string), $accent (hex color, optional), $class (text
-    color classes, optional).
+    color classes, optional), $dir ('rtl' to render an Arabic secondary
+    block right-aligned, optional — defaults to the ambient direction).
 --}}
 @php
     $__notesLines = collect(preg_split('/\r\n|\r|\n/', trim((string) $text)))
@@ -16,7 +17,7 @@
         ->values();
 @endphp
 @if ($__notesLines->isNotEmpty())
-    <ul class="mt-1.5 space-y-1.5 {{ $class ?? 'text-slate-600' }}">
+    <ul @if (($dir ?? null) === 'rtl') dir="rtl" @endif class="mt-1.5 space-y-1.5 {{ $class ?? 'text-slate-600' }}">
         @foreach ($__notesLines as $__notesLine)
             <li class="flex items-start gap-2">
                 <span class="mt-[0.45rem] h-1.5 w-1.5 flex-shrink-0 rounded-full" style="background-color: {{ $accent ?? '#0f766e' }}"></span>
