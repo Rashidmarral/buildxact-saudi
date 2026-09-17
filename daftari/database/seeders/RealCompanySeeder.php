@@ -9,7 +9,10 @@ use App\Models\Company;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\Subscription;
+use App\Models\TaxRate;
+use App\Models\Unit;
 use App\Models\User;
+use App\Models\WhtRate;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -52,6 +55,17 @@ class RealCompanySeeder extends Seeder
         Role::seedSystemRoles($company->id);
         Account::seedSystemAccounts($company->id);
         AccountMapping::seedDefaults($company->id);
+        // Real signup (AuthController::register()) also seeds these three —
+        // this seeder bypasses that flow entirely, and missing them left
+        // both real companies with an empty tax-rate list (TaxRate::
+        // defaultRate() falls back to a bare 0%, never a hardcoded 15, so
+        // every new line item silently pre-filled at 0% VAT instead of the
+        // standard rate), no WHT categories, and — before Item::booted()
+        // started self-healing it — no units for a freshly-seeded item to
+        // fall back to.
+        TaxRate::seedDefaults($company->id);
+        WhtRate::seedDefaults($company->id);
+        Unit::seedDefaults($company->id);
 
         User::firstOrCreate(
             ['email' => 'owner@dynamiccorecontracting.sa'],
@@ -133,6 +147,17 @@ class RealCompanySeeder extends Seeder
         Role::seedSystemRoles($company->id);
         Account::seedSystemAccounts($company->id);
         AccountMapping::seedDefaults($company->id);
+        // Real signup (AuthController::register()) also seeds these three —
+        // this seeder bypasses that flow entirely, and missing them left
+        // both real companies with an empty tax-rate list (TaxRate::
+        // defaultRate() falls back to a bare 0%, never a hardcoded 15, so
+        // every new line item silently pre-filled at 0% VAT instead of the
+        // standard rate), no WHT categories, and — before Item::booted()
+        // started self-healing it — no units for a freshly-seeded item to
+        // fall back to.
+        TaxRate::seedDefaults($company->id);
+        WhtRate::seedDefaults($company->id);
+        Unit::seedDefaults($company->id);
 
         User::firstOrCreate(
             ['email' => 'owner@zubaidimaintenance.sa'],

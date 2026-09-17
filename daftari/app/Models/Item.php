@@ -13,6 +13,73 @@ class Item extends Model
 {
     use BelongsToCompany, HasBilingualName, HasCustomFields;
 
+    /**
+     * The invoice/quotation/bill/purchase-order unit picker only enables
+     * once the selected item has at least one unit (see
+     * resources/views/user/invoices/form.blade.php's populateUnitOptions),
+     * so an item saved without a base_unit_id is permanently stuck with a
+     * disabled picker on every document form. That requirement kept
+     * getting patched per write path instead of guaranteed once — the item
+     * form (ItemController::validated()), then CSV import, then two
+     * separate one-off backfill migrations for whatever was already in the
+     * database at the time — and kept resurfacing every time a new path
+     * bypassed all of them: real customer catalogs loaded via a seeder
+     * (ZubaidiProductsSeeder), the six starter items in DemoSeeder, and any
+     * future one. This event guarantees it at the model level instead, so
+     * every current and future way of creating or updating an Item —
+     * Eloquent create/update/updateOrCreate, from a controller, a seeder,
+     * or anywhere else — leaves it with a real base_unit_id. Hooked on
+     * both creating and updating (rather than the single saving event)
+     * because BelongsToCompany's own creating listener is what fills in
+     * company_id for a plain Item::create() call with no company_id
+     * given; saving fires before creating, so it would run too early to
+     * see the company this item belongs to.
+     */
+    protected static function booted(): void
+    {
+        $assignDefaultBaseUnit = function (self $item) {
+            if ($item->base_unit_id) {
+                return;
+            }
+
+            $item->base_unit_id = static::resolveDefaultBaseUnitId($item->company_id, $item->unit_code);
+        };
+
+        static::creating($assignDefaultBaseUnit);
+        static::updating($assignDefaultBaseUnit);
+    }
+
+    /**
+     * Prefers a unit whose code matches the item's own (legacy) unit_code
+     * text, falling back to the company's Piece (PCE) unit — seeding the
+     * company's default unit set first if it has none at all yet, which
+     * can happen for a company created before units existed, or one whose
+     * items are being written directly (a seeder) without ever visiting
+     * the app first.
+     */
+    public static function resolveDefaultBaseUnitId(?int $companyId, ?string $unitCode = null): ?int
+    {
+        if (! $companyId) {
+            return null;
+        }
+
+        if (! Unit::where('company_id', $companyId)->exists()) {
+            Unit::seedDefaults($companyId);
+        }
+
+        if ($unitCode) {
+            $matched = Unit::where('company_id', $companyId)
+                ->whereRaw('UPPER(code) = ?', [strtoupper($unitCode)])
+                ->value('id');
+
+            if ($matched) {
+                return $matched;
+            }
+        }
+
+        return Unit::where('company_id', $companyId)->where('code', 'PCE')->value('id');
+    }
+
     public const CUSTOM_FIELD_ENTITY_TYPE = 'item';
 
     public const TRACKING_TYPES = ['none', 'lot', 'serial'];

@@ -69,4 +69,29 @@ class ZubaidiProductsSeederTest extends TestCase
         $this->assertSame(1, Item::where('sku', '234')->count());
         $this->assertSame(300, mb_strlen($item->description));
     }
+
+    /**
+     * Bug report: after fixing the disabled-unit-picker bug once (for
+     * Dynamic Core), the same symptom reappeared for Zubaidi — this seeder
+     * writes Item rows directly via Item::updateOrCreate(), bypassing
+     * ItemController entirely, and the real Zubaidi company (seeded by
+     * RealCompanySeeder, mirrored by seedZubaidiCompany() above) has no
+     * Units at all until something creates them. Item::booted() now
+     * guarantees every item gets a real base_unit_id regardless of write
+     * path — this asserts it holds for the actual seeder and company
+     * shape behind the original report, not just a synthetic case.
+     */
+    public function test_every_seeded_item_gets_a_usable_base_unit_so_the_line_item_unit_picker_is_never_disabled(): void
+    {
+        $company = $this->seedZubaidiCompany();
+        $this->assertSame(0, \App\Models\Unit::where('company_id', $company->id)->count());
+
+        (new ZubaidiProductsSeeder)->run();
+
+        $withoutBaseUnit = Item::where('company_id', $company->id)->whereNull('base_unit_id')->count();
+        $this->assertSame(0, $withoutBaseUnit, 'every Zubaidi catalog item must have a base_unit_id or its line-item unit picker stays permanently disabled');
+
+        $sample = Item::where('company_id', $company->id)->where('sku', '3')->first();
+        $this->assertNotNull($sample->baseUnit, 'baseUnit relation must resolve to a real Unit row, not just a non-null id');
+    }
 }
