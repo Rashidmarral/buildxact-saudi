@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\WelcomeMail;
 use App\Models\Account;
 use App\Models\AccountMapping;
+use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Plan;
 use App\Models\Role;
@@ -47,6 +48,17 @@ class AuthController extends Controller
         ]);
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            // Security audit finding D-3: attributed to the account being
+            // targeted (found by email, looked up without the tenant scope
+            // since we're not authenticated as anyone yet) rather than left
+            // fully anonymous — repeated failed attempts against one
+            // account are exactly what this entry needs to make visible on
+            // that company's own Activity page. $attemptedUser is null when
+            // the email doesn't exist at all; the entry still gets logged,
+            // just without a subject or company to attach it to.
+            $attemptedUser = User::withoutGlobalScopes()->where('email', $credentials['email'])->first();
+            AuditLog::record('auth.login_failed', $attemptedUser, __('Failed login attempt for :email', ['email' => $credentials['email']]));
+
             return back()->withErrors(['email' => __('These credentials do not match our records.')])->onlyInput('email');
         }
 
@@ -55,6 +67,7 @@ class AuthController extends Controller
         $user = Auth::user();
 
         if ($user->status !== 'active' || ($user->company && $user->company->isSuspended())) {
+            AuditLog::record('auth.login_blocked', $user, __('Login blocked — account or company is not active'));
             Auth::logout();
 
             return back()->withErrors(['email' => __('This account is not active.')]);
@@ -64,6 +77,8 @@ class AuthController extends Controller
             // Password is confirmed, but not fully trusted yet — log back
             // out and hand off to the challenge, which is the only place
             // that actually calls Auth::login() for this request cycle.
+            // The login itself is audited there once the second factor
+            // checks out, not here — nothing has actually logged in yet.
             $remember = $request->boolean('remember');
             Auth::logout();
             $request->session()->put('two_factor_user_id', $user->id);
@@ -71,6 +86,8 @@ class AuthController extends Controller
 
             return redirect()->route('two-factor.challenge');
         }
+
+        AuditLog::record('auth.login', $user, __('Logged in'));
 
         if ($user->isSuperAdmin() || $user->isAdminStaff()) {
             return redirect()->intended(route('admin.dashboard'));
@@ -251,6 +268,13 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        // Captured before Auth::logout() clears it — AuditLog::record()'s
+        // default actor is auth()->user(), which would otherwise resolve
+        // to nobody by the time this runs.
+        if ($user = Auth::user()) {
+            AuditLog::record('auth.logout', $user, __('Logged out'));
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -329,6 +353,12 @@ class AuthController extends Controller
                 if (config('session.driver') === 'database') {
                     DB::table('sessions')->where('user_id', $user->id)->delete();
                 }
+
+                // Security audit finding D-3: nobody is authenticated
+                // during this flow, so attribute the entry to the account
+                // itself (the only "actor" this self-service action has)
+                // rather than leaving it anonymous.
+                AuditLog::record('auth.password_reset', $user, __('Password reset via emailed link'), actorId: $user->id);
             }
         );
 

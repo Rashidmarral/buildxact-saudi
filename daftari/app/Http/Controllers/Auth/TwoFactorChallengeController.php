@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\Totp;
 use Illuminate\Http\Request;
@@ -49,6 +50,13 @@ class TwoFactorChallengeController extends Controller
         }
 
         if (! $valid) {
+            // Security audit finding D-3: no one is authenticated yet at
+            // this point (Auth::login() hasn't run), so — same as a failed
+            // password attempt in AuthController::login() — attribute the
+            // entry to the account being challenged explicitly rather than
+            // relying on AuditLog::record()'s auth()->user() default.
+            AuditLog::record('auth.two_factor_failed', $user, __('Failed two-factor code at login'), actorId: $user->id);
+
             return back()->withErrors(['code' => __('That code is invalid or has already been used.')]);
         }
 
@@ -57,6 +65,8 @@ class TwoFactorChallengeController extends Controller
 
         Auth::login($user, $remember);
         $request->session()->regenerate();
+
+        AuditLog::record('auth.login', $user, __('Logged in (two-factor verified)'));
 
         if ($user->isSuperAdmin() || $user->isAdminStaff()) {
             return redirect()->intended(route('admin.dashboard'));

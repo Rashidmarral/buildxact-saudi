@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\Company;
@@ -190,6 +191,8 @@ class SettingsController extends Controller
         }
 
         $user->update(['password' => Hash::make($request->string('password'))]);
+
+        AuditLog::record('auth.password_changed', $user, __('Changed account password'));
 
         // Security audit finding D-7: a stolen session cookie used to
         // survive a password change indefinitely — the only way to kill
