@@ -124,6 +124,8 @@ $company = auth()->user()->company;
         return [
             'id' => $i->id,
             'name' => $i->display_name,
+            'name_ar' => $i->name_ar,
+            'sku' => $i->sku,
             'unit_price' => (float) ($i->purchase_price ?? 0),
             'vat_rate' => (float) $i->vat_rate,
             'barcode' => $i->barcode,
@@ -185,19 +187,15 @@ function fmt(n) {
     return CURRENCY_SYMBOL + ' ' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+@include('user.partials.item-picker')
+
 function addRow(data) {
     data = data || { item_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: {{ \App\Models\TaxRate::defaultRate(auth()->user()->company_id) }} };
     const i = rowIndex++;
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-50';
     tr.innerHTML = `
-        <td class="py-2 pe-3">
-            <select data-role="item" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                <option value="">${@json(__('Custom'))}</option>
-                ${CATALOG.map(c => `<option value="${c.id}" data-price="${c.unit_price}" data-vat="${c.vat_rate}" data-name="${c.name}">${c.name}</option>`).join('')}
-            </select>
-            <input type="hidden" name="items[${i}][item_id]" data-role="item_id" value="${data.item_id}">
-        </td>
+        <td class="py-2 pe-3">${itemCellHtml(i, data)}</td>
         <td class="py-2 pe-3"><input type="text" name="items[${i}][description]" data-role="description" value="${data.description}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0.01" name="items[${i}][quantity]" data-role="quantity" value="${data.quantity}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><select name="items[${i}][unit_id]" data-role="unit" disabled class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></select></td>
@@ -208,20 +206,7 @@ function addRow(data) {
     `;
     tbody.appendChild(tr);
 
-    const itemSelect = tr.querySelector('[data-role="item"]');
-    if (data.item_id) itemSelect.value = data.item_id;
-
-    itemSelect.addEventListener('change', () => {
-        const opt = itemSelect.selectedOptions[0];
-        tr.querySelector('[data-role="item_id"]').value = itemSelect.value;
-        if (itemSelect.value) {
-            tr.querySelector('[data-role="description"]').value = opt.dataset.name;
-            tr.querySelector('[data-role="unit_price"]').value = opt.dataset.price;
-            tr.querySelector('[data-role="vat_rate"]').value = opt.dataset.vat;
-        }
-        populateUnitOptions(tr, itemSelect.value, null);
-        recalc();
-    });
+    wireItemPicker(tr, data);
 
     populateUnitOptions(tr, data.item_id, data.unit_id);
 
