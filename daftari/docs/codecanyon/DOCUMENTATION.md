@@ -92,7 +92,6 @@ php artisan migrate --force
 php artisan db:seed --class=Database\\Seeders\\CurrencySeeder --force
 php artisan db:seed --class=Database\\Seeders\\PlanSeeder --force
 php artisan db:seed --class=Database\\Seeders\\AdminRoleSeeder --force
-php artisan storage:link
 php artisan tinker   # create your own super_admin User row, or temporarily
                       # run AdminSeeder and change its password immediately
 ```
@@ -309,8 +308,13 @@ queueing yourself for a high-volume mailer.
 
 `FILESYSTEM_DISK=local` by default — uploaded files (company logos, invoice attachments,
 platform branding assets, invoice-template letterheads) are written to `storage/app/public`
-and served through the `public/storage` symlink (`php artisan storage:link`, run automatically
-by the installer's Step 5).
+and `storage/app/private`, and served exclusively through
+`App\Http\Controllers\FileServeController` (the `/files/{filepath}` route), which enforces
+login + tenant ownership before streaming a file. **Do not run `php artisan storage:link`** —
+it creates a `public/storage` symlink that lets the web server hand out invoice/bill/PO/quotation
+attachments and company legal documents directly off disk, bypassing that auth check entirely.
+`config/filesystems.php`'s `links` array is deliberately empty so the command is a no-op even if
+run by habit.
 
 For S3-compatible storage (AWS S3, DigitalOcean Spaces, Cloudflare R2, MinIO), set
 `FILESYSTEM_DISK=s3` and the `AWS_*` keys in `.env` (`config/filesystems.php`'s `s3` disk is
@@ -513,7 +517,7 @@ uniformly to the marketing site, the company user panel, and the admin panel.
 | Blank page or 500 error immediately after upload | `APP_KEY` missing — run `php artisan key:generate`. Check `storage/logs/laravel.log` for the real error once `APP_DEBUG=true` temporarily (never leave it on in production). |
 | `/install` says a directory isn't writable | `chmod`/`chown` `storage/`, `bootstrap/cache/`, and the project root (for `.env`) to your web server user. |
 | `/install` redirects straight to the login page | The app is already installed (`storage/app/installed.lock` exists). Run `php artisan installer:enable` from the server if you genuinely need to reinstall — this is deliberate, not a bug (see [Installation](#2-installation)). |
-| Uploaded logos/attachments 404 | Storage symlink missing — `php artisan storage:link`. |
+| Uploaded logos/attachments 404 | Check `storage/app/public` and `storage/app/private` are writable by the web server user, and that `APP_URL` in `.env` matches the URL you're actually visiting (the `/files/{filepath}` route is built from it). Do **not** run `php artisan storage:link` to "fix" this — see [Storage](#10-storage). |
 | Scheduled tasks (ZATCA sync, reminders) never run | The single cron entry from [Cron](#14-cron-scheduled-tasks) isn't installed, or is pointing at the wrong PHP binary/path. Check the "System health" panel on the Admin Dashboard — it shows the last time the scheduler actually ran. |
 | "Sync now" / webhook deliveries never complete | No queue worker running — see [Queue](#15-queue). |
 | ZATCA CSR/CSID requests fail | Confirm the company's `zatca_environment` matches the credentials you're using (developer/simulation/production are separate ZATCA endpoints with separate onboarding), and that the company's National Address fields are complete — the onboarding page's readiness checklist tells you exactly what's missing before you submit. |

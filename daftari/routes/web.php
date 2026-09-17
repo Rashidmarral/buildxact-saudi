@@ -656,7 +656,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 });
 
 // Platform admin panel
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,admin_staff'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,admin_staff', 'require.admin.2fa'])->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
     // Deliberately outside password.confirm.admin — this is the screen
@@ -664,7 +664,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     Route::get('confirm-password', [PasswordConfirmationController::class, 'show'])->name('password.confirm');
     Route::post('confirm-password', [PasswordConfirmationController::class, 'confirm'])->middleware('throttle:admin-password-confirm')->name('password.confirm.store');
 
-    Route::middleware(['admin.permission:companies', 'password.confirm.admin'])->group(function () {
+    // Deliberately outside require.admin.2fa (registered below on this
+    // whole group) for the same reason as confirm-password above — this
+    // is the screen that satisfies it. Security audit finding D-6:
+    // platform admin accounts previously had no way to even set up 2FA
+    // (the company-side settings/two-factor routes 404 for them, since
+    // company.member blocks a company_id-null user from the /app group).
+    Route::get('settings/two-factor', [TwoFactorController::class, 'show'])->name('settings.two-factor');
+    Route::post('settings/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:two-factor-confirm')->name('settings.two-factor.confirm');
+    Route::post('settings/two-factor/disable', [TwoFactorController::class, 'disable'])->name('settings.two-factor.disable');
+    Route::post('settings/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('settings.two-factor.recovery-codes');
+
+    Route::middleware(['admin.permission:companies,manage', 'password.confirm.admin'])->group(function () {
         Route::post('companies/{company}/suspend', [CompanyController::class, 'suspend'])->name('companies.suspend');
         Route::post('companies/{company}/activate', [CompanyController::class, 'activate'])->name('companies.activate');
         Route::post('companies/{company}/change-plan', [CompanyController::class, 'changePlan'])->name('companies.change-plan');
@@ -706,7 +717,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::get('logs/{type}/{log}/xml', [AdminZatcaController::class, 'downloadXml'])->name('logs.xml');
         Route::get('companies/{company}/pending', [AdminZatcaController::class, 'pendingDocuments'])->name('companies.pending');
 
-        Route::middleware('password.confirm.admin')->group(function () {
+        Route::middleware(['admin.permission:zatca,manage', 'password.confirm.admin'])->group(function () {
             Route::post('logs/{type}/{log}/retry', [AdminZatcaController::class, 'retry'])->name('logs.retry');
             Route::post('companies/{company}/test-connection', [AdminZatcaController::class, 'testConnection'])->name('companies.test-connection');
             Route::post('companies/{company}/sync', [AdminZatcaController::class, 'syncPending'])->name('companies.sync');
@@ -720,50 +731,68 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     Route::middleware('admin.permission:tickets')->prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [AdminTicketController::class, 'index'])->name('index');
         Route::get('{ticket}', [AdminTicketController::class, 'show'])->name('show');
-        Route::post('{ticket}/reply', [AdminTicketController::class, 'reply'])->name('reply');
-        Route::post('{ticket}/note', [AdminTicketController::class, 'addNote'])->name('note');
-        Route::post('{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
-        Route::post('{ticket}/priority', [AdminTicketController::class, 'changePriority'])->name('priority');
-        Route::post('{ticket}/status', [AdminTicketController::class, 'changeStatus'])->name('status');
         Route::get('attachments/{attachment}', [AdminTicketController::class, 'downloadAttachment'])->name('attachments.download');
+
+        Route::middleware('admin.permission:tickets,manage')->group(function () {
+            Route::post('{ticket}/reply', [AdminTicketController::class, 'reply'])->name('reply');
+            Route::post('{ticket}/note', [AdminTicketController::class, 'addNote'])->name('note');
+            Route::post('{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
+            Route::post('{ticket}/priority', [AdminTicketController::class, 'changePriority'])->name('priority');
+            Route::post('{ticket}/status', [AdminTicketController::class, 'changeStatus'])->name('status');
+        });
     });
 
     Route::middleware('admin.permission:partners')->prefix('partners')->name('partners.')->group(function () {
         Route::get('/', [AdminPartnerController::class, 'index'])->name('index');
         Route::get('{partner}', [AdminPartnerController::class, 'show'])->name('show');
-        Route::post('{partner}/approve', [AdminPartnerController::class, 'approve'])->name('approve');
-        Route::post('{partner}/reject', [AdminPartnerController::class, 'reject'])->name('reject');
-        Route::post('{partner}/suspend', [AdminPartnerController::class, 'suspend'])->name('suspend');
-        Route::post('{partner}/reactivate', [AdminPartnerController::class, 'reactivate'])->name('reactivate');
-        Route::post('{partner}/commission', [AdminPartnerController::class, 'updateCommission'])->name('commission');
-        Route::post('referrals/{referral}', [AdminPartnerController::class, 'updateReferral'])->name('referrals.update');
-        Route::post('payouts/{payout}', [AdminPartnerController::class, 'updatePayout'])->name('payouts.update');
+
+        Route::middleware('admin.permission:partners,manage')->group(function () {
+            Route::post('{partner}/approve', [AdminPartnerController::class, 'approve'])->name('approve');
+            Route::post('{partner}/reject', [AdminPartnerController::class, 'reject'])->name('reject');
+            Route::post('{partner}/suspend', [AdminPartnerController::class, 'suspend'])->name('suspend');
+            Route::post('{partner}/reactivate', [AdminPartnerController::class, 'reactivate'])->name('reactivate');
+            Route::post('{partner}/commission', [AdminPartnerController::class, 'updateCommission'])->name('commission');
+            Route::post('referrals/{referral}', [AdminPartnerController::class, 'updateReferral'])->name('referrals.update');
+            Route::post('payouts/{payout}', [AdminPartnerController::class, 'updatePayout'])->name('payouts.update');
+        });
     });
 
     Route::middleware('admin.permission:leads')->prefix('leads')->name('leads.')->group(function () {
         Route::get('/', [AdminLeadController::class, 'index'])->name('index');
         Route::get('{lead}', [AdminLeadController::class, 'show'])->name('show');
-        Route::post('{lead}/note', [AdminLeadController::class, 'addNote'])->name('note');
-        Route::post('{lead}/status', [AdminLeadController::class, 'changeStatus'])->name('status');
-        Route::post('{lead}/assign', [AdminLeadController::class, 'assign'])->name('assign');
-        Route::post('{lead}/follow-up', [AdminLeadController::class, 'scheduleFollowUp'])->name('follow-up');
-        Route::post('{lead}/link-company', [AdminLeadController::class, 'linkCompany'])->name('link-company');
-        Route::post('{lead}/setup-package', [AdminLeadController::class, 'updateSetupPackageStatus'])->name('setup-package.update');
+
+        Route::middleware('admin.permission:leads,manage')->group(function () {
+            Route::post('{lead}/note', [AdminLeadController::class, 'addNote'])->name('note');
+            Route::post('{lead}/status', [AdminLeadController::class, 'changeStatus'])->name('status');
+            Route::post('{lead}/assign', [AdminLeadController::class, 'assign'])->name('assign');
+            Route::post('{lead}/follow-up', [AdminLeadController::class, 'scheduleFollowUp'])->name('follow-up');
+            Route::post('{lead}/link-company', [AdminLeadController::class, 'linkCompany'])->name('link-company');
+            Route::post('{lead}/setup-package', [AdminLeadController::class, 'updateSetupPackageStatus'])->name('setup-package.update');
+        });
     });
 
     Route::middleware('admin.permission:sales_center')->prefix('sales-center')->name('sales-center.')->group(function () {
         Route::get('/', [SalesCenterController::class, 'plan'])->name('plan');
-        Route::post('targets', [SalesCenterController::class, 'updateTargets'])->name('targets.update');
-        Route::post('restart', [SalesCenterController::class, 'restart'])->name('restart');
         Route::get('tools', [SalesCenterController::class, 'tools'])->name('tools');
+
+        Route::middleware('admin.permission:sales_center,manage')->group(function () {
+            Route::post('targets', [SalesCenterController::class, 'updateTargets'])->name('targets.update');
+            Route::post('restart', [SalesCenterController::class, 'restart'])->name('restart');
+        });
     });
 
     Route::middleware('admin.permission:plans')->group(function () {
-        Route::resource('plans', PlanController::class)->except(['show']);
+        Route::resource('plans', PlanController::class)->only(['index', 'create', 'edit']);
+    });
+    Route::middleware('admin.permission:plans,manage')->group(function () {
+        Route::resource('plans', PlanController::class)->only(['store', 'update', 'destroy']);
     });
 
     Route::middleware('admin.permission:coupons')->group(function () {
-        Route::resource('coupons', CouponController::class);
+        Route::resource('coupons', CouponController::class)->only(['index', 'create', 'show', 'edit']);
+    });
+    Route::middleware('admin.permission:coupons,manage')->group(function () {
+        Route::resource('coupons', CouponController::class)->only(['store', 'update', 'destroy']);
     });
 
     Route::middleware('admin.permission:payments')->group(function () {
@@ -776,7 +805,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     // money-record state and a subscription's active/active status — the
     // same re-auth step required for the comparable-blast-radius Company
     // actions above (suspend, change-plan, impersonate).
-    Route::middleware(['admin.permission:payments', 'password.confirm.admin'])->group(function () {
+    Route::middleware(['admin.permission:payments,manage', 'password.confirm.admin'])->group(function () {
         Route::post('payments/manual', [PaymentController::class, 'storeManual'])->name('payments.manual');
         Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
         Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])->name('payments.retry');

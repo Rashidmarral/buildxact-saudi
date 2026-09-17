@@ -14,7 +14,11 @@ class RunAssetDepreciation extends Command
 
     public function handle(AssetDepreciationService $service): int
     {
-        $companies = Company::withoutGlobalScopes()->get();
+        // Skip a suspended or subscription-lapsed company entirely
+        // (security audit finding D-0) — its users can't log in to review
+        // these, so nothing should keep posting real depreciation entries
+        // against its books while it's in that state.
+        $companies = Company::withoutGlobalScopes()->get()->filter(fn (Company $company) => $company->isOperational());
         $totalPosted = 0;
 
         foreach ($companies as $company) {

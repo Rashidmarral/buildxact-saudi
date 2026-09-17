@@ -17,7 +17,12 @@ class GenerateRecurringJournalEntries extends Command
             ->where('status', 'active')
             ->whereDate('next_run_date', '<=', now()->toDateString())
             ->with('lines', 'company')
-            ->get();
+            ->get()
+            // Skip a suspended or subscription-lapsed company entirely
+            // (security audit finding D-0) — see the matching comment in
+            // GenerateRecurringInvoices for why.
+            ->filter(fn (RecurringJournalEntry $recurringEntry) => $recurringEntry->company
+                && $recurringEntry->company->isOperational());
 
         $posted = 0;
 

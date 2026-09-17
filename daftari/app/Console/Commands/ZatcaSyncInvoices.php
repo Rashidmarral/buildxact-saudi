@@ -32,8 +32,15 @@ class ZatcaSyncInvoices extends Command
             // A company that downgraded off the Phase 2 feature stays
             // marked 'onboarded' (its ZATCA credentials are still valid),
             // but isZatcaOnboarded() now returns false for it — skip here
-            // rather than loop it into repeated "failed" log entries.
-            ->filter(fn (Company $company) => $company->isZatcaOnboarded());
+            // rather than loop it into repeated "failed" log entries. Also
+            // skip a suspended or subscription-lapsed company (security
+            // audit finding D-0) — this command only runs automatically,
+            // so it must not keep submitting real invoices on its behalf;
+            // isOperational() isn't folded into isZatcaOnboarded() itself
+            // because that method is shared with admin-initiated
+            // retry/sync actions, which a Super Admin must still be able
+            // to use for a suspended company.
+            ->filter(fn (Company $company) => $company->isOperational() && $company->isZatcaOnboarded());
 
         if ($companies->isEmpty()) {
             $this->info("No onboarded companies on the '{$frequency}' sync frequency.");

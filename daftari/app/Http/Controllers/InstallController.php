@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Throwable;
@@ -368,16 +369,23 @@ class InstallController extends Controller
         return __('Default currency set to :code.', ['code' => $code]);
     }
 
+    /**
+     * Deliberately does NOT run `storage:link` (security audit finding
+     * CRIT-01): every file this app serves is routed through
+     * FileServeController's /files/{filepath} route with its own auth +
+     * tenant check, never the storage:link symlink. Creating that symlink
+     * would let the web server hand out invoice/bill/PO/quotation
+     * attachments and company legal documents straight off disk, bypassing
+     * that check entirely. It just ensures the storage directories exist,
+     * and removes a dangerous symlink left over by an older installer.
+     */
     private function setUpStorage(): string
     {
-        try {
-            Artisan::call('storage:link');
-        } catch (Throwable $e) {
-            // Already linked is the only expected failure here — anything
-            // else surfaces normally via the outer try/catch in runInstall().
-            if (! str_contains($e->getMessage(), 'already exists') && ! str_contains($e->getMessage(), 'already linked')) {
-                throw $e;
-            }
+        Storage::disk('public')->makeDirectory('.');
+        Storage::disk('local')->makeDirectory('.');
+
+        if (is_link(public_path('storage'))) {
+            @unlink(public_path('storage'));
         }
 
         return __('Storage set up.');

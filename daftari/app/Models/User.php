@@ -137,9 +137,15 @@ class User extends Authenticatable implements MustVerifyEmailContract
     /**
      * Platform-level permission check for the admin panel. super_admin
      * always bypasses; admin_staff users need the key granted through one
-     * of their assigned AdminRoles. Never true for company users.
+     * of their assigned AdminRoles, at the requested $level. Never true
+     * for company users.
+     *
+     * $level 'view' (default) is satisfied by either a full grant or a
+     * view-only grant; $level 'manage' requires a full grant — see
+     * AdminRole::hasPermission()/hasManagePermission() for why (security
+     * audit finding CRIT-04).
      */
-    public function hasAdminPermission(string $key): bool
+    public function hasAdminPermission(string $key, string $level = 'view'): bool
     {
         if ($this->isSuperAdmin()) {
             return true;
@@ -149,6 +155,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
             return false;
         }
 
-        return $this->adminRoles->contains(fn (AdminRole $role) => $role->hasPermission($key));
+        return $this->adminRoles->contains(fn (AdminRole $role) => $level === 'manage'
+            ? $role->hasManagePermission($key)
+            : $role->hasPermission($key));
     }
 }

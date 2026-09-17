@@ -17,6 +17,7 @@ use App\Support\DemoMode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class BillingController extends Controller
 {
@@ -76,10 +77,22 @@ class BillingController extends Controller
 
     public function upgrade(Request $request, PaymentCheckoutService $checkout, PaymentSettlementService $settlement, CouponService $coupons)
     {
+        // 'provider' is validated against the same enabled-gateway list the
+        // form itself is built from (index(), above), plus bank_transfer —
+        // security audit finding CRIT-02: this used to accept any string
+        // (or none at all), and whenever it didn't resolve to a real,
+        // enabled PaymentGateway row the code fell through to a branch that
+        // marked the subscription active and the payment "paid" with no
+        // real payment gateway involved. That fallback is only legitimate
+        // for a genuinely zero-cost checkout (a $0 plan, or a coupon that
+        // discounts the price to $0) — enforced below, after the price is
+        // computed, not here.
+        $enabledProviders = PaymentGateway::whereNull('company_id')->where('is_enabled', true)->pluck('provider')->all();
+
         $data = $request->validate([
             'plan_id' => ['required', 'exists:plans,id'],
             'billing_cycle' => ['required', 'in:monthly,yearly'],
-            'provider' => ['nullable', 'string'],
+            'provider' => ['nullable', 'string', Rule::in($enabledProviders)],
             'coupon_code' => ['nullable', 'string', 'max:50'],
         ]);
 
@@ -210,6 +223,21 @@ class BillingController extends Controller
             AuditLog::record('subscription.checkout_started', $subscription, __('Started online payment for :plan plan via :provider', ['plan' => $plan->name, 'provider' => $gateway->provider]));
 
             return redirect()->away($transaction->checkout_url);
+        }
+
+        // Reaching here means no enabled PaymentGateway resolved for
+        // 'provider' (already validated against the enabled-gateway list
+        // above, so this is really "no provider was submitted at all").
+        // That's only a legitimate checkout when there's genuinely nothing
+        // to charge — a $0 plan, or a coupon that discounted the price to
+        // $0 — never for a real amount owed. Security audit finding
+        // CRIT-02: this branch used to run unconditionally, activating the
+        // subscription and marking the payment "paid" with no money having
+        // changed hands.
+        if ($amount > 0.0) {
+            return back()->withErrors([
+                'provider' => __('Select a payment method to complete this upgrade.'),
+            ]);
         }
 
         $payment = DB::transaction(function () use ($company, $plan, $data, $periodEnd, $amount, $originalAmount, $discountAmount, $coupon, $coupons) {

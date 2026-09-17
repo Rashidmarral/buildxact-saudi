@@ -4,6 +4,8 @@ use App\Exceptions\PdfRenderingException;
 use App\Exceptions\PeriodLockedException;
 use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureAdminPermission;
+use App\Http\Middleware\EnsureAdminTwoFactorEnabled;
+use App\Http\Middleware\EnsureApiCompanyActive;
 use App\Http\Middleware\EnsureCompanyActive;
 use App\Http\Middleware\EnsureImpersonationNotExpired;
 use App\Http\Middleware\EnsureModuleEnabled;
@@ -68,9 +70,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
             'company.active' => EnsureCompanyActive::class,
+            'api.company.active' => EnsureApiCompanyActive::class,
             'company.member' => EnsureUserBelongsToCompany::class,
             'permission' => EnsurePermission::class,
             'admin.permission' => EnsureAdminPermission::class,
+            'require.admin.2fa' => EnsureAdminTwoFactorEnabled::class,
             'feature' => EnsurePlanFeature::class,
             'module' => EnsureModuleEnabled::class,
             'registration.open' => EnsureRegistrationOpen::class,

@@ -201,9 +201,29 @@ class Company extends Model
     }
 
     /**
+     * Whether this company has ever had a Subscription row at all — used
+     * to tell "never subscribed" (a data/test setup gap, harmless to leave
+     * unblocked — see hasFeature()/hasReachedPlanLimit() below) apart from
+     * "had one and it lapsed to a terminal state" (cancelled/expired),
+     * which must never be treated the same as unlimited access.
+     */
+    protected function hasEverHadASubscription(): bool
+    {
+        return $this->subscriptions()->exists();
+    }
+
+    /**
      * Whether creating one more of $type would exceed the company's active
-     * plan limit. A company with no active subscription, or a plan with no
-     * limit set for $type (null = unlimited), is never blocked.
+     * plan limit. A plan with no limit set for $type (null = unlimited) is
+     * never blocked. A company that has never had a subscription at all is
+     * never blocked either (unchanged legacy behavior — real signups
+     * always get one atomically, so this only matters for
+     * seeded/test/admin-created companies). A company whose subscription
+     * exists but has lapsed to a terminal state (cancelled/expired) IS
+     * blocked from creating new records — security audit finding CRIT-03:
+     * this used to return false (never blocked) for that case too, meaning
+     * a company that stopped paying ended up with *more* access than one
+     * still being actively chased for payment.
      *
      * The six keys also registered in App\Support\LimitRegistry (Module 07)
      * delegate to UsageLimitService, so they automatically become
@@ -221,7 +241,7 @@ class Company extends Model
         $subscription = $this->activeSubscription();
 
         if (! $subscription) {
-            return false;
+            return $this->hasEverHadASubscription();
         }
 
         $plan = $subscription->plan;
@@ -237,16 +257,19 @@ class Company extends Model
 
     /**
      * Whether the company's active plan includes a given feature (see
-     * Plan::FEATURE_KEYS). A company with no active subscription is never
-     * blocked here, matching hasReachedPlanLimit()'s "never blocked
-     * without a subscription" behavior.
+     * Plan::FEATURE_KEYS). A company that has never had a subscription at
+     * all is never blocked here (unchanged legacy behavior, see
+     * hasReachedPlanLimit()'s docblock). A company whose subscription
+     * exists but has lapsed to a terminal state (cancelled/expired) loses
+     * every plan feature — security audit finding CRIT-03: previously it
+     * kept every feature unlocked, indefinitely, for free.
      */
     public function hasFeature(string $key): bool
     {
         $subscription = $this->activeSubscription();
 
         if (! $subscription) {
-            return true;
+            return ! $this->hasEverHadASubscription();
         }
 
         return $subscription->plan->hasFeature($key);
@@ -495,6 +518,48 @@ class Company extends Model
     public function isSuspended(): bool
     {
         return $this->status === 'suspended';
+    }
+
+    /**
+     * Single source of truth for "is this company currently allowed to
+     * use the product at all" — checked identically by web requests
+     * (EnsureCompanyActive), API requests (EnsureApiCompanyActive), and
+     * every background command that creates financial records
+     * (invoices:generate-recurring, expenses:generate-recurring,
+     * journals:generate-recurring, assets:run-depreciation,
+     * zatca:sync-invoices).
+     *
+     * False when: a Super Admin has manually suspended the company
+     * (status column, Module 03); the automatic non-payment dunning
+     * ladder has suspended its subscription
+     * (SubscriptionLifecycleService — reaching 'suspended' is the rung
+     * that actually cuts access, not 'past_due'/'grace_period', which
+     * are deliberately still-working grace stages); or its subscription
+     * has lapsed all the way to a terminal state (cancelled/expired).
+     * True for a company mid-grace-period, or one that has never had a
+     * subscription at all (unchanged legacy behavior — see
+     * hasFeature()'s docblock for why that case is left alone).
+     *
+     * Security audit finding D-0: before this method existed, none of
+     * the three enforcement points agreed on what "suspended" meant —
+     * the web blocked only the manual Company::status column, the API
+     * checked nothing at all, and background jobs kept creating real
+     * invoices/journal entries/ZATCA submissions for a company an admin
+     * had already suspended.
+     */
+    public function isOperational(): bool
+    {
+        if ($this->isSuspended()) {
+            return false;
+        }
+
+        $latestSubscription = $this->subscriptions()->latest('id')->first();
+
+        if (! $latestSubscription) {
+            return true;
+        }
+
+        return ! in_array($latestSubscription->status, ['suspended', 'cancelled', 'expired'], true);
     }
 
     /**

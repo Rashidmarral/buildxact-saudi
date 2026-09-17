@@ -89,17 +89,26 @@ class BulkActionsTest extends TestCase
         $this->assertSame('void', $posted->fresh()->status);
     }
 
-    public function test_quotation_bulk_destroy_skips_converted_quotations(): void
+    /**
+     * Security audit finding D-2: bulk-destroy only ever skipped
+     * 'converted' quotations, so an already-issued (or accepted/rejected)
+     * quotation could still be bulk-deleted even though the single-row
+     * destroy() action, once fixed, refuses that. Tightened to match:
+     * only a draft quotation can be deleted, singly or in bulk.
+     */
+    public function test_quotation_bulk_destroy_only_deletes_drafts(): void
     {
         $owner = $this->makeOwner();
         $client = Client::create(['company_id' => $owner->company_id, 'name' => 'Client A']);
+        $draft = Quotation::create(['company_id' => $owner->company_id, 'client_id' => $client->id, 'quotation_number' => 'QTN-0', 'type' => 'quotation', 'status' => 'draft', 'issue_date' => now(), 'currency' => 'SAR', 'subtotal' => 100, 'vat_total' => 15, 'total' => 115]);
         $issued = Quotation::create(['company_id' => $owner->company_id, 'client_id' => $client->id, 'quotation_number' => 'QTN-1', 'type' => 'quotation', 'status' => 'issued', 'issue_date' => now(), 'currency' => 'SAR', 'subtotal' => 100, 'vat_total' => 15, 'total' => 115]);
         $converted = Quotation::create(['company_id' => $owner->company_id, 'client_id' => $client->id, 'quotation_number' => 'QTN-2', 'type' => 'quotation', 'status' => 'converted', 'issue_date' => now(), 'currency' => 'SAR', 'subtotal' => 100, 'vat_total' => 15, 'total' => 115]);
 
-        $response = $this->actingAs($owner)->post(route('app.quotations.bulk-destroy'), ['ids' => [$issued->id, $converted->id]]);
+        $response = $this->actingAs($owner)->post(route('app.quotations.bulk-destroy'), ['ids' => [$draft->id, $issued->id, $converted->id]]);
 
         $response->assertSessionDoesntHaveErrors();
-        $this->assertDatabaseMissing('quotations', ['id' => $issued->id]);
+        $this->assertDatabaseMissing('quotations', ['id' => $draft->id]);
+        $this->assertDatabaseHas('quotations', ['id' => $issued->id]);
         $this->assertDatabaseHas('quotations', ['id' => $converted->id]);
     }
 

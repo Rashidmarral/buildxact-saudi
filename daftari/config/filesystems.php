@@ -86,10 +86,17 @@ return [
     | `storage:link` Artisan command is executed. The array keys should be
     | the locations of the links and the values should be their targets.
     |
+    | Deliberately empty: every file this app serves (public *and* private
+    | disk alike) already goes through App\Http\Controllers\FileServeController
+    | via the /files/{filepath} route — see the 'public' disk's 'url' comment
+    | above. A public/storage symlink would let the web server hand out
+    | invoice/bill/PO/quotation attachments and company legal documents
+    | (CR/VAT certificates) straight off disk with no auth and no tenant
+    | check, completely bypassing that controller. Security audit finding
+    | CRIT-01. Do not repopulate this array.
+    |
     */
 
-    'links' => [
-        public_path('storage') => storage_path('app/public'),
-    ],
+    'links' => [],
 
 ];

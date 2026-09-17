@@ -29,7 +29,15 @@ class SyncInvoiceToZatca implements ShouldQueue
     {
         $invoice = Invoice::find($this->invoiceId);
 
-        if (! $invoice || ! $invoice->company?->isZatcaOnboarded()) {
+        // Company::isOperational() is checked here (not folded into
+        // isZatcaOnboarded() itself) because that method is also used by
+        // admin-initiated retry/sync actions, which a Super Admin must
+        // still be able to use for a suspended company — e.g. to
+        // diagnose or fix its ZATCA state while reactivating it. This
+        // job only fires automatically, so it's the one that must not
+        // keep submitting real invoices on a suspended company's behalf
+        // (security audit finding D-0).
+        if (! $invoice || ! $invoice->company?->isOperational() || ! $invoice->company?->isZatcaOnboarded()) {
             return;
         }
 

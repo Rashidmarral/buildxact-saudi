@@ -10,6 +10,7 @@ use App\Models\PosRegister;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class PosRegisterController extends Controller
 {
@@ -53,9 +54,17 @@ class PosRegisterController extends Controller
 
     private function validated(Request $request): array
     {
+        $companyId = Auth::user()->company_id;
+
+        // Security audit finding D-8: these two used a bare, unscoped
+        // 'exists:table,id' — every other controller in the codebase
+        // scopes this kind of foreign key to the current company via
+        // Rule::exists(...)->where('company_id', ...). Without it, a
+        // sequential branch/warehouse ID belonging to another company
+        // would pass validation and get linked to this register.
         $data = $request->validate([
-            'branch_id' => ['nullable', 'exists:branches,id'],
-            'warehouse_id' => ['nullable', 'exists:warehouses,id'],
+            'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('company_id', $companyId)],
+            'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
             'name' => ['required', 'string', 'max:255'],
         ]);
 

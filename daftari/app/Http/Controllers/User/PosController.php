@@ -14,6 +14,7 @@ use App\Services\Pos\PosShiftService;
 use App\Services\ZatcaQrGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class PosController extends Controller
@@ -67,8 +68,10 @@ class PosController extends Controller
 
     public function openShift(Request $request, PosShiftService $shiftService)
     {
+        $companyId = Auth::user()->company_id;
+
         $data = $request->validate([
-            'register_id' => ['required', 'exists:pos_registers,id'],
+            'register_id' => ['required', Rule::exists('pos_registers', 'id')->where('company_id', $companyId)],
             'opening_cash' => ['required', 'numeric', 'min:0'],
         ]);
 
@@ -109,11 +112,23 @@ class PosController extends Controller
 
     public function checkout(Request $request, PosSaleService $saleService, LedgerPostingService $ledger)
     {
+        // Security audit finding D-8: these four all used a bare,
+        // unscoped 'exists:table,id'. register_id/item_id happen to be
+        // safe today because they're re-fetched through their scoped
+        // Eloquent models afterward (PosRegister::findOrFail() here,
+        // Item::findOrFail() in PosSaleService::checkout()) — but
+        // client_id was NOT re-fetched: it was written straight onto
+        // the new PosSale row, so a Company A cashier submitting a
+        // Company B client ID would have linked the sale to another
+        // tenant's client record. Scoping all four here closes that and
+        // matches the pattern used everywhere else in the codebase.
+        $companyId = Auth::user()->company_id;
+
         $data = $request->validate([
-            'register_id' => ['required', 'exists:pos_registers,id'],
-            'client_id' => ['nullable', 'exists:clients,id'],
+            'register_id' => ['required', Rule::exists('pos_registers', 'id')->where('company_id', $companyId)],
+            'client_id' => ['nullable', Rule::exists('clients', 'id')->where('company_id', $companyId)],
             'lines' => ['required', 'array', 'min:1'],
-            'lines.*.item_id' => ['required', 'exists:items,id'],
+            'lines.*.item_id' => ['required', Rule::exists('items', 'id')->where('company_id', $companyId)],
             'lines.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'lines.*.unit_price' => ['nullable', 'numeric', 'min:0'],
             'lines.*.discount_amount' => ['nullable', 'numeric', 'min:0'],

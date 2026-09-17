@@ -14,6 +14,7 @@ use App\Services\Accounting\LedgerPostingService;
 use App\Services\Payroll\EndOfServiceCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
@@ -142,8 +143,14 @@ class EmployeeController extends Controller
 
     private function validated(Request $request, ?Employee $employee = null): array
     {
+        // Security audit finding D-8: this used a bare, unscoped
+        // 'exists:branches,id' — every other controller in the codebase
+        // scopes this kind of foreign key to the current company via
+        // Rule::exists(...)->where('company_id', ...). Without it, a
+        // sequential branch ID belonging to another company would pass
+        // validation and get linked to this employee.
         $data = $request->validate([
-            'branch_id' => ['nullable', 'exists:branches,id'],
+            'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('company_id', Auth::user()->company_id)],
             'full_name' => ['required', 'string', 'max:255'],
             'full_name_ar' => ['nullable', 'string', 'max:255'],
             'national_id' => ['nullable', 'string', 'max:20'],

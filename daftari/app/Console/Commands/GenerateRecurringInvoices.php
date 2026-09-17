@@ -17,11 +17,17 @@ class GenerateRecurringInvoices extends Command
             ->where('status', 'active')
             ->whereDate('next_run_date', '<=', now()->toDateString())
             ->with('items', 'company')
+            ->get()
             // Skip companies that have downgraded off the recurring-invoices
             // feature — their schedule stays as-is and picks back up
-            // automatically if they upgrade again.
-            ->get()
-            ->filter(fn (RecurringInvoice $recurringInvoice) => $recurringInvoice->company?->hasFeature('recurring_invoices'));
+            // automatically if they upgrade again. Also skip a suspended or
+            // subscription-lapsed company entirely (security audit finding
+            // D-0): its users can't log in to review these, so nothing
+            // should keep creating real invoices/document numbers on its
+            // behalf while it's in that state.
+            ->filter(fn (RecurringInvoice $recurringInvoice) => $recurringInvoice->company
+                && $recurringInvoice->company->isOperational()
+                && $recurringInvoice->company->hasFeature('recurring_invoices'));
 
         foreach ($due as $recurringInvoice) {
             $recurringInvoice->generateInvoice();

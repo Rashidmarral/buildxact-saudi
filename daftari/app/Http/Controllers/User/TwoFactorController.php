@@ -15,12 +15,41 @@ use Illuminate\Support\Str;
 
 class TwoFactorController extends Controller
 {
+    /**
+     * Shared by both the company-side ('user.settings.two-factor') and
+     * platform-admin-side ('admin.settings.two-factor') routes/views —
+     * the underlying TOTP logic is identical, only the layout/route names
+     * around it differ. Admins reach this controller via EnsureRole
+     * (super_admin/admin_staff only), same as every other /admin route.
+     */
+    private function isAdmin(): bool
+    {
+        $user = Auth::user();
+
+        return $user->isSuperAdmin() || $user->isAdminStaff();
+    }
+
+    private function view(): string
+    {
+        return $this->isAdmin() ? 'admin.settings.two-factor' : 'user.settings.two-factor';
+    }
+
+    private function recoveryCodesView(): string
+    {
+        return $this->isAdmin() ? 'admin.settings.two-factor-recovery-codes' : 'user.settings.two-factor-recovery-codes';
+    }
+
+    private function twoFactorRoute(): string
+    {
+        return $this->isAdmin() ? 'admin.settings.two-factor' : 'app.settings.two-factor';
+    }
+
     public function show()
     {
         $user = Auth::user();
 
         if ($user->hasTwoFactorEnabled()) {
-            return view('user.settings.two-factor', ['user' => $user, 'enabled' => true]);
+            return view($this->view(), ['user' => $user, 'enabled' => true]);
         }
 
         // Reuse the pending secret across page loads (e.g. the user
@@ -39,7 +68,7 @@ class TwoFactorController extends Controller
             ->margin(4)
             ->build();
 
-        return view('user.settings.two-factor', [
+        return view($this->view(), [
             'user' => $user,
             'enabled' => false,
             'secret' => $user->two_factor_secret,
@@ -67,7 +96,7 @@ class TwoFactorController extends Controller
 
         AuditLog::record('user.two_factor_enabled', $user, __('Enabled two-factor authentication'));
 
-        return view('user.settings.two-factor-recovery-codes', ['codes' => $recoveryCodes]);
+        return view($this->recoveryCodesView(), ['codes' => $recoveryCodes]);
     }
 
     public function disable(Request $request)
@@ -87,7 +116,7 @@ class TwoFactorController extends Controller
 
         AuditLog::record('user.two_factor_disabled', $user, __('Disabled two-factor authentication'));
 
-        return redirect()->route('app.settings.two-factor')->with('status', __('Two-factor authentication turned off.'));
+        return redirect()->route($this->twoFactorRoute())->with('status', __('Two-factor authentication turned off.'));
     }
 
     public function regenerateRecoveryCodes(Request $request)
@@ -106,7 +135,7 @@ class TwoFactorController extends Controller
 
         AuditLog::record('user.two_factor_recovery_codes_regenerated', $user, __('Regenerated two-factor recovery codes'));
 
-        return view('user.settings.two-factor-recovery-codes', ['codes' => $codes]);
+        return view($this->recoveryCodesView(), ['codes' => $codes]);
     }
 
     private function generateRecoveryCodes(): array

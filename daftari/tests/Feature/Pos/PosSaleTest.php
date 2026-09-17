@@ -279,11 +279,25 @@ class PosSaleTest extends TestCase
 
         $this->actingAs($ownerB)->get(route('app.pos.sales.show', $saleA))->assertNotFound();
         $this->actingAs($ownerB)->get(route('app.pos.shifts.show', $shiftA))->assertNotFound();
+
+        // Security audit finding D-8: register_id/client_id/item_id are
+        // now validated with Rule::exists(...)->where('company_id', ...)
+        // instead of a bare 'exists:table,id', so a cross-company ID is
+        // rejected as a 422 validation error before the controller body
+        // even runs — a cleaner, more specific outcome than the previous
+        // 404 (which only happened to come from PosRegister::findOrFail()
+        // hitting the tenant global scope after the weaker validation
+        // already passed).
         $this->actingAs($ownerB)->postJson(route('app.pos.checkout'), [
             'register_id' => $registerA->id,
             'lines' => [['item_id' => $itemA->id, 'quantity' => 1, 'unit_price' => 5]],
             'payments' => [['method' => 'cash', 'amount' => 5.75]],
-        ])->assertNotFound();
+        ])->assertStatus(422)->assertJsonValidationErrors(['register_id', 'lines.0.item_id']);
+
+        // withoutGlobalScopes() because we're currently actingAs($ownerB)
+        // — a plain PosSale::count() here would only see company B's own
+        // (empty) sales, not company A's earlier one.
+        $this->assertSame(1, PosSale::withoutGlobalScopes()->count(), 'The cross-company checkout attempt must not have created a sale.');
     }
 
     public function test_a_completed_sale_receipt_renders_a_zatca_qr_code(): void

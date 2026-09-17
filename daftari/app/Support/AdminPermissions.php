@@ -43,7 +43,14 @@ class AdminPermissions
         return [
             'support' => ['companies', 'zatca', 'tickets', 'activity'],
             'billing' => ['payments', 'plans', 'coupons', 'reports'],
-            'read_only' => self::keys(),
+            // Security audit finding CRIT-04: this used to be self::keys()
+            // (a bare, full grant for every key), which — since
+            // EnsureAdminPermission didn't distinguish read from write —
+            // let a "Read-only auditor" account suspend companies, refund
+            // payments, and change plans. The ":view" suffix (see
+            // AdminRole::hasPermission()/hasManagePermission()) grants only
+            // read access to every section, never a mutating action.
+            'read_only' => array_map(fn (string $key) => "{$key}:view", self::keys()),
         ];
     }
 

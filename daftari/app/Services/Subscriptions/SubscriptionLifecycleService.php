@@ -34,12 +34,16 @@ use Illuminate\Support\Facades\Mail;
  * from every step of this ladder: it is handled exclusively by the
  * pre-existing subscriptions:expire-cancelled command, unchanged.
  *
- * Scope note: reaching 'past_due' / 'grace_period' / 'suspended' does NOT
- * by itself block a company's users from logging in — that remains
- * Company::status's job (Suspend/Activate, Module 03), unchanged. This
- * class only tracks and audits billing lifecycle state; wiring it into an
- * access-blocking middleware would be a separate, deliberate decision with
- * its own blast radius on live tenants.
+ * Scope note: reaching 'past_due' or 'grace_period' does NOT by itself
+ * block a company's users — those are deliberately still-working grace
+ * stages, matching this ladder's whole point of not disrupting business
+ * operations while payment is being sorted out. Reaching 'suspended'
+ * (security audit finding D-0: this used to be true of every rung, not
+ * just this one — the deliberate decision this docblock used to defer is
+ * now made) DOES cut access, exactly like a manual Company::status
+ * suspension — see Company::isOperational(), the single method web
+ * (EnsureCompanyActive), API (EnsureApiCompanyActive), and every
+ * background job that creates financial records all check.
  */
 class SubscriptionLifecycleService
 {

@@ -16,7 +16,13 @@ class GenerateRecurringExpenses extends Command
         $due = RecurringExpense::withoutGlobalScopes()
             ->where('status', 'active')
             ->whereDate('next_run_date', '<=', now()->toDateString())
-            ->get();
+            ->with('company')
+            ->get()
+            // Skip a suspended or subscription-lapsed company entirely
+            // (security audit finding D-0) — see the matching comment in
+            // GenerateRecurringInvoices for why.
+            ->filter(fn (RecurringExpense $recurringExpense) => $recurringExpense->company
+                && $recurringExpense->company->isOperational());
 
         foreach ($due as $recurringExpense) {
             $recurringExpense->generateExpense();

@@ -29,7 +29,10 @@ class SyncCreditNoteToZatca implements ShouldQueue
     {
         $creditNote = CreditNote::find($this->creditNoteId);
 
-        if (! $creditNote || ! $creditNote->company?->isZatcaOnboarded()) {
+        // See the matching comment in SyncInvoiceToZatca for why
+        // isOperational() is checked here rather than folded into
+        // isZatcaOnboarded() itself (security audit finding D-0).
+        if (! $creditNote || ! $creditNote->company?->isOperational() || ! $creditNote->company?->isZatcaOnboarded()) {
             return;
         }
 

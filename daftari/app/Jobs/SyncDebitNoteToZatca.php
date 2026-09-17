@@ -29,7 +29,10 @@ class SyncDebitNoteToZatca implements ShouldQueue
     {
         $debitNote = DebitNote::find($this->debitNoteId);
 
-        if (! $debitNote || ! $debitNote->company?->isZatcaOnboarded()) {
+        // See the matching comment in SyncInvoiceToZatca for why
+        // isOperational() is checked here rather than folded into
+        // isZatcaOnboarded() itself (security audit finding D-0).
+        if (! $debitNote || ! $debitNote->company?->isOperational() || ! $debitNote->company?->isZatcaOnboarded()) {
             return;
         }
 

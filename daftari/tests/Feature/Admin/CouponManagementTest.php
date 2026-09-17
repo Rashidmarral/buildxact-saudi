@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Coupon;
 use App\Models\CouponRedemption;
 use App\Models\Payment;
+use App\Models\PaymentGateway;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
@@ -54,6 +55,20 @@ class CouponManagementTest extends TestCase
     private function withConfirmedPassword($user)
     {
         return $this->actingAs($user)->withSession(['auth.password_confirmed_at' => now()->timestamp]);
+    }
+
+    /**
+     * Security audit finding CRIT-02: BillingController::upgrade() now
+     * requires a real, enabled payment provider for any non-zero checkout
+     * — it no longer silently marks a paid-plan subscription "paid" with
+     * no gateway involved. Bank transfer is the simplest real gateway to
+     * exercise here since it needs no HTTP faking; these coupon tests only
+     * care about the discount/redemption math, which is identical
+     * regardless of which gateway carries the checkout.
+     */
+    private function enableBankTransfer(): void
+    {
+        PaymentGateway::create(['company_id' => null, 'provider' => PaymentGateway::BANK_TRANSFER, 'mode' => 'test', 'is_enabled' => true]);
     }
 
     // ---------------------------------------------------------------
@@ -231,28 +246,30 @@ class CouponManagementTest extends TestCase
 
     public function test_checkout_without_a_coupon_code_behaves_exactly_as_before(): void
     {
+        $this->enableBankTransfer();
         $plan = $this->makePlan(['price_monthly' => 100]);
         $company = $this->makeCompany();
         $owner = User::factory()->create(['company_id' => $company->id, 'role' => 'owner']);
 
-        $this->actingAs($owner)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly'])
-            ->assertRedirect(route('app.billing.index'));
+        $this->actingAs($owner)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly', 'provider' => PaymentGateway::BANK_TRANSFER])
+            ->assertRedirect(route('app.billing.bank-transfer', Payment::where('company_id', $company->id)->firstOrFail()->id));
 
-        $this->assertDatabaseHas('payments', ['company_id' => $company->id, 'amount' => 100, 'status' => 'paid']);
+        $this->assertDatabaseHas('payments', ['company_id' => $company->id, 'amount' => 100, 'status' => 'pending']);
         $this->assertSame(0, CouponRedemption::count());
     }
 
     public function test_checkout_with_a_valid_coupon_applies_the_discount_and_records_a_redemption(): void
     {
+        $this->enableBankTransfer();
         $plan = $this->makePlan(['price_monthly' => 100]);
         $coupon = $this->makeCoupon(['discount_type' => 'percentage', 'percentage' => 20]);
         $company = $this->makeCompany();
         $owner = User::factory()->create(['company_id' => $company->id, 'role' => 'owner']);
 
-        $this->actingAs($owner)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly', 'coupon_code' => 'save20'])
-            ->assertRedirect(route('app.billing.index'));
+        $this->actingAs($owner)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly', 'coupon_code' => 'save20', 'provider' => PaymentGateway::BANK_TRANSFER])
+            ->assertRedirect(route('app.billing.bank-transfer', Payment::where('company_id', $company->id)->firstOrFail()->id));
 
-        $this->assertDatabaseHas('payments', ['company_id' => $company->id, 'amount' => 80, 'status' => 'paid']);
+        $this->assertDatabaseHas('payments', ['company_id' => $company->id, 'amount' => 80, 'status' => 'pending']);
         $redemption = CouponRedemption::first();
         $this->assertNotNull($redemption);
         $this->assertEquals(100, $redemption->original_amount);
@@ -291,17 +308,18 @@ class CouponManagementTest extends TestCase
 
     public function test_checkout_enforces_max_uses_across_repeated_redemptions(): void
     {
+        $this->enableBankTransfer();
         $plan = $this->makePlan(['price_monthly' => 100]);
         $this->makeCoupon(['code' => 'ONECODE', 'max_uses' => 1]);
 
         $companyA = $this->makeCompany();
         $ownerA = User::factory()->create(['company_id' => $companyA->id, 'role' => 'owner']);
-        $this->actingAs($ownerA)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly', 'coupon_code' => 'ONECODE'])
+        $this->actingAs($ownerA)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly', 'coupon_code' => 'ONECODE', 'provider' => PaymentGateway::BANK_TRANSFER])
             ->assertRedirect();
 
         $companyB = $this->makeCompany();
         $ownerB = User::factory()->create(['company_id' => $companyB->id, 'role' => 'owner']);
-        $response = $this->actingAs($ownerB)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly', 'coupon_code' => 'ONECODE']);
+        $response = $this->actingAs($ownerB)->post(route('app.billing.upgrade'), ['plan_id' => $plan->id, 'billing_cycle' => 'monthly', 'coupon_code' => 'ONECODE', 'provider' => PaymentGateway::BANK_TRANSFER]);
 
         $response->assertSessionHasErrors('coupon_code');
         $this->assertSame(1, CouponRedemption::count());

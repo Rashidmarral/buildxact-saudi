@@ -191,6 +191,16 @@ class SettingsController extends Controller
 
         $user->update(['password' => Hash::make($request->string('password'))]);
 
+        // Security audit finding D-7: a stolen session cookie used to
+        // survive a password change indefinitely — the only way to kill
+        // other sessions was the separate, manual "log out other
+        // sessions" action below, which the legitimate owner would have
+        // no reason to also click. Changing the password is exactly the
+        // moment every *other* session should be forced to re-authenticate;
+        // the one making this request stays alive (it just proved it
+        // still knows the password).
+        $this->logoutOtherSessionsExceptCurrent($user->id);
+
         return back()->with('status', __('Password updated.'));
     }
 
@@ -211,14 +221,19 @@ class SettingsController extends Controller
             return back()->withErrors(['sessions_current_password' => __('The current password is incorrect.')]);
         }
 
+        $this->logoutOtherSessionsExceptCurrent($user->id);
+
+        return back()->with('status', __('Logged out of all other sessions.'));
+    }
+
+    private function logoutOtherSessionsExceptCurrent(int $userId): void
+    {
         if (config('session.driver') === 'database') {
             DB::table('sessions')
-                ->where('user_id', $user->id)
+                ->where('user_id', $userId)
                 ->where('id', '!=', session()->getId())
                 ->delete();
         }
-
-        return back()->with('status', __('Logged out of all other sessions.'));
     }
 
     public function destroySession(Request $request, string $sessionId)

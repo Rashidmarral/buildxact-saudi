@@ -316,6 +316,19 @@ class AuthController extends Controller
             function ($user, $password) {
                 $user->forceFill(['password' => Hash::make($password)])->setRememberToken(Str::random(60));
                 $user->save();
+
+                // Security audit finding D-7: a stolen session cookie
+                // used to survive a password reset indefinitely. Unlike
+                // SettingsController::updatePassword() (an already
+                // logged-in user changing their own password, where the
+                // requesting session stays alive), nobody is
+                // authenticated during this flow — the reset redirects
+                // to /login, it doesn't establish a session — so every
+                // existing session for this account is invalidated,
+                // with no exception to preserve.
+                if (config('session.driver') === 'database') {
+                    DB::table('sessions')->where('user_id', $user->id)->delete();
+                }
             }
         );
 

@@ -15,9 +15,14 @@ use App\Support\LimitRegistry;
  * this company always wins (an override row with is_unlimited=true means
  * "no cap", one with a numeric value means "use this number instead of the
  * plan's"); otherwise the company's active plan's column value is used
- * (null = unlimited). A company with no active subscription is never
- * blocked, matching the pre-existing Company::hasReachedPlanLimit()
- * behavior it replaces.
+ * (null = unlimited). A company that has never had a subscription at all
+ * is never blocked (unchanged legacy behavior — real signups always get
+ * one atomically, so this only matters for seeded/test/admin-created
+ * companies). A company whose subscription exists but has lapsed to a
+ * terminal state (cancelled/expired) is fully blocked (cap = 0) —
+ * security audit finding CRIT-03: this used to return null (unlimited)
+ * for that case too, meaning a company that stopped paying ended up with
+ * *more* access than one still being actively chased for payment.
  */
 class UsageLimitService
 {
@@ -49,7 +54,7 @@ class UsageLimitService
         $subscription = $company->activeSubscription();
 
         if (! $subscription) {
-            return null;
+            return $company->subscriptions()->exists() ? 0 : null;
         }
 
         $entry = LimitRegistry::catalog()[$key] ?? null;

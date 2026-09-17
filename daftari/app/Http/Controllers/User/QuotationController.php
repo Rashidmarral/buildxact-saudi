@@ -199,6 +199,17 @@ class QuotationController extends Controller
 
     public function edit(Quotation $quotation)
     {
+        // Security audit finding D-2: unlike every other document type
+        // (Invoice/Bill/CreditNote/DebitNote/PurchaseOrder all block
+        // edits once sent/posted), this had no status check at all — a
+        // quotation could be edited even after a client digitally
+        // accepted it (Quotation carries accepted_at/accepted_signature/
+        // accepted_ip) or after it was converted to a real invoice.
+        if ($quotation->status !== 'draft') {
+            return redirect()->route('app.quotations.show', $quotation)
+                ->withErrors(['quotation' => __('Only draft quotations can be edited — this one has already been issued to the client. Create a new quotation instead.')]);
+        }
+
         $quotation->load('items');
         $clients = Client::orderBy('name')->get();
         $items = Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get();
@@ -211,6 +222,13 @@ class QuotationController extends Controller
 
     public function update(Request $request, Quotation $quotation)
     {
+        // See edit() — must also be enforced here, not just when loading
+        // the form, since this action can be reached directly.
+        if ($quotation->status !== 'draft') {
+            return redirect()->route('app.quotations.show', $quotation)
+                ->withErrors(['quotation' => __('Only draft quotations can be edited — this one has already been issued to the client. Create a new quotation instead.')]);
+        }
+
         $data = $this->validated($request);
 
         DB::transaction(function () use ($quotation, $data) {
@@ -263,6 +281,10 @@ class QuotationController extends Controller
 
     public function destroy(Quotation $quotation)
     {
+        if ($quotation->status !== 'draft') {
+            return back()->withErrors(['quotation' => __('Only draft quotations can be deleted — this one has already been issued to the client.')]);
+        }
+
         $quotation->delete();
 
         return redirect()->route('app.quotations.index')->with('status', __('Quotation deleted.'));
@@ -282,10 +304,12 @@ class QuotationController extends Controller
     }
 
     /**
-     * Unlike the single-row destroy() above (which deletes unconditionally,
-     * even a converted quotation), bulk delete adds the one guard that was
-     * missing: a converted quotation already has a real invoice generated
-     * from it and stays as the sales record for that conversion.
+     * Mirrors the single-row destroy() above (security audit finding
+     * D-2): only a draft quotation can be bulk-deleted. Previously this
+     * only skipped 'converted' quotations, which meant a client-accepted
+     * or already-issued/rejected quotation could still be bulk-deleted
+     * even though the single-row action (once fixed) refuses it —
+     * tightened here for consistency, not just converted ones.
      */
     public function bulkDestroy(Request $request)
     {
@@ -295,7 +319,7 @@ class QuotationController extends Controller
         $deleted = 0;
 
         foreach ($quotations as $quotation) {
-            if ($quotation->status === 'converted') {
+            if ($quotation->status !== 'draft') {
                 continue;
             }
 
@@ -306,7 +330,7 @@ class QuotationController extends Controller
         $skipped = $quotations->count() - $deleted;
 
         return back()->with('status', $skipped > 0
-            ? __(':deleted deleted, :skipped skipped — converted quotations cannot be bulk deleted.', ['deleted' => $deleted, 'skipped' => $skipped])
+            ? __(':deleted deleted, :skipped skipped — only draft quotations can be bulk deleted.', ['deleted' => $deleted, 'skipped' => $skipped])
             : __(':deleted quotation(s) deleted.', ['deleted' => $deleted]));
     }
 

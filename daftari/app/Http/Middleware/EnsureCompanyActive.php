@@ -13,7 +13,11 @@ class EnsureCompanyActive
     {
         $user = $request->user();
 
-        if ($user && $user->company && $user->company->isSuspended()) {
+        // Company::isOperational() also covers the automatic dunning
+        // ladder reaching 'suspended' and a subscription lapsing to a
+        // terminal state — previously this only checked manual
+        // (Company::status) suspension (security audit finding D-0).
+        if ($user && $user->company && ! $user->company->isOperational()) {
             Auth::logout();
 
             return redirect()->route('login')->withErrors([

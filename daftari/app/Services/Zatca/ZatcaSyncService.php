@@ -13,6 +13,7 @@ use App\Models\ZatcaInvoiceLog;
 use App\Notifications\GenericNotification;
 use App\Services\ZatcaQrGenerator;
 use App\Support\DemoMode;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -43,6 +44,13 @@ class ZatcaSyncService
      * ever-incrementing sequence across every document (invoice or credit
      * note) ever submitted to ZATCA, distinct from the invoice's own
      * business-facing number and from the PIH hash chain.
+     *
+     * Must only ever be called from inside lockedSubmission()'s
+     * transaction (every submit*() method below does this) — an unlocked
+     * COUNT(*) here would let two concurrent submissions for the same
+     * company compute the same ICV, or read the same previous-invoice-hash
+     * (PIH) and build against a chain ZATCA no longer recognizes as
+     * current once the first one is accepted. Security audit finding D-1.
      */
     public function nextIcv(Company $company): int
     {
@@ -50,6 +58,32 @@ class ZatcaSyncService
             + ZatcaCreditNoteLog::where('company_id', $company->id)->count()
             + ZatcaDebitNoteLog::where('company_id', $company->id)->count()
             + 1;
+    }
+
+    /**
+     * Row-locks the company for the duration of one full submission (read
+     * PIH/ICV through the outbound ZATCA call and the resulting hash
+     * write-back) so concurrent submissions for the same company —
+     * another queued instant-sync job, the batched zatca:sync-invoices
+     * command, and an admin-initiated retry can all call submit*()
+     * independently — serialize instead of racing. This is the single
+     * choke point every one of those callers goes through, so locking
+     * here protects all of them uniformly. The lock is legitimately held
+     * across the HTTP call to ZATCA, not just the DB read/write: the
+     * whole point of the hash chain is that submission N+1 cannot be
+     * built until N's outcome (accepted or not) is known, so nothing else
+     * touching this company's chain may proceed until this submission is
+     * fully resolved. Mirrors Company::nextSequenceNumber()'s
+     * lockForUpdate() pattern for the identical class of race in document
+     * numbering. Security audit finding D-1.
+     */
+    private function lockedSubmission(int $companyId, \Closure $callback)
+    {
+        return DB::transaction(function () use ($companyId, $callback) {
+            $company = Company::where('id', $companyId)->lockForUpdate()->first();
+
+            return $callback($company);
+        });
     }
 
     /**
@@ -132,295 +166,298 @@ class ZatcaSyncService
 
     public function submit(Invoice $invoice): ZatcaInvoiceLog
     {
-        $company = $invoice->company;
-        $environment = $company->zatca_environment;
-        $isB2b = $this->isB2b($invoice);
+        return $this->lockedSubmission($invoice->company_id, function (Company $company) use ($invoice) {
+            $environment = $company->zatca_environment;
+            $isB2b = $this->isB2b($invoice);
 
-        $csid = $company->zatcaCsidFor();
-        $secret = $company->zatcaSecretFor();
+            $csid = $company->zatcaCsidFor();
+            $secret = $company->zatcaSecretFor();
 
-        $uuid = $this->xml->newUuid();
-        $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-        $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
-        $invoiceHash = $this->signer->contentHash($unsignedXml);
+            $uuid = $this->xml->newUuid();
+            $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
+            $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $invoiceHash = $this->signer->contentHash($unsignedXml);
 
-        $xmlString = $unsignedXml;
-        $qrPng = null;
+            $xmlString = $unsignedXml;
+            $qrPng = null;
 
-        if ($csid && $secret && $company->isZatcaOnboarded()) {
-            [$xmlString, $qrPng] = $this->buildSignedPayload(
-                $company, $unsignedXml, $invoiceHash, $csid,
-                $invoice->issue_date, (float) $invoice->total, (float) $invoice->vat_total,
-            );
-        }
+            if ($csid && $secret && $company->isZatcaOnboarded()) {
+                [$xmlString, $qrPng] = $this->buildSignedPayload(
+                    $company, $unsignedXml, $invoiceHash, $csid,
+                    $invoice->issue_date, (float) $invoice->total, (float) $invoice->vat_total,
+                );
+            }
 
-        $log = ZatcaInvoiceLog::create([
-            'company_id' => $company->id,
-            'invoice_id' => $invoice->id,
-            'environment' => $environment,
-            'invoice_type' => $isB2b ? 'b2b' : 'b2c',
-            'direction' => $isB2b ? 'clearance' : 'reporting',
-            'status' => 'queued',
-            'request_uuid' => $uuid,
-            'invoice_hash' => $invoiceHash,
-            'previous_invoice_hash' => $previousHash,
-            'xml_payload' => $xmlString,
-            'submitted_at' => now(),
-        ]);
-
-        if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
+            $log = ZatcaInvoiceLog::create([
+                'company_id' => $company->id,
+                'invoice_id' => $invoice->id,
+                'environment' => $environment,
+                'invoice_type' => $isB2b ? 'b2b' : 'b2c',
+                'direction' => $isB2b ? 'clearance' : 'reporting',
+                'status' => 'queued',
+                'request_uuid' => $uuid,
+                'invoice_hash' => $invoiceHash,
+                'previous_invoice_hash' => $previousHash,
+                'xml_payload' => $xmlString,
+                'submitted_at' => now(),
             ]);
 
-            return $log;
-        }
-
-        // Never make the real outbound call for a demo company, even one
-        // that's (hypothetically) fully onboarded — see App\Support\DemoMode.
-        // Checked here rather than only in the controller so the scheduled
-        // sync command (ZatcaSyncInvoices) is covered too, not just the
-        // interactive "Sync now" button.
-        if ($company->isDemo()) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => DemoMode::zatcaSubmissions(),
-            ]);
-
-            return $log;
-        }
-
-        if ($qrPng) {
-            $invoice->update(['qr_code' => $qrPng]);
-        }
-
-        $xmlBase64 = base64_encode($xmlString);
-
-        try {
-            $response = $isB2b
-                ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
-                : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
-
-            if ($response->successful()) {
-                $body = $response->json();
-                $log->update([
-                    'status' => $isB2b ? 'cleared' : 'reported',
-                    'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
-                    'response_payload' => $response->body(),
-                    'cleared_at' => now(),
-                ]);
-                $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
-            } else {
-                $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
+            if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
                 $log->update([
                     'status' => 'failed',
-                    'response_payload' => $response->body(),
-                    'error_message' => $errorMessage,
+                    'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
                 ]);
-                $this->notifyZatcaFailure($company, __('Invoice'), $invoice->invoice_number, $errorMessage);
-            }
-        } catch (\Throwable $e) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => Str::limit($e->getMessage(), 1000),
-            ]);
-            $this->notifyZatcaFailure($company, __('Invoice'), $invoice->invoice_number, $e->getMessage());
-        }
 
-        return $log;
+                return $log;
+            }
+
+            // Never make the real outbound call for a demo company, even one
+            // that's (hypothetically) fully onboarded — see App\Support\DemoMode.
+            // Checked here rather than only in the controller so the scheduled
+            // sync command (ZatcaSyncInvoices) is covered too, not just the
+            // interactive "Sync now" button.
+            if ($company->isDemo()) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => DemoMode::zatcaSubmissions(),
+                ]);
+
+                return $log;
+            }
+
+            if ($qrPng) {
+                $invoice->update(['qr_code' => $qrPng]);
+            }
+
+            $xmlBase64 = base64_encode($xmlString);
+
+            try {
+                $response = $isB2b
+                    ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
+                    : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
+
+                if ($response->successful()) {
+                    $body = $response->json();
+                    $log->update([
+                        'status' => $isB2b ? 'cleared' : 'reported',
+                        'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
+                        'response_payload' => $response->body(),
+                        'cleared_at' => now(),
+                    ]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                } else {
+                    $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
+                    $log->update([
+                        'status' => 'failed',
+                        'response_payload' => $response->body(),
+                        'error_message' => $errorMessage,
+                    ]);
+                    $this->notifyZatcaFailure($company, __('Invoice'), $invoice->invoice_number, $errorMessage);
+                }
+            } catch (\Throwable $e) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => Str::limit($e->getMessage(), 1000),
+                ]);
+                $this->notifyZatcaFailure($company, __('Invoice'), $invoice->invoice_number, $e->getMessage());
+            }
+
+            return $log;
+        });
     }
 
     public function submitCreditNote(CreditNote $creditNote): ZatcaCreditNoteLog
     {
-        $company = $creditNote->company;
-        $environment = $company->zatca_environment;
-        $isB2b = $this->isB2bCreditNote($creditNote);
+        return $this->lockedSubmission($creditNote->company_id, function (Company $company) use ($creditNote) {
+            $environment = $company->zatca_environment;
+            $isB2b = $this->isB2bCreditNote($creditNote);
 
-        $csid = $company->zatcaCsidFor();
-        $secret = $company->zatcaSecretFor();
+            $csid = $company->zatcaCsidFor();
+            $secret = $company->zatcaSecretFor();
 
-        $uuid = $this->xml->newUuid();
-        $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-        $unsignedXml = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
-        $invoiceHash = $this->signer->contentHash($unsignedXml);
+            $uuid = $this->xml->newUuid();
+            $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
+            $unsignedXml = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $invoiceHash = $this->signer->contentHash($unsignedXml);
 
-        $xmlString = $unsignedXml;
-        $qrPng = null;
+            $xmlString = $unsignedXml;
+            $qrPng = null;
 
-        if ($csid && $secret && $company->isZatcaOnboarded()) {
-            [$xmlString, $qrPng] = $this->buildSignedPayload(
-                $company, $unsignedXml, $invoiceHash, $csid,
-                $creditNote->issue_date, (float) $creditNote->total, (float) $creditNote->vat_total,
-            );
-        }
+            if ($csid && $secret && $company->isZatcaOnboarded()) {
+                [$xmlString, $qrPng] = $this->buildSignedPayload(
+                    $company, $unsignedXml, $invoiceHash, $csid,
+                    $creditNote->issue_date, (float) $creditNote->total, (float) $creditNote->vat_total,
+                );
+            }
 
-        $log = ZatcaCreditNoteLog::create([
-            'company_id' => $company->id,
-            'credit_note_id' => $creditNote->id,
-            'environment' => $environment,
-            'invoice_type' => $isB2b ? 'b2b' : 'b2c',
-            'direction' => $isB2b ? 'clearance' : 'reporting',
-            'status' => 'queued',
-            'request_uuid' => $uuid,
-            'invoice_hash' => $invoiceHash,
-            'previous_invoice_hash' => $previousHash,
-            'xml_payload' => $xmlString,
-            'submitted_at' => now(),
-        ]);
-
-        if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
+            $log = ZatcaCreditNoteLog::create([
+                'company_id' => $company->id,
+                'credit_note_id' => $creditNote->id,
+                'environment' => $environment,
+                'invoice_type' => $isB2b ? 'b2b' : 'b2c',
+                'direction' => $isB2b ? 'clearance' : 'reporting',
+                'status' => 'queued',
+                'request_uuid' => $uuid,
+                'invoice_hash' => $invoiceHash,
+                'previous_invoice_hash' => $previousHash,
+                'xml_payload' => $xmlString,
+                'submitted_at' => now(),
             ]);
 
-            return $log;
-        }
-
-        if ($company->isDemo()) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => DemoMode::zatcaSubmissions(),
-            ]);
-
-            return $log;
-        }
-
-        if ($qrPng) {
-            $creditNote->update(['qr_code' => $qrPng]);
-        }
-
-        $xmlBase64 = base64_encode($xmlString);
-
-        try {
-            $response = $isB2b
-                ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
-                : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
-
-            if ($response->successful()) {
-                $body = $response->json();
-                $log->update([
-                    'status' => $isB2b ? 'cleared' : 'reported',
-                    'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
-                    'response_payload' => $response->body(),
-                    'cleared_at' => now(),
-                ]);
-                $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
-            } else {
-                $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
+            if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
                 $log->update([
                     'status' => 'failed',
-                    'response_payload' => $response->body(),
-                    'error_message' => $errorMessage,
+                    'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
                 ]);
-                $this->notifyZatcaFailure($company, __('Credit note'), $creditNote->credit_note_number, $errorMessage);
-            }
-        } catch (\Throwable $e) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => Str::limit($e->getMessage(), 1000),
-            ]);
-            $this->notifyZatcaFailure($company, __('Credit note'), $creditNote->credit_note_number, $e->getMessage());
-        }
 
-        return $log;
+                return $log;
+            }
+
+            if ($company->isDemo()) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => DemoMode::zatcaSubmissions(),
+                ]);
+
+                return $log;
+            }
+
+            if ($qrPng) {
+                $creditNote->update(['qr_code' => $qrPng]);
+            }
+
+            $xmlBase64 = base64_encode($xmlString);
+
+            try {
+                $response = $isB2b
+                    ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
+                    : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
+
+                if ($response->successful()) {
+                    $body = $response->json();
+                    $log->update([
+                        'status' => $isB2b ? 'cleared' : 'reported',
+                        'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
+                        'response_payload' => $response->body(),
+                        'cleared_at' => now(),
+                    ]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                } else {
+                    $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
+                    $log->update([
+                        'status' => 'failed',
+                        'response_payload' => $response->body(),
+                        'error_message' => $errorMessage,
+                    ]);
+                    $this->notifyZatcaFailure($company, __('Credit note'), $creditNote->credit_note_number, $errorMessage);
+                }
+            } catch (\Throwable $e) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => Str::limit($e->getMessage(), 1000),
+                ]);
+                $this->notifyZatcaFailure($company, __('Credit note'), $creditNote->credit_note_number, $e->getMessage());
+            }
+
+            return $log;
+        });
     }
 
     public function submitDebitNote(DebitNote $debitNote): ZatcaDebitNoteLog
     {
-        $company = $debitNote->company;
-        $environment = $company->zatca_environment;
-        $isB2b = $this->isB2bDebitNote($debitNote);
+        return $this->lockedSubmission($debitNote->company_id, function (Company $company) use ($debitNote) {
+            $environment = $company->zatca_environment;
+            $isB2b = $this->isB2bDebitNote($debitNote);
 
-        $csid = $company->zatcaCsidFor();
-        $secret = $company->zatcaSecretFor();
+            $csid = $company->zatcaCsidFor();
+            $secret = $company->zatcaSecretFor();
 
-        $uuid = $this->xml->newUuid();
-        $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-        $unsignedXml = $this->xml->generateForDebitNote($debitNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
-        $invoiceHash = $this->signer->contentHash($unsignedXml);
+            $uuid = $this->xml->newUuid();
+            $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
+            $unsignedXml = $this->xml->generateForDebitNote($debitNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $invoiceHash = $this->signer->contentHash($unsignedXml);
 
-        $xmlString = $unsignedXml;
-        $qrPng = null;
+            $xmlString = $unsignedXml;
+            $qrPng = null;
 
-        if ($csid && $secret && $company->isZatcaOnboarded()) {
-            [$xmlString, $qrPng] = $this->buildSignedPayload(
-                $company, $unsignedXml, $invoiceHash, $csid,
-                $debitNote->issue_date, (float) $debitNote->total, (float) $debitNote->vat_total,
-            );
-        }
+            if ($csid && $secret && $company->isZatcaOnboarded()) {
+                [$xmlString, $qrPng] = $this->buildSignedPayload(
+                    $company, $unsignedXml, $invoiceHash, $csid,
+                    $debitNote->issue_date, (float) $debitNote->total, (float) $debitNote->vat_total,
+                );
+            }
 
-        $log = ZatcaDebitNoteLog::create([
-            'company_id' => $company->id,
-            'debit_note_id' => $debitNote->id,
-            'environment' => $environment,
-            'invoice_type' => $isB2b ? 'b2b' : 'b2c',
-            'direction' => $isB2b ? 'clearance' : 'reporting',
-            'status' => 'queued',
-            'request_uuid' => $uuid,
-            'invoice_hash' => $invoiceHash,
-            'previous_invoice_hash' => $previousHash,
-            'xml_payload' => $xmlString,
-            'submitted_at' => now(),
-        ]);
-
-        if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
+            $log = ZatcaDebitNoteLog::create([
+                'company_id' => $company->id,
+                'debit_note_id' => $debitNote->id,
+                'environment' => $environment,
+                'invoice_type' => $isB2b ? 'b2b' : 'b2c',
+                'direction' => $isB2b ? 'clearance' : 'reporting',
+                'status' => 'queued',
+                'request_uuid' => $uuid,
+                'invoice_hash' => $invoiceHash,
+                'previous_invoice_hash' => $previousHash,
+                'xml_payload' => $xmlString,
+                'submitted_at' => now(),
             ]);
 
-            return $log;
-        }
-
-        if ($company->isDemo()) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => DemoMode::zatcaSubmissions(),
-            ]);
-
-            return $log;
-        }
-
-        if ($qrPng) {
-            $debitNote->update(['qr_code' => $qrPng]);
-        }
-
-        $xmlBase64 = base64_encode($xmlString);
-
-        try {
-            $response = $isB2b
-                ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
-                : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
-
-            if ($response->successful()) {
-                $body = $response->json();
-                $log->update([
-                    'status' => $isB2b ? 'cleared' : 'reported',
-                    'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
-                    'response_payload' => $response->body(),
-                    'cleared_at' => now(),
-                ]);
-                $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
-            } else {
-                $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
+            if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
                 $log->update([
                     'status' => 'failed',
-                    'response_payload' => $response->body(),
-                    'error_message' => $errorMessage,
+                    'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
                 ]);
-                $this->notifyZatcaFailure($company, __('Debit note'), $debitNote->debit_note_number, $errorMessage);
-            }
-        } catch (\Throwable $e) {
-            $log->update([
-                'status' => 'failed',
-                'error_message' => Str::limit($e->getMessage(), 1000),
-            ]);
-            $this->notifyZatcaFailure($company, __('Debit note'), $debitNote->debit_note_number, $e->getMessage());
-        }
 
-        return $log;
+                return $log;
+            }
+
+            if ($company->isDemo()) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => DemoMode::zatcaSubmissions(),
+                ]);
+
+                return $log;
+            }
+
+            if ($qrPng) {
+                $debitNote->update(['qr_code' => $qrPng]);
+            }
+
+            $xmlBase64 = base64_encode($xmlString);
+
+            try {
+                $response = $isB2b
+                    ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
+                    : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
+
+                if ($response->successful()) {
+                    $body = $response->json();
+                    $log->update([
+                        'status' => $isB2b ? 'cleared' : 'reported',
+                        'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
+                        'response_payload' => $response->body(),
+                        'cleared_at' => now(),
+                    ]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                } else {
+                    $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
+                    $log->update([
+                        'status' => 'failed',
+                        'response_payload' => $response->body(),
+                        'error_message' => $errorMessage,
+                    ]);
+                    $this->notifyZatcaFailure($company, __('Debit note'), $debitNote->debit_note_number, $errorMessage);
+                }
+            } catch (\Throwable $e) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => Str::limit($e->getMessage(), 1000),
+                ]);
+                $this->notifyZatcaFailure($company, __('Debit note'), $debitNote->debit_note_number, $e->getMessage());
+            }
+
+            return $log;
+        });
     }
 
     /**
