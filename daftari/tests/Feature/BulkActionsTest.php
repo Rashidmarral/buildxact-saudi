@@ -59,7 +59,7 @@ class BulkActionsTest extends TestCase
         $response = $this->actingAs($owner)->post(route('app.invoices.bulk-destroy'), ['ids' => [$draft->id, $sent->id]]);
 
         $response->assertSessionDoesntHaveErrors();
-        $this->assertDatabaseMissing('invoices', ['id' => $draft->id]);
+        $this->assertSoftDeleted('invoices', ['id' => $draft->id]);
         $this->assertDatabaseHas('invoices', ['id' => $sent->id]);
     }
 
@@ -107,7 +107,7 @@ class BulkActionsTest extends TestCase
         $response = $this->actingAs($owner)->post(route('app.quotations.bulk-destroy'), ['ids' => [$draft->id, $issued->id, $converted->id]]);
 
         $response->assertSessionDoesntHaveErrors();
-        $this->assertDatabaseMissing('quotations', ['id' => $draft->id]);
+        $this->assertSoftDeleted('quotations', ['id' => $draft->id]);
         $this->assertDatabaseHas('quotations', ['id' => $issued->id]);
         $this->assertDatabaseHas('quotations', ['id' => $converted->id]);
     }

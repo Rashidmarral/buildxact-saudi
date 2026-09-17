@@ -131,6 +131,6 @@ class QuotationPostAcceptanceProtectionTest extends TestCase
         $response = $this->actingAs($owner)->delete(route('app.quotations.destroy', $quotation));
 
         $response->assertSessionDoesntHaveErrors();
-        $this->assertDatabaseMissing('quotations', ['id' => $quotation->id]);
+        $this->assertSoftDeleted('quotations', ['id' => $quotation->id]);
     }
 }
