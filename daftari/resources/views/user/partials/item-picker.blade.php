@@ -85,7 +85,14 @@ document.addEventListener('click', (e) => {
     if (e.target.closest('[data-role="item-search"]') || e.target.closest('#item-search-results')) return;
     closeItemResults();
 });
-window.addEventListener('scroll', closeItemResults, true);
+// Capture-phase 'scroll' fires for scrolling *inside* the results panel
+// too (its own list has overflow-y: auto) — only close for a scroll
+// happening outside the panel (the page or the line-items table
+// scrolling underneath it, which would leave it mis-positioned).
+window.addEventListener('scroll', (e) => {
+    if (itemResultsPanel && (e.target === itemResultsPanel || itemResultsPanel.contains(e.target))) return;
+    closeItemResults();
+}, true);
 window.addEventListener('resize', closeItemResults);
 
 function itemCellHtml(i, data) {
