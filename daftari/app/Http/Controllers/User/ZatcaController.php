@@ -139,26 +139,40 @@ class ZatcaController extends Controller
             return back()->with('error', __('Enable at least one of Standard (B2B) or Simplified (B2C) invoicing.'));
         }
 
-        // These two flags double as the invoice-type capability declared
-        // to ZATCA in the CSR itself (via ZatcaCryptoService::generateCsr()):
-        // declaring a capability that's actually off here creates
-        // compliance-check requirements (and, per ZATCA's Simulation
-        // environment, real validation trouble) for an invoice type the
-        // company was never going to submit anyway. Changing either one
-        // makes every environment's already-issued CSR stale (it declared
-        // the old capability set), so every environment's saved
-        // onboarding progress is wiped here — not just the one currently
-        // active — since switching to any of them afterward would
-        // otherwise resurrect a CSR built for the wrong capabilities.
-        $capabilitiesChanged = $data['zatca_sync_b2b'] !== (bool) $company->zatca_sync_b2b
-            || $data['zatca_sync_b2c'] !== (bool) $company->zatca_sync_b2c;
-
         $environment = $data['zatca_environment'];
         unset($data['zatca_environment']);
 
-        DB::transaction(function () use ($company, $data, $capabilitiesChanged, $environment) {
+        // Security audit finding: no row lock against a double-submitted
+        // settings save — a narrow, single-tenant-only race, but a real
+        // one, since capabilitiesChanged and the environment-switch
+        // decision both depend on the company's *current* state. Locking
+        // the row and re-deriving both from that locked read (rather than
+        // the copy loaded before this request entered the transaction)
+        // closes it the same way Company::nextSequenceNumber() already
+        // does for document numbering.
+        $capabilitiesChanged = false;
+
+        DB::transaction(function () use (&$company, &$capabilitiesChanged, $data, $environment) {
+            $locked = Company::where('id', $company->id)->lockForUpdate()->first();
+
+            // These two flags double as the invoice-type capability
+            // declared to ZATCA in the CSR itself (via
+            // ZatcaCryptoService::generateCsr()): declaring a capability
+            // that's actually off here creates compliance-check
+            // requirements (and, per ZATCA's Simulation environment, real
+            // validation trouble) for an invoice type the company was
+            // never going to submit anyway. Changing either one makes
+            // every environment's already-issued CSR stale (it declared
+            // the old capability set), so every environment's saved
+            // onboarding progress is wiped here — not just the one
+            // currently active — since switching to any of them
+            // afterward would otherwise resurrect a CSR built for the
+            // wrong capabilities.
+            $capabilitiesChanged = $data['zatca_sync_b2b'] !== (bool) $locked->zatca_sync_b2b
+                || $data['zatca_sync_b2c'] !== (bool) $locked->zatca_sync_b2c;
+
             if ($capabilitiesChanged) {
-                ZatcaEnvironmentCredential::where('company_id', $company->id)->delete();
+                ZatcaEnvironmentCredential::where('company_id', $locked->id)->delete();
                 $data['zatca_onboarding_status'] = 'not_started';
                 $data['zatca_csr'] = null;
                 $data['zatca_private_key'] = null;
@@ -171,18 +185,19 @@ class ZatcaController extends Controller
                 $data['zatca_linked_at'] = null;
             }
 
-            $company->fill($data);
+            $locked->fill($data);
 
             // Switching environments swaps in that environment's own saved
             // onboarding progress (or a blank slate the first time it's
             // visited) instead of discarding whatever the environment
             // being left had already completed — see
             // Company::switchZatcaEnvironment().
-            if ($environment !== $company->zatca_environment) {
-                $company->switchZatcaEnvironment($environment);
+            if ($environment !== $locked->zatca_environment) {
+                $locked->switchZatcaEnvironment($environment);
             }
 
-            $company->save();
+            $locked->save();
+            $company = $locked;
         });
 
         AuditLog::record('zatca.settings_update', $company, __('Updated ZATCA sync settings (environment: :env, frequency: :freq):capabilities', [
@@ -263,7 +278,7 @@ class ZatcaController extends Controller
         if (! $response->successful()) {
             return back()->with('error', __('ZATCA rejected the OTP/CSR (HTTP :code): :body', [
                 'code' => $response->status(),
-                'body' => $response->body(),
+                'body' => $this->truncatedErrorBody($response),
             ]));
         }
 
@@ -366,7 +381,7 @@ class ZatcaController extends Controller
             $alreadyCompliant = ! $response->successful() && Str::contains($response->body(), 'Submitted before');
 
             if (! $response->successful() && ! $alreadyCompliant) {
-                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$response->body();
+                $failures[] = $combo['label'].': HTTP '.$response->status().' — '.$this->truncatedErrorBody($response);
             }
 
             $previousHash = $hash;
@@ -430,7 +445,7 @@ class ZatcaController extends Controller
 
             return back()->with('error', __('Could not issue the production CSID (HTTP :code): :body', [
                 'code' => $response->status(),
-                'body' => $response->body(),
+                'body' => $this->truncatedErrorBody($response),
             ]));
         }
 
@@ -577,5 +592,19 @@ class ZatcaController extends Controller
         }
 
         return back()->with('error', __(':number failed to sync: :error', ['number' => $number, 'error' => $errorMessage ?? __('Unknown error')]));
+    }
+
+    /**
+     * Security audit finding: raw ZATCA upstream error response bodies
+     * were flashed into the session/browser verbatim on OTP/CSID-exchange
+     * failures — low risk given ZATCA's documented, short JSON error
+     * shape, but fragile against a future response that isn't. Bounding
+     * the length keeps the message readable and never lets an unusually
+     * large or unexpectedly-shaped upstream response balloon into the
+     * flashed session data.
+     */
+    private function truncatedErrorBody($response): string
+    {
+        return Str::limit(trim($response->body()), 500);
     }
 }

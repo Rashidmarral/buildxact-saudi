@@ -156,7 +156,12 @@ class ZatcaEnvironmentSwitchTest extends TestCase
         $this->assertSame(self::PROD_CSID, $prodSlot->production_csid);
 
         // And the dashboard itself shows Simulation's wizard as complete,
-        // not the CSR-generation form again.
+        // not the CSR-generation form again. Same in-process relation-
+        // caching artifact as above — updateSettings() now re-fetches and
+        // locks its own Company instance rather than mutating the one
+        // already cached on $owner, so that cache needs clearing again
+        // before this third simulated request too.
+        $owner->unsetRelation('company');
         $dashboard = $this->actingAs($owner)->get(route('app.zatca.dashboard'));
         $dashboard->assertOk();
         $dashboard->assertSee('SIMULATION-CSR-CONTENT');
