@@ -140,7 +140,7 @@ class RecurringJournalEntryController extends Controller
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after:start_date'],
             'lines' => ['required', 'array', 'min:2'],
-            'lines.*.account_id' => ['required', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
+            'lines.*.account_id' => ['required', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'lines.*.debit' => ['nullable', 'numeric', 'min:0'],
             'lines.*.credit' => ['nullable', 'numeric', 'min:0'],
             'lines.*.memo' => ['nullable', 'string', 'max:255'],

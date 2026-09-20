@@ -161,7 +161,7 @@ class ItemController extends Controller
 
     public function update(Request $request, Item $item)
     {
-        $data = $this->validated($request);
+        $data = $this->validated($request, $item);
         $altUnits = $data['alt_units'] ?? [];
         $customFields = $data['custom_fields'] ?? [];
         $kitComponents = $data['kit_components'] ?? [];
@@ -224,9 +224,11 @@ class ItemController extends Controller
      */
     public function storeVariant(Request $request, Item $item)
     {
+        $companyId = Auth::user()->company_id;
+
         $data = $request->validate([
             'variant_label' => ['required', 'string', 'max:100'],
-            'sku' => ['nullable', 'string', 'max:40'],
+            'sku' => ['nullable', 'string', 'max:40', Rule::unique('items', 'sku')->where('company_id', $companyId)],
             'barcode' => ['nullable', 'string', 'max:64'],
         ]);
 
@@ -286,7 +288,16 @@ class ItemController extends Controller
     {
         $request->validate(['file' => ['required', 'file', 'mimes:csv,txt']]);
 
-        $companyId = Auth::user()->company_id;
+        $company = Auth::user()->company;
+        $companyId = $company->id;
+
+        // Security audit finding M-05: Client/Supplier import already cap
+        // rows to the plan's remaining quota via $maxRows below; Item
+        // import created every valid row unconditionally, bypassing the
+        // max_items plan limit entirely.
+        $limitService = app(UsageLimitService::class);
+        $itemLimit = $limitService->limit($company, 'products');
+        $maxRows = $itemLimit !== null ? max(0, $itemLimit - $limitService->usage($company, 'products')) : null;
 
         $result = $this->runCsvImport(
             $request->file('file'),
@@ -303,7 +314,12 @@ class ItemController extends Controller
                 ], [
                     'name' => ['required', 'string', 'max:255'],
                     'item_type' => ['required', 'in:service,physical'],
-                    'sku' => ['nullable', 'string', 'max:40'],
+                    // Security audit finding M-19: also closes the same
+                    // gap for CSV-imported rows — each row is created
+                    // immediately (not batched), so this naturally also
+                    // catches a duplicate SKU between two rows of the same
+                    // file, not just against pre-existing items.
+                    'sku' => ['nullable', 'string', 'max:40', Rule::unique('items', 'sku')->where('company_id', $companyId)],
                     'barcode' => ['nullable', 'string', 'max:64'],
                     'category' => ['nullable', 'string', 'max:100'],
                     'unit_price' => ['required', 'numeric', 'min:0'],
@@ -320,7 +336,8 @@ class ItemController extends Controller
                     'is_active' => true,
                     'track_inventory' => false,
                 ]);
-            }
+            },
+            $maxRows
         );
 
         AuditLog::record('item.import', null, __(':count item(s) imported via CSV', ['count' => $result['imported']]));
@@ -350,7 +367,7 @@ class ItemController extends Controller
         return $data;
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Item $item = null): array
     {
         $companyId = Auth::user()->company_id;
 
@@ -358,7 +375,10 @@ class ItemController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'sku' => ['nullable', 'string', 'max:40'],
+            // Security audit finding M-19: SKU had no uniqueness constraint
+            // at all, not even per company — two items could silently share
+            // one, breaking barcode/SKU lookups and CSV re-imports.
+            'sku' => ['nullable', 'string', 'max:40', Rule::unique('items', 'sku')->where('company_id', $companyId)->ignore($item?->id)],
             'barcode' => ['nullable', 'string', 'max:64'],
             'category' => ['nullable', 'string', 'max:100'],
             'expiry_date' => ['nullable', 'date'],

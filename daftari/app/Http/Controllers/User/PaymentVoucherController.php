@@ -320,7 +320,7 @@ class PaymentVoucherController extends Controller
             'party_type' => ['required', 'in:manual,customer,supplier'],
             'client_id' => ['nullable', 'required_if:party_type,customer', Rule::exists('clients', 'id')->where('company_id', $companyId)],
             'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
-            'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
+            'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'expense_id' => ['nullable', Rule::exists('expenses', 'id')->where('company_id', $companyId)],
             'bill_id' => ['nullable', Rule::exists('bills', 'id')->where('company_id', $companyId)],
             'date' => ['required', 'date'],

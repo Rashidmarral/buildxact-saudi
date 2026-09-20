@@ -57,7 +57,13 @@ class Permissions
     {
         return [
             'admin' => self::keys(),
-            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'projects', 'reports', 'audit', 'zatca', 'accounting', 'approvals', 'support'],
+            // Security audit finding M-08: 'zatca' isn't just "view
+            // compliance status" — it also gates CSR generation, CSID
+            // issuance, environment switching, and onboarding reset, any
+            // of which can knock out live e-invoicing. A bookkeeping role
+            // has no routine need to touch that, same reasoning that
+            // already keeps 'settings'/'members_roles' out of this preset.
+            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'purchases', 'cash_banks', 'projects', 'reports', 'audit', 'accounting', 'approvals', 'support'],
             'sales' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'salespersons', 'projects', 'reports', 'support'],
             'member' => ['dashboard', 'reports', 'support'],
         ];

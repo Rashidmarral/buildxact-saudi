@@ -182,7 +182,7 @@ class FixedAssetController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
-            'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
+            'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
             'acquisition_date' => ['required', 'date'],
             'acquisition_cost' => ['required', 'numeric', 'min:0.01'],

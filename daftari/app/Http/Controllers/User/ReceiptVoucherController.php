@@ -284,7 +284,7 @@ class ReceiptVoucherController extends Controller
             'party_type' => ['required', 'in:manual,customer,supplier'],
             'client_id' => ['nullable', 'required_if:party_type,customer', Rule::exists('clients', 'id')->where('company_id', $companyId)],
             'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
-            'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
+            'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
             'date' => ['required', 'date'],
             'payer_name' => ['required', 'string', 'max:255'],

@@ -112,7 +112,7 @@ class RecurringExpenseController extends Controller
             'expense_category_id' => ['nullable', Rule::exists('expense_categories', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
-            'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
+            'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'vendor_name' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
             'gross_amount' => ['required', 'numeric', 'min:0.01'],
