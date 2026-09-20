@@ -84,8 +84,11 @@ class DebitNoteController extends Controller
 
     public function store(Request $request)
     {
+        // Security audit finding M-23: bare, unscoped exists rule — "safe"
+        // today only because it's re-fetched through Invoice::findOrFail()
+        // below (404s instead of failing validation cleanly).
         $data = $request->validate([
-            'invoice_id' => ['required', Rule::exists('invoices', 'id')],
+            'invoice_id' => ['required', Rule::exists('invoices', 'id')->where('company_id', Auth::user()->company_id)],
             'issue_date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],

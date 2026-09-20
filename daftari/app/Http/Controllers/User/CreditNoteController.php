@@ -79,11 +79,27 @@ class CreditNoteController extends Controller
 
     public function store(Request $request)
     {
+        $companyId = Auth::user()->company_id;
+
+        // Security audit finding M-23: bare, unscoped exists rules —
+        // "safe" today only because both are re-fetched through a
+        // company-scoped path afterward (Invoice::findOrFail() below
+        // 404s instead of failing validation cleanly; invoice_item_id is
+        // re-looked-up via $invoice->items(), so a cross-company id just
+        // silently resolves to null). Scoping them here matches the
+        // pattern used everywhere else and turns both into a clean
+        // validation error instead.
         $data = $request->validate([
-            'invoice_id' => ['required', Rule::exists('invoices', 'id')],
+            'invoice_id' => ['required', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
             'issue_date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
+            // invoice_item_id deliberately stays unscoped here — see
+            // CrossTenantLineItemTest / "commercial audit finding A6":
+            // the source line is re-looked-up through $invoice->items()
+            // below, which already can't cross a tenant boundary, and a
+            // foreign id is meant to resolve to null there rather than
+            // reject the whole credit note.
             'items.*.invoice_item_id' => ['nullable', Rule::exists('invoice_items', 'id')],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0'],

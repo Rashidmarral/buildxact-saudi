@@ -78,11 +78,26 @@ class PurchaseReturnController extends Controller
 
     public function store(Request $request)
     {
+        $companyId = Auth::user()->company_id;
+
+        // Security audit finding M-23: both were bare, unscoped exists
+        // rules — "safe" today only because bill_id is re-fetched through
+        // Bill::findOrFail() below (404s instead of failing validation
+        // cleanly) and bill_item_id is never looked up directly by that
+        // id elsewhere in this method. bill_items has no company_id of
+        // its own, so that one scopes through bill_id instead, which is
+        // itself now validated as company-owned.
         $data = $request->validate([
-            'bill_id' => ['required', Rule::exists('bills', 'id')],
+            'bill_id' => ['required', Rule::exists('bills', 'id')->where('company_id', $companyId)],
             'issue_date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
+            // bill_item_id deliberately stays unscoped here — see
+            // CrossTenantLineItemTest / "commercial audit finding A6":
+            // the source line is re-looked-up through $bill->items()
+            // below, which already can't cross a tenant boundary, and a
+            // foreign id is meant to resolve to null there rather than
+            // reject the whole purchase return.
             'items.*.bill_item_id' => ['nullable', Rule::exists('bill_items', 'id')],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0'],
