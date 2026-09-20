@@ -19,6 +19,7 @@ use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\SmsConfig;
 use App\Models\TaxRate;
+use App\Rules\VatRateMatchesLinkedTaxRate;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -787,7 +788,10 @@ class InvoiceController extends Controller
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
-            'items.*.vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            // Security audit finding M-02: when a tax_rate_id is present,
+            // the numeric vat_rate submitted alongside it must actually
+            // match that tax rate's real percentage.
+            'items.*.vat_rate' => ['required', 'numeric', 'min:0', 'max:100', new VatRateMatchesLinkedTaxRate],
             'items.*.tax_rate_id' => ['nullable', Rule::exists('tax_rates', 'id')->where('company_id', $companyId)],
         ]);
     }
