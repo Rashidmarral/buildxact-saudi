@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Models\Attachment;
 use App\Models\AuditLog;
@@ -25,7 +26,7 @@ use Illuminate\Validation\Rule;
 
 class PurchaseOrderController extends Controller
 {
-    use ExportsCsv;
+    use EnforcesStorageQuota, ExportsCsv;
 
     public function index(Request $request)
     {
@@ -348,6 +349,10 @@ class PurchaseOrderController extends Controller
 
     public function storeAttachment(Request $request, PurchaseOrder $purchaseOrder)
     {
+        if ($rejected = $this->rejectIfStorageQuotaReached($purchaseOrder->company)) {
+            return $rejected;
+        }
+
         $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
 
         $file = $request->file('file');

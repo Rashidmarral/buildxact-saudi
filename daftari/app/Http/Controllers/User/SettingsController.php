@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
@@ -23,6 +24,8 @@ use Illuminate\Validation\Rules\Password;
 
 class SettingsController extends Controller
 {
+    use EnforcesStorageQuota;
+
     /**
      * Company compliance documents commonly required in Saudi Arabia. Not
      * all are mandatory for every business (e.g. Zakat certificate only
@@ -141,6 +144,10 @@ class SettingsController extends Controller
 
     public function storeDocument(Request $request)
     {
+        if ($rejected = $this->rejectIfStorageQuotaReached(Auth::user()->company)) {
+            return $rejected;
+        }
+
         $data = $request->validate([
             'document_type' => ['required', Rule::in(array_keys(self::DOCUMENT_TYPES))],
             'expiry_date' => ['nullable', 'date'],

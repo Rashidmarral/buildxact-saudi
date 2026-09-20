@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Mail\QuotationMail;
@@ -29,7 +30,7 @@ use Illuminate\Validation\Rule;
 
 class QuotationController extends Controller
 {
-    use ExportsCsv, ResolvesPerPage;
+    use EnforcesStorageQuota, ExportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -253,6 +254,10 @@ class QuotationController extends Controller
 
     public function storeAttachment(Request $request, Quotation $quotation)
     {
+        if ($rejected = $this->rejectIfStorageQuotaReached($quotation->company)) {
+            return $rejected;
+        }
+
         $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
 
         $file = $request->file('file');
