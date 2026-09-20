@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\DebitNote;
@@ -112,6 +113,11 @@ class ZatcaController extends Controller
 
         $company->update(['zatca_integration_mode' => $data['zatca_integration_mode']]);
 
+        // Security audit finding M-15: ZATCA credential/configuration
+        // changes went completely unlogged on the user-facing side (the
+        // admin-side equivalent already logs these).
+        AuditLog::record('zatca.mode_update', $company, __('Set ZATCA integration mode to :mode', ['mode' => $data['zatca_integration_mode']]));
+
         return back()->with('status', __('ZATCA integration mode updated.'));
     }
 
@@ -179,6 +185,12 @@ class ZatcaController extends Controller
             $company->save();
         });
 
+        AuditLog::record('zatca.settings_update', $company, __('Updated ZATCA sync settings (environment: :env, frequency: :freq):capabilities', [
+            'env' => $environment,
+            'freq' => $data['zatca_sync_frequency'],
+            'capabilities' => $capabilitiesChanged ? __(' — invoice capabilities changed, onboarding progress reset') : '',
+        ]));
+
         return back()->with('status', __('ZATCA sync settings saved.'));
     }
 
@@ -223,6 +235,8 @@ class ZatcaController extends Controller
             'zatca_onboarding_status' => 'csr_generated',
         ]);
 
+        AuditLog::record('zatca.csr_generate', $company, __('Generated a new ZATCA CSR and private key for the :env environment', ['env' => $company->zatca_environment]));
+
         return back()->with('status', __('CSR and private key generated. Copy the CSR into the ZATCA Fatoora portal to request an OTP, then continue below.'));
     }
 
@@ -261,6 +275,8 @@ class ZatcaController extends Controller
             'zatca_compliance_secret' => $body['secret'] ?? null,
             'zatca_onboarding_status' => 'compliance_pending',
         ]);
+
+        AuditLog::record('zatca.compliance_csid_issue', $company, __('Issued a ZATCA compliance CSID for the :env environment', ['env' => $company->zatca_environment]));
 
         return back()->with('status', __('Compliance CSID issued. Run the compliance checks next.'));
     }
@@ -428,12 +444,17 @@ class ZatcaController extends Controller
             'zatca_linked_at' => now(),
         ]);
 
+        AuditLog::record('zatca.production_csid_issue', $company, __('Issued a ZATCA production CSID — onboarded for the :env environment', ['env' => $company->zatca_environment]));
+
         return back()->with('status', __('This company is now onboarded with ZATCA for the :env environment.', ['env' => $company->zatca_environment]));
     }
 
     public function resetOnboarding(): RedirectResponse
     {
-        Auth::user()->company->update([
+        $company = Auth::user()->company;
+        $environment = $company->zatca_environment;
+
+        $company->update([
             'zatca_onboarding_status' => 'not_started',
             'zatca_csr' => null,
             'zatca_private_key' => null,
@@ -445,6 +466,8 @@ class ZatcaController extends Controller
             'zatca_production_secret' => null,
             'zatca_linked_at' => null,
         ]);
+
+        AuditLog::record('zatca.onboarding_reset', $company, __('Reset ZATCA onboarding progress for the :env environment — CSR, private key, and CSIDs cleared', ['env' => $environment]));
 
         return back()->with('status', __('Onboarding reset. You can start again from CSR generation.'));
     }

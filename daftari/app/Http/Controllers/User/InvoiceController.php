@@ -401,6 +401,10 @@ class InvoiceController extends Controller
             $invoice->recalculateTotals();
         });
 
+        // Security audit finding M-16: draft invoice edits went completely
+        // unlogged (every status-change action already is).
+        AuditLog::record('invoice.update', $invoice, __('Updated draft invoice :number', ['number' => $invoice->invoice_number]));
+
         return redirect()->route('app.invoices.show', $invoice)->with('status', __('Invoice updated.'));
     }
 
@@ -414,7 +418,13 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => __('Only draft invoices can be deleted. Cancel this invoice instead to keep an audit trail.')]);
         }
 
+        $number = $invoice->invoice_number;
         $invoice->delete();
+
+        // Security audit finding M-16: also unlogged before — the
+        // company's own Activity page had no record of a draft invoice
+        // being permanently removed.
+        AuditLog::record('invoice.delete', null, __('Deleted draft invoice :number', ['number' => $number]), companyId: $invoice->company_id);
 
         return redirect()->route('app.invoices.index')->with('status', __('Invoice deleted.'));
     }
@@ -521,6 +531,13 @@ class InvoiceController extends Controller
             $invoice->save();
             $ledger->postInvoicePayment($payment);
         });
+
+        // Security audit finding M-16: payment recording went completely
+        // unlogged — real money moving against an invoice had no trace on
+        // the company's own Activity page.
+        AuditLog::record('invoice.payment_record', $invoice, __('Recorded a payment of :amount :currency on invoice :number', [
+            'amount' => number_format((float) $data['amount'], 2), 'currency' => $invoice->currency, 'number' => $invoice->invoice_number,
+        ]));
 
         if ($invoice->status === 'paid' && ! $wasPaid) {
             Webhook::trigger($invoice->company_id, 'invoice.paid', $this->webhookPayload($invoice));
