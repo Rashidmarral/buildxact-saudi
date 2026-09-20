@@ -40,7 +40,7 @@ class ImpersonationAuditAndTimeoutTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['auth.password_confirmed_at' => now()->timestamp])
-            ->post(route('admin.companies.impersonate', $company));
+            ->post(route('admin.companies.impersonate', $company), ['reason' => 'Investigating support ticket #123']);
 
         $this->assertEquals($admin->id, session('impersonator_id'));
         $this->assertNotNull(session('impersonation_started_at'));
@@ -62,7 +62,7 @@ class ImpersonationAuditAndTimeoutTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['auth.password_confirmed_at' => now()->timestamp])
-            ->post(route('admin.companies.impersonate', $company));
+            ->post(route('admin.companies.impersonate', $company), ['reason' => 'Investigating support ticket #123']);
 
         $entry = AuditLog::where('action', 'company.impersonate')->latest('id')->first();
 
@@ -78,7 +78,7 @@ class ImpersonationAuditAndTimeoutTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['auth.password_confirmed_at' => now()->timestamp])
-            ->post(route('admin.companies.impersonate', $company));
+            ->post(route('admin.companies.impersonate', $company), ['reason' => 'Investigating support ticket #123']);
         $this->post(route('stop-impersonating'));
 
         $entry = AuditLog::where('action', 'company.stop_impersonate')->latest('id')->first();
@@ -96,7 +96,7 @@ class ImpersonationAuditAndTimeoutTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['auth.password_confirmed_at' => now()->timestamp])
-            ->post(route('admin.companies.impersonate', $company));
+            ->post(route('admin.companies.impersonate', $company), ['reason' => 'Investigating support ticket #123']);
 
         session(['impersonation_started_at' => now()->subMinutes(61)->timestamp]);
 
@@ -120,7 +120,7 @@ class ImpersonationAuditAndTimeoutTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['auth.password_confirmed_at' => now()->timestamp])
-            ->post(route('admin.companies.impersonate', $company));
+            ->post(route('admin.companies.impersonate', $company), ['reason' => 'Investigating support ticket #123']);
 
         session(['impersonation_started_at' => now()->subMinutes(10)->timestamp]);
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -19,11 +20,26 @@ class ImpersonationController extends Controller
 {
     public function stop(Request $request)
     {
+        return $this->stopImpersonating($request) ?? abort(403);
+    }
+
+    /**
+     * Security audit finding M-21: an admin impersonating a company who
+     * used the ordinary "log out" button (not this controller's own
+     * button) ended up fully logged out of everything — no clean return
+     * to their own admin session, and no stop_impersonate audit entry.
+     * AuthController::logout() calls this first so both paths restore the
+     * admin the same way; returns null when there's no impersonation
+     * session (or it's stale/invalid) so the caller can fall back to its
+     * own behavior — stop() aborts, logout() proceeds with a real logout.
+     */
+    public function stopImpersonating(Request $request): ?RedirectResponse
+    {
         $adminId = $request->session()->pull('impersonator_id');
         $request->session()->forget('impersonation_started_at');
 
         if (! $adminId || ! ($admin = User::withoutGlobalScopes()->find($adminId)) || ! $admin->isSuperAdmin()) {
-            abort(403);
+            return null;
         }
 
         // Recorded with the admin's own id, not auth()->id() — at this

@@ -34,13 +34,24 @@
             <p class="text-sm text-slate-500">{{ $company->email }} · {{ $company->vat_number ?: __('No VAT number') }} · {{ __('Created') }} {{ $company->created_at->format('Y-m-d') }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
-            <form method="POST" action="{{ route('admin.companies.impersonate', $company) }}">
+            <form method="POST" action="{{ route('admin.companies.impersonate', $company) }}" onsubmit="return promptForImpersonationReason(this)">
                 @csrf
+                <input type="hidden" name="reason">
                 <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">
                     @include('partials.icon', ['name' => 'log-in', 'class' => 'h-4 w-4'])
                     {{ __('Log in as this company') }}
                 </button>
             </form>
+            <script>
+                function promptForImpersonationReason(form) {
+                    const reason = window.prompt(@json(__('Why are you logging in as this company? This is recorded on the audit trail.')));
+                    if (!reason || !reason.trim()) {
+                        return false;
+                    }
+                    form.querySelector('input[name="reason"]').value = reason.trim();
+                    return true;
+                }
+            </script>
             @if ($company->status === 'active')
                 <form method="POST" action="{{ route('admin.companies.suspend', $company) }}" onsubmit="return confirm('{{ __('Suspend this company? All of its users will be locked out immediately.') }}')">
                     @csrf

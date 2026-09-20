@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ImpersonationController;
 use App\Mail\WelcomeMail;
 use App\Models\Account;
 use App\Models\AccountMapping;
@@ -266,8 +267,18 @@ class AuthController extends Controller
         return back()->with('status', __('Verification link sent. Check your inbox.'));
     }
 
-    public function logout(Request $request)
+    public function logout(Request $request, ImpersonationController $impersonation)
     {
+        // Security audit finding M-21: an admin impersonating a company
+        // who hits the ordinary "log out" button (not the dedicated
+        // "stop impersonating" one) should cleanly return to their own
+        // admin session, the same way that button does — not be fully
+        // logged out of everything. Returns null (falls through to a
+        // real logout below) when there's no impersonation in progress.
+        if ($response = $impersonation->stopImpersonating($request)) {
+            return $response;
+        }
+
         // Captured before Auth::logout() clears it — AuditLog::record()'s
         // default actor is auth()->user(), which would otherwise resolve
         // to nobody by the time this runs.

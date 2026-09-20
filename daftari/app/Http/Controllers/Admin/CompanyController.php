@@ -600,8 +600,14 @@ class CompanyController extends Controller
      * ImpersonationController::stop() can restore it — impersonation never
      * creates a second concurrent session or touches the owner's password.
      */
-    public function impersonate(Company $company)
+    public function impersonate(Request $request, Company $company)
     {
+        // Security audit finding M-20: no justification was required or
+        // captured for starting impersonation — full access to a
+        // customer's account with nothing on record beyond "an admin did
+        // this," unlike every other sensitive admin action.
+        $data = $request->validate(['reason' => ['required', 'string', 'max:255']]);
+
         $target = $company->users()->where('role', 'owner')->first() ?? $company->users()->first();
 
         if (! $target) {
@@ -609,7 +615,9 @@ class CompanyController extends Controller
         }
 
         session(['impersonator_id' => Auth::id(), 'impersonation_started_at' => now()->timestamp]);
-        AuditLog::record('company.impersonate', $company, __('Started impersonating :name as :user', ['name' => $company->name, 'user' => $target->email]));
+        AuditLog::record('company.impersonate', $company, __('Started impersonating :name as :user — reason: :reason', [
+            'name' => $company->name, 'user' => $target->email, 'reason' => $data['reason'],
+        ]));
 
         Auth::login($target);
 
