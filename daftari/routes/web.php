@@ -613,6 +613,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:settings')->prefix('invoice-templates')->name('invoice-templates.')->group(function () {
         Route::get('/', [InvoiceTemplateController::class, 'index'])->name('index');
+        Route::get('gallery', [InvoiceTemplateController::class, 'gallery'])->name('gallery');
+        Route::get('gallery/{preset}/preview', [InvoiceTemplateController::class, 'previewPreset'])->name('gallery.preview');
+        Route::post('gallery/{preset}/activate', [InvoiceTemplateController::class, 'activatePreset'])->name('gallery.activate');
         Route::post('/', [InvoiceTemplateController::class, 'store'])->name('store');
         Route::post('use', [InvoiceTemplateController::class, 'useTemplate'])->name('use');
         Route::put('{invoiceTemplate}', [InvoiceTemplateController::class, 'update'])->name('update');

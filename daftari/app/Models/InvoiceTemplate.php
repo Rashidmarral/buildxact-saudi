@@ -10,7 +10,7 @@ class InvoiceTemplate extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'name', 'name_ar', 'document_type', 'accent_color', 'table_header_color', 'totals_color',
+        'company_id', 'name', 'name_ar', 'document_type', 'preset_key', 'accent_color', 'table_header_color', 'totals_color',
         'layout', 'density', 'language_mode', 'table_direction', 'show_signature',
         'signature_label_en', 'signature_label_ar',
         'show_logo', 'show_unit_labels', 'show_party_vat_number', 'show_item_description', 'show_vat_column', 'page_size',

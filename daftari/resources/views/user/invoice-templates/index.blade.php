@@ -16,9 +16,14 @@
 @endphp
 
 @section('content')
-<div class="mb-6">
-    <h2 class="text-lg font-semibold text-slate-900">{{ __('Template Customization') }}</h2>
-    <p class="text-sm text-slate-500 mt-1">{{ __('Customize the default layout and notes for each document type') }}</p>
+<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div>
+        <h2 class="text-lg font-semibold text-slate-900">{{ __('Template Customization') }}</h2>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Customize the default layout and notes for each document type') }}</p>
+    </div>
+    <a href="{{ route('app.invoice-templates.gallery') }}" class="shrink-0 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">
+        {{ __('Back to gallery') }}
+    </a>
 </div>
 
 <div class="grid lg:grid-cols-3 gap-6 items-start">

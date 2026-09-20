@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Client;
+use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
+use App\Services\ZatcaQrGenerator;
 use App\Support\InvoiceTemplatePresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -210,5 +213,154 @@ class InvoiceTemplateController extends Controller
         $invoiceTemplate->update(['is_default' => true]);
 
         return back()->with('status', __('Set as the default template.'));
+    }
+
+    /**
+     * A visual gallery of built-in layouts (plus the hardcoded "Default"
+     * look) — the primary, one-click entry point most companies want;
+     * the sidebar+form editor above stays reachable for anyone who needs
+     * per-document-type overrides or deeper customization.
+     */
+    public function gallery()
+    {
+        $company = Auth::user()->company;
+
+        $activePresetKey = $company->invoiceTemplates()
+            ->where('document_type', 'all')
+            ->where('is_default', true)
+            ->value('preset_key');
+
+        return view('user.invoice-templates.gallery', [
+            'presets' => InvoiceTemplatePresets::all(),
+            'activePresetKey' => $activePresetKey,
+        ]);
+    }
+
+    /**
+     * Renders a standalone, chrome-free page with sample data through
+     * the exact same partial a real document uses (documents.print.body)
+     * — a live preview, not a static screenshot, so it can never go
+     * stale against a layout tweak. Embedded at a fraction of its real
+     * size inside the gallery card's iframe.
+     */
+    public function previewPreset(string $preset)
+    {
+        abort_unless($preset === 'default' || InvoiceTemplatePresets::find($preset), 404);
+
+        $company = Auth::user()->company;
+        $template = $preset === 'default' ? null : new InvoiceTemplate(InvoiceTemplatePresets::find($preset));
+        $doc = $this->samplePreviewDoc($company);
+
+        return view('documents.print.preview-frame', compact('doc', 'company', 'template'));
+    }
+
+    /**
+     * "Activate" makes the chosen look the one used everywhere — every
+     * document type, both the in-app show page and every downloaded/
+     * emailed PDF — by (re)using a single document_type='all' template
+     * per preset (idempotent: clicking Activate again just updates the
+     * same row instead of piling up duplicates) and clearing is_default
+     * on every other template the company has, so nothing left over from
+     * the advanced editor can silently keep overriding it for one type.
+     */
+    public function activatePreset(Request $request, string $preset): RedirectResponse
+    {
+        abort_unless($preset === 'default' || InvoiceTemplatePresets::find($preset), 404);
+
+        $company = Auth::user()->company;
+
+        if ($preset === 'default') {
+            $company->invoiceTemplates()->update(['is_default' => false]);
+
+            return redirect()->route('app.invoice-templates.gallery')->with('status', __('Reverted to the built-in default look.'));
+        }
+
+        $presetData = InvoiceTemplatePresets::find($preset);
+        $existing = $company->invoiceTemplates()->where('preset_key', $preset)->first();
+
+        if (! $existing && $company->hasReachedPlanLimit('invoice_templates')) {
+            return redirect()->route('app.invoice-templates.gallery')
+                ->withErrors(['plan_limit' => __('You have reached your plan\'s invoice template limit. Upgrade your plan to add more templates.')]);
+        }
+
+        $company->invoiceTemplates()->where('id', '!=', $existing?->id)->update(['is_default' => false]);
+
+        $company->invoiceTemplates()->updateOrCreate(
+            ['preset_key' => $preset],
+            [
+                'name' => $presetData['name'],
+                'name_ar' => $presetData['name_ar'],
+                'document_type' => 'all',
+                'accent_color' => $presetData['accent_color'],
+                'layout' => $presetData['layout'],
+                'is_default' => true,
+            ]
+        );
+
+        return redirect()->route('app.invoice-templates.gallery')
+            ->with('status', __('":name" is now used on every document and PDF.', ['name' => $presetData['name']]));
+    }
+
+    /**
+     * Realistic but entirely synthetic sample data for a preview — the
+     * real company's name/logo/VAT (so the preview actually looks like
+     * their documents), a placeholder client, and two placeholder lines.
+     * Built from unsaved model instances rather than arrays/stdClass so
+     * every accessor and relation call body.blade.php makes ($line->unit,
+     * method_exists($party, 'fullAddress'), ...) resolves exactly as it
+     * would for a real document, just gracefully empty where nothing was
+     * set.
+     */
+    private function samplePreviewDoc($company): array
+    {
+        $client = new Client([
+            'name' => 'Nolwa Private Limited',
+            'name_ar' => 'نولوا المحدودة',
+            'vat_number' => '300012345600003',
+            'city' => 'Riyadh',
+        ]);
+
+        $lines = collect([
+            new InvoiceItem(['description' => 'Product One', 'quantity' => 2, 'unit_price' => 150, 'vat_rate' => 15, 'vat_amount' => 45, 'line_total' => 345]),
+            new InvoiceItem(['description' => 'Product Two', 'quantity' => 1, 'unit_price' => 500, 'vat_rate' => 15, 'vat_amount' => 75, 'line_total' => 575]),
+        ]);
+
+        $qrCode = null;
+
+        try {
+            $qrCode = ZatcaQrGenerator::generate($company->name ?: 'Sample Company', $company->vat_number ?: '300000000000003', now(), 920, 120);
+        } catch (\Throwable) {
+            // A demo preview never fails the page over a QR image — the
+            // image tag itself already hides gracefully on a bad src.
+        }
+
+        return [
+            'type_label' => __('Standard tax invoice'),
+            'type_label_ar' => 'فاتورة ضريبية عادية',
+            'number' => 'INV-0001',
+            'date_label' => __('Issued'),
+            'date' => now(),
+            'date2_label' => __('Due'),
+            'date2_label_ar' => 'الاستحقاق',
+            'date2' => now()->addDays(30),
+            'party_label' => __('Bill to'),
+            'party_label_ar' => 'العميل',
+            'party' => $client,
+            'qr_code' => $qrCode,
+            'lines' => $lines,
+            'currency' => 'SAR',
+            'subtotal' => 800,
+            'discount_total' => 0,
+            'discount_percent' => null,
+            'vat_total' => 120,
+            'total' => 920,
+            'extra_rows' => [
+                ['label' => __('Paid'), 'value' => 0],
+                \App\Support\Money::balanceRow(920),
+            ],
+            'bank_account' => null,
+            'salesperson' => null,
+            'notes' => null,
+        ];
     }
 }
