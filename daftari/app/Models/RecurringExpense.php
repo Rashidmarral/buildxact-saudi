@@ -8,6 +8,7 @@ use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
 
 class RecurringExpense extends Model
 {
@@ -86,50 +87,61 @@ class RecurringExpense extends Model
      */
     public function generateExpense(): Expense
     {
-        $company = $this->company;
-        $rate = Expense::taxRateFor($this->tax_category);
-        $gross = (float) $this->gross_amount;
-        $vat = round($gross * $rate / (100 + $rate), 2);
-        $requiresApproval = $company->expenseRequiresApproval($gross);
+        // Security audit finding M-22: previously ran with no shared
+        // transaction — a failure partway through (the ledger posting,
+        // most realistically, since expenseRequiresApproval()=false
+        // routes straight into it) left a real Expense created but
+        // next_run_date never advanced, so the *next* run would generate
+        // a second expense for the same period on top of the first. One
+        // transaction means either the whole thing lands, including the
+        // schedule advancing, or none of it does and the next run retries
+        // cleanly from the same next_run_date.
+        return DB::transaction(function () {
+            $company = $this->company;
+            $rate = Expense::taxRateFor($this->tax_category);
+            $gross = (float) $this->gross_amount;
+            $vat = round($gross * $rate / (100 + $rate), 2);
+            $requiresApproval = $company->expenseRequiresApproval($gross);
 
-        $expense = Expense::create([
-            'company_id' => $this->company_id,
-            'expense_category_id' => $this->expense_category_id,
-            'project_id' => $this->project_id,
-            'bank_account_id' => $this->bank_account_id,
-            'account_id' => $this->account_id,
-            'created_by' => $this->created_by,
-            'vendor_name' => $this->vendor_name,
-            'description' => $this->description,
-            'gross_amount' => $gross,
-            'vat_amount' => $vat,
-            'amount' => round($gross - $vat, 2),
-            'tax_category' => $this->tax_category,
-            'reference' => $this->reference,
-            'expense_date' => $this->next_run_date,
-            'status' => $requiresApproval ? 'pending_approval' : 'approved',
-        ]);
+            $expense = Expense::create([
+                'company_id' => $this->company_id,
+                'expense_category_id' => $this->expense_category_id,
+                'project_id' => $this->project_id,
+                'bank_account_id' => $this->bank_account_id,
+                'account_id' => $this->account_id,
+                'created_by' => $this->created_by,
+                'vendor_name' => $this->vendor_name,
+                'description' => $this->description,
+                'gross_amount' => $gross,
+                'vat_amount' => $vat,
+                'amount' => round($gross - $vat, 2),
+                'tax_category' => $this->tax_category,
+                'reference' => $this->reference,
+                'expense_date' => $this->next_run_date,
+                'status' => $requiresApproval ? 'pending_approval' : 'approved',
+            ]);
 
-        if ($requiresApproval) {
-            $this->notifyApprovers($expense);
-        } else {
-            App::make(LedgerPostingService::class)->postExpense($expense);
-        }
+            if ($requiresApproval) {
+                $this->notifyApprovers($expense);
+            } else {
+                App::make(LedgerPostingService::class)->postExpense($expense);
+            }
 
-        AuditLog::record('recurring_expense.generate', $expense, __('Generated expense from recurring expense ":title"', [
-            'title' => $this->title,
-        ]), $this->created_by);
+            AuditLog::record('recurring_expense.generate', $expense, __('Generated expense from recurring expense ":title"', [
+                'title' => $this->title,
+            ]), $this->created_by);
 
-        $nextRun = $this->nextRunDateAfter($this->next_run_date);
+            $nextRun = $this->nextRunDateAfter($this->next_run_date);
 
-        $this->update([
-            'last_generated_at' => now(),
-            'generated_count' => $this->generated_count + 1,
-            'next_run_date' => $nextRun,
-            'status' => ($this->end_date && $nextRun->gt($this->end_date)) ? 'completed' : $this->status,
-        ]);
+            $this->update([
+                'last_generated_at' => now(),
+                'generated_count' => $this->generated_count + 1,
+                'next_run_date' => $nextRun,
+                'status' => ($this->end_date && $nextRun->gt($this->end_date)) ? 'completed' : $this->status,
+            ]);
 
-        return $expense;
+            return $expense;
+        });
     }
 
     private function notifyApprovers(Expense $expense): void

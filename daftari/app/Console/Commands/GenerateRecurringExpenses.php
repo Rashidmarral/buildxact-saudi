@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\RecurringExpense;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class GenerateRecurringExpenses extends Command
 {
@@ -24,11 +26,25 @@ class GenerateRecurringExpenses extends Command
             ->filter(fn (RecurringExpense $recurringExpense) => $recurringExpense->company
                 && $recurringExpense->company->isOperational());
 
+        $generated = 0;
+
         foreach ($due as $recurringExpense) {
-            $recurringExpense->generateExpense();
+            try {
+                $recurringExpense->generateExpense();
+                $generated++;
+            } catch (Throwable $e) {
+                // Security audit finding M-22: one company's recurring
+                // expense failing (a locked accounting period, a
+                // deactivated posting account, ...) must not also block
+                // every other company's due recurring expense in this
+                // same run — each is now independent, and the failed one
+                // simply retries on the next scheduled run since its
+                // own next_run_date never advanced.
+                Log::error("Failed to generate expense from recurring expense #{$recurringExpense->id}: {$e->getMessage()}");
+            }
         }
 
-        $this->info("Generated {$due->count()} expense(s) from recurring expenses.");
+        $this->info("Generated {$generated} expense(s) from recurring expenses.");
 
         return self::SUCCESS;
     }

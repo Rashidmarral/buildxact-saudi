@@ -14,18 +14,24 @@ Artisan::command('inspire', function () {
 // entry is invoking schedule:run" apart from "it was never configured".
 Schedule::call(fn () => Setting::set('system_scheduler_heartbeat_at', now()->toDateTimeString()))->everyMinute();
 
-Schedule::command('zatca:sync-invoices --frequency=hourly')->hourly();
-Schedule::command('zatca:sync-invoices --frequency=daily')->daily();
-Schedule::command('zatca:sync-invoices --frequency=weekly')->weekly();
+// Security audit finding M-10: only backup:run used withoutOverlapping().
+// Every command below either creates records (recurring invoices/
+// expenses/journal entries, ZATCA submissions) or mutates state
+// (subscription lifecycle, depreciation postings) — an overrunning
+// invocation still on the same schedule's next tick would otherwise
+// duplicate whatever it creates or posts, not just waste work.
+Schedule::command('zatca:sync-invoices --frequency=hourly')->hourly()->withoutOverlapping();
+Schedule::command('zatca:sync-invoices --frequency=daily')->daily()->withoutOverlapping();
+Schedule::command('zatca:sync-invoices --frequency=weekly')->weekly()->withoutOverlapping();
 
-Schedule::command('invoices:send-overdue-reminders')->dailyAt('08:00');
-Schedule::command('quotations:expire')->dailyAt('00:15');
-Schedule::command('invoices:generate-recurring')->dailyAt('06:00');
-Schedule::command('expenses:generate-recurring')->dailyAt('06:15');
-Schedule::command('journals:generate-recurring')->dailyAt('06:20');
-Schedule::command('subscriptions:send-expiring-reminders')->dailyAt('07:00');
-Schedule::command('subscriptions:expire-cancelled')->dailyAt('01:00');
-Schedule::command('subscriptions:run-lifecycle-rules')->dailyAt('02:30');
-Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00');
-Schedule::command('inventory:check-low-stock')->dailyAt('07:00');
+Schedule::command('invoices:send-overdue-reminders')->dailyAt('08:00')->withoutOverlapping();
+Schedule::command('quotations:expire')->dailyAt('00:15')->withoutOverlapping();
+Schedule::command('invoices:generate-recurring')->dailyAt('06:00')->withoutOverlapping();
+Schedule::command('expenses:generate-recurring')->dailyAt('06:15')->withoutOverlapping();
+Schedule::command('journals:generate-recurring')->dailyAt('06:20')->withoutOverlapping();
+Schedule::command('subscriptions:send-expiring-reminders')->dailyAt('07:00')->withoutOverlapping();
+Schedule::command('subscriptions:expire-cancelled')->dailyAt('01:00')->withoutOverlapping();
+Schedule::command('subscriptions:run-lifecycle-rules')->dailyAt('02:30')->withoutOverlapping();
+Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00')->withoutOverlapping();
+Schedule::command('inventory:check-low-stock')->dailyAt('07:00')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('03:00')->withoutOverlapping();
