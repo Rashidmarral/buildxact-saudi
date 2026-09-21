@@ -62,4 +62,48 @@ class ItemFormPageRendersTest extends TestCase
         $response->assertSee(__('Kit components'));
         $response->assertSee($component->name);
     }
+
+    /**
+     * Bug report: editing an item and clicking Save did nothing. Root
+     * cause was invalid nested HTML: the "Add variant" mini-form (only
+     * rendered for an existing, non-kit item) sat inside the main item
+     * edit <form>. A real browser's HTML parser refuses to open a second
+     * <form> while one is already in scope (the open tag is simply
+     * dropped), so the inner form's own </form> tag closes the OUTER form
+     * early instead — leaving the real Save button, and everything after
+     * the Variants block, outside of any form. Clicking it then fires no
+     * request at all.
+     *
+     * PHP's DOMDocument/libxml HTML parser does NOT reproduce that
+     * browser behavior — it happily nests a second <form> inside the
+     * first, so an xpath-based "which form owns the Save button" check
+     * passes even against the broken markup and would never have caught
+     * this. This instead walks the raw HTML token-by-token counting
+     * <form>/</form> the way a browser's tokenizer does, and asserts the
+     * nesting depth never exceeds 1 — i.e. no <form> is ever still open
+     * when another <form> tag begins.
+     */
+    public function test_the_edit_page_never_nests_a_form_inside_another_form(): void
+    {
+        $owner = $this->makeOwner();
+        $item = Item::create(['company_id' => $owner->company_id, 'name' => 'Standalone Item', 'item_type' => 'physical', 'unit_price' => 10]);
+
+        $response = $this->actingAs($owner)->get(route('app.items.edit', $item));
+        $response->assertOk();
+
+        preg_match_all('/<\/?form\b[^>]*>/i', $response->getContent(), $matches);
+        $this->assertNotEmpty($matches[0], 'Expected to find at least one <form> tag on the edit page.');
+
+        $depth = 0;
+        foreach ($matches[0] as $tag) {
+            if (str_starts_with($tag, '</')) {
+                $depth--;
+            } else {
+                $depth++;
+                $this->assertLessThanOrEqual(1, $depth, "A <form> tag opened while another was still open: {$tag}");
+            }
+        }
+
+        $this->assertSame(0, $depth, 'A <form> tag was left unclosed.');
+    }
 }

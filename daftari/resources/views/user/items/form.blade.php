@@ -155,44 +155,6 @@
             <p id="kit-components-empty" class="text-xs text-slate-400">{{ __('No components added.') }}</p>
         </div>
 
-        @if ($item->exists && ! $item->is_kit)
-            <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
-                <label class="block text-xs font-semibold uppercase text-slate-500 mb-2">{{ __('Variants') }}</label>
-                @if ($item->parentItem)
-                    <p class="text-sm text-slate-600">{{ __('This is a variant of') }} <a href="{{ route('app.items.edit', $item->parentItem) }}" class="text-brand-600 hover:underline">{{ $item->parentItem->name }}</a>@if($item->variant_label) — {{ $item->variant_label }}@endif</p>
-                @endif
-
-                @php
-                    $variantList = $item->variants;
-                @endphp
-                @if ($variantList->isNotEmpty())
-                    <ul class="divide-y divide-slate-100 mb-3">
-                        @foreach ($variantList as $variant)
-                            <li class="py-2 flex items-center justify-between text-sm">
-                                <a href="{{ route('app.items.edit', $variant) }}" class="text-brand-600 hover:underline">{{ $variant->name }}</a>
-                                <span class="text-slate-400">{{ $variant->variant_label }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                @else
-                    <p class="text-xs text-slate-400 mb-3">{{ __('No variants yet.') }}</p>
-                @endif
-
-                <form method="POST" action="{{ route('app.items.variants.store', $item) }}" class="flex flex-wrap items-end gap-2">
-                    @csrf
-                    <div>
-                        <label class="block text-xs text-slate-500">{{ __('New variant label') }}</label>
-                        <input type="text" name="variant_label" placeholder="{{ __('e.g. Red / Large') }}" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-500">{{ __('SKU') }}</label>
-                        <input type="text" name="sku" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    </div>
-                    <button type="submit" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-brand-300">{{ __('+ Add variant') }}</button>
-                </form>
-                <p class="text-xs text-slate-400 mt-2">{{ __('Each variant is its own item with its own SKU, price and stock — clone this item, then adjust the new one.') }}</p>
-            </div>
-        @endif
     </div>
 
     @include('partials.custom-fields')
@@ -202,6 +164,45 @@
         <a href="{{ route('app.items.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
     </div>
 </form>
+
+@if ($item->exists && ! $item->is_kit)
+    <div class="max-w-2xl mt-5 rounded-lg border border-slate-200 bg-white p-4">
+        <label class="block text-xs font-semibold uppercase text-slate-500 mb-2">{{ __('Variants') }}</label>
+        @if ($item->parentItem)
+            <p class="text-sm text-slate-600">{{ __('This is a variant of') }} <a href="{{ route('app.items.edit', $item->parentItem) }}" class="text-brand-600 hover:underline">{{ $item->parentItem->name }}</a>@if($item->variant_label) — {{ $item->variant_label }}@endif</p>
+        @endif
+
+        @php
+            $variantList = $item->variants;
+        @endphp
+        @if ($variantList->isNotEmpty())
+            <ul class="divide-y divide-slate-100 mb-3">
+                @foreach ($variantList as $variant)
+                    <li class="py-2 flex items-center justify-between text-sm">
+                        <a href="{{ route('app.items.edit', $variant) }}" class="text-brand-600 hover:underline">{{ $variant->name }}</a>
+                        <span class="text-slate-400">{{ $variant->variant_label }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        @else
+            <p class="text-xs text-slate-400 mb-3">{{ __('No variants yet.') }}</p>
+        @endif
+
+        <form method="POST" action="{{ route('app.items.variants.store', $item) }}" class="flex flex-wrap items-end gap-2">
+            @csrf
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('New variant label') }}</label>
+                <input type="text" name="variant_label" placeholder="{{ __('e.g. Red / Large') }}" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('SKU') }}</label>
+                <input type="text" name="sku" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-brand-300">{{ __('+ Add variant') }}</button>
+        </form>
+        <p class="text-xs text-slate-400 mt-2">{{ __('Each variant is its own item with its own SKU, price and stock — clone this item, then adjust the new one.') }}</p>
+    </div>
+@endif
 
 <script>
 (function () {
