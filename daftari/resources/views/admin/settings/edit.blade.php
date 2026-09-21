@@ -220,10 +220,12 @@
                                 <div class="mt-2 flex items-center gap-2">
                                     <span class="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">{{ __(':count pending', ['count' => $currentBillingCompanyPendingSyncCount]) }}</span>
                                     @if ($currentBillingCompanyPendingSyncCount > 0)
-                                        <form method="POST" action="{{ route('admin.zatca.companies.sync', $currentBillingCompany) }}" onsubmit="return confirm('{{ __('Sync all pending document(s) for :name now?', ['name' => $currentBillingCompany->name]) }}')">
-                                            @csrf
-                                            <button type="submit" class="rounded-full bg-brand-600 px-2.5 py-0.5 font-semibold text-white hover:bg-brand-700">{{ __('Sync now') }}</button>
-                                        </form>
+                                        {{-- A <form> can't nest inside this section's own outer <form> (browsers
+                                             silently close the outer one early, stranding "Save Identity settings"
+                                             below outside any form) — so this button submits a detached form
+                                             declared after the outer form closes, referenced via the HTML5
+                                             form="" attribute. --}}
+                                        <button type="submit" form="sync-billing-company-{{ $currentBillingCompany->id }}" class="rounded-full bg-brand-600 px-2.5 py-0.5 font-semibold text-white hover:bg-brand-700">{{ __('Sync now') }}</button>
                                         <a href="{{ route('admin.zatca.companies.pending', $currentBillingCompany) }}" class="font-semibold text-brand-700 hover:underline">{{ __('or sync one at a time') }}</a>
                                     @endif
                                 </div>
@@ -245,6 +247,12 @@
 
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Identity settings') }}</button>
         </form>
+
+        @if ($currentBillingCompany && $currentBillingCompanyPendingSyncCount > 0)
+            <form id="sync-billing-company-{{ $currentBillingCompany->id }}" method="POST" action="{{ route('admin.zatca.companies.sync', $currentBillingCompany) }}" onsubmit="return confirm('{{ __('Sync all pending document(s) for :name now?', ['name' => $currentBillingCompany->name]) }}')">
+                @csrf
+            </form>
+        @endif
     </div>
 
     {{-- ============ Branding ============ --}}
