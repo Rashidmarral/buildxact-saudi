@@ -67,6 +67,17 @@ $company = auth()->user()->company;
             <label class="block text-sm font-medium text-slate-700">{{ __('Due date') }}</label>
             <input type="date" name="due_date" value="{{ old('due_date', optional($bill->due_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        @if ($projects->isNotEmpty())
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Project (optional)') }}</label>
+                <select name="project_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($projects as $project)
+                        <option value="{{ $project->id }}" @selected(old('project_id', $bill->project_id) == $project->id)>{{ $project->code }} - {{ $project->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Currency') }}</label>
             <select name="currency" id="currency" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">

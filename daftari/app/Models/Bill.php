@@ -15,7 +15,7 @@ class Bill extends Model
     use BelongsToCompany, ComputesDiscount;
 
     protected $fillable = [
-        'company_id', 'supplier_id', 'branch_id', 'warehouse_id', 'purchase_order_id', 'created_by', 'bill_number',
+        'company_id', 'supplier_id', 'project_id', 'branch_id', 'warehouse_id', 'purchase_order_id', 'created_by', 'bill_number',
         'supplier_reference', 'status', 'bill_date', 'due_date', 'subtotal',
         'discount_total', 'discount_type', 'discount_value', 'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes',
         'stock_received', 'wht_rate_id', 'wht_amount', 'wht_withheld',
@@ -35,6 +35,11 @@ class Bill extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function branch(): BelongsTo

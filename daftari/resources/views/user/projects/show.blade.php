@@ -68,6 +68,60 @@
         @endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Linked quotations') }}</h3>
+        @if ($project->quotations->isEmpty())
+            <p class="text-sm text-slate-400">{{ __('No quotations linked to this project yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <tbody>
+                    @foreach ($project->quotations as $quotation)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="py-2"><a href="{{ route('app.quotations.show', $quotation) }}" class="text-brand-700 hover:underline">{{ $quotation->quotation_number }}</a></td>
+                            <td class="py-2 text-slate-500">{{ $quotation->client->display_name ?? '—' }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($quotation->total) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Linked purchase orders (sub-vendors)') }}</h3>
+        @if ($project->purchaseOrders->isEmpty())
+            <p class="text-sm text-slate-400">{{ __('No purchase orders linked to this project yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <tbody>
+                    @foreach ($project->purchaseOrders as $purchaseOrder)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="py-2"><a href="{{ route('app.purchase-orders.show', $purchaseOrder) }}" class="text-brand-700 hover:underline">{{ $purchaseOrder->po_number }}</a></td>
+                            <td class="py-2 text-slate-500">{{ $purchaseOrder->supplier->display_name ?? '—' }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($purchaseOrder->total) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Linked bills') }}</h3>
+        @if ($project->bills->isEmpty())
+            <p class="text-sm text-slate-400">{{ __('No bills linked to this project yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <tbody>
+                    @foreach ($project->bills as $bill)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="py-2"><a href="{{ route('app.bills.show', $bill) }}" class="text-brand-700 hover:underline">{{ $bill->bill_number }}</a></td>
+                            <td class="py-2 text-slate-500">{{ $bill->supplier->display_name ?? '—' }}</td>
+                            <td class="py-2 text-end">{{ \App\Support\Money::format($bill->total) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="font-semibold text-slate-900 mb-4">{{ __('Linked expenses') }}</h3>
         @if ($project->expenses->isEmpty())
             <p class="text-sm text-slate-400">{{ __('No expenses linked to this project yet.') }}</p>

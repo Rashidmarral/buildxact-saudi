@@ -51,7 +51,10 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
-        $project->load('client', 'invoices.client', 'expenses.category');
+        $project->load(
+            'client', 'invoices.client', 'expenses.category',
+            'quotations.client', 'purchaseOrders.supplier', 'bills.supplier'
+        );
 
         return view('user.projects.show', compact('project'));
     }
@@ -77,8 +80,9 @@ class ProjectController extends Controller
 
     public function destroy(Project $project)
     {
-        if ($project->invoices()->exists() || $project->expenses()->exists()) {
-            return back()->withErrors(['project' => __('This project has linked invoices or expenses and cannot be deleted.')]);
+        if ($project->invoices()->exists() || $project->expenses()->exists()
+            || $project->quotations()->exists() || $project->purchaseOrders()->exists() || $project->bills()->exists()) {
+            return back()->withErrors(['project' => __('This project has linked invoices, quotations, purchase orders, bills or expenses and cannot be deleted.')]);
         }
 
         $project->delete();

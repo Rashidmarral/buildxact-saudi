@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Item;
+use App\Models\Project;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
@@ -73,6 +74,7 @@ class PurchaseOrderController extends Controller
             'suppliers' => Supplier::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'units' => Unit::orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
             'nextNumberPreview' => $company->po_prefix.'-'.str_pad((string) $company->next_po_number, 5, '0', STR_PAD_LEFT),
         ]);
     }
@@ -87,6 +89,7 @@ class PurchaseOrderController extends Controller
 
             $order = PurchaseOrder::create([
                 'supplier_id' => $data['supplier_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'branch_id' => $company->default_branch_id,
                 'created_by' => Auth::id(),
                 'po_number' => $company->nextPoNumber(),
@@ -122,7 +125,7 @@ class PurchaseOrderController extends Controller
 
     public function show(PurchaseOrder $purchaseOrder)
     {
-        $purchaseOrder->load('items.billItems.bill', 'supplier', 'bills', 'attachments');
+        $purchaseOrder->load('items.billItems.bill', 'supplier', 'project', 'bills', 'attachments');
 
         $template = $purchaseOrder->company->defaultTemplateFor('purchase_order');
 
@@ -300,6 +303,7 @@ class PurchaseOrderController extends Controller
 
             $bill = Bill::create([
                 'supplier_id' => $purchaseOrder->supplier_id,
+                'project_id' => $purchaseOrder->project_id,
                 'branch_id' => $purchaseOrder->branch_id ?? $company->default_branch_id,
                 'warehouse_id' => $data['warehouse_id'] ?? null,
                 'purchase_order_id' => $purchaseOrder->id,
@@ -423,6 +427,7 @@ class PurchaseOrderController extends Controller
 
         return $request->validate([
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'order_date' => ['required', 'date'],
             'expected_date' => ['nullable', 'date', 'after_or_equal:order_date'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],

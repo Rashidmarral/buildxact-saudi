@@ -14,7 +14,7 @@ class PurchaseOrder extends Model
     use BelongsToCompany, ComputesDiscount;
 
     protected $fillable = [
-        'company_id', 'supplier_id', 'branch_id', 'created_by', 'converted_bill_id',
+        'company_id', 'supplier_id', 'project_id', 'branch_id', 'created_by', 'converted_bill_id',
         'po_number', 'status', 'order_date', 'expected_date', 'subtotal',
         'discount_total', 'discount_type', 'discount_value', 'vat_total', 'total', 'notes',
         'approved_by', 'approved_at', 'rejection_reason',
@@ -32,6 +32,11 @@ class PurchaseOrder extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function approver(): BelongsTo

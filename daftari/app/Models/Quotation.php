@@ -16,7 +16,7 @@ class Quotation extends Model
     use BelongsToCompany, ComputesDiscount, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'client_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
+        'company_id', 'client_id', 'project_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
         'quotation_number', 'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value',
         'vat_total', 'total', 'currency', 'notes', 'bank_account_id',
         'approved_by', 'approved_at', 'approval_rejection_reason',
@@ -67,6 +67,11 @@ class Quotation extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function bankAccount(): BelongsTo

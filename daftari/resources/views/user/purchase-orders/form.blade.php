@@ -63,6 +63,18 @@ $company = auth()->user()->company;
             <label class="block text-sm font-medium text-slate-700">{{ __('Expected date') }}</label>
             <input type="date" name="expected_date" value="{{ old('expected_date') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
+        @if ($projects->isNotEmpty())
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Project (optional)') }}</label>
+                <select name="project_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($projects as $project)
+                        <option value="{{ $project->id }}" @selected(old('project_id', $order->project_id) == $project->id)>{{ $project->code }} - {{ $project->name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-slate-400 mt-1">{{ __('Link a sub-vendor order to the same project as the client\'s quotation/invoice, to track true project margin.') }}</p>
+            </div>
+        @endif
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">

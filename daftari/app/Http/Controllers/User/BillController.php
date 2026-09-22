@@ -14,6 +14,7 @@ use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Item;
 use App\Models\ItemStock;
+use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\TaxRate;
 use App\Models\Unit;
@@ -138,6 +139,7 @@ class BillController extends Controller
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'units' => Unit::orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
             'whtRates' => WhtRate::active()->orderBy('name')->get(),
             'currencies' => Currencies::catalog(),
             'nextNumberPreview' => $company->bill_prefix.'-'.str_pad((string) $company->next_bill_number, 5, '0', STR_PAD_LEFT),
@@ -161,6 +163,7 @@ class BillController extends Controller
 
             $bill = Bill::create([
                 'supplier_id' => $data['supplier_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'branch_id' => $company->default_branch_id,
                 'warehouse_id' => $data['warehouse_id'] ?? null,
                 'wht_rate_id' => $whtRateId,
@@ -201,7 +204,7 @@ class BillController extends Controller
 
     public function show(Bill $bill)
     {
-        $bill->load('items', 'supplier', 'billPayments', 'attachments');
+        $bill->load('items', 'supplier', 'project', 'billPayments', 'attachments');
 
         $template = $bill->company->defaultTemplateFor('bill');
 
@@ -390,6 +393,7 @@ class BillController extends Controller
 
         return $request->validate([
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
             'wht_rate_id' => ['nullable', Rule::exists('wht_rates', 'id')->where('company_id', $companyId)],
             'supplier_reference' => ['nullable', 'string', 'max:255'],

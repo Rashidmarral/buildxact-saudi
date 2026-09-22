@@ -13,6 +13,7 @@ use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Item;
+use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Salesperson;
@@ -66,6 +67,7 @@ class QuotationController extends Controller
         $units = Unit::orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
         $company = Auth::user()->company;
         $type = $request->get('type', 'quotation') === 'proforma' ? 'proforma' : 'quotation';
 
@@ -80,6 +82,7 @@ class QuotationController extends Controller
             'units' => $units,
             'salespersons' => $salespersons,
             'bankAccounts' => $bankAccounts,
+            'projects' => $projects,
             'nextNumberPreview' => $type === 'proforma'
                 ? $company->proforma_prefix.'-'.str_pad((string) $company->next_proforma_number, 5, '0', STR_PAD_LEFT)
                 : $company->quotation_prefix.'-'.str_pad((string) $company->next_quotation_number, 5, '0', STR_PAD_LEFT),
@@ -96,6 +99,7 @@ class QuotationController extends Controller
 
             $quotation = Quotation::create([
                 'client_id' => $data['client_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'bank_account_id' => $data['bank_account_id'] ?? null,
                 'branch_id' => $company->default_branch_id,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
@@ -131,7 +135,7 @@ class QuotationController extends Controller
 
     public function show(Quotation $quotation)
     {
-        $quotation->load('items', 'client', 'convertedInvoice', 'bankAccount', 'attachments');
+        $quotation->load('items', 'client', 'project', 'convertedInvoice', 'bankAccount', 'attachments');
         $template = $quotation->company->defaultTemplateFor($quotation->type);
 
         return view('user.quotations.show', compact('quotation', 'template'));
@@ -217,8 +221,9 @@ class QuotationController extends Controller
         $units = Unit::orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
         $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
+        $projects = Project::orderBy('name')->get();
 
-        return view('user.quotations.form', compact('quotation', 'clients', 'items', 'units', 'salespersons', 'bankAccounts'));
+        return view('user.quotations.form', compact('quotation', 'clients', 'items', 'units', 'salespersons', 'bankAccounts', 'projects'));
     }
 
     public function update(Request $request, Quotation $quotation)
@@ -235,6 +240,7 @@ class QuotationController extends Controller
         DB::transaction(function () use ($quotation, $data) {
             $quotation->update([
                 'client_id' => $data['client_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'bank_account_id' => $data['bank_account_id'] ?? null,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
                 'issue_date' => $data['issue_date'],
@@ -439,6 +445,7 @@ class QuotationController extends Controller
 
             $invoice = Invoice::create([
                 'client_id' => $quotation->client_id,
+                'project_id' => $quotation->project_id,
                 'branch_id' => $quotation->branch_id ?? $company->default_branch_id,
                 'created_by' => Auth::id(),
                 'invoice_number' => $company->nextInvoiceNumber(),
@@ -546,6 +553,7 @@ class QuotationController extends Controller
 
         return $request->validate([
             'client_id' => ['required', Rule::exists('clients', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
             'salesperson_id' => ['nullable', Rule::exists('salespersons', 'id')->where('company_id', $companyId)],
             'type' => ['required', 'in:quotation,proforma'],
