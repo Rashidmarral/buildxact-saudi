@@ -71,6 +71,51 @@ class MpdfRenderer
         }
     }
 
+    /**
+     * Appends every given PDF's pages, in order, onto one combined
+     * document — used to fold a Purchase Order's PDF attachments (a
+     * sub-vendor's own quotation, required approval documents, ...)
+     * directly into the downloaded PO instead of leaving them as
+     * separate files the recipient has to open one by one. mPDF ships
+     * setasign/fpdi (see Mpdf\FpdiTrait) specifically for this, so no
+     * extra package is needed. An entry that isn't a valid/readable PDF
+     * is skipped rather than failing the whole download — one corrupt
+     * attachment shouldn't block the PO itself.
+     */
+    public function mergePdfs(array $pdfByteStrings): string
+    {
+        $pdfByteStrings = array_values(array_filter($pdfByteStrings));
+
+        if (count($pdfByteStrings) <= 1) {
+            return $pdfByteStrings[0] ?? '';
+        }
+
+        $tempDir = storage_path('app/mpdf-tmp');
+        File::ensureDirectoryExists($tempDir);
+
+        $merged = new Mpdf(['tempDir' => $tempDir]);
+
+        foreach ($pdfByteStrings as $bytes) {
+            try {
+                $pageCount = $merged->setSourceFile(\setasign\Fpdi\PdfParser\StreamReader::createByString($bytes));
+            } catch (\Throwable) {
+                continue;
+            }
+
+            for ($i = 1; $i <= $pageCount; $i++) {
+                $templateId = $merged->importPage($i);
+                $size = $merged->getTemplateSize($templateId);
+                $merged->AddPageByArray([
+                    'orientation' => $size['orientation'],
+                    'newformat' => [$size['width'], $size['height']],
+                ]);
+                $merged->useTemplate($templateId);
+            }
+        }
+
+        return $merged->Output('', 'S');
+    }
+
     private function makeMpdf(string $pageSize = 'A4'): Mpdf
     {
         $defaultConfig = (new \Mpdf\Config\ConfigVariables())->getDefaults();

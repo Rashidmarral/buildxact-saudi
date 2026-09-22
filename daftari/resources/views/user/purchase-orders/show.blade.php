@@ -122,6 +122,7 @@
             <input type="file" name="file" id="attach-file-input" onchange="document.getElementById('attach-file-form').submit()">
         </form>
     </div>
+    <p class="text-xs text-slate-400 mb-3">{{ __('PDF attachments here (the sub-vendor\'s own quotation, required approval documents, ...) are automatically appended to the downloaded Purchase Order PDF, as trailing pages.') }}</p>
 
     @if ($order->attachments->isEmpty())
         <p class="text-sm text-slate-400">{{ __('No attachments') }}</p>

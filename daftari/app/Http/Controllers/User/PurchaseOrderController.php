@@ -134,34 +134,35 @@ class PurchaseOrderController extends Controller
 
     public function downloadPdf(PurchaseOrder $purchaseOrder, MpdfRenderer $renderer)
     {
-        $purchaseOrder->loadMissing('items', 'supplier');
+        $purchaseOrder->loadMissing('items', 'supplier', 'project', 'attachments');
 
         $doc = [
-            'type_label' => __('Purchase Order'),
-            'type_label_ar' => 'أمر شراء',
-            'number' => $purchaseOrder->po_number,
-            'date_label' => __('Order date'),
-            'date' => $purchaseOrder->order_date,
-            'date2_label' => __('Expected'),
-            'date2_label_ar' => 'تاريخ التوريد المتوقع',
-            'date2' => $purchaseOrder->expected_date,
-            'party_label' => __('Supplier'),
-            'party_label_ar' => 'المورد',
-            'party' => $purchaseOrder->supplier,
             'lines' => $purchaseOrder->items,
             'subtotal' => $purchaseOrder->subtotal,
             'discount_total' => $purchaseOrder->discount_total,
-            'discount_percent' => $purchaseOrder->discount_type === 'percentage' ? $purchaseOrder->discount_value : null,
             'vat_total' => $purchaseOrder->vat_total,
             'total' => $purchaseOrder->total,
-            'notes' => $purchaseOrder->notes,
         ];
 
-        $pdf = $renderer->render('documents.print.pdf', [
+        $basePdf = $renderer->render('documents.print.purchase-order-pdf', [
             'doc' => $doc,
-            'company' => $purchaseOrder->company,
-            'template' => $purchaseOrder->company->defaultTemplateFor('purchase_order'),
+            'order' => $purchaseOrder,
         ]);
+
+        // Fold in every PDF attachment (a sub-vendor's own quotation,
+        // required approval documents, ...) as trailing pages, so
+        // "Download PDF" hands over one complete package instead of
+        // leaving the recipient to open several files separately.
+        // Non-PDF attachments (images, Word docs) stay downloadable
+        // individually from the PO page but aren't merged in here.
+        $attachmentPdfs = $purchaseOrder->attachments
+            ->where('mime_type', 'application/pdf')
+            ->map(fn ($attachment) => Storage::disk('public')->exists($attachment->path) ? Storage::disk('public')->get($attachment->path) : null)
+            ->filter()
+            ->values()
+            ->all();
+
+        $pdf = $renderer->mergePdfs([$basePdf, ...$attachmentPdfs]);
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
