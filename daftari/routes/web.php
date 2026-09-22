@@ -465,7 +465,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::middleware('feature:purchase_orders')->group(function () {
             Route::get('reorder-suggestions', [ReorderSuggestionController::class, 'index'])->name('reorder-suggestions.index');
             Route::post('reorder-suggestions', [ReorderSuggestionController::class, 'store'])->name('reorder-suggestions.store');
-            Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show']);
+            Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
             Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
             Route::post('purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
             Route::post('purchase-orders/{purchaseOrder}/void', [PurchaseOrderController::class, 'void'])->name('purchase-orders.void');

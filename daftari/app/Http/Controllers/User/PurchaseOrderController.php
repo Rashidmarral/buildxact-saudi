@@ -90,6 +90,7 @@ class PurchaseOrderController extends Controller
             $order = PurchaseOrder::create([
                 'supplier_id' => $data['supplier_id'],
                 'project_id' => $data['project_id'] ?? null,
+                'quotation_reference' => $data['quotation_reference'] ?? null,
                 'branch_id' => $company->default_branch_id,
                 'created_by' => Auth::id(),
                 'po_number' => $company->nextPoNumber(),
@@ -121,6 +122,76 @@ class PurchaseOrderController extends Controller
         }
 
         return redirect()->route('app.purchase-orders.show', $order)->with('status', $status ?? __('Purchase order created.'));
+    }
+
+    public function edit(PurchaseOrder $purchaseOrder)
+    {
+        // Mirrors QuotationController::edit()'s security finding D-2:
+        // once a PO leaves draft (submitted for approval, approved,
+        // billed, voided) it may already have driven downstream state —
+        // an approver's decision, a bill raised against its items, stock
+        // received — so editing it after that point could silently
+        // invalidate records that point at its current items/totals.
+        if ($purchaseOrder->status !== 'draft') {
+            return redirect()->route('app.purchase-orders.show', $purchaseOrder)
+                ->withErrors(['purchase_order' => __('Only draft purchase orders can be edited — this one has already been submitted. Create a new purchase order instead.')]);
+        }
+
+        $purchaseOrder->load('items');
+
+        return view('user.purchase-orders.form', [
+            'order' => $purchaseOrder,
+            'suppliers' => Supplier::orderBy('name')->get(),
+            'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
+            'units' => Unit::orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
+            'nextNumberPreview' => $purchaseOrder->po_number,
+        ]);
+    }
+
+    public function update(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        // See edit() — must also be enforced here, not just when loading
+        // the form, since this action can be reached directly.
+        if ($purchaseOrder->status !== 'draft') {
+            return redirect()->route('app.purchase-orders.show', $purchaseOrder)
+                ->withErrors(['purchase_order' => __('Only draft purchase orders can be edited — this one has already been submitted. Create a new purchase order instead.')]);
+        }
+
+        $data = $this->validated($request);
+        $postImmediately = $request->boolean('post_immediately');
+
+        DB::transaction(function () use ($purchaseOrder, $data) {
+            $purchaseOrder->update([
+                'supplier_id' => $data['supplier_id'],
+                'project_id' => $data['project_id'] ?? null,
+                'quotation_reference' => $data['quotation_reference'] ?? null,
+                'order_date' => $data['order_date'],
+                'expected_date' => $data['expected_date'] ?? null,
+                'discount_type' => $data['discount_type'] ?? 'fixed',
+                'discount_value' => $data['discount_value'] ?? 0,
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            $purchaseOrder->items()->delete();
+            $this->syncItems($purchaseOrder, $data['items']);
+            $purchaseOrder->recalculateTotals();
+        });
+
+        $status = null;
+
+        if ($postImmediately) {
+            if ($purchaseOrder->company->poRequiresApproval((float) $purchaseOrder->fresh()->total)) {
+                $purchaseOrder->update(['status' => 'pending_approval']);
+                $this->notifyApprovers($purchaseOrder);
+                $status = __('Purchase order updated and submitted for approval.');
+            } else {
+                $purchaseOrder->update(['status' => 'approved']);
+                $status = __('Purchase order updated and approved.');
+            }
+        }
+
+        return redirect()->route('app.purchase-orders.show', $purchaseOrder)->with('status', $status ?? __('Purchase order updated.'));
     }
 
     public function show(PurchaseOrder $purchaseOrder)
@@ -429,6 +500,7 @@ class PurchaseOrderController extends Controller
         return $request->validate([
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
+            'quotation_reference' => ['nullable', 'string', 'max:60'],
             'order_date' => ['required', 'date'],
             'expected_date' => ['nullable', 'date', 'after_or_equal:order_date'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],

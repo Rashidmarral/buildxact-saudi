@@ -15,7 +15,7 @@ class PurchaseOrder extends Model
 
     protected $fillable = [
         'company_id', 'supplier_id', 'project_id', 'branch_id', 'created_by', 'converted_bill_id',
-        'po_number', 'status', 'order_date', 'expected_date', 'subtotal',
+        'po_number', 'quotation_reference', 'status', 'order_date', 'expected_date', 'subtotal',
         'discount_total', 'discount_type', 'discount_value', 'vat_total', 'total', 'notes',
         'approved_by', 'approved_at', 'rejection_reason',
     ];

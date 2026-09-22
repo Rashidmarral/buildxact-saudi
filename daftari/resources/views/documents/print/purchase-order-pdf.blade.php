@@ -89,14 +89,26 @@
             @if ($order->project)<div><strong>{{ __('Project') }}:</strong> {{ $order->project->name }}</div>@endif
             <div style="margin-top: 6px;"><strong>{{ __('To') }}:</strong> {{ $supplier->name }}</div>
             <div class="muted">{{ __('Dear Sirs,') }}</div>
-            <div style="margin-top: 6px;">{{ __('Please supply/execute the items listed below in accordance with the following terms and specifications:') }}</div>
+            <div style="margin-top: 6px;">
+                @if ($order->quotation_reference)
+                    {{ __('With reference to the quotation submitted by you numbered (:ref), we hope you secure the items listed below in accordance with the following terms and specifications:', ['ref' => $order->quotation_reference]) }}
+                @else
+                    {{ __('Please supply/execute the items listed below in accordance with the following terms and specifications:') }}
+                @endif
+            </div>
         </td>
         <td class="cell ar" style="width: 50%; vertical-align: top;">
             <div><strong>التاريخ:</strong> {{ \App\Support\PlatformFormat::date($order->order_date) }}</div>
             @if ($order->project)<div><strong>اسم المشروع:</strong> {{ $order->project->name_ar ?: $order->project->name }}</div>@endif
             <div style="margin-top: 6px;"><strong>السادة:</strong> {{ $supplier->name_ar ?: $supplier->name }} المحترمين</div>
             <div class="muted">السلام عليكم ورحمة الله وبركاته،</div>
-            <div style="margin-top: 6px;">نأمل منكم تأمين/تنفيذ الأصناف الواردة أدناه طبقاً للشروط والمواصفات التالية:</div>
+            <div style="margin-top: 6px;">
+                @if ($order->quotation_reference)
+                    بالإشارة إلى عرض السعر المقدم من قبلكم بالرقم ({{ $order->quotation_reference }}) نأمل منكم تأمين الأصناف الواردة أدناه طبقاً للشروط والمواصفات التالية:
+                @else
+                    نأمل منكم تأمين/تنفيذ الأصناف الواردة أدناه طبقاً للشروط والمواصفات التالية:
+                @endif
+            </div>
         </td>
     </tr>
 </table>

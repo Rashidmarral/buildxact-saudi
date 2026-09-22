@@ -10,6 +10,7 @@
     </div>
     <div class="flex items-center gap-3">
         @if ($order->status === 'draft')
+            <a href="{{ route('app.purchase-orders.edit', $order) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
             <form method="POST" action="{{ route('app.purchase-orders.approve', $order) }}">
                 @csrf
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Approve') }}</button>
@@ -73,6 +74,12 @@
         'notes' => $order->notes,
     ];
 @endphp
+@if ($order->project || $order->quotation_reference)
+    <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-500 mb-3 print:hidden">
+        @if ($order->project)<span><span class="font-medium text-slate-700">{{ __('Project') }}:</span> {{ $order->project->name }}</span>@endif
+        @if ($order->quotation_reference)<span><span class="font-medium text-slate-700">{{ __('Quotation reference') }}:</span> {{ $order->quotation_reference }}</span>@endif
+    </div>
+@endif
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
     @include('documents.print.body', ['doc' => $doc, 'company' => $order->company, 'template' => $template])
 </div>

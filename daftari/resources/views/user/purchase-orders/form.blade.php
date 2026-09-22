@@ -1,20 +1,21 @@
 @extends('layouts.app')
 
-@section('title', __('New Purchase Order'))
+@section('title', $order->exists ? __('Edit Purchase Order') : __('New Purchase Order'))
 
 @section('content')
 @php
 $company = auth()->user()->company;
+$existingItems = $order->exists ? $order->items : collect();
 @endphp
 
 <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold text-slate-900">{{ __('Create Purchase Order') }}</h1>
+    <h1 class="text-2xl font-bold text-slate-900">{{ $order->exists ? __('Edit Purchase Order') : __('Create Purchase Order') }}</h1>
     <div class="flex items-center gap-3">
         <button type="button" id="preview-btn" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Preview Purchase Order') }}</button>
-        <a href="{{ route('app.purchase-orders.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
+        <a href="{{ $order->exists ? route('app.purchase-orders.show', $order) : route('app.purchase-orders.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
         <div class="relative">
             <div class="flex">
-                <button type="submit" form="po-form" name="post_immediately" value="0" class="rounded-s-lg bg-brand-700 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-800">{{ __('Save as draft') }}</button>
+                <button type="submit" form="po-form" name="post_immediately" value="0" class="rounded-s-lg bg-brand-700 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-800">{{ $order->exists ? __('Save changes') : __('Save as draft') }}</button>
                 <button type="button" id="save-menu-toggle" class="rounded-e-lg border-s border-brand-800 bg-brand-700 px-2 text-white hover:bg-brand-800">▾</button>
             </div>
             <div id="save-menu" class="hidden absolute end-0 mt-1 w-48 rounded-lg border border-slate-200 bg-white shadow-lg z-10">
@@ -24,8 +25,9 @@ $company = auth()->user()->company;
     </div>
 </div>
 
-<form method="POST" action="{{ route('app.purchase-orders.store') }}" id="po-form" class="space-y-6">
+<form method="POST" action="{{ $order->exists ? route('app.purchase-orders.update', $order) : route('app.purchase-orders.store') }}" id="po-form" class="space-y-6">
     @csrf
+    @if ($order->exists) @method('PUT') @endif
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between gap-6">
         <div class="flex items-center gap-3">
@@ -51,7 +53,7 @@ $company = auth()->user()->company;
             <select name="supplier_id" id="pv-supplier" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select a supplier') }}</option>
                 @foreach ($suppliers as $supplier)
-                    <option value="{{ $supplier->id }}" @selected(old('supplier_id') == $supplier->id)>{{ $supplier->display_name }}</option>
+                    <option value="{{ $supplier->id }}" @selected(old('supplier_id', $order->supplier_id) == $supplier->id)>{{ $supplier->display_name }}</option>
                 @endforeach
             </select>
         </div>
@@ -61,7 +63,12 @@ $company = auth()->user()->company;
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Expected date') }}</label>
-            <input type="date" name="expected_date" value="{{ old('expected_date') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="date" name="expected_date" value="{{ old('expected_date', optional($order->expected_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700">{{ __('Quotation reference (optional)') }}</label>
+            <input type="text" name="quotation_reference" value="{{ old('quotation_reference', $order->quotation_reference) }}" placeholder="{{ __('e.g. 0003') }}" maxlength="60" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <p class="text-xs text-slate-400 mt-1">{{ __('The supplier\'s own quotation number, if they sent one — shown on the PDF as "With reference to the quotation submitted by you numbered (...)".') }}</p>
         </div>
         @if ($projects->isNotEmpty())
             <div>
@@ -110,10 +117,10 @@ $company = auth()->user()->company;
                 <div class="flex justify-between items-center text-slate-500">
                     <span>{{ __('Discount') }}</span>
                     <div class="flex items-center gap-1">
-                        <input type="number" step="0.01" min="0" name="discount_value" id="discount_value" value="{{ old('discount_value', 0) }}" class="w-20 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
+                        <input type="number" step="0.01" min="0" name="discount_value" id="discount_value" value="{{ old('discount_value', $order->discount_value ?? 0) }}" class="w-20 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
                         <select name="discount_type" id="discount_type" class="rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
-                            <option value="fixed" @selected(old('discount_type', 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
-                            <option value="percentage" @selected(old('discount_type') === 'percentage')>%</option>
+                            <option value="fixed" @selected(old('discount_type', $order->discount_type ?? 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
+                            <option value="percentage" @selected(old('discount_type', $order->discount_type ?? 'fixed') === 'percentage')>%</option>
                         </select>
                     </div>
                 </div>
@@ -125,10 +132,12 @@ $company = auth()->user()->company;
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <label class="block text-sm font-medium text-slate-700">{{ __('Notes') }}</label>
-        <textarea name="notes" id="pv-notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes') }}</textarea>
+        <textarea name="notes" id="pv-notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $order->notes) }}</textarea>
     </div>
 
-    <p class="text-xs text-slate-400">{{ __('Attachments can be added once the purchase order is saved.') }}</p>
+    @unless ($order->exists)
+        <p class="text-xs text-slate-400">{{ __('Attachments can be added once the purchase order is saved.') }}</p>
+    @endunless
 </form>
 
 @php
@@ -147,6 +156,9 @@ $company = auth()->user()->company;
         ];
     })->values());
     $unitsJson = \Illuminate\Support\Js::from($units->map(fn ($u) => ['id' => $u->id, 'label' => $u->label()])->values());
+    $existingJson = \Illuminate\Support\Js::from($existingItems->map(function ($i) {
+        return ['item_id' => $i->item_id, 'unit_id' => $i->unit_id, 'description' => $i->description, 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'vat_rate' => (float) $i->vat_rate];
+    })->values());
 @endphp
 
 <dialog id="preview-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-2xl backdrop:bg-slate-900/40">
@@ -191,6 +203,7 @@ $company = auth()->user()->company;
 <script>
 const CATALOG = {!! $catalogJson !!};
 const ALL_UNITS = {!! $unitsJson !!};
+const EXISTING = {!! $existingJson !!};
 const tbody = document.getElementById('items-body');
 let rowIndex = 0;
 
@@ -317,7 +330,11 @@ document.getElementById('scan-line-barcode').addEventListener('click', () => {
     }, @json(__('Scan barcode')), @json(__('Point the camera at the item\'s barcode to add it as a line.')));
 });
 
-addRow();
+if (EXISTING.length) {
+    EXISTING.forEach(addRow);
+} else {
+    addRow();
+}
 
 document.getElementById('po-form').addEventListener('submit', (e) => {
     if (!tbody.querySelector('tr')) {
