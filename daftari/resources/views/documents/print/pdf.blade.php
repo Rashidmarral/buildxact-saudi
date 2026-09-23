@@ -272,6 +272,174 @@
 
     <div class="footer-note">{{ $lbl('Page 1 of 1') }}</div>
 
+@elseif ($layout === 'quotation_offer')
+    {{-- Modeled 1:1 on a real construction-industry price quotation a
+         user shared as a reference: plain (unboxed) logo top-left, a
+         plain No./Date/Hijri date/C.R. block top-right, a centered
+         title, a "Messrs. X — Peace be upon you" salutation, the items
+         table with totals appended as rows beneath it, a numbered
+         payment-terms section, a single signature+stamp+phone block
+         (always on the left, regardless of language), and a bilingual
+         address footer band. Column order stays LTR even in Arabic mode
+         — see the dir="rtl" warning at the top of this file; only text
+         alignment flips per cell, never table structure. --}}
+    @php
+        $isArOnly = $languageMode === 'arabic_only';
+        $hijriDate = \App\Support\HijriDate::format($doc['date']);
+        $qoSignerLabel = $isArOnly
+            ? ($template->signature_label_ar ?: 'المفوض بالتوقيع')
+            : ($template->signature_label_en ?: 'Authorized Signatory');
+        $qoNotesLines = ! empty($doc['notes'])
+            ? array_values(array_filter(preg_split('/\r\n|\r|\n/', trim($doc['notes'])), fn ($l) => trim($l) !== ''))
+            : [];
+        $qoRight = $isArOnly ? 'right' : 'left';
+        $qoLeft = $isArOnly ? 'left' : 'right';
+    @endphp
+
+    <table>
+        <tr>
+            <td style="width: 22%; vertical-align: top;">
+                @if ($showLogo && $logoData)
+                    <img src="{{ $logoData }}" style="height: 64px;" alt="">
+                @endif
+            </td>
+            <td style="width: 53%; vertical-align: middle; text-align: center;">
+                <div style="font-size: 13pt; font-weight: bold; color: #0f172a;">
+                    {{ $isArOnly ? ($doc['type_label_ar'] ?? $doc['type_label']) : $doc['type_label'] }}
+                </div>
+            </td>
+            <td style="width: 25%; vertical-align: top; text-align: right; font-size: 8.5pt; color: #334155;">
+                <div>{{ $lbl('No.') }} : {{ $doc['number'] }}</div>
+                <div>{{ $lbl('Date') }} : {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
+                @if ($hijriDate)
+                    <div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>
+                @endif
+                @if ($company->cr_number)
+                    <div>{{ $lbl('C.R.') }} : {{ $company->cr_number }}</div>
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    <table style="margin-top: {{ $sectionGap }}px;">
+        <tr>
+            <td style="text-align: {{ $qoRight }}; font-weight: bold; font-size: 10pt;">
+                @if ($isArOnly)
+                    السادة/ {{ $doc['party']->name_ar ?: $doc['party']->name }} المحترمين
+                @else
+                    {{ $doc['party_label'] }}: {{ $doc['party']->name }}
+                @endif
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: {{ $qoRight }}; padding-top: 4px; font-size: 9.5pt;">
+                {{ $isArOnly ? 'السلام عليكم ورحمة الله وبركاته،' : 'Dear Sirs,' }}
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: {{ $qoRight }}; padding-top: 4px; font-size: 9.5pt; font-weight: bold;">
+                @if ($isArOnly)
+                    يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:
+                @else
+                    We, {{ $company->name }}, are pleased to submit the following {{ \Illuminate\Support\Str::lower($doc['type_label']) }} in accordance with the items below:
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    <table style="margin-top: {{ $sectionGap }}px; border: 0.5pt solid #cbd5e1;">
+        <thead>
+            <tr style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}; font-size: 8.5pt;">
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 6%;">{{ $isArOnly ? 'البند' : '#' }}</th>
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoRight }};">{{ $lbl('Description') }}</th>
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 10%; text-align: {{ $qoLeft }};">{{ $lbl('Unit') }}</th>
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 10%; text-align: {{ $qoLeft }};">{{ $lbl('Qty') }}</th>
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 15%; text-align: {{ $qoLeft }};">{{ $lbl('Unit price') }}</th>
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 16%; text-align: {{ $qoLeft }};">{{ $lbl('Total') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr>
+                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; color: #64748b;">{{ $index + 1 }}</td>
+                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoRight }};">
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
+                    </td>
+                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }};">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit ?? '—' }}</td>
+                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }};">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }};">{{ number_format($line->unit_price, 2) }}</td>
+                    <td style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }}; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; text-align: {{ $qoRight }};">{{ $lbl('Total excluding VAT') }}</td>
+                <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td>
+            </tr>
+            @if (($doc['discount_total'] ?? 0) > 0)
+                <tr>
+                    <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoRight }};">{{ $lbl('Discount') }}</td>
+                    <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }};">-{{ \App\Support\Money::format($doc['discount_total']) }}</td>
+                </tr>
+            @endif
+            <tr>
+                <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoRight }};">{{ $lbl('VAT') }}</td>
+                <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['vat_total']) }}</td>
+            </tr>
+            <tr style="background-color: #f1f5f9;">
+                <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoRight }};">{{ $lbl('Total including VAT') }}</td>
+                <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['total']) }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    @if (count($qoNotesLines) > 0)
+        <table style="margin-top: {{ $notesGap }}px;">
+            <tr><td style="font-weight: bold; font-size: 10pt; text-align: {{ $qoRight }};">{{ $lbl('Payment Terms') }}</td></tr>
+        </table>
+        <table style="margin-top: 4px; font-size: 9pt;">
+            @foreach ($qoNotesLines as $i => $line)
+                <tr>
+                    @if ($isArOnly)
+                        <td style="padding: 2px 0; text-align: right;">{{ $line }}</td>
+                        <td style="padding: 2px 0 2px 4px; width: 20px; text-align: right; vertical-align: top;">.{{ $i + 1 }}</td>
+                    @else
+                        <td style="padding: 2px 4px 2px 0; width: 20px; vertical-align: top;">{{ $i + 1 }}.</td>
+                        <td style="padding: 2px 0;">{{ $line }}</td>
+                    @endif
+                </tr>
+            @endforeach
+        </table>
+    @endif
+
+    <table style="margin-top: {{ $signatureGap }}px;">
+        <tr><td style="text-align: {{ $qoRight }}; font-size: 9.5pt;">{{ $isArOnly ? 'وتفضلوا بقبول فائق الاحترام،،،' : 'Yours faithfully,' }}</td></tr>
+    </table>
+    <table style="margin-top: 8px;">
+        <tr>
+            <td style="width: 45%; text-align: {{ $qoRight }};">
+                @if ($stampData)
+                    <img src="{{ $stampData }}" style="width: 90px; height: 90px;" alt="">
+                @endif
+                <div style="font-weight: bold; margin-top: 4px;">{{ $qoSignerLabel }}</div>
+                @if ($company->phone)<div class="muted">{{ $company->phone }}</div>@endif
+            </td>
+            <td style="width: 55%;"></td>
+        </tr>
+    </table>
+
+    <div class="footer-note">
+        @if ($company->address || $company->city)
+            <div>{{ $company->address }}{{ $company->address && $company->city ? ' - ' : '' }}{{ $company->city }}</div>
+        @endif
+        <div>
+            Kingdom of Saudi Arabia — <span class="ar">المملكة العربية السعودية</span>
+            @if ($company->phone) &nbsp;·&nbsp; Phone: {{ $company->phone }} @endif
+        </div>
+    </div>
+
 @else
     {{-- minimal / bordered / boxed — a single professional foundation
          shared by all three, differentiated only by the left accent

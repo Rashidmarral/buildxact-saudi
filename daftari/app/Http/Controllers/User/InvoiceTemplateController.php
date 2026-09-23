@@ -21,7 +21,7 @@ class InvoiceTemplateController extends Controller
         'receipt_voucher', 'payment_voucher',
     ];
 
-    private const LAYOUTS = ['minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead'];
+    private const LAYOUTS = ['minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead', 'quotation_offer'];
 
     private const DENSITIES = ['compact', 'comfortable'];
 
@@ -293,6 +293,7 @@ class InvoiceTemplateController extends Controller
                 'document_type' => 'all',
                 'accent_color' => $presetData['accent_color'],
                 'layout' => $presetData['layout'],
+                'language_mode' => $presetData['language_mode'] ?? 'bilingual',
                 'is_default' => true,
             ]
         );

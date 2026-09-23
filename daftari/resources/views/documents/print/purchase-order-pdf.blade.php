@@ -206,13 +206,6 @@
 </table>
 
 <div class="footer-note">
-    {{ __('Original: Finance Department') }} — <span class="ar">الأصل: الإدارة المالية</span>
-    &nbsp;·&nbsp;
-    {{ __('Copy: Project Management') }} — <span class="ar">صورة: إدارة المشاريع</span>
-    &nbsp;·&nbsp;
-    {{ __('Copy: Site') }} — <span class="ar">صورة: الموقع</span>
-</div>
-<div class="footer-note" style="border-top: none; padding-top: 0;">
     {{ $company->name }} &nbsp;·&nbsp; {{ $order->po_number }}
 </div>
 

@@ -381,6 +381,138 @@
 
     <div class="mt-10 text-center text-xs text-slate-400">{{ $lbl('Page 1 of 1') }}</div>
 
+@elseif ($layout === 'quotation_offer')
+    {{-- Modeled 1:1 on a real construction-industry price quotation a
+         user shared as a reference — see the mPDF version of this same
+         branch in documents/print/pdf.blade.php for the full design
+         rationale (this is its browser-rendered twin: same content and
+         structure, Tailwind flex/grid instead of mPDF tables). --}}
+    @php
+        $isArOnly = $languageMode === 'arabic_only';
+        $hijriDate = \App\Support\HijriDate::format($doc['date']);
+        $qoSignerLabel = $isArOnly
+            ? ($template->signature_label_ar ?: 'المفوض بالتوقيع')
+            : ($template->signature_label_en ?: 'Authorized Signatory');
+        $qoNotesLines = ! empty($doc['notes'])
+            ? array_values(array_filter(preg_split('/\r\n|\r|\n/', trim($doc['notes'])), fn ($l) => trim($l) !== ''))
+            : [];
+        $qoAlign = $isArOnly ? 'text-right' : 'text-left';
+    @endphp
+
+    <div class="flex items-start justify-between gap-4">
+        <div class="w-1/4">
+            @if ($showLogo && $company->logo_path)
+                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-16 w-auto object-contain">
+            @endif
+        </div>
+        <div class="w-1/2 pt-2 text-center text-lg font-bold text-slate-900">
+            {{ $isArOnly ? ($doc['type_label_ar'] ?? $doc['type_label']) : $doc['type_label'] }}
+        </div>
+        <div class="w-1/4 text-right text-xs text-slate-700 space-y-0.5">
+            <div>{{ $lbl('No.') }} : {{ $doc['number'] }}</div>
+            <div>{{ $lbl('Date') }} : {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
+            @if ($hijriDate)<div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>@endif
+            @if ($company->cr_number)<div>{{ $lbl('C.R.') }} : {{ $company->cr_number }}</div>@endif
+        </div>
+    </div>
+    <div class="mt-1.5 h-0.5 bg-slate-900"></div>
+
+    <div class="mt-5 {{ $qoAlign }} text-sm space-y-1">
+        <p class="font-bold">
+            @if ($isArOnly)
+                السادة/ {{ $doc['party']->name_ar ?: $doc['party']->name }} المحترمين
+            @else
+                {{ $doc['party_label'] }}: {{ $doc['party']->name }}
+            @endif
+        </p>
+        <p>{{ $isArOnly ? 'السلام عليكم ورحمة الله وبركاته،' : 'Dear Sirs,' }}</p>
+        <p class="font-semibold">
+            @if ($isArOnly)
+                يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:
+            @else
+                We, {{ $company->name }}, are pleased to submit the following {{ \Illuminate\Support\Str::lower($doc['type_label']) }} in accordance with the items below:
+            @endif
+        </p>
+    </div>
+
+    <table class="w-full text-sm mt-5 border border-slate-300">
+        <thead>
+            <tr class="text-slate-700" style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}">
+                <th class="border border-slate-300 px-2 py-1.5 w-10">{{ $isArOnly ? 'البند' : '#' }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 {{ $qoAlign }}">{{ $lbl('Description') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-20">{{ $lbl('Unit') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-20">{{ $lbl('Qty') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ $lbl('Unit price') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-28">{{ $lbl('Total') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-500">{{ $index + 1 }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800 {{ $qoAlign }}">
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                    </td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit ?? '—' }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end font-medium text-slate-900">{{ number_format($line->line_total, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" class="border border-slate-300 px-2 py-1.5 font-semibold {{ $qoAlign }}">{{ $lbl('Total excluding VAT') }}</td>
+                <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end">{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td>
+            </tr>
+            @if (($doc['discount_total'] ?? 0) > 0)
+                <tr>
+                    <td colspan="4" class="border border-slate-300 px-2 py-1.5 {{ $qoAlign }}">{{ $lbl('Discount') }}</td>
+                    <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end">-{{ number_format($doc['discount_total'], 2) }}</td>
+                </tr>
+            @endif
+            <tr>
+                <td colspan="4" class="border border-slate-300 px-2 py-1.5 {{ $qoAlign }}">{{ $lbl('VAT') }}</td>
+                <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end">{{ number_format($doc['vat_total'], 2) }}</td>
+            </tr>
+            <tr class="bg-slate-50">
+                <td colspan="4" class="border border-slate-300 px-2 py-1.5 font-bold {{ $qoAlign }}">{{ $lbl('Total including VAT') }}</td>
+                <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end font-bold">{{ number_format($doc['total'], 2) }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    @if (count($qoNotesLines) > 0)
+        <div class="mt-5 text-sm {{ $qoAlign }}">
+            <p class="font-bold">{{ $lbl('Payment Terms') }}</p>
+            <ol class="mt-1 space-y-0.5 {{ $isArOnly ? 'list-inside' : 'list-decimal list-inside' }}">
+                @foreach ($qoNotesLines as $i => $line)
+                    <li>{{ $isArOnly ? ($i + 1) . '. ' . $line : $line }}</li>
+                @endforeach
+            </ol>
+        </div>
+    @endif
+
+    <p class="mt-8 text-sm {{ $qoAlign }}">{{ $isArOnly ? 'وتفضلوا بقبول فائق الاحترام،،،' : 'Yours faithfully,' }}</p>
+    <div class="mt-2 {{ $qoAlign }}">
+        @if ($company->stamp_path)
+            <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ $lbl('Company stamp') }}" class="h-24 w-24 object-contain">
+        @endif
+        <p class="mt-1 font-bold text-slate-800">{{ $qoSignerLabel }}</p>
+        @if ($company->phone)<p class="text-slate-500">{{ $company->phone }}</p>@endif
+    </div>
+
+    <div class="mt-10 border-t border-slate-200 pt-3 text-center text-xs text-slate-400">
+        @if ($company->address || $company->city)
+            <p>{{ $company->address }}{{ $company->address && $company->city ? ' - ' : '' }}{{ $company->city }}</p>
+        @endif
+        <p>
+            Kingdom of Saudi Arabia — <span dir="rtl">المملكة العربية السعودية</span>
+            @if ($company->phone) &nbsp;·&nbsp; Phone: {{ $company->phone }} @endif
+        </p>
+    </div>
+
 @else
     {{-- minimal / bordered / boxed — a single professional foundation
          shared by all three, differentiated only by the left accent

@@ -69,6 +69,33 @@ class InvoiceTemplatePresets
                 'layout' => 'custom_letterhead',
                 'size' => 'A4',
             ],
+            // Modeled on a real construction-industry price quotation a
+            // user shared as a reference: logo top-left, a plain (unboxed)
+            // No./Date/Hijri date/C.R. block top-right, a centered title,
+            // a "Messrs. X, Peace be upon you" salutation, the items
+            // table with totals appended as rows beneath it, a numbered
+            // payment-terms section, a single signature+stamp+phone block,
+            // and a bilingual address footer band. One preset per
+            // language rather than a bilingual mix, since the reference
+            // document itself commits fully to one language throughout
+            // the body (only the footer address band stays bilingual,
+            // matching the reference).
+            'quotation_offer_ar' => [
+                'name' => 'Quotation Offer (Arabic)',
+                'name_ar' => 'عرض سعر',
+                'accent_color' => '#0f172a',
+                'layout' => 'quotation_offer',
+                'language_mode' => 'arabic_only',
+                'size' => 'A4',
+            ],
+            'quotation_offer_en' => [
+                'name' => 'Quotation Offer (English)',
+                'name_ar' => 'عرض سعر (إنجليزي)',
+                'accent_color' => '#0f172a',
+                'layout' => 'quotation_offer',
+                'language_mode' => 'english_only',
+                'size' => 'A4',
+            ],
         ];
     }
 
