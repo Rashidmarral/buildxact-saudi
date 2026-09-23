@@ -255,13 +255,18 @@ class InvoiceTemplateController extends Controller
     }
 
     /**
-     * "Activate" makes the chosen look the one used everywhere — every
-     * document type, both the in-app show page and every downloaded/
-     * emailed PDF — by (re)using a single document_type='all' template
-     * per preset (idempotent: clicking Activate again just updates the
-     * same row instead of piling up duplicates) and clearing is_default
-     * on every other template the company has, so nothing left over from
-     * the advanced editor can silently keep overriding it for one type.
+     * "Activate" makes the chosen look the one used everywhere that
+     * doesn't have its own override — every document type, both the
+     * in-app show page and every downloaded/emailed PDF — by (re)using a
+     * single document_type='all' template per preset (idempotent:
+     * clicking Activate again just updates the same row instead of piling
+     * up duplicates) and clearing is_default on the company's other
+     * document_type='all' templates only. It deliberately leaves
+     * type-specific templates (document_type='invoice', 'quotation', ...)
+     * alone: those are the advanced editor's per-document-type overrides,
+     * set up on purpose (Company::defaultTemplateFor() already prefers
+     * them over the 'all' default), and a gallery click for "everything
+     * else" must not silently wipe them out from under the user.
      */
     public function activatePreset(Request $request, string $preset): RedirectResponse
     {
@@ -270,7 +275,7 @@ class InvoiceTemplateController extends Controller
         $company = Auth::user()->company;
 
         if ($preset === 'default') {
-            $company->invoiceTemplates()->update(['is_default' => false]);
+            $company->invoiceTemplates()->where('document_type', 'all')->update(['is_default' => false]);
 
             return redirect()->route('app.invoice-templates.gallery')->with('status', __('Reverted to the built-in default look.'));
         }
@@ -283,7 +288,7 @@ class InvoiceTemplateController extends Controller
                 ->withErrors(['plan_limit' => __('You have reached your plan\'s invoice template limit. Upgrade your plan to add more templates.')]);
         }
 
-        $company->invoiceTemplates()->where('id', '!=', $existing?->id)->update(['is_default' => false]);
+        $company->invoiceTemplates()->where('document_type', 'all')->where('id', '!=', $existing?->id)->update(['is_default' => false]);
 
         $company->invoiceTemplates()->updateOrCreate(
             ['preset_key' => $preset],

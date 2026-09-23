@@ -99,21 +99,47 @@ class InvoiceTemplateGalleryTest extends TestCase
         $gallery->assertSeeInOrder(['Bold Branded', '✓ '.__('Active invoice layout')]);
     }
 
-    public function test_activating_a_preset_clears_is_default_on_every_other_template(): void
+    public function test_activating_a_preset_clears_is_default_on_other_all_scoped_templates(): void
     {
         $company = $this->makeCompany();
         $owner = $this->makeOwner($company);
-        $custom = InvoiceTemplate::create([
-            'company_id' => $company->id, 'name' => 'Custom Invoice Only', 'document_type' => 'invoice',
+        $otherAllScoped = InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Old Global Default', 'document_type' => 'all',
             'accent_color' => '#000000', 'layout' => 'minimal', 'is_default' => true,
         ]);
 
         $this->actingAs($owner)->post(route('app.invoice-templates.gallery.activate', 'modern_minimal'));
 
-        $this->assertFalse($custom->fresh()->is_default);
+        $this->assertFalse($otherAllScoped->fresh()->is_default);
         $this->assertTrue(
             InvoiceTemplate::where('company_id', $company->id)->where('preset_key', 'modern_minimal')->value('is_default')
         );
+    }
+
+    /**
+     * Bug: activating a gallery preset used to clear is_default on EVERY
+     * template regardless of document_type, so a deliberate per-type
+     * override set up via the advanced editor (e.g. a Quotation-only
+     * layout) would silently stop applying the moment the user activated
+     * a different look for "everything else" through the gallery. The
+     * gallery only ever creates/updates document_type='all' rows, so it
+     * must only clear is_default on other document_type='all' rows too —
+     * mirroring makeDefault()'s existing same-document_type scoping.
+     */
+    public function test_activating_a_preset_does_not_clear_is_default_on_a_type_specific_override(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $quotationOverride = InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Quotation Offer', 'document_type' => 'quotation',
+            'accent_color' => '#000000', 'layout' => 'quotation_offer', 'language_mode' => 'arabic_only', 'is_default' => true,
+        ]);
+
+        $this->actingAs($owner)->post(route('app.invoice-templates.gallery.activate', 'modern_minimal'));
+
+        $this->assertTrue($quotationOverride->fresh()->is_default);
+        $this->assertSame('quotation_offer', $company->fresh()->defaultTemplateFor('quotation')->layout);
+        $this->assertSame('modern_minimal', $company->fresh()->defaultTemplateFor('invoice')->preset_key);
     }
 
     public function test_reactivating_the_same_preset_updates_the_existing_row_instead_of_duplicating_it(): void
@@ -136,7 +162,22 @@ class InvoiceTemplateGalleryTest extends TestCase
         $response = $this->actingAs($owner)->post(route('app.invoice-templates.gallery.activate', 'default'));
 
         $response->assertRedirect(route('app.invoice-templates.gallery'));
-        $this->assertSame(0, InvoiceTemplate::where('company_id', $company->id)->where('is_default', true)->count());
+        $this->assertSame(0, InvoiceTemplate::where('company_id', $company->id)->where('document_type', 'all')->where('is_default', true)->count());
+    }
+
+    public function test_activating_default_does_not_clear_is_default_on_a_type_specific_override(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $quotationOverride = InvoiceTemplate::create([
+            'company_id' => $company->id, 'name' => 'Quotation Offer', 'document_type' => 'quotation',
+            'accent_color' => '#000000', 'layout' => 'quotation_offer', 'language_mode' => 'arabic_only', 'is_default' => true,
+        ]);
+        $this->actingAs($owner)->post(route('app.invoice-templates.gallery.activate', 'compact_commercial'));
+
+        $this->actingAs($owner)->post(route('app.invoice-templates.gallery.activate', 'default'));
+
+        $this->assertTrue($quotationOverride->fresh()->is_default);
     }
 
     public function test_an_activated_preset_is_actually_used_when_showing_a_real_invoice(): void
