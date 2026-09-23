@@ -121,7 +121,11 @@
                                 <option value="minimal" @selected($selected->layout === 'minimal')>{{ __('Minimal') }}</option>
                                 <option value="bilingual_classic" @selected($selected->layout === 'bilingual_classic')>{{ __('Bilingual Classic') }}</option>
                                 <option value="custom_letterhead" @selected($selected->layout === 'custom_letterhead')>{{ __('Custom Letterhead') }}</option>
+                                <option value="quotation_offer" @selected($selected->layout === 'quotation_offer')>{{ __('Quotation Offer') }}</option>
                             </select>
+                            @if ($selected->layout === 'quotation_offer')
+                                <p class="mt-1 text-xs text-slate-400">{{ __('Set Language below to Arabic only or English only — this layout always writes fully in one language, matching the original reference document.') }}</p>
+                            @endif
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
