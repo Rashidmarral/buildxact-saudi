@@ -457,12 +457,22 @@
             @endphp
             <div class="divide-y divide-slate-100 rounded-lg border border-slate-100">
                 @foreach ($featureToggles as $key => $toggle)
-                    <label class="flex items-center justify-between gap-4 px-4 py-3">
+                    <div class="flex items-center justify-between gap-4 px-4 py-3">
                         <span class="text-sm font-medium text-slate-700">{{ $toggle['label'] }}</span>
-                        <input type="checkbox" name="features[]" value="{{ $key }}" @checked(in_array($key, $checkedFeatureKeys)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
-                    </label>
+                        <div class="flex items-center gap-4">
+                            <label class="flex items-center gap-2 text-xs text-slate-500">
+                                {{ __('Price / month') }}
+                                <input type="number" min="0" step="0.01" name="prices[{{ $key }}]" value="{{ old("prices.$key", $toggle['price']) }}" placeholder="{{ __('Contact sales') }}" class="w-28 rounded-lg border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-slate-600">
+                                {{ __('Enabled') }}
+                                <input type="checkbox" name="features[]" value="{{ $key }}" @checked(in_array($key, $checkedFeatureKeys)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                            </label>
+                        </div>
+                    </div>
                 @endforeach
             </div>
+            <p class="text-xs text-slate-400">{{ __('The price shown here is informational only — it appears on each company\'s Modules marketplace page. Actually granting a module still happens per company, from Companies or the Module requests queue.') }}</p>
 
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Feature settings') }}</button>
         </form>

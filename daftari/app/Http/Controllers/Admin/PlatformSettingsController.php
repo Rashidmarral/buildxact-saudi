@@ -11,6 +11,7 @@ use App\Models\Plan;
 use App\Models\Setting;
 use App\Support\Countries;
 use App\Support\FeatureRegistry;
+use App\Support\ModulePricing;
 use App\Support\PlatformBranding;
 use App\Services\Zatca\ZatcaSyncService;
 use App\Support\PlatformFeatureToggle;
@@ -123,6 +124,7 @@ class PlatformSettingsController extends Controller
             ->mapWithKeys(fn ($key) => [$key => [
                 'label' => FeatureRegistry::catalog()[$key]['label'],
                 'enabled' => PlatformFeatureToggle::isEnabled($key),
+                'price' => ModulePricing::get($key),
             ]]);
 
         $currentBillingCompany = Company::find(Setting::get('platform_billing_company_id'));
@@ -192,12 +194,16 @@ class PlatformSettingsController extends Controller
         $request->validate([
             'features' => ['nullable', 'array'],
             'features.*' => [Rule::in($gatedKeys)],
+            'prices' => ['nullable', 'array'],
+            'prices.*' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $enabledKeys = $request->input('features', []);
+        $prices = $request->input('prices', []);
 
         foreach ($gatedKeys as $key) {
             PlatformFeatureToggle::setEnabled($key, in_array($key, $enabledKeys, true));
+            ModulePricing::set($key, isset($prices[$key]) && $prices[$key] !== '' ? (float) $prices[$key] : null);
         }
 
         AuditLog::record('settings.update_features', null, __('Updated platform feature toggles'));

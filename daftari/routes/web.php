@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\CurrencyController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Admin\PartnerTypeController;
 use App\Http\Controllers\Admin\SetupPackageController as AdminSetupPackageController;
+use App\Http\Controllers\Admin\ModuleRequestController as AdminModuleRequestController;
 use App\Http\Controllers\Partner\DashboardController as PartnerDashboardController;
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\ComplianceController;
@@ -74,6 +75,7 @@ use App\Http\Controllers\User\ExpenseController;
 use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
+use App\Http\Controllers\User\ModuleRequestController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\TaxRateController;
 use App\Http\Controllers\User\WhtRateController;
@@ -562,6 +564,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('billing/cancel', [BillingController::class, 'cancel'])->name('billing.cancel');
         Route::post('billing/resume', [BillingController::class, 'resume'])->name('billing.resume');
         Route::get('activity', [UserActivityLogController::class, 'index'])->name('activity.index');
+        Route::get('modules', [ModuleRequestController::class, 'index'])->name('modules.index');
+        Route::post('modules/{key}/request', [ModuleRequestController::class, 'store'])->name('modules.request');
     });
 
     Route::middleware('permission:members_roles')->group(function () {
@@ -713,11 +717,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('companies/{company}/comp-account', [CompanyController::class, 'compAccount'])->name('companies.comp-account');
         Route::post('companies/{company}/overrides', [CompanyController::class, 'setOverride'])->name('companies.overrides.set');
         Route::delete('companies/{company}/overrides/{override}', [CompanyController::class, 'clearOverride'])->name('companies.overrides.clear');
+        Route::post('module-requests/{moduleRequest}/approve', [AdminModuleRequestController::class, 'approve'])->name('module-requests.approve');
+        Route::post('module-requests/{moduleRequest}/reject', [AdminModuleRequestController::class, 'reject'])->name('module-requests.reject');
     });
 
     Route::middleware('admin.permission:companies')->group(function () {
         Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
         Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+        Route::get('module-requests', [AdminModuleRequestController::class, 'index'])->name('module-requests.index');
     });
 
     // Impersonation grants full access to a tenant's account — kept out of

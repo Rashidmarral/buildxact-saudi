@@ -72,6 +72,12 @@ class AdminNav
                 'visible' => fn (User $user) => $user->hasAdminPermission('plans'),
             ],
             [
+                'route' => 'admin.module-requests.index',
+                'label' => __('Module requests'),
+                'icon' => 'puzzle',
+                'visible' => fn (User $user) => $user->hasAdminPermission('companies'),
+            ],
+            [
                 'route' => 'admin.coupons.index',
                 'label' => __('Coupons'),
                 'icon' => 'sparkle',

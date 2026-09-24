@@ -609,6 +609,11 @@ class Company extends Model
         return $this->hasMany(RestaurantOrder::class);
     }
 
+    public function moduleRequests(): HasMany
+    {
+        return $this->hasMany(ModuleRequest::class);
+    }
+
     public function accounts(): HasMany
     {
         return $this->hasMany(Account::class);

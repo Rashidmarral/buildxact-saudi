@@ -62,6 +62,10 @@
                 </button>
             </div>
             <nav class="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3 py-4 text-sm">
+                @php
+                    $moduleAccess = app(\App\Services\Features\FeatureAccessService::class);
+                    $navCompany = Auth::user()->company;
+                @endphp
                 @include('partials.nav-item', ['route' => 'app.dashboard', 'label' => __('Dashboard'), 'icon' => 'dashboard'])
 
                 @php($salesActive = request()->routeIs('app.quotations.*') || request()->routeIs('app.invoices.*') || request()->routeIs('app.recurring-invoices.*') || request()->routeIs('app.credit-notes.*') || request()->routeIs('app.debit-notes.*') || request()->routeIs('app.clients.*') || request()->routeIs('app.salespersons.*'))
@@ -123,46 +127,52 @@
                 @include('partials.nav-item', ['route' => 'app.bank-accounts.index', 'label' => __('Cash & Banks'), 'icon' => 'bank'])
                 @include('partials.nav-item', ['route' => 'app.projects.index', 'label' => __('Projects'), 'icon' => 'projects'])
 
-                @php($payrollActive = request()->routeIs('app.employees.*') || request()->routeIs('app.payroll.*'))
-                <details class="group" @if($payrollActive) open @endif>
-                    <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $payrollActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
-                        <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'payroll', 'class' => 'h-[18px] w-[18px]'])</span>
-                        <span class="flex-1 font-medium">{{ __('Payroll') }}</span>
-                        <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
-                    </summary>
-                    <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
-                        @include('partials.nav-subitem', ['route' => 'app.employees.index', 'label' => __('Employees')])
-                        @include('partials.nav-subitem', ['route' => 'app.payroll.index', 'label' => __('Payroll runs')])
-                    </div>
-                </details>
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'payroll'))
+                    @php($payrollActive = request()->routeIs('app.employees.*') || request()->routeIs('app.payroll.*'))
+                    <details class="group" @if($payrollActive) open @endif>
+                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $payrollActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
+                            <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'payroll', 'class' => 'h-[18px] w-[18px]'])</span>
+                            <span class="flex-1 font-medium">{{ __('Payroll') }}</span>
+                            <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
+                        </summary>
+                        <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
+                            @include('partials.nav-subitem', ['route' => 'app.employees.index', 'label' => __('Employees')])
+                            @include('partials.nav-subitem', ['route' => 'app.payroll.index', 'label' => __('Payroll runs')])
+                        </div>
+                    </details>
+                @endif
 
-                @php($posActive = request()->routeIs('app.pos.*') || request()->routeIs('app.pos-registers.*'))
-                <details class="group" @if($posActive) open @endif>
-                    <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $posActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
-                        <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'pos', 'class' => 'h-[18px] w-[18px]'])</span>
-                        <span class="flex-1 font-medium">{{ __('Point of Sale') }}</span>
-                        <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
-                    </summary>
-                    <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
-                        @include('partials.nav-subitem', ['route' => 'app.pos.terminal', 'label' => __('Checkout')])
-                        @include('partials.nav-subitem', ['route' => 'app.pos.sales.index', 'label' => __('Sales history')])
-                        @include('partials.nav-subitem', ['route' => 'app.pos-registers.index', 'label' => __('Registers')])
-                    </div>
-                </details>
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'pos'))
+                    @php($posActive = request()->routeIs('app.pos.*') || request()->routeIs('app.pos-registers.*'))
+                    <details class="group" @if($posActive) open @endif>
+                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $posActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
+                            <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'pos', 'class' => 'h-[18px] w-[18px]'])</span>
+                            <span class="flex-1 font-medium">{{ __('Point of Sale') }}</span>
+                            <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
+                        </summary>
+                        <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
+                            @include('partials.nav-subitem', ['route' => 'app.pos.terminal', 'label' => __('Checkout')])
+                            @include('partials.nav-subitem', ['route' => 'app.pos.sales.index', 'label' => __('Sales history')])
+                            @include('partials.nav-subitem', ['route' => 'app.pos-registers.index', 'label' => __('Registers')])
+                        </div>
+                    </details>
+                @endif
 
-                @php($restaurantActive = request()->routeIs('app.restaurant.*'))
-                <details class="group" @if($restaurantActive) open @endif>
-                    <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $restaurantActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
-                        <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'restaurant', 'class' => 'h-[18px] w-[18px]'])</span>
-                        <span class="flex-1 font-medium">{{ __('Restaurant') }}</span>
-                        <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
-                    </summary>
-                    <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
-                        @include('partials.nav-subitem', ['route' => 'app.restaurant.orders.index', 'label' => __('Orders')])
-                        @include('partials.nav-subitem', ['route' => 'app.restaurant.kitchen.index', 'label' => __('Kitchen display')])
-                        @include('partials.nav-subitem', ['route' => 'app.restaurant.tables.index', 'label' => __('Tables')])
-                    </div>
-                </details>
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'restaurant'))
+                    @php($restaurantActive = request()->routeIs('app.restaurant.*'))
+                    <details class="group" @if($restaurantActive) open @endif>
+                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $restaurantActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
+                            <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'restaurant', 'class' => 'h-[18px] w-[18px]'])</span>
+                            <span class="flex-1 font-medium">{{ __('Restaurant') }}</span>
+                            <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
+                        </summary>
+                        <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
+                            @include('partials.nav-subitem', ['route' => 'app.restaurant.orders.index', 'label' => __('Orders')])
+                            @include('partials.nav-subitem', ['route' => 'app.restaurant.kitchen.index', 'label' => __('Kitchen display')])
+                            @include('partials.nav-subitem', ['route' => 'app.restaurant.tables.index', 'label' => __('Tables')])
+                        </div>
+                    </details>
+                @endif
 
                 @php($reportsActive = request()->routeIs('app.reports.*'))
                 <details class="group" @if($reportsActive) open @endif>
@@ -216,6 +226,7 @@
                     @include('partials.nav-item', ['route' => 'app.branches.index', 'label' => __('Branches'), 'icon' => 'branches'])
                     @include('partials.nav-item', ['route' => 'app.invoice-templates.gallery', 'label' => __('Invoice Templates'), 'icon' => 'templates'])
                     @include('partials.nav-item', ['route' => 'app.activity.index', 'label' => __('Activity log'), 'icon' => 'activity'])
+                    @include('partials.nav-item', ['route' => 'app.modules.index', 'label' => __('Modules'), 'icon' => 'puzzle'])
                     @include('partials.nav-item', ['route' => 'app.settings.index', 'label' => __('Settings'), 'icon' => 'settings'])
                 @endif
             </nav>
