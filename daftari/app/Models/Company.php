@@ -57,6 +57,7 @@ class Company extends Model
         'employee_prefix', 'next_employee_number', 'payroll_run_prefix', 'next_payroll_run_number',
         'pos_sale_prefix', 'next_pos_sale_number',
         'restaurant_order_prefix', 'next_restaurant_order_number',
+        'repair_job_prefix', 'next_repair_job_number',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -96,6 +97,8 @@ class Company extends Model
         'next_pos_sale_number' => 1,
         'restaurant_order_prefix' => 'ORD',
         'next_restaurant_order_number' => 1,
+        'repair_job_prefix' => 'JOB',
+        'next_repair_job_number' => 1,
         'primary_customer_type' => 'mixed',
         'negative_number_format' => 'minus',
         'currency' => 'SAR',
@@ -379,6 +382,13 @@ class Company extends Model
         return $this->restaurant_order_prefix.'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
     }
 
+    public function nextRepairJobNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_repair_job_number');
+
+        return $this->repair_job_prefix.'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
+    }
+
     public function nextQuotationNumber(string $type = 'quotation'): string
     {
         if ($type === 'proforma') {
@@ -612,6 +622,11 @@ class Company extends Model
     public function moduleRequests(): HasMany
     {
         return $this->hasMany(ModuleRequest::class);
+    }
+
+    public function repairJobs(): HasMany
+    {
+        return $this->hasMany(RepairJob::class);
     }
 
     public function accounts(): HasMany

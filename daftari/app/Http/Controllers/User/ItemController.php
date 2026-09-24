@@ -381,6 +381,7 @@ class ItemController extends Controller
             'sku' => ['nullable', 'string', 'max:40', Rule::unique('items', 'sku')->where('company_id', $companyId)->ignore($item?->id)],
             'barcode' => ['nullable', 'string', 'max:64'],
             'category' => ['nullable', 'string', 'max:100'],
+            'compatibility_notes' => ['nullable', 'string', 'max:2000'],
             'expiry_date' => ['nullable', 'date'],
             'item_type' => ['required', 'in:service,physical'],
             'base_unit_id' => ['nullable', Rule::exists('units', 'id')->where('company_id', $companyId)],

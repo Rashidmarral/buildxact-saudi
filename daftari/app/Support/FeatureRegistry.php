@@ -54,6 +54,7 @@ class FeatureRegistry
             'payroll' => ['label' => __('Payroll'), 'type' => 'gated', 'column' => 'has_payroll'],
             'pos' => ['label' => __('Point of Sale'), 'type' => 'gated', 'column' => 'has_pos'],
             'restaurant' => ['label' => __('Restaurant Management'), 'type' => 'gated', 'column' => 'has_restaurant'],
+            'repair_shop' => ['label' => __('Repair Shop'), 'type' => 'gated', 'column' => 'has_repair_shop'],
         ];
     }
 

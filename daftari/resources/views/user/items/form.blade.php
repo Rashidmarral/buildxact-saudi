@@ -39,6 +39,11 @@
             <input type="date" name="expiry_date" value="{{ old('expiry_date', optional($item->expiry_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             <p class="text-xs text-slate-400 mt-1">{{ __('Optional — shows a soft warning on invoices near/after this date.') }}</p>
         </div>
+        <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Compatibility notes') }}</label>
+            <textarea name="compatibility_notes" rows="2" placeholder="{{ __('e.g. Toyota Camry 2018–2022, Corolla 2015–2020') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('compatibility_notes', $item->compatibility_notes) }}</textarea>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Optional — which vehicles/devices this part fits, for parts-counter lookup.') }}</p>
+        </div>
 
         <div class="sm:col-span-2">
             <label class="block text-xs font-semibold uppercase text-slate-500 mb-2">{{ __('Item type') }}</label>

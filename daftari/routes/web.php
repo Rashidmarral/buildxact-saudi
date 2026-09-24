@@ -77,6 +77,7 @@ use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ModuleRequestController;
 use App\Http\Controllers\User\ReceiptTemplateController;
+use App\Http\Controllers\User\RepairShop\RepairJobController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\TaxRateController;
 use App\Http\Controllers\User\WhtRateController;
@@ -536,10 +537,11 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('pos-sales/{sale}/void', [PosController::class, 'voidSale'])->name('pos.sales.void');
     });
 
-    // A sale/receipt reachable from either module — a Restaurant-only
-    // company's checkout redirects here just as much as a plain POS one
-    // does, so this can't require the 'pos' module/permission alone.
-    Route::middleware(['permission:pos,restaurant', 'module:pos,restaurant'])->group(function () {
+    // A sale/receipt reachable from any of the modules that check out
+    // through PosSaleService — Restaurant and Repair Shop both redirect
+    // their own checkout here just as much as a plain POS one does, so
+    // this can't require the 'pos' module/permission alone.
+    Route::middleware(['permission:pos,restaurant,repair_shop', 'module:pos,restaurant,repair_shop'])->group(function () {
         Route::get('pos-sales/{sale}', [PosController::class, 'showSale'])->name('pos.sales.show');
         Route::get('pos-sales/{sale}/pdf', [PosController::class, 'downloadReceiptPdf'])->middleware('throttle:pdf')->name('pos.sales.pdf');
         Route::get('receipt-templates', [ReceiptTemplateController::class, 'index'])->name('receipt-templates.index');
@@ -560,6 +562,20 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('orders/{order}/checkout', [RestaurantOrderController::class, 'checkout'])->name('orders.checkout');
         Route::post('orders/{order}/cancel', [RestaurantOrderController::class, 'cancel'])->name('orders.cancel');
         Route::post('order-items/{item}/status', [RestaurantOrderController::class, 'updateItemStatus'])->name('order-items.status');
+    });
+
+    Route::middleware(['permission:repair_shop', 'module:repair_shop'])->group(function () {
+        Route::get('repair-jobs', [RepairJobController::class, 'index'])->name('repair-jobs.index');
+        Route::post('repair-jobs', [RepairJobController::class, 'store'])->name('repair-jobs.store');
+        Route::get('repair-jobs/item-lookup', [RepairJobController::class, 'lookupItem'])->name('repair-jobs.item-lookup');
+        Route::get('repair-jobs/{job}', [RepairJobController::class, 'show'])->name('repair-jobs.show');
+        Route::post('repair-jobs/{job}/items', [RepairJobController::class, 'storeItems'])->name('repair-jobs.items.store');
+        Route::post('repair-jobs/{job}/diagnosis', [RepairJobController::class, 'updateDiagnosis'])->name('repair-jobs.diagnosis');
+        Route::post('repair-jobs/{job}/approve', [RepairJobController::class, 'approve'])->name('repair-jobs.approve');
+        Route::post('repair-jobs/{job}/status', [RepairJobController::class, 'updateStatus'])->name('repair-jobs.status');
+        Route::post('repair-jobs/{job}/checkout', [RepairJobController::class, 'checkout'])->name('repair-jobs.checkout');
+        Route::post('repair-jobs/{job}/cancel', [RepairJobController::class, 'cancel'])->name('repair-jobs.cancel');
+        Route::post('repair-jobs/{job}/notify-sms', [RepairJobController::class, 'notifySms'])->name('repair-jobs.notify-sms');
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');

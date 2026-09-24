@@ -41,6 +41,7 @@ class Permissions
             'payroll' => __('Payroll'),
             'pos' => __('Point of Sale'),
             'restaurant' => __('Restaurant Management'),
+            'repair_shop' => __('Repair Shop'),
         ];
     }
 

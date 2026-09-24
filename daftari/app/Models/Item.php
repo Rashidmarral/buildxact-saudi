@@ -102,7 +102,7 @@ class Item extends Model
     ];
 
     protected $fillable = [
-        'company_id', 'name', 'name_ar', 'description', 'sku', 'barcode', 'category',
+        'company_id', 'name', 'name_ar', 'description', 'sku', 'barcode', 'category', 'compatibility_notes',
         'expiry_date', 'item_type', 'unit', 'unit_code', 'image_path', 'base_unit_id',
         'unit_price', 'purchase_price', 'vat_rate', 'is_active', 'track_inventory', 'reorder_point', 'tracking_type',
         'is_kit', 'parent_item_id', 'variant_label',
