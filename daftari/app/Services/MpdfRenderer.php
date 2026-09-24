@@ -25,7 +25,7 @@ class MpdfRenderer
     {
         try {
             $template = $data['template'] ?? null;
-            $pageSize = ($template instanceof \App\Models\InvoiceTemplate && $template->page_size === 'letter') ? 'Letter' : 'A4';
+            $pageSize = $this->resolvePageSize($template);
 
             $mpdf = $this->makeMpdf($pageSize);
             $embed = $this->embedHelper();
@@ -116,7 +116,22 @@ class MpdfRenderer
         return $merged->Output('', 'S');
     }
 
-    private function makeMpdf(string $pageSize = 'A4'): Mpdf
+    /**
+     * A receipt layout ('receipt_compact'/'receipt_detailed') gets a
+     * narrow, thermal-style page instead of a full A4/Letter sheet — mPDF
+     * accepts [width_mm, height_mm] as a 'format' value just as readily
+     * as the named constants below.
+     */
+    private function resolvePageSize(mixed $template): string|array
+    {
+        if ($template instanceof \App\Models\InvoiceTemplate && str_starts_with((string) $template->layout, 'receipt_')) {
+            return [80, 250];
+        }
+
+        return ($template instanceof \App\Models\InvoiceTemplate && $template->page_size === 'letter') ? 'Letter' : 'A4';
+    }
+
+    private function makeMpdf(string|array $pageSize = 'A4'): Mpdf
     {
         $defaultConfig = (new \Mpdf\Config\ConfigVariables())->getDefaults();
         $fontDirs = $defaultConfig['fontDir'];

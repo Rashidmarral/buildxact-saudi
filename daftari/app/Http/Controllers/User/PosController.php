@@ -4,11 +4,14 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Company;
+use App\Models\InvoiceTemplate;
 use App\Models\Item;
 use App\Models\PosRegister;
 use App\Models\PosSale;
 use App\Models\PosShift;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\MpdfRenderer;
 use App\Services\Pos\PosSaleService;
 use App\Services\Pos\PosShiftService;
 use App\Services\ZatcaQrGenerator;
@@ -165,7 +168,7 @@ class PosController extends Controller
 
     public function showSale(PosSale $sale)
     {
-        $sale->loadMissing('items', 'payments', 'register', 'client', 'company');
+        $sale->loadMissing('items.item', 'payments', 'register', 'client', 'company');
 
         $qr = ZatcaQrGenerator::generate(
             $sale->company->name,
@@ -175,7 +178,57 @@ class PosController extends Controller
             (float) $sale->vat_total
         );
 
-        return view('user.pos.receipt', compact('sale', 'qr'));
+        $template = $this->resolveReceiptTemplate($sale->company);
+
+        return view('user.pos.receipt', [
+            'sale' => $sale, 'qr' => $qr,
+            'layout' => $template->layout, 'languageMode' => $template->language_mode ?? 'bilingual',
+        ]);
+    }
+
+    public function downloadReceiptPdf(PosSale $sale, MpdfRenderer $renderer)
+    {
+        $sale->loadMissing('items.item', 'payments', 'register', 'client', 'company');
+
+        $qr = ZatcaQrGenerator::generate(
+            $sale->company->name,
+            (string) ($sale->company->vat_number ?? ''),
+            $sale->created_at,
+            (float) $sale->total,
+            (float) $sale->vat_total
+        );
+
+        $template = $this->resolveReceiptTemplate($sale->company);
+
+        $pdf = $renderer->render('documents.print.pos-receipt-pdf', [
+            'sale' => $sale, 'qr' => $qr,
+            'layout' => $template->layout, 'languageMode' => $template->language_mode ?? 'bilingual',
+            'template' => $template,
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$sale->sale_number.'.pdf"',
+        ]);
+    }
+
+    /**
+     * A real, saved template with a valid receipt layout if the company
+     * has picked one (see ReceiptTemplateController); otherwise a
+     * synthetic default — never falls back to a document_type='all'
+     * template the way invoices/quotations do, since that default is
+     * almost certainly one of the A4 layouts (bilingual_classic, ...),
+     * which this receipt system doesn't know how to render at all.
+     */
+    private function resolveReceiptTemplate(Company $company): InvoiceTemplate
+    {
+        $template = $company->defaultTemplateFor('pos_receipt');
+
+        if ($template && in_array($template->layout, ['receipt_compact', 'receipt_detailed'], true)) {
+            return $template;
+        }
+
+        return new InvoiceTemplate(['layout' => 'receipt_compact', 'language_mode' => 'bilingual']);
     }
 
     public function voidSale(Request $request, PosSale $sale, PosSaleService $saleService, LedgerPostingService $ledger)

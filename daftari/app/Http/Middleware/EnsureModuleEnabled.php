@@ -18,14 +18,24 @@ use Symfony\Component\HttpFoundation\Response;
  * instead of repeating an inline FeatureAccessService check in every
  * controller action, the way the single-action WhatsApp/API token gates
  * already do.
+ *
+ * Accepts more than one key ('module:pos,restaurant') for a route a
+ * company can reach through either module — e.g. a POS sale receipt,
+ * which a Restaurant-only company's checkout redirects to just as much
+ * as a plain retail POS one — passing as soon as any one of them is
+ * enabled, rather than requiring every module named.
  */
 class EnsureModuleEnabled
 {
-    public function handle(Request $request, Closure $next, string $key): Response
+    public function handle(Request $request, Closure $next, string ...$keys): Response
     {
         $user = $request->user();
+        $access = app(FeatureAccessService::class);
 
-        if (! $user || ! $user->company || ! app(FeatureAccessService::class)->enabled($user->company, $key)) {
+        $enabled = $user && $user->company
+            && collect($keys)->contains(fn (string $key) => $access->enabled($user->company, $key));
+
+        if (! $enabled) {
             return redirect()->route('app.dashboard')->withErrors([
                 'feature' => __("This feature isn't included in your current plan. Upgrade your plan to unlock it."),
             ]);

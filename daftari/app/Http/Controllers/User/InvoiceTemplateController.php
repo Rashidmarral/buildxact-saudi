@@ -37,6 +37,16 @@ class InvoiceTemplateController extends Controller
         $type = $request->query('type');
 
         $templates = $company->invoiceTemplates()
+            // pos_receipt rows are a different template family entirely
+            // (see ReceiptTemplateController) — its layout keys
+            // ('receipt_compact', 'receipt_detailed') aren't in this
+            // controller's self::LAYOUTS, so this editor's Layout <select>
+            // would never offer the right option for one. Same class of
+            // bug this session already found and fixed once for a missing
+            // dropdown option (silent corruption on save) — simplest fix
+            // here is to never let a receipt template be reachable from
+            // this list/editor at all.
+            ->where('document_type', '!=', 'pos_receipt')
             ->when($type && $type !== 'all_types', fn ($q) => $q->where('document_type', $type))
             ->orderByDesc('is_default')
             ->orderBy('name')

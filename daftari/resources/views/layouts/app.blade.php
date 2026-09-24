@@ -154,6 +154,7 @@
                             @include('partials.nav-subitem', ['route' => 'app.pos.terminal', 'label' => __('Checkout')])
                             @include('partials.nav-subitem', ['route' => 'app.pos.sales.index', 'label' => __('Sales history')])
                             @include('partials.nav-subitem', ['route' => 'app.pos-registers.index', 'label' => __('Registers')])
+                            @include('partials.nav-subitem', ['route' => 'app.receipt-templates.index', 'label' => __('Receipt template')])
                         </div>
                     </details>
                 @endif
@@ -170,6 +171,7 @@
                             @include('partials.nav-subitem', ['route' => 'app.restaurant.orders.index', 'label' => __('Orders')])
                             @include('partials.nav-subitem', ['route' => 'app.restaurant.kitchen.index', 'label' => __('Kitchen display')])
                             @include('partials.nav-subitem', ['route' => 'app.restaurant.tables.index', 'label' => __('Tables')])
+                            @include('partials.nav-subitem', ['route' => 'app.receipt-templates.index', 'label' => __('Receipt template')])
                         </div>
                     </details>
                 @endif

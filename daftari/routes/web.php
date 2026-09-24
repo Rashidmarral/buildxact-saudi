@@ -76,6 +76,7 @@ use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ModuleRequestController;
+use App\Http\Controllers\User\ReceiptTemplateController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\TaxRateController;
 use App\Http\Controllers\User\WhtRateController;
@@ -532,8 +533,17 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('pos/shift/{shift}', [PosController::class, 'showShift'])->name('pos.shifts.show');
         Route::post('pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
         Route::get('pos-sales', [PosController::class, 'index'])->name('pos.sales.index');
-        Route::get('pos-sales/{sale}', [PosController::class, 'showSale'])->name('pos.sales.show');
         Route::post('pos-sales/{sale}/void', [PosController::class, 'voidSale'])->name('pos.sales.void');
+    });
+
+    // A sale/receipt reachable from either module — a Restaurant-only
+    // company's checkout redirects here just as much as a plain POS one
+    // does, so this can't require the 'pos' module/permission alone.
+    Route::middleware(['permission:pos,restaurant', 'module:pos,restaurant'])->group(function () {
+        Route::get('pos-sales/{sale}', [PosController::class, 'showSale'])->name('pos.sales.show');
+        Route::get('pos-sales/{sale}/pdf', [PosController::class, 'downloadReceiptPdf'])->middleware('throttle:pdf')->name('pos.sales.pdf');
+        Route::get('receipt-templates', [ReceiptTemplateController::class, 'index'])->name('receipt-templates.index');
+        Route::post('receipt-templates/{key}/activate', [ReceiptTemplateController::class, 'activate'])->name('receipt-templates.activate');
     });
 
     Route::middleware(['permission:restaurant', 'module:restaurant'])->prefix('restaurant')->name('restaurant.')->group(function () {
