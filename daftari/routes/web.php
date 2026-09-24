@@ -105,6 +105,9 @@ use App\Http\Controllers\User\EmployeeController;
 use App\Http\Controllers\User\PayrollRunController;
 use App\Http\Controllers\User\PosController;
 use App\Http\Controllers\User\PosRegisterController;
+use App\Http\Controllers\User\Restaurant\RestaurantKitchenController;
+use App\Http\Controllers\User\Restaurant\RestaurantOrderController;
+use App\Http\Controllers\User\Restaurant\RestaurantTableController;
 use App\Http\Controllers\User\SupplierController;
 use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
@@ -529,6 +532,22 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('pos-sales', [PosController::class, 'index'])->name('pos.sales.index');
         Route::get('pos-sales/{sale}', [PosController::class, 'showSale'])->name('pos.sales.show');
         Route::post('pos-sales/{sale}/void', [PosController::class, 'voidSale'])->name('pos.sales.void');
+    });
+
+    Route::middleware(['permission:restaurant', 'module:restaurant'])->prefix('restaurant')->name('restaurant.')->group(function () {
+        Route::resource('tables', RestaurantTableController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        Route::get('kitchen', [RestaurantKitchenController::class, 'index'])->name('kitchen.index');
+        Route::get('kitchen/feed', [RestaurantKitchenController::class, 'feed'])->name('kitchen.feed');
+
+        Route::get('orders', [RestaurantOrderController::class, 'index'])->name('orders.index');
+        Route::post('orders', [RestaurantOrderController::class, 'store'])->name('orders.store');
+        Route::get('orders/item-lookup', [RestaurantOrderController::class, 'lookupItem'])->name('orders.item-lookup');
+        Route::get('orders/{order}', [RestaurantOrderController::class, 'show'])->name('orders.show');
+        Route::post('orders/{order}/items', [RestaurantOrderController::class, 'storeItems'])->name('orders.items.store');
+        Route::post('orders/{order}/checkout', [RestaurantOrderController::class, 'checkout'])->name('orders.checkout');
+        Route::post('orders/{order}/cancel', [RestaurantOrderController::class, 'cancel'])->name('orders.cancel');
+        Route::post('order-items/{item}/status', [RestaurantOrderController::class, 'updateItemStatus'])->name('order-items.status');
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');

@@ -17,7 +17,7 @@ class Plan extends Model
         'has_recurring_invoices', 'has_quotations', 'has_stamps', 'has_financial_statements',
         'has_vat_return_report', 'has_cost_centers', 'has_purchase_orders', 'has_debit_notes',
         'has_roles_permissions', 'has_zatca_phase2', 'has_api', 'has_whatsapp',
-        'has_payroll', 'has_pos',
+        'has_payroll', 'has_pos', 'has_restaurant',
         'features', 'is_active', 'is_public', 'is_featured', 'sort_order',
     ];
 
@@ -46,6 +46,7 @@ class Plan extends Model
             'has_whatsapp' => 'boolean',
             'has_payroll' => 'boolean',
             'has_pos' => 'boolean',
+            'has_restaurant' => 'boolean',
         ];
     }
 

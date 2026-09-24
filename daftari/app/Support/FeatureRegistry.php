@@ -53,6 +53,7 @@ class FeatureRegistry
             'whatsapp' => ['label' => __('WhatsApp'), 'type' => 'gated', 'column' => 'has_whatsapp'],
             'payroll' => ['label' => __('Payroll'), 'type' => 'gated', 'column' => 'has_payroll'],
             'pos' => ['label' => __('Point of Sale'), 'type' => 'gated', 'column' => 'has_pos'],
+            'restaurant' => ['label' => __('Restaurant Management'), 'type' => 'gated', 'column' => 'has_restaurant'],
         ];
     }
 

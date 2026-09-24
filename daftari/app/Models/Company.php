@@ -56,6 +56,7 @@ class Company extends Model
         'project_prefix', 'next_project_number',
         'employee_prefix', 'next_employee_number', 'payroll_run_prefix', 'next_payroll_run_number',
         'pos_sale_prefix', 'next_pos_sale_number',
+        'restaurant_order_prefix', 'next_restaurant_order_number',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -93,6 +94,8 @@ class Company extends Model
         'next_payroll_run_number' => 1,
         'pos_sale_prefix' => 'POS',
         'next_pos_sale_number' => 1,
+        'restaurant_order_prefix' => 'ORD',
+        'next_restaurant_order_number' => 1,
         'primary_customer_type' => 'mixed',
         'negative_number_format' => 'minus',
         'currency' => 'SAR',
@@ -369,6 +372,13 @@ class Company extends Model
         return $this->pos_sale_prefix.'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
     }
 
+    public function nextRestaurantOrderNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_restaurant_order_number');
+
+        return $this->restaurant_order_prefix.'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
+    }
+
     public function nextQuotationNumber(string $type = 'quotation'): string
     {
         if ($type === 'proforma') {
@@ -587,6 +597,16 @@ class Company extends Model
     public function invoiceTemplates(): HasMany
     {
         return $this->hasMany(InvoiceTemplate::class);
+    }
+
+    public function restaurantTables(): HasMany
+    {
+        return $this->hasMany(RestaurantTable::class);
+    }
+
+    public function restaurantOrders(): HasMany
+    {
+        return $this->hasMany(RestaurantOrder::class);
     }
 
     public function accounts(): HasMany

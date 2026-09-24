@@ -40,6 +40,7 @@ class Permissions
             'support' => __('Support Tickets'),
             'payroll' => __('Payroll'),
             'pos' => __('Point of Sale'),
+            'restaurant' => __('Restaurant Management'),
         ];
     }
 

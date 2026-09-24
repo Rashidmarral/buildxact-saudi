@@ -19,6 +19,7 @@
         'has_whatsapp' => __('WhatsApp notifications'),
         'has_payroll' => __('Payroll'),
         'has_pos' => __('Point of Sale'),
+        'has_restaurant' => __('Restaurant Management'),
     ];
 @endphp
 <form method="POST" action="{{ $plan->exists ? route('admin.plans.update', $plan) : route('admin.plans.store') }}" class="max-w-3xl space-y-6">
