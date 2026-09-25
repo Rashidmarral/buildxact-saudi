@@ -101,6 +101,10 @@
                 @csrf
                 <button type="submit" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Notify customer (SMS)') }}</button>
             </form>
+            <form method="POST" action="{{ route('app.repair-jobs.notify-whatsapp', $job) }}">
+                @csrf
+                <button type="submit" class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Notify customer (WhatsApp)') }}</button>
+            </form>
         @endif
     </div>
 </div>

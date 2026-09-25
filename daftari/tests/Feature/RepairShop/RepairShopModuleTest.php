@@ -330,6 +330,65 @@ class RepairShopModuleTest extends TestCase
         $this->actingAs($owner)->post(route('app.repair-jobs.notify-sms', $job))->assertNotFound();
     }
 
+    /**
+     * Roadmap follow-up: WhatsAppService was only wired into
+     * InvoiceController before this — now Repair Shop offers it as an
+     * alternative to SMS, using its own "ready for pickup" template
+     * (ready_template_name) rather than the invoice one, since the two
+     * messages need a different number/shape of body parameters.
+     */
+    public function test_notify_whatsapp_sends_a_ready_for_pickup_template_message(): void
+    {
+        Http::fake(['https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.abc']]], 200)]);
+        $company = $this->makeCompany(withRepairShop: true);
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Waleed', 'mobile' => '0501234567']);
+        \App\Models\WhatsappConfig::create([
+            'company_id' => $company->id, 'phone_number_id' => '123', 'access_token' => 'token',
+            'template_name' => 'invoice_notification', 'template_language' => 'en_US',
+            'ready_template_name' => 'ready_for_pickup', 'ready_template_language' => 'en_US', 'is_enabled' => true,
+        ]);
+        $this->actingAs($owner)->post(route('app.repair-jobs.store'), ['client_id' => $client->id, 'item_description' => 'iPhone 13 Pro']);
+        $job = RepairJob::first();
+
+        $response = $this->actingAs($owner)->post(route('app.repair-jobs.notify-whatsapp', $job));
+
+        $response->assertRedirect();
+        Http::assertSent(function ($request) use ($job) {
+            $body = $request->data();
+
+            return str_contains($request->url(), 'graph.facebook.com')
+                && $body['template']['name'] === 'ready_for_pickup'
+                && $body['template']['components'][0]['parameters'][2]['text'] === $job->job_number;
+        });
+    }
+
+    public function test_notify_whatsapp_without_a_ready_template_configured_fails_cleanly(): void
+    {
+        $company = $this->makeCompany(withRepairShop: true);
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Waleed', 'mobile' => '0501234567']);
+        \App\Models\WhatsappConfig::create([
+            'company_id' => $company->id, 'phone_number_id' => '123', 'access_token' => 'token',
+            'template_name' => 'invoice_notification', 'template_language' => 'en_US', 'is_enabled' => true,
+        ]);
+        $this->actingAs($owner)->post(route('app.repair-jobs.store'), ['client_id' => $client->id, 'item_description' => 'iPhone 13 Pro']);
+        $job = RepairJob::first();
+
+        $this->actingAs($owner)->post(route('app.repair-jobs.notify-whatsapp', $job))->assertSessionHasErrors('job');
+    }
+
+    public function test_notify_whatsapp_without_a_configured_gateway_404s(): void
+    {
+        $company = $this->makeCompany(withRepairShop: true);
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Waleed', 'mobile' => '0501234567']);
+        $this->actingAs($owner)->post(route('app.repair-jobs.store'), ['client_id' => $client->id, 'item_description' => 'iPhone 13 Pro']);
+        $job = RepairJob::first();
+
+        $this->actingAs($owner)->post(route('app.repair-jobs.notify-whatsapp', $job))->assertNotFound();
+    }
+
     public function test_the_index_page_lists_open_jobs(): void
     {
         $company = $this->makeCompany(withRepairShop: true);

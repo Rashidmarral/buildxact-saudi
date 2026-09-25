@@ -11,7 +11,8 @@ class WhatsappConfig extends Model
 
     protected $fillable = [
         'company_id', 'phone_number_id', 'access_token',
-        'template_name', 'template_language', 'is_enabled',
+        'template_name', 'template_language',
+        'ready_template_name', 'ready_template_language', 'is_enabled',
     ];
 
     protected $hidden = ['access_token'];

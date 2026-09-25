@@ -16,6 +16,7 @@ use App\Models\RestaurantTable;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -293,6 +294,52 @@ class RestaurantModuleTest extends TestCase
 
         $this->assertSame('completed', $order->fresh()->status);
         $this->assertSame(1, PosSale::count());
+    }
+
+    /**
+     * Roadmap follow-up: "ready for pickup" only makes sense for a
+     * takeaway order (a dine-in customer is already seated at the
+     * order's own table), so both notify routes 404 outside that case.
+     */
+    public function test_a_takeaway_order_can_notify_the_customer_by_sms_and_whatsapp(): void
+    {
+        Http::fake([
+            'https://el.cloud.unifonic.com/*' => Http::response(['success' => true, 'data' => ['MessageID' => 'abc']], 200),
+            'https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.abc']]], 200),
+        ]);
+        $company = $this->makeCompany(withRestaurant: true);
+        $owner = $this->makeOwner($company);
+        \App\Models\SmsConfig::create(['company_id' => $company->id, 'app_sid' => 'sid', 'sender_id' => 'Daftari', 'is_enabled' => true]);
+        \App\Models\WhatsappConfig::create([
+            'company_id' => $company->id, 'phone_number_id' => '123', 'access_token' => 'token',
+            'template_name' => 'invoice_notification', 'template_language' => 'en_US',
+            'ready_template_name' => 'ready_for_pickup', 'ready_template_language' => 'en_US', 'is_enabled' => true,
+        ]);
+
+        $this->actingAs($owner)->post(route('app.restaurant.orders.store'), [
+            'order_type' => 'takeaway', 'customer_name' => 'Waleed', 'customer_phone' => '0500000000',
+        ]);
+        $order = RestaurantOrder::first();
+
+        $this->actingAs($owner)->post(route('app.restaurant.orders.notify-sms', $order))->assertRedirect();
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'unifonic.com') && str_contains($request['Body'] ?? '', $order->order_number));
+
+        $this->actingAs($owner)->post(route('app.restaurant.orders.notify-whatsapp', $order))->assertRedirect();
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'graph.facebook.com'));
+    }
+
+    public function test_a_dine_in_order_cannot_be_notified_ready_for_pickup(): void
+    {
+        $company = $this->makeCompany(withRestaurant: true);
+        $owner = $this->makeOwner($company);
+        \App\Models\SmsConfig::create(['company_id' => $company->id, 'app_sid' => 'sid', 'sender_id' => 'Daftari', 'is_enabled' => true]);
+        $table = RestaurantTable::create(['company_id' => $company->id, 'name' => 'T3', 'seats' => 2, 'status' => 'available']);
+
+        $this->actingAs($owner)->post(route('app.restaurant.orders.store'), ['order_type' => 'dine_in', 'table_id' => $table->id]);
+        $order = RestaurantOrder::first();
+
+        $this->actingAs($owner)->post(route('app.restaurant.orders.notify-sms', $order))->assertNotFound();
+        $this->actingAs($owner)->post(route('app.restaurant.orders.notify-whatsapp', $order))->assertNotFound();
     }
 
     public function test_cancelling_a_dine_in_order_frees_the_table(): void

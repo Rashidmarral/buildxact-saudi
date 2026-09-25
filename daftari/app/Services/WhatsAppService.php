@@ -30,6 +30,32 @@ class WhatsAppService
      */
     public function sendTemplateMessage(WhatsappConfig $config, string $toPhone, array $bodyParams): array
     {
+        return $this->sendTemplate($config, $toPhone, $config->template_name, $config->template_language, $bodyParams);
+    }
+
+    /**
+     * A "your order/job is ready for pickup" notice — same phone_number_id
+     * and access_token (one Meta Business account per company covers any
+     * message type), but its own approved template, since the body shape
+     * (customer name, item/job description, number) differs from the
+     * invoice template's (client name, invoice number, total, pay link).
+     *
+     * @param  array<int, string>  $bodyParams
+     */
+    public function sendReadyTemplateMessage(WhatsappConfig $config, string $toPhone, array $bodyParams): array
+    {
+        if (! $config->ready_template_name) {
+            return ['success' => false, 'error' => __('No "ready for pickup" WhatsApp template is configured yet. Set one up under Settings > WhatsApp.')];
+        }
+
+        return $this->sendTemplate($config, $toPhone, $config->ready_template_name, $config->ready_template_language, $bodyParams);
+    }
+
+    /**
+     * @param  array<int, string>  $bodyParams
+     */
+    private function sendTemplate(WhatsappConfig $config, string $toPhone, string $templateName, string $templateLanguage, array $bodyParams): array
+    {
         // Meta's API (and any network hop in between) can fail outright —
         // DNS, timeout, TLS — not just respond with an error status. Those
         // must degrade to a clean failure result, never an uncaught 500,
@@ -42,8 +68,8 @@ class WhatsAppService
                     'to' => $this->normalizePhone($toPhone),
                     'type' => 'template',
                     'template' => [
-                        'name' => $config->template_name,
-                        'language' => ['code' => $config->template_language],
+                        'name' => $templateName,
+                        'language' => ['code' => $templateLanguage],
                         'components' => [
                             [
                                 'type' => 'body',

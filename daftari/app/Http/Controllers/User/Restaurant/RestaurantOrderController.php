@@ -8,8 +8,12 @@ use App\Models\Item;
 use App\Models\RestaurantOrder;
 use App\Models\RestaurantOrderItem;
 use App\Models\RestaurantTable;
+use App\Models\SmsConfig;
+use App\Models\WhatsappConfig;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\Restaurant\RestaurantOrderService;
+use App\Services\SmsService;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -147,5 +151,65 @@ class RestaurantOrderController extends Controller
         AuditLog::record('restaurant_order.cancel', $order, __('Cancelled order :number', ['number' => $order->order_number]));
 
         return redirect()->route('app.restaurant.orders.index')->with('status', __('Order cancelled.'));
+    }
+
+    /**
+     * "Ready for pickup" only makes sense for a takeaway order — a dine-in
+     * customer is already seated at the table the order belongs to.
+     */
+    private function readyMessage(RestaurantOrder $order): string
+    {
+        return __(':company: your order is ready for pickup. Order :number.', [
+            'company' => $order->company->name,
+            'number' => $order->order_number,
+        ]);
+    }
+
+    public function notifySms(RestaurantOrder $order, SmsService $sms)
+    {
+        abort_unless($order->order_type === 'takeaway', 404);
+
+        $config = SmsConfig::first();
+        abort_unless($config && $config->is_enabled, 404);
+
+        if (! $order->customer_phone) {
+            return back()->withErrors(['order' => __('This order has no customer phone number on file.')]);
+        }
+
+        $result = $sms->send($config, $order->customer_phone, $this->readyMessage($order));
+
+        if (! $result['success']) {
+            return back()->withErrors(['order' => __('SMS send failed: :error', ['error' => $result['error']])]);
+        }
+
+        AuditLog::record('restaurant_order.sms_sent', $order, __('Sent "ready for pickup" SMS for order :number', ['number' => $order->order_number]));
+
+        return back()->with('status', __('SMS sent.'));
+    }
+
+    public function notifyWhatsapp(RestaurantOrder $order, WhatsAppService $whatsapp)
+    {
+        abort_unless($order->order_type === 'takeaway', 404);
+
+        $config = WhatsappConfig::first();
+        abort_unless($config && $config->is_enabled, 404);
+
+        if (! $order->customer_phone) {
+            return back()->withErrors(['order' => __('This order has no customer phone number on file.')]);
+        }
+
+        $result = $whatsapp->sendReadyTemplateMessage($config, $order->customer_phone, [
+            $order->customer_name ?: __('Customer'),
+            __('your takeaway order'),
+            $order->order_number,
+        ]);
+
+        if (! $result['success']) {
+            return back()->withErrors(['order' => __('WhatsApp send failed: :error', ['error' => $result['error']])]);
+        }
+
+        AuditLog::record('restaurant_order.whatsapp_sent', $order, __('Sent "ready for pickup" WhatsApp message for order :number', ['number' => $order->order_number]));
+
+        return back()->with('status', __('WhatsApp message sent.'));
     }
 }

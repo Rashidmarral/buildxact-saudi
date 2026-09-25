@@ -561,6 +561,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('orders/{order}/items', [RestaurantOrderController::class, 'storeItems'])->name('orders.items.store');
         Route::post('orders/{order}/checkout', [RestaurantOrderController::class, 'checkout'])->name('orders.checkout');
         Route::post('orders/{order}/cancel', [RestaurantOrderController::class, 'cancel'])->name('orders.cancel');
+        Route::post('orders/{order}/notify-sms', [RestaurantOrderController::class, 'notifySms'])->name('orders.notify-sms');
+        Route::post('orders/{order}/notify-whatsapp', [RestaurantOrderController::class, 'notifyWhatsapp'])->name('orders.notify-whatsapp');
         Route::post('order-items/{item}/status', [RestaurantOrderController::class, 'updateItemStatus'])->name('order-items.status');
     });
 
@@ -576,6 +578,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('repair-jobs/{job}/checkout', [RepairJobController::class, 'checkout'])->name('repair-jobs.checkout');
         Route::post('repair-jobs/{job}/cancel', [RepairJobController::class, 'cancel'])->name('repair-jobs.cancel');
         Route::post('repair-jobs/{job}/notify-sms', [RepairJobController::class, 'notifySms'])->name('repair-jobs.notify-sms');
+        Route::post('repair-jobs/{job}/notify-whatsapp', [RepairJobController::class, 'notifyWhatsapp'])->name('repair-jobs.notify-whatsapp');
     });
 
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');

@@ -8,9 +8,11 @@ use App\Models\Client;
 use App\Models\Item;
 use App\Models\RepairJob;
 use App\Models\SmsConfig;
+use App\Models\WhatsappConfig;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\RepairShop\RepairJobService;
 use App\Services\SmsService;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -180,10 +182,9 @@ class RepairJobController extends Controller
     }
 
     /**
-     * Free-text SMS rather than a WhatsApp template message — a "ready for
-     * pickup" notice doesn't fit the fixed positional-parameter shape a
-     * Meta-approved WhatsApp template requires, and SMS has no such
-     * approval step (see InvoiceController::sendSms(), the same pattern).
+     * Free-text SMS — no template-approval step, unlike WhatsApp (see
+     * notifyWhatsapp() below and InvoiceController::sendSms(), the same
+     * pattern), so it's always available once SMS is configured at all.
      */
     public function notifySms(RepairJob $job, SmsService $sms)
     {
@@ -211,5 +212,37 @@ class RepairJobController extends Controller
         AuditLog::record('repair_job.sms_sent', $job, __('Sent "ready for pickup" SMS for job :number', ['number' => $job->job_number]));
 
         return back()->with('status', __('SMS sent.'));
+    }
+
+    /**
+     * WhatsApp template message using the company's own "ready for pickup"
+     * template (see WhatsAppService::sendReadyTemplateMessage) — a separate,
+     * optional template from the one InvoiceController uses, since its body
+     * shape is different (customer name, item description, job number).
+     */
+    public function notifyWhatsapp(RepairJob $job, WhatsAppService $whatsapp)
+    {
+        $config = WhatsappConfig::first();
+        abort_unless($config && $config->is_enabled, 404);
+
+        $phone = $job->client?->mobile ?: $job->client?->phone;
+
+        if (! $phone) {
+            return back()->withErrors(['job' => __('This client has no phone number on file. Add one on the client record first.')]);
+        }
+
+        $result = $whatsapp->sendReadyTemplateMessage($config, $phone, [
+            $job->client->name,
+            $job->item_description,
+            $job->job_number,
+        ]);
+
+        if (! $result['success']) {
+            return back()->withErrors(['job' => __('WhatsApp send failed: :error', ['error' => $result['error']])]);
+        }
+
+        AuditLog::record('repair_job.whatsapp_sent', $job, __('Sent "ready for pickup" WhatsApp message for job :number', ['number' => $job->job_number]));
+
+        return back()->with('status', __('WhatsApp message sent.'));
     }
 }

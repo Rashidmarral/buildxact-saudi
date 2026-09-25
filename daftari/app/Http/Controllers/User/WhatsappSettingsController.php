@@ -32,6 +32,8 @@ class WhatsappSettingsController extends Controller
             'access_token' => ['required', 'string', 'max:2000'],
             'template_name' => ['required', 'string', 'max:255'],
             'template_language' => ['required', 'string', 'max:10'],
+            'ready_template_name' => ['nullable', 'string', 'max:255'],
+            'ready_template_language' => ['nullable', 'string', 'max:10'],
             'is_enabled' => ['nullable', 'boolean'],
         ]);
 
@@ -42,6 +44,8 @@ class WhatsappSettingsController extends Controller
                 'access_token' => $data['access_token'],
                 'template_name' => $data['template_name'],
                 'template_language' => $data['template_language'],
+                'ready_template_name' => $data['ready_template_name'] ?? null,
+                'ready_template_language' => $data['ready_template_language'] ?? 'en_US',
                 'is_enabled' => $request->boolean('is_enabled'),
             ]
         );

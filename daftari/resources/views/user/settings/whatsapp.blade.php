@@ -41,6 +41,21 @@
                 <input type="text" name="template_language" value="{{ old('template_language', $config->template_language ?? 'en_US') }}" placeholder="en_US" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
             </div>
 
+            <div class="border-t border-slate-100 pt-4">
+                <h3 class="font-semibold text-slate-900 mb-1">{{ __('"Ready for pickup" template (optional)') }}</h3>
+                <p class="text-sm text-slate-500 mb-3">{{ __('Used by Restaurant takeaway orders and Repair Shop jobs to notify a customer over WhatsApp once their order/job is ready — a separate template from the one above, since its body only needs 3 parameters: customer name, item/job description, order/job number. Leave blank to only offer SMS for these.') }}</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Template name') }}</label>
+                        <input type="text" name="ready_template_name" value="{{ old('ready_template_name', $config->ready_template_name ?? '') }}" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Template language code') }}</label>
+                        <input type="text" name="ready_template_language" value="{{ old('ready_template_language', $config->ready_template_language ?? 'en_US') }}" placeholder="en_US" class="w-full rounded-lg border border-slate-200 text-sm font-mono">
+                    </div>
+                </div>
+            </div>
+
             <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
         </form>
     </div>

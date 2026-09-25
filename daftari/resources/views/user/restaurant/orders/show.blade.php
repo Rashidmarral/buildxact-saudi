@@ -29,6 +29,16 @@
             {{ ucfirst(str_replace('_', ' ', $order->status)) }}
         </span>
         @if ($order->isOpen())
+            @if ($order->order_type === 'takeaway' && $order->customer_phone)
+                <form method="POST" action="{{ route('app.restaurant.orders.notify-sms', $order) }}">
+                    @csrf
+                    <button type="submit" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Notify customer (SMS)') }}</button>
+                </form>
+                <form method="POST" action="{{ route('app.restaurant.orders.notify-whatsapp', $order) }}">
+                    @csrf
+                    <button type="submit" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Notify customer (WhatsApp)') }}</button>
+                </form>
+            @endif
             <button type="button" onclick="document.getElementById('cancel-order-modal').showModal()" class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:border-red-300">{{ __('Cancel order') }}</button>
         @elseif ($order->sale)
             <a href="{{ route('app.pos.sales.show', $order->sale) }}" class="text-sm text-brand-700 hover:underline">{{ __('View receipt') }}</a>
