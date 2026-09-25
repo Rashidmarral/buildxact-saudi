@@ -125,4 +125,29 @@ class UnitDefaultsTest extends TestCase
         $this->assertSame($matched->id, $item->base_unit_id);
         $this->assertNotNull($item->baseUnit);
     }
+
+    /**
+     * UX audit finding: demo items using construction/retail unit_codes
+     * that weren't in the default set (bag, tonne, square metre, can) fell
+     * back to Piece and showed "pc" on invoices/PDFs instead of their real
+     * unit — e.g. "Cement bags (50kg)" rendering as "10 pc". The default
+     * set and the ZATCA unit-code registry it draws its codes' meaning
+     * from now both include these, so any item using them (seeded or
+     * entered by hand) resolves to the right unit instead of silently
+     * defaulting.
+     */
+    public function test_bag_tonne_square_metre_and_can_resolve_instead_of_falling_back_to_piece(): void
+    {
+        $company = Company::create(['name' => 'Materials Co.', 'slug' => 'materials-'.uniqid()]);
+
+        $cement = Item::create(['company_id' => $company->id, 'name' => 'Cement bags', 'unit_code' => 'BG']);
+        $steel = Item::create(['company_id' => $company->id, 'name' => 'Steel rebar', 'unit_code' => 'TNE']);
+        $tiles = Item::create(['company_id' => $company->id, 'name' => 'Floor tiles', 'unit_code' => 'MTK']);
+        $paint = Item::create(['company_id' => $company->id, 'name' => 'Paint cans', 'unit_code' => 'CA']);
+
+        $this->assertSame('BG', $cement->baseUnit->code);
+        $this->assertSame('TNE', $steel->baseUnit->code);
+        $this->assertSame('MTK', $tiles->baseUnit->code);
+        $this->assertSame('CA', $paint->baseUnit->code);
+    }
 }

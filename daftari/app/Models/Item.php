@@ -99,6 +99,9 @@ class Item extends Model
         'DAY' => 'Day',
         'MON' => 'Month',
         'EA' => 'Each',
+        'BG' => 'Bag',
+        'TNE' => 'Tonne',
+        'CA' => 'Can',
     ];
 
     protected $fillable = [

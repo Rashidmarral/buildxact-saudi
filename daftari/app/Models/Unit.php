@@ -56,6 +56,10 @@ class Unit extends Model
             ['name' => 'Hour', 'name_ar' => 'ساعة', 'symbol' => 'hr', 'code' => 'HUR'],
             ['name' => 'Day', 'name_ar' => 'يوم', 'symbol' => 'day', 'code' => 'DAY'],
             ['name' => 'Service', 'name_ar' => 'خدمة', 'symbol' => null, 'code' => 'E48'],
+            ['name' => 'Bag', 'name_ar' => 'كيس', 'symbol' => 'bag', 'code' => 'BG'],
+            ['name' => 'Tonne', 'name_ar' => 'طن', 'symbol' => 'ton', 'code' => 'TNE'],
+            ['name' => 'Square metre', 'name_ar' => 'متر مربع', 'symbol' => 'm²', 'code' => 'MTK'],
+            ['name' => 'Can', 'name_ar' => 'علبة', 'symbol' => 'can', 'code' => 'CA'],
         ];
 
         foreach ($defaults as $unit) {
