@@ -417,41 +417,30 @@ class ReportController extends Controller
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
 
-        $cashAndBankCodes = ['1000', '1100'];
-
-        $rows = Account::where('company_id', $company->id)
-            ->whereIn('code', $cashAndBankCodes)
-            ->get()
-            ->map(function (Account $account) use ($period) {
-                $inflow = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$period['from'], $period['to']]))->sum('debit');
-                $outflow = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$period['from'], $period['to']]))->sum('credit');
-                $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<', $period['from']))->sum('debit');
-                $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<', $period['from']))->sum('credit');
-
-                return [
-                    'account' => $account,
-                    'opening' => $openingDebit - $openingCredit,
-                    'inflow' => $inflow,
-                    'outflow' => $outflow,
-                    'closing' => ($openingDebit - $openingCredit) + $inflow - $outflow,
-                ];
-            });
+        $data = app(FinancialReportService::class)->cashFlow($company, $period['from'], $period['to']);
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse('cash-flow.csv', [__('Account'), __('Opening'), __('Cash in'), __('Cash out'), __('Closing')],
-                $rows->map(fn ($r) => [$r['account']->name, number_format($r['opening'], 2, '.', ''), number_format($r['inflow'], 2, '.', ''), number_format($r['outflow'], 2, '.', ''), number_format($r['closing'], 2, '.', '')]));
+            $rows = collect()
+                ->push([__('Operating activities'), '', ''])
+                ->push(['', __('Net income'), number_format($data['netIncome'], 2, '.', '')])
+                ->push(['', __('Depreciation'), number_format($data['depreciation'], 2, '.', '')])
+                ->concat($data['workingCapitalLines']->map(fn ($r) => ['', $r['account']->name, number_format($r['cashEffect'], 2, '.', '')]))
+                ->push(['', __('Net cash from operating activities'), number_format($data['operatingTotal'], 2, '.', '')])
+                ->push([__('Investing activities'), '', ''])
+                ->push(['', __('Fixed asset acquisitions'), number_format(-$data['acquisitions'], 2, '.', '')])
+                ->push(['', __('Fixed asset disposal proceeds'), number_format($data['disposalProceeds'], 2, '.', '')])
+                ->push(['', __('Net cash from investing activities'), number_format($data['investingTotal'], 2, '.', '')])
+                ->push([__('Financing activities'), '', ''])
+                ->concat($data['equityLines']->map(fn ($r) => ['', $r['account']->name, number_format($r['change'], 2, '.', '')]))
+                ->push(['', __('Net cash from financing activities'), number_format($data['financingTotal'], 2, '.', '')])
+                ->push(['', __('Net change in cash'), number_format($data['netChange'], 2, '.', '')])
+                ->push(['', __('Opening cash & bank'), number_format($data['openingCash'], 2, '.', '')])
+                ->push(['', __('Closing cash & bank'), number_format($data['closingCash'], 2, '.', '')]);
+
+            return $this->csvResponse('cash-flow.csv', [__('Section'), __('Line'), __('Amount')], $rows);
         }
 
-        return view('user.reports.cash-flow', [
-            'company' => $company,
-            'period' => $period,
-            'rows' => $rows,
-            'totalInflow' => $rows->sum('inflow'),
-            'totalOutflow' => $rows->sum('outflow'),
-            'netChange' => $rows->sum('inflow') - $rows->sum('outflow'),
-            'openingTotal' => $rows->sum('opening'),
-            'closingTotal' => $rows->sum('closing'),
-        ]);
+        return view('user.reports.cash-flow', ['company' => $company, 'period' => $period] + $data);
     }
 
     public function accountStatement(Request $request)

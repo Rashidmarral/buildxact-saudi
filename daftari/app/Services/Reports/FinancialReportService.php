@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\Account;
 use App\Models\Company;
+use App\Models\FixedAsset;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -127,6 +128,117 @@ class FinancialReportService
             'grossProfit' => $grossProfit,
             'operatingProfit' => $operatingProfit,
             'netProfit' => $operatingProfit,
+        ];
+    }
+
+    /**
+     * A real classified Statement of Cash Flows, indirect method — not the
+     * cash/bank ledger roll-forward this used to be (that told you WHAT
+     * moved through the cash accounts, not WHY, and couldn't answer "is
+     * this company burning cash on operations or just spent it on
+     * equipment"). Three sections, standard shape:
+     *
+     *  - Operating: net income, plus non-cash add-backs (depreciation),
+     *    plus the swing in working-capital accounts (a receivable going up
+     *    ties up cash even though it's booked as revenue; a payable going
+     *    up delays a cash outflow that's already booked as an expense).
+     *  - Investing: real fixed-asset acquisitions/disposals, read directly
+     *    from the FixedAsset register (acquisition_cost / disposal_proceeds)
+     *    rather than inferred from the Fixed Assets account's GL delta —
+     *    the register already knows exactly what was bought or sold and
+     *    for how much, so there's no need to guess from a debit/credit mix
+     *    that also contains depreciation's own postings.
+     *  - Financing: the net change in equity-type accounts. Net income is
+     *    never auto-posted into equity in this ledger (see
+     *    balanceSheet()'s own note on why) — so any equity movement here
+     *    is a real capital transaction (an owner contribution or a
+     *    drawing), not double-counted profit.
+     *
+     * 'reconciled' cross-checks the three sections' net change against the
+     * cash & bank accounts' actual balance change over the period, the
+     * same spirit as balanceSheet()'s own 'balanced' flag — informational,
+     * not a hard requirement, since this reads acquisitions/disposals as
+     * fully cash-funded and can't see a transaction a company financed on
+     * credit without a dedicated loan account to track it against.
+     */
+    public function cashFlow(Company $company, Carbon $from, Carbon $to): array
+    {
+        $cashAccountCodes = ['1000', '1100'];
+        $fixedAssetCodes = ['1500', '1550'];
+
+        $balanceAt = function (Account $account, Carbon $asOf) {
+            $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
+            $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
+
+            return $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
+        };
+
+        $income = $this->incomeStatement($company, $from, $to);
+        $netIncome = (float) $income['netProfit'];
+
+        $depreciation = (float) Account::where('company_id', $company->id)
+            ->where('code', '5150')
+            ->get()
+            ->sum(fn (Account $a) => (float) $a->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))->sum('debit')
+                - (float) $a->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))->sum('credit'));
+
+        $workingCapitalLines = Account::where('company_id', $company->id)
+            ->where('is_active', true)
+            ->whereIn('type', ['asset', 'liability'])
+            ->whereNotIn('code', [...$cashAccountCodes, ...$fixedAssetCodes])
+            ->orderBy('code')
+            ->get()
+            ->map(function (Account $account) use ($balanceAt, $from, $to) {
+                $change = $balanceAt($account, $to) - $balanceAt($account, $from->copy()->subDay());
+
+                // A receivable/inventory increase ties up cash (outflow); a
+                // payable/accrual increase delays a cash outflow (inflow).
+                $cashEffect = $account->type === 'asset' ? -$change : $change;
+
+                return ['account' => $account, 'change' => $change, 'cashEffect' => $cashEffect];
+            })
+            ->filter(fn ($row) => abs($row['cashEffect']) > 0.005)
+            ->values();
+
+        $workingCapitalTotal = (float) $workingCapitalLines->sum('cashEffect');
+        $operatingTotal = $netIncome + $depreciation + $workingCapitalTotal;
+
+        $acquisitions = (float) FixedAsset::where('company_id', $company->id)->whereBetween('acquisition_date', [$from, $to])->sum('acquisition_cost');
+        $disposalProceeds = (float) FixedAsset::where('company_id', $company->id)->whereBetween('disposed_at', [$from, $to])->sum('disposal_proceeds');
+        $investingTotal = $disposalProceeds - $acquisitions;
+
+        $equityLines = Account::where('company_id', $company->id)
+            ->where('is_active', true)
+            ->where('type', 'equity')
+            ->orderBy('code')
+            ->get()
+            ->map(fn (Account $account) => ['account' => $account, 'change' => $balanceAt($account, $to) - $balanceAt($account, $from->copy()->subDay())])
+            ->filter(fn ($row) => abs($row['change']) > 0.005)
+            ->values();
+
+        $financingTotal = (float) $equityLines->sum('change');
+        $netChange = $operatingTotal + $investingTotal + $financingTotal;
+
+        $cashAccounts = Account::where('company_id', $company->id)->whereIn('code', $cashAccountCodes)->get();
+        $openingCash = (float) $cashAccounts->sum(fn (Account $a) => $balanceAt($a, $from->copy()->subDay()));
+        $actualClosingCash = (float) $cashAccounts->sum(fn (Account $a) => $balanceAt($a, $to));
+
+        return [
+            'netIncome' => $netIncome,
+            'depreciation' => $depreciation,
+            'workingCapitalLines' => $workingCapitalLines,
+            'workingCapitalTotal' => $workingCapitalTotal,
+            'operatingTotal' => $operatingTotal,
+            'acquisitions' => $acquisitions,
+            'disposalProceeds' => $disposalProceeds,
+            'investingTotal' => $investingTotal,
+            'equityLines' => $equityLines,
+            'financingTotal' => $financingTotal,
+            'netChange' => $netChange,
+            'openingCash' => $openingCash,
+            'closingCash' => $openingCash + $netChange,
+            'actualClosingCash' => $actualClosingCash,
+            'reconciled' => abs(($openingCash + $netChange) - $actualClosingCash) < 0.01,
         ];
     }
 }
