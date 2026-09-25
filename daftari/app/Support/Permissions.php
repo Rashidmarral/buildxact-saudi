@@ -42,6 +42,7 @@ class Permissions
             'pos' => __('Point of Sale'),
             'restaurant' => __('Restaurant Management'),
             'repair_shop' => __('Repair Shop'),
+            'coffee_shop' => __('Coffee Shop'),
         ];
     }
 

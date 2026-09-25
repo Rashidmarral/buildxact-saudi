@@ -79,7 +79,7 @@
         <p class="text-xs font-semibold uppercase text-slate-400">{{ $lbl('Payments') }}</p>
         @foreach ($sale->payments as $payment)
             <div class="flex justify-between text-slate-600">
-                <span class="capitalize">{{ __(ucfirst($payment->method)) }}</span>
+                <span class="capitalize">{{ $payment->reference ?: __(ucfirst($payment->method)) }}</span>
                 <span class="tabular-nums">{{ number_format($payment->amount, 2) }}</span>
             </div>
         @endforeach

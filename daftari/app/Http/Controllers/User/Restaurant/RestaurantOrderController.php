@@ -122,9 +122,10 @@ class RestaurantOrderController extends Controller
         $data = $request->validate([
             'register_id' => ['nullable', Rule::exists('pos_registers', 'id')->where('company_id', $companyId)],
             'payments' => ['required', 'array', 'min:1'],
-            'payments.*.method' => ['required', 'in:cash,card,other'],
+            'payments.*.method' => ['required', 'in:cash,card,other,loyalty_card'],
             'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
             'payments.*.reference' => ['nullable', 'string', 'max:255'],
+            'payments.*.loyalty_card_id' => ['required_if:payments.*.method,loyalty_card', Rule::exists('loyalty_cards', 'id')->where('company_id', $companyId)],
         ]);
 
         try {

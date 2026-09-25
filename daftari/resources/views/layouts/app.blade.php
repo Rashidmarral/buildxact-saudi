@@ -159,18 +159,23 @@
                     </details>
                 @endif
 
-                @if ($navCompany && $moduleAccess->enabled($navCompany, 'restaurant'))
-                    @php($restaurantActive = request()->routeIs('app.restaurant.*'))
+                @if ($navCompany && ($moduleAccess->enabled($navCompany, 'restaurant') || $moduleAccess->enabled($navCompany, 'coffee_shop')))
+                    @php($hasRestaurant = $moduleAccess->enabled($navCompany, 'restaurant'))
+                    @php($hasCoffeeShop = $moduleAccess->enabled($navCompany, 'coffee_shop'))
+                    @php($restaurantActive = request()->routeIs('app.restaurant.*') || request()->routeIs('app.coffee-shop.*'))
                     <details class="group" @if($restaurantActive) open @endif>
                         <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $restaurantActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
-                            <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'restaurant', 'class' => 'h-[18px] w-[18px]'])</span>
-                            <span class="flex-1 font-medium">{{ __('Restaurant') }}</span>
+                            <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => $hasRestaurant ? 'restaurant' : 'coffee', 'class' => 'h-[18px] w-[18px]'])</span>
+                            <span class="flex-1 font-medium">{{ $hasRestaurant ? __('Restaurant') : __('Coffee Shop') }}</span>
                             <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
                         </summary>
                         <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
                             @include('partials.nav-subitem', ['route' => 'app.restaurant.orders.index', 'label' => __('Orders')])
                             @include('partials.nav-subitem', ['route' => 'app.restaurant.kitchen.index', 'label' => __('Kitchen display')])
                             @include('partials.nav-subitem', ['route' => 'app.restaurant.tables.index', 'label' => __('Tables')])
+                            @if ($hasCoffeeShop)
+                                @include('partials.nav-subitem', ['route' => 'app.coffee-shop.loyalty-cards.index', 'label' => __('Loyalty Cards')])
+                            @endif
                             @include('partials.nav-subitem', ['route' => 'app.receipt-templates.index', 'label' => __('Receipt template')])
                         </div>
                     </details>

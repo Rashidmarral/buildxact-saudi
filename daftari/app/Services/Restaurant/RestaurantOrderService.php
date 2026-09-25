@@ -4,12 +4,14 @@ namespace App\Services\Restaurant;
 
 use App\Models\Company;
 use App\Models\Item;
+use App\Models\LoyaltyCard;
 use App\Models\PosRegister;
 use App\Models\PosSale;
 use App\Models\RestaurantOrder;
 use App\Models\RestaurantOrderItem;
 use App\Models\RestaurantTable;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\CoffeeShop\LoyaltyCardService;
 use App\Services\Pos\PosSaleService;
 use App\Services\Pos\PosShiftService;
 use Illuminate\Support\Facades\Auth;
@@ -21,13 +23,17 @@ use RuntimeException;
  * table), add rounds of items for the kitchen, track each line's kitchen
  * status, and checkout — which reuses PosSaleService as-is (same GL
  * posting, stock deduction and payment recording a retail POS sale gets)
- * rather than re-implementing any of that for restaurant orders.
+ * rather than re-implementing any of that for restaurant orders. Coffee
+ * Shop (a thin Restaurant preset, see FeatureRegistry) adds one more
+ * payment method on top of this same flow: a loyalty card balance,
+ * redeemed via LoyaltyCardService once the sale exists (see checkout()).
  */
 class RestaurantOrderService
 {
     public function __construct(
         private PosShiftService $shiftService,
         private PosSaleService $saleService,
+        private LoyaltyCardService $loyaltyCardService,
     ) {}
 
     /**
@@ -137,7 +143,7 @@ class RestaurantOrderService
     }
 
     /**
-     * @param  array<int, array{method: string, amount: float, reference?: string}>  $payments
+     * @param  array<int, array{method: string, amount: float, reference?: string, loyalty_card_id?: int}>  $payments
      */
     public function checkout(RestaurantOrder $order, array $payments, LedgerPostingService $ledger, ?int $registerId = null): PosSale
     {
@@ -171,7 +177,34 @@ class RestaurantOrderService
                 'unit_price' => (float) $line->unit_price,
             ])->all();
 
-            $sale = $this->saleService->checkout($shift, $cartLines, $payments, null, $ledger);
+            // PosSaleService only understands cash/card/other — a loyalty
+            // card line is rewritten to 'other' here (so its own total
+            // validation still balances) and actually redeemed below, once
+            // the sale it's paying for exists to attach the redemption to.
+            $loyaltyLines = [];
+            $saleLines = [];
+
+            foreach ($payments as $payment) {
+                if (($payment['method'] ?? null) !== 'loyalty_card') {
+                    $saleLines[] = $payment;
+
+                    continue;
+                }
+
+                $card = LoyaltyCard::where('company_id', $order->company_id)->findOrFail($payment['loyalty_card_id'] ?? null);
+                $loyaltyLines[] = ['card' => $card, 'amount' => (float) $payment['amount']];
+                $saleLines[] = [
+                    'method' => 'other',
+                    'amount' => $payment['amount'],
+                    'reference' => __('Loyalty card :number', ['number' => $card->card_number]),
+                ];
+            }
+
+            $sale = $this->saleService->checkout($shift, $cartLines, $saleLines, null, $ledger);
+
+            foreach ($loyaltyLines as $line) {
+                $this->loyaltyCardService->redeem($line['card'], $line['amount'], $sale);
+            }
 
             $order->update(['status' => 'completed', 'pos_sale_id' => $sale->id, 'completed_at' => now()]);
             $order->table?->update(['status' => 'available']);

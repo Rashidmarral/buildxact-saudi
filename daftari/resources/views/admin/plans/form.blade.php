@@ -21,6 +21,7 @@
         'has_pos' => __('Point of Sale'),
         'has_restaurant' => __('Restaurant Management'),
         'has_repair_shop' => __('Repair Shop'),
+        'has_coffee_shop' => __('Coffee Shop'),
     ];
 @endphp
 <form method="POST" action="{{ $plan->exists ? route('admin.plans.update', $plan) : route('admin.plans.store') }}" class="max-w-3xl space-y-6">

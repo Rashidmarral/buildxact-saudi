@@ -77,6 +77,7 @@ use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
 use App\Http\Controllers\User\ModuleRequestController;
 use App\Http\Controllers\User\ReceiptTemplateController;
+use App\Http\Controllers\User\CoffeeShop\LoyaltyCardController;
 use App\Http\Controllers\User\RepairShop\RepairJobController;
 use App\Http\Controllers\User\ItemController;
 use App\Http\Controllers\User\TaxRateController;
@@ -538,17 +539,23 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     });
 
     // A sale/receipt reachable from any of the modules that check out
-    // through PosSaleService — Restaurant and Repair Shop both redirect
-    // their own checkout here just as much as a plain POS one does, so
-    // this can't require the 'pos' module/permission alone.
-    Route::middleware(['permission:pos,restaurant,repair_shop', 'module:pos,restaurant,repair_shop'])->group(function () {
+    // through PosSaleService — Restaurant, Repair Shop, and Coffee Shop
+    // all redirect their own checkout here just as much as a plain POS one
+    // does, so this can't require the 'pos' module/permission alone.
+    Route::middleware(['permission:pos,restaurant,repair_shop,coffee_shop', 'module:pos,restaurant,repair_shop,coffee_shop'])->group(function () {
         Route::get('pos-sales/{sale}', [PosController::class, 'showSale'])->name('pos.sales.show');
         Route::get('pos-sales/{sale}/pdf', [PosController::class, 'downloadReceiptPdf'])->middleware('throttle:pdf')->name('pos.sales.pdf');
         Route::get('receipt-templates', [ReceiptTemplateController::class, 'index'])->name('receipt-templates.index');
         Route::post('receipt-templates/{key}/activate', [ReceiptTemplateController::class, 'activate'])->name('receipt-templates.activate');
     });
 
-    Route::middleware(['permission:restaurant', 'module:restaurant'])->prefix('restaurant')->name('restaurant.')->group(function () {
+    // Coffee Shop is a thin preset on top of Restaurant (same order/table/
+    // kitchen/checkout machinery — a coffee counter is a quick-service
+    // restaurant) plus loyalty cards as its own differentiator, so a
+    // company can have either module and reach this same group; the OR
+    // gate is the same pattern the shared pos-sales/receipt-templates
+    // group above already uses across Pos/Restaurant/Repair Shop.
+    Route::middleware(['permission:restaurant,coffee_shop', 'module:restaurant,coffee_shop'])->prefix('restaurant')->name('restaurant.')->group(function () {
         Route::resource('tables', RestaurantTableController::class)->only(['index', 'store', 'update', 'destroy']);
 
         Route::get('kitchen', [RestaurantKitchenController::class, 'index'])->name('kitchen.index');
@@ -564,6 +571,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('orders/{order}/notify-sms', [RestaurantOrderController::class, 'notifySms'])->name('orders.notify-sms');
         Route::post('orders/{order}/notify-whatsapp', [RestaurantOrderController::class, 'notifyWhatsapp'])->name('orders.notify-whatsapp');
         Route::post('order-items/{item}/status', [RestaurantOrderController::class, 'updateItemStatus'])->name('order-items.status');
+    });
+
+    Route::middleware(['permission:coffee_shop', 'module:coffee_shop'])->prefix('coffee-shop')->name('coffee-shop.')->group(function () {
+        Route::get('loyalty-cards', [LoyaltyCardController::class, 'index'])->name('loyalty-cards.index');
+        Route::post('loyalty-cards', [LoyaltyCardController::class, 'store'])->name('loyalty-cards.store');
+        Route::get('loyalty-cards/lookup', [LoyaltyCardController::class, 'lookup'])->name('loyalty-cards.lookup');
+        Route::post('loyalty-cards/{card}/top-up', [LoyaltyCardController::class, 'topUp'])->name('loyalty-cards.top-up');
     });
 
     Route::middleware(['permission:repair_shop', 'module:repair_shop'])->group(function () {

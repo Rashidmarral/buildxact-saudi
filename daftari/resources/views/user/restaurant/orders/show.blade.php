@@ -143,22 +143,35 @@
     </template>
 </div>
 
-<div x-data="restaurantCheckout({ checkoutUrl: '{{ route('app.restaurant.orders.checkout', $order) }}', total: {{ $total }} })" class="bg-white rounded-xl border border-slate-100 p-5">
+<div x-data="restaurantCheckout({ checkoutUrl: '{{ route('app.restaurant.orders.checkout', $order) }}', lookupCardUrl: '{{ route('app.coffee-shop.loyalty-cards.lookup') }}', total: {{ $total }} })" class="bg-white rounded-xl border border-slate-100 p-5">
     <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Checkout') }}</h3>
     <div class="grid grid-cols-3 gap-2 mb-3">
         <button type="button" @click="setFullPayment('cash')" class="rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700">{{ __('Cash') }}</button>
         <button type="button" @click="setFullPayment('card')" class="rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700">{{ __('Card') }}</button>
         <button type="button" @click="payments.push({ method: 'other', amount: 0, reference: '' })" class="rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700">{{ __('+ Split') }}</button>
     </div>
+    @if (app(\App\Services\Features\FeatureAccessService::class)->enabled(auth()->user()->company, 'coffee_shop'))
+        <button type="button" @click="payments.push({ method: 'loyalty_card', amount: 0, card_number: '', loyalty_card_id: null, cardBalance: null })" class="w-full mb-3 rounded-lg border border-amber-200 bg-amber-50 py-2 text-sm font-semibold text-amber-700 hover:border-amber-300">{{ __('+ Pay with loyalty card') }}</button>
+    @endif
     <template x-for="(payment, index) in payments" :key="index">
-        <div class="flex items-center gap-2 mb-2">
-            <select x-model="payment.method" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                <option value="cash">{{ __('Cash') }}</option>
-                <option value="card">{{ __('Card') }}</option>
-                <option value="other">{{ __('Other') }}</option>
-            </select>
-            <input type="number" min="0" step="0.01" x-model.number="payment.amount" class="w-24 rounded-lg border border-slate-200 text-sm text-end focus:border-brand-500 focus:ring-brand-500">
-            <button type="button" @click="payments.splice(index, 1)" class="text-red-500 hover:text-red-700">✕</button>
+        <div class="mb-2">
+            <div class="flex items-center gap-2">
+                <select x-model="payment.method" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <option value="cash">{{ __('Cash') }}</option>
+                    <option value="card">{{ __('Card') }}</option>
+                    <option value="other">{{ __('Other') }}</option>
+                    <option value="loyalty_card">{{ __('Loyalty card') }}</option>
+                </select>
+                <input type="number" min="0" step="0.01" x-model.number="payment.amount" class="w-24 rounded-lg border border-slate-200 text-sm text-end focus:border-brand-500 focus:ring-brand-500">
+                <button type="button" @click="payments.splice(index, 1)" class="text-red-500 hover:text-red-700">✕</button>
+            </div>
+            <template x-if="payment.method === 'loyalty_card'">
+                <div class="mt-1.5 flex items-center gap-2">
+                    <input type="text" x-model="payment.card_number" @input="payment.loyalty_card_id = null; payment.cardBalance = null" placeholder="{{ __('Card number') }}" class="flex-1 rounded-lg border border-slate-200 text-sm font-mono focus:border-brand-500 focus:ring-brand-500">
+                    <button type="button" @click="lookupCard(payment)" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Check') }}</button>
+                    <span x-show="payment.cardBalance !== null" class="text-xs text-emerald-600 whitespace-nowrap" x-text="@js(__('Balance')) + ': ' + (payment.cardBalance ?? 0).toFixed(2)"></span>
+                </div>
+            </template>
         </div>
     </template>
     <p class="text-xs mb-3" :class="paidTotal().toFixed(2) === total.toFixed(2) ? 'text-emerald-600' : 'text-amber-600'">
@@ -245,6 +258,18 @@ function restaurantCheckout(config) {
 
         setFullPayment(method) {
             this.payments = [{ method, amount: Math.round(this.total * 100) / 100, reference: '' }];
+        },
+
+        async lookupCard(payment) {
+            payment.loyalty_card_id = null;
+            payment.cardBalance = null;
+            if (! payment.card_number) { return; }
+            const res = await fetch(config.lookupCardUrl + '?q=' + encodeURIComponent(payment.card_number));
+            const data = await res.json();
+            if (data.found) {
+                payment.loyalty_card_id = data.id;
+                payment.cardBalance = data.balance;
+            }
         },
 
         async checkout() {
