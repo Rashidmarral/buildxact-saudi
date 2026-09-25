@@ -366,4 +366,31 @@ class RepairShopModuleTest extends TestCase
         $lookup->assertOk();
         $lookup->assertJsonFragment(['id' => $item->id]);
     }
+
+    // ------------------------------------------------------------------
+    // Localization
+    // ------------------------------------------------------------------
+
+    /**
+     * UX audit finding: switching the app to Arabic correctly flips the
+     * rest of the app, but the Repair Shop pages stayed in English because
+     * lang/ar.json had no entries for their strings (they were already
+     * wrapped in __(), just untranslated) — pins the fix so the index and
+     * show pages actually render in Arabic once the locale is switched.
+     */
+    public function test_the_repair_jobs_pages_render_in_arabic(): void
+    {
+        $company = $this->makeCompany(withRepairShop: true);
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner)->get(route('locale.switch', 'ar'));
+
+        $this->actingAs($owner)->post(route('app.repair-jobs.store'), ['item_description' => 'iPhone 13 Pro']);
+        $job = RepairJob::first();
+
+        $this->actingAs($owner)->get(route('app.repair-jobs.index'))
+            ->assertOk()->assertSee(__('Repair Jobs'))->assertSee(__('New job'));
+
+        $this->actingAs($owner)->get(route('app.repair-jobs.show', $job))
+            ->assertOk()->assertSee(__('Diagnosis notes'))->assertSee(__('Reported issue'));
+    }
 }

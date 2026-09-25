@@ -352,4 +352,24 @@ class RestaurantModuleTest extends TestCase
         $this->actingAs($owner)->get(route('app.restaurant.orders.index'))
             ->assertRedirect(route('app.dashboard'));
     }
+
+    /**
+     * UX audit finding: switching the app to Arabic correctly flips the
+     * rest of the app, but the Restaurant pages stayed in English because
+     * lang/ar.json had no entries for their strings (they were already
+     * wrapped in __(), just untranslated) — pins the fix so the orders and
+     * tables pages actually render in Arabic once the locale is switched.
+     */
+    public function test_the_restaurant_pages_render_in_arabic(): void
+    {
+        $company = $this->makeCompany(withRestaurant: true);
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner)->get(route('locale.switch', 'ar'));
+
+        $this->actingAs($owner)->get(route('app.restaurant.orders.index'))
+            ->assertOk()->assertSee(__('Orders'))->assertSee(__('New takeaway order'));
+
+        $this->actingAs($owner)->get(route('app.restaurant.tables.index'))
+            ->assertOk()->assertSee(__('Restaurant Tables'))->assertSee(__('Add table'));
+    }
 }

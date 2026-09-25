@@ -288,4 +288,19 @@ class ModuleMarketplaceTest extends TestCase
         $owner = $this->makeOwner($company);
         $this->actingAs($owner)->get(route('app.modules.index'))->assertSee('199.99');
     }
+
+    /**
+     * UX audit finding: the Modules marketplace nav link and page stayed in
+     * English when the app was switched to Arabic, because lang/ar.json had
+     * no entries for its strings — pins the fix.
+     */
+    public function test_the_modules_page_renders_in_arabic(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner)->get(route('locale.switch', 'ar'));
+
+        $this->actingAs($owner)->get(route('app.modules.index'))
+            ->assertOk()->assertSee(__('Modules'))->assertSee(__('Request to install'));
+    }
 }
