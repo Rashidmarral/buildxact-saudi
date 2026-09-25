@@ -141,29 +141,36 @@ class RestaurantOrderService
      */
     public function checkout(RestaurantOrder $order, array $payments, LedgerPostingService $ledger, ?int $registerId = null): PosSale
     {
-        if (! $order->isOpen()) {
-            throw new RuntimeException(__('This order is already closed.'));
-        }
+        return DB::transaction(function () use ($order, $payments, $ledger, $registerId) {
+            // Locks the order row for the duration of the transaction so a
+            // double-click or two concurrent tabs can't both pass the
+            // isOpen() check and both check the order out — without this, a
+            // race here creates two PosSale rows (double GL posting, double
+            // stock deduction) for one physical order.
+            $order = RestaurantOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
-        $order->loadMissing('items');
+            if (! $order->isOpen()) {
+                throw new RuntimeException(__('This order is already closed.'));
+            }
 
-        if ($order->items->isEmpty()) {
-            throw new RuntimeException(__('Add items to the order before checkout.'));
-        }
+            $order->loadMissing('items');
 
-        $register = $registerId
-            ? PosRegister::findOrFail($registerId)
-            : $this->resolveRegister($order->company);
+            if ($order->items->isEmpty()) {
+                throw new RuntimeException(__('Add items to the order before checkout.'));
+            }
 
-        $shift = $register->openShift() ?? $this->shiftService->open($register, 0);
+            $register = $registerId
+                ? PosRegister::findOrFail($registerId)
+                : $this->resolveRegister($order->company);
 
-        $cartLines = $order->items->map(fn (RestaurantOrderItem $line) => [
-            'item_id' => $line->item_id,
-            'quantity' => (float) $line->quantity,
-            'unit_price' => (float) $line->unit_price,
-        ])->all();
+            $shift = $register->openShift() ?? $this->shiftService->open($register, 0);
 
-        return DB::transaction(function () use ($order, $shift, $cartLines, $payments, $ledger) {
+            $cartLines = $order->items->map(fn (RestaurantOrderItem $line) => [
+                'item_id' => $line->item_id,
+                'quantity' => (float) $line->quantity,
+                'unit_price' => (float) $line->unit_price,
+            ])->all();
+
             $sale = $this->saleService->checkout($shift, $cartLines, $payments, null, $ledger);
 
             $order->update(['status' => 'completed', 'pos_sale_id' => $sale->id, 'completed_at' => now()]);

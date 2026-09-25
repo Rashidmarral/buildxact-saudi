@@ -194,6 +194,52 @@ class RestaurantModuleTest extends TestCase
         $this->assertEqualsWithDelta((float) $entry->lines->sum('debit'), (float) $entry->lines->sum('credit'), 0.01);
     }
 
+    /**
+     * Security audit finding: RestaurantOrderService::checkout() used to
+     * check isOpen() on the PHP object it was handed, before opening its DB
+     * transaction — exactly the shape two concurrent requests (a
+     * double-click, or two open tabs) would each have: both load the order
+     * while it's still open, both pass the isOpen() check, both create a
+     * PosSale. Reproduces that shape with two independent, stale
+     * RestaurantOrder instances (see DocumentNumberingRaceTest for the same
+     * pattern) and asserts the fix — a lockForUpdate() re-fetch as the
+     * first thing inside the transaction — makes the second call see the
+     * first call's 'completed' status instead of also checking out.
+     */
+    public function test_two_stale_order_instances_cannot_both_check_out_the_same_order(): void
+    {
+        $company = $this->makeCompany(withRestaurant: true);
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner);
+        $item = Item::create(['company_id' => $company->id, 'name' => 'Grilled Chicken', 'unit_price' => 40, 'vat_rate' => 15, 'is_active' => true]);
+
+        $order = RestaurantOrder::create([
+            'company_id' => $company->id, 'order_number' => $company->nextRestaurantOrderNumber(),
+            'order_type' => 'takeaway', 'status' => 'ready', 'created_by' => $owner->id,
+        ]);
+        RestaurantOrderItem::create([
+            'company_id' => $company->id, 'restaurant_order_id' => $order->id, 'item_id' => $item->id,
+            'description' => $item->name, 'quantity' => 1, 'unit_price' => 40, 'vat_rate' => 15, 'kitchen_status' => 'ready',
+        ]);
+
+        // Two independent instances of the same row, as two concurrent
+        // checkout requests would each have — both still holding
+        // status='ready' as it was at load time.
+        $orderA = RestaurantOrder::find($order->id);
+        $orderB = RestaurantOrder::find($order->id);
+
+        $service = app(\App\Services\Restaurant\RestaurantOrderService::class);
+        $ledger = app(\App\Services\Accounting\LedgerPostingService::class);
+        $payments = [['method' => 'cash', 'amount' => 46.0]];
+
+        $saleA = $service->checkout($orderA, $payments, $ledger);
+        $this->assertSame('completed', $saleA->status);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('This order is already closed.');
+        $service->checkout($orderB, $payments, $ledger);
+    }
+
     public function test_a_takeaway_order_needs_no_table_and_checks_out_the_same_way(): void
     {
         $company = $this->makeCompany(withRestaurant: true);

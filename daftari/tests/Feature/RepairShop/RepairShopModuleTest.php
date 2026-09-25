@@ -182,6 +182,52 @@ class RepairShopModuleTest extends TestCase
         $this->actingAs($owner)->get(route('app.repair-jobs.show', $job))->assertOk()->assertSee(__('View receipt'));
     }
 
+    /**
+     * Security audit finding: RepairJobService::checkout() used to check
+     * isOpen() on the PHP object it was handed, before opening its DB
+     * transaction — exactly the shape two concurrent requests (a
+     * double-click, or two open tabs) would each have: both load the job
+     * while it's still 'in_repair', both pass the isOpen() check, both
+     * create a PosSale. Reproduces that shape with two independent, stale
+     * RepairJob instances (see DocumentNumberingRaceTest for the same
+     * pattern) and asserts the fix — a lockForUpdate() re-fetch as the
+     * first thing inside the transaction — makes the second call see the
+     * first call's 'collected' status instead of also checking out.
+     */
+    public function test_two_stale_job_instances_cannot_both_check_out_the_same_job(): void
+    {
+        $company = $this->makeCompany(withRepairShop: true);
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner);
+        $part = Item::create(['company_id' => $company->id, 'name' => 'Battery', 'unit_price' => 100, 'vat_rate' => 15, 'is_active' => true]);
+
+        $job = RepairJob::create([
+            'company_id' => $company->id, 'job_number' => $company->nextRepairJobNumber(),
+            'item_description' => 'Laptop', 'status' => 'in_repair', 'created_by' => $owner->id,
+        ]);
+        RepairJobItem::create([
+            'company_id' => $company->id, 'repair_job_id' => $job->id, 'item_id' => $part->id,
+            'description' => $part->name, 'quantity' => 1, 'unit_price' => 100, 'vat_rate' => 15,
+        ]);
+
+        // Two independent instances of the same row, as two concurrent
+        // checkout requests would each have — both still holding
+        // status='in_repair' as it was at load time.
+        $jobA = RepairJob::find($job->id);
+        $jobB = RepairJob::find($job->id);
+
+        $service = app(\App\Services\RepairShop\RepairJobService::class);
+        $ledger = app(\App\Services\Accounting\LedgerPostingService::class);
+        $payments = [['method' => 'cash', 'amount' => 115.0]];
+
+        $saleA = $service->checkout($jobA, $payments, $ledger);
+        $this->assertSame('completed', $saleA->status);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('This job is already closed.');
+        $service->checkout($jobB, $payments, $ledger);
+    }
+
     public function test_approving_an_estimate_requires_at_least_one_line(): void
     {
         $company = $this->makeCompany(withRepairShop: true);

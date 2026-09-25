@@ -135,30 +135,37 @@ class RepairJobService
      */
     public function checkout(RepairJob $job, array $payments, LedgerPostingService $ledger, ?int $registerId = null): PosSale
     {
-        if (! $job->isOpen()) {
-            throw new RuntimeException(__('This job is already closed.'));
-        }
+        return DB::transaction(function () use ($job, $payments, $ledger, $registerId) {
+            // Locks the job row for the duration of the transaction so a
+            // double-click or two concurrent tabs can't both pass the
+            // isOpen() check and both check the job out — without this, a
+            // race here creates two PosSale rows (double GL posting, double
+            // stock deduction) for one physical job.
+            $job = RepairJob::whereKey($job->id)->lockForUpdate()->firstOrFail();
 
-        $job->loadMissing('items');
+            if (! $job->isOpen()) {
+                throw new RuntimeException(__('This job is already closed.'));
+            }
 
-        if ($job->items->isEmpty()) {
-            throw new RuntimeException(__('Add parts/labor lines to the job before checkout.'));
-        }
+            $job->loadMissing('items');
 
-        $register = $registerId
-            ? PosRegister::findOrFail($registerId)
-            : $this->resolveRegister($job->company);
+            if ($job->items->isEmpty()) {
+                throw new RuntimeException(__('Add parts/labor lines to the job before checkout.'));
+            }
 
-        $shift = $register->openShift() ?? $this->shiftService->open($register, 0);
+            $register = $registerId
+                ? PosRegister::findOrFail($registerId)
+                : $this->resolveRegister($job->company);
 
-        $cartLines = $job->items->map(fn (RepairJobItem $line) => [
-            'item_id' => $line->item_id,
-            'quantity' => (float) $line->quantity,
-            'unit_price' => (float) $line->unit_price,
-            'discount_amount' => (float) $line->core_exchange_credit,
-        ])->all();
+            $shift = $register->openShift() ?? $this->shiftService->open($register, 0);
 
-        return DB::transaction(function () use ($job, $shift, $cartLines, $payments, $ledger) {
+            $cartLines = $job->items->map(fn (RepairJobItem $line) => [
+                'item_id' => $line->item_id,
+                'quantity' => (float) $line->quantity,
+                'unit_price' => (float) $line->unit_price,
+                'discount_amount' => (float) $line->core_exchange_credit,
+            ])->all();
+
             $sale = $this->saleService->checkout($shift, $cartLines, $payments, $job->client_id, $ledger);
 
             $job->update(['status' => 'collected', 'pos_sale_id' => $sale->id, 'completed_at' => now()]);
