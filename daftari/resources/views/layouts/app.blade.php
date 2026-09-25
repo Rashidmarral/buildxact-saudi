@@ -128,7 +128,7 @@
                 @include('partials.nav-item', ['route' => 'app.projects.index', 'label' => __('Projects'), 'icon' => 'projects'])
 
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'payroll'))
-                    @php($payrollActive = request()->routeIs('app.employees.*') || request()->routeIs('app.payroll.*'))
+                    @php($payrollActive = request()->routeIs('app.employees.*') || request()->routeIs('app.payroll.*') || request()->routeIs('app.leave-requests.*'))
                     <details class="group" @if($payrollActive) open @endif>
                         <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $payrollActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
                             <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'payroll', 'class' => 'h-[18px] w-[18px]'])</span>
@@ -138,6 +138,7 @@
                         <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
                             @include('partials.nav-subitem', ['route' => 'app.employees.index', 'label' => __('Employees')])
                             @include('partials.nav-subitem', ['route' => 'app.payroll.index', 'label' => __('Payroll runs')])
+                            @include('partials.nav-subitem', ['route' => 'app.leave-requests.index', 'label' => __('Leave')])
                         </div>
                     </details>
                 @endif

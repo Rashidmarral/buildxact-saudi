@@ -50,6 +50,11 @@ class Employee extends Model
         return $this->hasMany(EndOfServiceSettlement::class);
     }
 
+    public function leaveRequests(): HasMany
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
     public function grossSalary(): float
     {
         return (float) $this->basic_salary + (float) $this->housing_allowance

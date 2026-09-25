@@ -75,6 +75,7 @@ use App\Http\Controllers\User\ExpenseController;
 use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
+use App\Http\Controllers\User\LeaveRequestController;
 use App\Http\Controllers\User\ModuleRequestController;
 use App\Http\Controllers\User\ReceiptTemplateController;
 use App\Http\Controllers\User\CoffeeShop\LoyaltyCardController;
@@ -523,6 +524,11 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('payroll/{payrollRun}/cancel', [PayrollRunController::class, 'cancel'])->name('payroll.cancel');
         Route::get('payroll/{payrollRun}/wps', [PayrollRunController::class, 'downloadWps'])->name('payroll.wps');
         Route::get('payroll/{payrollRun}/items/{item}/payslip', [PayrollRunController::class, 'payslipPdf'])->middleware('throttle:pdf')->name('payroll.items.payslip');
+
+        Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
+        Route::post('leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
+        Route::post('leave-requests/{leaveRequest}/approve', [LeaveRequestController::class, 'approve'])->name('leave-requests.approve');
+        Route::post('leave-requests/{leaveRequest}/reject', [LeaveRequestController::class, 'reject'])->name('leave-requests.reject');
     });
 
     Route::middleware(['permission:pos', 'module:pos'])->group(function () {
