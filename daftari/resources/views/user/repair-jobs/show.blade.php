@@ -171,11 +171,18 @@
 
     <template x-if="cart.length > 0">
         <div class="mt-4 space-y-2">
+            <div class="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                <span class="flex-1"></span>
+                <span class="w-20 text-center">{{ __('Quantity') }}</span>
+                <span class="w-28">{{ __('Core credit') }}</span>
+                <span class="w-40">{{ __('Notes') }}</span>
+                <span class="w-4"></span>
+            </div>
             <template x-for="(line, index) in cart" :key="index">
                 <div class="flex items-center gap-2">
                     <span class="flex-1 text-sm font-medium text-slate-800" x-text="line.name"></span>
                     <input type="number" min="0.001" step="0.001" x-model.number="line.quantity" class="w-20 rounded-lg border border-slate-200 text-sm text-center focus:border-brand-500 focus:ring-brand-500" title="{{ __('Quantity') }}">
-                    <input type="number" min="0" step="0.01" x-model.number="line.core_exchange_credit" placeholder="{{ __('Core credit') }}" class="w-28 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" min="0" step="0.01" x-model.number="line.core_exchange_credit" placeholder="{{ __('Core credit') }}" title="{{ __('Core credit') }}" class="w-28 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <input type="text" x-model="line.notes" placeholder="{{ __('Notes') }}" class="w-40 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     <button type="button" @click="cart.splice(index, 1)" class="text-red-500 hover:text-red-700">✕</button>
                 </div>

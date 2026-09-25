@@ -123,6 +123,34 @@ class RestaurantModuleTest extends TestCase
         $this->assertSame(0, RestaurantTable::count());
     }
 
+    /**
+     * UX audit finding: the Tables page's table card only offered
+     * Edit/Delete — starting an order required knowing to go to the
+     * separate Orders page for the same table object. Tables now carries
+     * the same "Start order" form (available table) / "Open order :number"
+     * link (already has one) as the Orders page's own table grid.
+     */
+    public function test_a_table_can_start_an_order_directly_from_the_tables_page(): void
+    {
+        $company = $this->makeCompany(withRestaurant: true);
+        $owner = $this->makeOwner($company);
+        $table = RestaurantTable::create(['company_id' => $company->id, 'name' => 'T1', 'seats' => 4, 'status' => 'available']);
+
+        $this->actingAs($owner)->get(route('app.restaurant.tables.index'))
+            ->assertOk()->assertSee(__('Start order'));
+
+        $this->actingAs($owner)->post(route('app.restaurant.orders.store'), [
+            'order_type' => 'dine_in', 'table_id' => $table->id,
+        ])->assertRedirect();
+
+        $order = RestaurantOrder::first();
+        $this->assertSame('occupied', $table->fresh()->status);
+
+        $this->actingAs($owner)->get(route('app.restaurant.tables.index'))
+            ->assertOk()->assertSee(__('Open order :number', ['number' => $order->order_number]))
+            ->assertDontSee(__('Start order'));
+    }
+
     public function test_a_dine_in_order_runs_end_to_end_from_table_to_paid_pos_sale(): void
     {
         $company = $this->makeCompany(withRestaurant: true);
