@@ -1,6 +1,19 @@
 import './bootstrap';
 import './barcode-scanner';
 import Alpine from 'alpinejs';
+import { Chart, registerables } from 'chart.js';
+
+// Registered globally on window rather than imported per-view — every
+// chart on the dashboard pages is instantiated from a plain inline
+// <script> block in its Blade view (the same pattern the rest of the app
+// already uses for Alpine components), not from its own JS module.
+Chart.register(...registerables);
+Chart.defaults.font.family = "'Cairo', ui-sans-serif, system-ui, sans-serif";
+Chart.defaults.color = '#64748b';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.boxWidth = 8;
+Chart.defaults.plugins.legend.labels.boxHeight = 8;
+window.Chart = Chart;
 
 document.addEventListener('alpine:init', () => {
     Alpine.directive('reveal', (el) => {
