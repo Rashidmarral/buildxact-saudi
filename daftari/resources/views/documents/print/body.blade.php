@@ -1,0 +1,681 @@
+{{--
+    Shared document print/PDF body, used by Invoices, Quotations, Bills and
+    Purchase Orders. Callers build a normalized $doc array (see any of those
+    show.blade.php files for the exact shape) plus pass $company and
+    $template — this partial only renders, it never reaches back into a
+    specific Eloquent model, so the same 5 layouts stay pixel-identical no
+    matter which document type is printing.
+--}}
+@php
+    $accent = $template->accent_color ?? '#0f766e';
+    $totalsColor = $template ? $template->totalsColor() : $accent;
+    $showVatColumn = $template->show_vat_column ?? true;
+    $layout = $template->layout ?? 'minimal';
+    $showLogo = $template->show_logo ?? true;
+    $tableHeaderColor = $template->table_header_color ?? null;
+    $showUnitLabels = $template->show_unit_labels ?? true;
+    $showPartyVatNumber = $template->show_party_vat_number ?? true;
+    $showItemDescription = $template->show_item_description ?? true;
+    $bankAccounts = $doc['bank_accounts'] ?? (($doc['bank_account'] ?? null) ? collect([$doc['bank_account']]) : collect());
+
+    // Document language mode: 'bilingual' (default) shows English primary
+    // text with an Arabic subtext/column; 'english_only' hides every
+    // Arabic string; 'arabic_only' shows Arabic as the primary text
+    // (falling back to English only where no Arabic value exists).
+    $languageMode = $template->language_mode ?? 'bilingual';
+    $tableDirection = $template->table_direction ?? 'ltr';
+    $showEn = $languageMode !== 'arabic_only';
+    $showAr = $languageMode !== 'english_only';
+
+    // Static UI labels ("Description", "Subtotal", ...) always have an
+    // Arabic translation in lang/ar.json, so arabic_only/english_only can
+    // resolve them directly instead of needing hand-written Arabic in
+    // every layout branch.
+    $lbl = fn (string $key) => $languageMode === 'arabic_only'
+        ? \Illuminate\Support\Facades\Lang::get($key, [], 'ar')
+        : \Illuminate\Support\Facades\Lang::get($key, [], 'en');
+    $lblAr = fn (string $key) => \Illuminate\Support\Facades\Lang::get($key, [], 'ar');
+
+    // Name pairs (company/party/item) have a primary line plus an
+    // optional Arabic secondary line — this picks the primary text for
+    // the current language mode, falling back to English if the record
+    // has no Arabic name at all.
+    $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
+    $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
+@endphp
+
+<div dir="{{ $tableDirection }}" class="relative">
+
+@if ($template && $template->watermark_path)
+    <img src="{{ Storage::url($template->watermark_path) }}" alt="" class="pointer-events-none select-none absolute inset-0 m-auto max-w-[70%] max-h-[70%] object-contain" style="opacity: {{ ($template->watermark_opacity ?? 10) / 100 }}; z-index: 0;">
+@endif
+
+<div class="relative" style="z-index: 1;">
+
+@if ($layout === 'bilingual_classic')
+    {{-- "Bilingual Classic": dual-language mirrored header, centered
+         bilingual title, boxed info panel, bilingual 6-column VAT table,
+         bank + totals footer, notes list, stamp. --}}
+    <div class="border-2 rounded-lg p-1 mb-6 h-3" style="border-color: {{ $accent }}"></div>
+
+    @include('documents.print.bilingual-header', ['company' => $company, 'showLogo' => $showLogo])
+
+    <div class="mt-8 pb-4 border-b-2 border-slate-800 text-center">
+        <h2 class="text-3xl font-bold text-slate-900">
+            @if ($showAr)<span dir="rtl">{{ $doc['type_label_ar'] }}</span> &nbsp; @endif
+            @if ($showEn){{ $doc['type_label'] }}@endif
+        </h2>
+    </div>
+
+    <table class="w-full text-sm mt-6 border border-slate-300">
+        <tbody>
+            <tr class="border-b border-slate-300">
+                <td class="w-1/6 px-3 py-2 font-semibold text-slate-700">@if ($showEn){{ $doc['party_label'] }}@else{{ $doc['party_label_ar'] }}@endif</td>
+                <td class="px-3 py-2 text-center font-medium text-slate-800">
+                    @if ($showEn){{ $doc['party']->name }}@endif
+                    @if ($secondary($doc['party']->name_ar ?? null))
+                        <span dir="rtl" class="block text-slate-600">{{ $doc['party']->name_ar }}</span>
+                    @elseif (!$showEn)
+                        {{ $doc['party']->name_ar ?: $doc['party']->name }}
+                    @endif
+                </td>
+                <td class="w-1/6 px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">@if ($showAr){{ $doc['party_label_ar'] }}@endif</td>
+            </tr>
+            @if ($showPartyVatNumber)
+                <tr class="border-b border-slate-300">
+                    <td class="px-3 py-2 font-semibold text-slate-700">{{ __('VAT number') }}</td>
+                    <td class="px-3 py-2 text-center text-slate-600">{{ $doc['party']->vat_number ?: '—' }}</td>
+                    <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم التسجيل الضريبي</td>
+                </tr>
+            @endif
+            @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
+                <tr class="border-b border-slate-300">
+                    <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Address') }}</td>
+                    <td class="px-3 py-2 text-center text-slate-600">{{ $doc['party']->fullAddress() }}</td>
+                    <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">العنوان</td>
+                </tr>
+            @endif
+            <tr class="border-b border-slate-300">
+                <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Number') }}</td>
+                <td class="px-3 py-2 text-center text-slate-600">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
+                <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم | التاريخ</td>
+            </tr>
+            @if (!empty($doc['date2']))
+                <tr>
+                    <td class="px-3 py-2 font-semibold text-slate-700">{{ $doc['date2_label'] }}</td>
+                    <td class="px-3 py-2 text-center text-slate-600">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
+                    <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">{{ $doc['date2_label_ar'] ?? '' }}</td>
+                </tr>
+            @endif
+        </tbody>
+    </table>
+
+    <table class="w-full text-sm mt-6">
+        <thead>
+            <tr class="text-left text-slate-600 border-b-2 border-slate-800" @if ($tableHeaderColor) style="background-color: {{ $tableHeaderColor }}" @endif>
+                <th class="py-2 ps-1">#</th>
+                <th class="py-2">{{ __('Description') }}<br><span class="font-normal text-xs" dir="rtl">الوصف</span></th>
+                <th class="py-2 text-end">{{ __('Qty') }}<br><span class="font-normal text-xs" dir="rtl">الكمية</span></th>
+                <th class="py-2 text-end">{{ __('Price') }}<br><span class="font-normal text-xs" dir="rtl">السعر</span></th>
+                @if ($showVatColumn)
+                    <th class="py-2 text-end">{{ __('Taxable amount') }}<br><span class="font-normal text-xs" dir="rtl">المبلغ الخاضع للضريبة</span></th>
+                    <th class="py-2 text-end">{{ __('VAT amount') }}<br><span class="font-normal text-xs" dir="rtl">القيمة المضافة</span></th>
+                @endif
+                <th class="py-2 pe-1 text-end">{{ __('Line amount') }}<br><span class="font-normal text-xs" dir="rtl">المجموع</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr class="border-b border-slate-200 align-top">
+                    <td class="py-3 ps-1 text-slate-500">{{ $index + 1 }}</td>
+                    <td class="py-3 max-w-xs">
+                        <p class="font-semibold text-slate-800">{{ $primary($line->description, $line->name_ar) }}</p>
+                        @if ($secondary($line->name_ar))
+                            <p class="mt-1 text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</p>
+                        @endif
+                        @if ($showItemDescription && !empty($line->item_description))
+                            <p class="mt-1 text-xs text-slate-500">{{ $line->item_description }}</p>
+                        @endif
+                    </td>
+                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="py-3 text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
+                    @if ($showVatColumn)
+                        <td class="py-3 text-end text-slate-700">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                        <td class="py-3 text-end text-slate-700">{{ number_format($line->vat_amount, 2) }}<br><span class="text-xs text-slate-400">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
+                    @endif
+                    <td class="py-3 pe-1 text-end font-medium text-slate-900">{{ number_format($line->line_total, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <div class="mt-6 flex flex-col-reverse gap-6 sm:flex-row sm:justify-between">
+        <div class="text-sm text-slate-600">
+            @if ($bankAccounts->isNotEmpty())
+                @php
+                    $ba = $bankAccounts->first();
+                @endphp
+                <p><span class="font-semibold text-slate-700">{{ __('Bank Name') }}:</span> {{ $ba->bank_name ?: $ba->name }}</p>
+                @if ($ba->account_holder_name)<p><span class="font-semibold text-slate-700">{{ __('Account Name') }}:</span> {{ $ba->account_holder_name }}</p>@endif
+                @if ($ba->account_number)<p><span class="font-semibold text-slate-700">{{ __('Account Number') }}:</span> {{ $ba->account_number }}</p>@endif
+                @if ($ba->iban)<p><span class="font-semibold text-slate-700">{{ __('IBAN') }}:</span> {{ $ba->iban }}</p>@endif
+            @endif
+        </div>
+        <div class="w-full max-w-xs space-y-1.5 text-sm">
+            <div class="flex justify-between text-slate-600"><span>{{ __('Subtotal') }} <span class="text-xs text-slate-400" dir="rtl">المجموع الفرعي</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
+            @if (($doc['discount_total'] ?? 0) > 0)
+                <div class="flex justify-between text-slate-600"><span>{{ __('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
+            @endif
+            <div class="flex justify-between text-slate-600"><span>{{ __('Total VAT') }} <span class="text-xs text-slate-400" dir="rtl">إجمالي ضريبة القيمة المضافة</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
+            <div class="flex justify-between border-t-2 border-slate-800 pt-2 text-base font-bold text-slate-900"><span>{{ __('Total') }} <span class="text-xs font-normal text-slate-400" dir="rtl">المجموع شامل القيمة المضافة</span></span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+            @foreach ($doc['extra_rows'] ?? [] as $row)
+                @php
+                    $rowColor = match ($row['variant'] ?? null) {
+                        'red' => 'font-semibold text-red-600',
+                        'green' => 'font-semibold text-emerald-600',
+                        default => ($row['emphasis'] ?? false) ? 'font-semibold text-brand-700' : 'text-slate-600',
+                    };
+                @endphp
+                <div class="flex justify-between {{ $rowColor }}"><span>{{ $row['label'] }}</span><span>{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</span></div>
+            @endforeach
+        </div>
+    </div>
+
+    @if (!empty($doc['notes']))
+        <div class="mt-8 text-sm">
+            <h4 class="font-semibold text-slate-800">{{ __('Notes') }} <span class="text-xs text-slate-400" dir="rtl">ملاحظات</span></h4>
+            @include('documents.print.notes-list', ['text' => $doc['notes'], 'accent' => $accent])
+        </div>
+    @endif
+
+    @if ($template && ($template->notes_en || $template->notes_ar))
+        <div class="mt-2 text-sm">
+            @include('documents.print.template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-500'])
+        </div>
+    @endif
+
+    @if ($template && ($template->terms_en || $template->terms_ar))
+        <div class="mt-4 text-sm">
+            <h4 class="font-semibold text-slate-800">{{ __('Terms & Conditions') }} <span class="text-xs text-slate-400" dir="rtl">الشروط والأحكام</span></h4>
+            @include('documents.print.template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent])
+        </div>
+    @endif
+
+    @if (!empty($doc['qr_code']) || $company->stamp_path)
+        <div class="mt-8 flex items-end justify-end gap-8">
+            @if (!empty($doc['qr_code']))
+                <div class="text-center">
+                    @if (!empty($doc['zatca_status']))
+                        <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
+                        </p>
+                    @endif
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
+                    <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
+                </div>
+            @endif
+            @if ($company->stamp_path)
+                <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-36 w-36 object-contain">
+            @endif
+        </div>
+    @endif
+
+    @include('documents.print.signature')
+
+    <div class="mt-10 border-t border-slate-200 pt-3 text-center text-xs text-slate-400">
+        {{ $company->name }} @if ($company->name_ar) — {{ $company->name_ar }} @endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }} &nbsp;·&nbsp; {{ $doc['number'] }}
+    </div>
+
+@elseif ($layout === 'custom_letterhead')
+    {{-- "Custom Letterhead": an uploaded banner image replaces the logo
+         header, simple key-value info rows, a compact item table, amount
+         spelled out in words, a sales-executive block, and multi-bank
+         details — matching letterhead-style quotations some companies
+         already issue. --}}
+    @if ($template && $template->letterhead_path)
+        <img src="{{ Storage::url($template->letterhead_path) }}" alt="{{ $company->name }}" class="w-full object-contain">
+    @else
+        {{-- No letterhead image uploaded yet — fall back to the same
+             data-driven bilingual header (English left, Arabic right,
+             logo centered) rather than requiring an upload. --}}
+        @include('documents.print.bilingual-header', ['company' => $company, 'showLogo' => $showLogo])
+    @endif
+
+    <h2 class="mt-4 text-center text-base font-bold uppercase tracking-wide text-slate-900">
+        @if ($showEn){{ strtoupper($doc['type_label']) }}@endif
+        @if ($showAr)<span class="font-normal">/ ({{ $doc['type_label_ar'] }})</span>@endif
+    </h2>
+
+    <table class="w-full text-sm mt-5">
+        <tbody>
+            <tr>
+                <td class="w-1/4 py-1 font-semibold text-slate-600">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</td>
+                <td class="w-1/4 py-1 text-slate-800">
+                    {{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}
+                    @if ($secondary($doc['party']->name_ar ?? null))<span class="block text-xs text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</span>@endif
+                </td>
+                <td class="w-1/4 py-1 font-semibold text-slate-600">{{ $lbl('Number') }}</td>
+                <td class="py-1 text-slate-800">{{ $doc['number'] }}</td>
+            </tr>
+            <tr>
+                <td class="py-1 font-semibold text-slate-600">{{ $doc['date_label'] }}</td>
+                <td class="py-1 text-slate-800">{{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
+                @if (!empty($doc['date2']))
+                    <td class="py-1 font-semibold text-slate-600">{{ $doc['date2_label'] }}</td>
+                    <td class="py-1 text-slate-800">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
+                @endif
+            </tr>
+            @if (!empty($doc['ref_no']))
+                <tr>
+                    <td class="py-1 font-semibold text-slate-600">{{ $lbl('Ref No') }}</td>
+                    <td class="py-1 text-slate-800">{{ $doc['ref_no'] }}</td>
+                </tr>
+            @endif
+            @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())
+                <tr>
+                    <td class="py-1 font-semibold text-slate-600">{{ $lbl('Address') }}</td>
+                    <td class="py-1 text-slate-800" colspan="3">{{ $doc['party']->fullAddress() }}</td>
+                </tr>
+            @endif
+        </tbody>
+    </table>
+
+    <table class="w-full text-sm mt-5 border border-slate-300">
+        <thead>
+            <tr class="text-left text-slate-700" style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}">
+                <th class="border border-slate-300 px-2 py-1.5 w-10">Sr</th>
+                <th class="border border-slate-300 px-2 py-1.5">{{ $lbl('Items') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ $lbl('Quantity') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ $lbl('Rate') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-28">{{ $lbl('Amount') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-500">{{ $index + 1 }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800">
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                        @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
+                    </td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels){{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}@endif</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end font-medium text-slate-900">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <div class="mt-4 flex flex-col-reverse gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="max-w-sm text-sm">
+            <p class="font-semibold text-slate-700">{{ $lbl('In Words') }}</p>
+            <p class="text-slate-600">{{ $languageMode === 'arabic_only' ? \App\Support\NumberToWords::arabicRiyals($doc['total']) : \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}</p>
+        </div>
+        <div class="w-full max-w-xs space-y-1 text-sm">
+            <div class="flex justify-between"><span class="font-semibold text-slate-700">{{ $lbl('Total') }}</span><span>{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</span></div>
+            <div class="flex justify-between"><span class="font-semibold text-slate-700">{{ $lbl('Total Tax') }}</span><span>{{ number_format($doc['vat_total'], 2) }}</span></div>
+            <div class="flex justify-between text-base font-bold text-slate-900"><span>{{ $lbl('Grand Total') }}</span><span>{{ number_format($doc['total'], 2) }}</span></div>
+            @foreach ($doc['extra_rows'] ?? [] as $row)
+                <div class="flex justify-between {{ $row['emphasis'] ?? false ? 'font-semibold text-brand-700' : 'text-slate-600' }}"><span>{{ $row['label'] }}</span><span>{{ number_format($row['value'], 2) }}</span></div>
+            @endforeach
+        </div>
+    </div>
+
+    @if (!empty($doc['salesperson']))
+        <div class="mt-6 text-sm">
+            <p class="font-semibold text-slate-800">{{ $lbl('Sales Executive') }}</p>
+            <p class="text-slate-600">{{ $doc['salesperson']->name }}</p>
+            @if ($doc['salesperson']->phone)<p class="text-slate-600">{{ $lbl('Contact No') }}: {{ $doc['salesperson']->phone }}</p>@endif
+        </div>
+    @endif
+
+    @if ($bankAccounts->isNotEmpty())
+        <div class="mt-4 text-sm">
+            <p class="font-semibold text-slate-800">{{ $lbl('Bank Account Details') }} :</p>
+            @foreach ($bankAccounts as $ba)
+                <p class="text-slate-600">{{ $lbl('Bank Name') }}: {{ $ba->bank_name ?: $ba->name }} &nbsp; {{ $lbl('IBAN') }}: {{ $ba->iban }} &nbsp; {{ $lbl('A/C #') }}: {{ $ba->account_number }}</p>
+            @endforeach
+        </div>
+    @endif
+
+    @if (!empty($doc['notes']))
+        <div class="mt-6 text-sm">
+            @include('documents.print.notes-list', ['text' => $doc['notes'], 'accent' => $accent])
+        </div>
+    @endif
+
+    @if ($template && ($template->notes_en || $template->notes_ar))
+        <div class="mt-2 text-sm">
+            @include('documents.print.template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-500'])
+        </div>
+    @endif
+
+    @if ($template && ($template->terms_en || $template->terms_ar))
+        <div class="mt-4 text-sm">
+            <p class="font-semibold text-slate-800">{{ $lbl('Terms & Conditions') }}</p>
+            @include('documents.print.template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent])
+        </div>
+    @endif
+
+    @if (!empty($doc['qr_code']) || $company->stamp_path)
+        <div class="mt-8 flex items-end justify-end gap-8">
+            @if (!empty($doc['qr_code']))
+                <div class="text-center">
+                    @if (!empty($doc['zatca_status']))
+                        <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                            {{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}
+                        </p>
+                    @endif
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
+                    <p class="mt-1 text-xs text-slate-400">{{ $lbl('Scan to verify invoice details') }}</p>
+                </div>
+            @endif
+            @if ($company->stamp_path)
+                <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ $lbl('Company stamp') }}" class="h-32 w-32 object-contain">
+            @endif
+        </div>
+    @endif
+
+    @include('documents.print.signature')
+
+    <div class="mt-10 text-center text-xs text-slate-400">{{ $lbl('Page 1 of 1') }}</div>
+
+@elseif ($layout === 'quotation_offer')
+    {{-- Modeled 1:1 on a real construction-industry price quotation a
+         user shared as a reference — see the mPDF version of this same
+         branch in documents/print/pdf.blade.php for the full design
+         rationale (this is its browser-rendered twin: same content and
+         structure, Tailwind flex/grid instead of mPDF tables). --}}
+    @php
+        $isArOnly = $languageMode === 'arabic_only';
+        $hijriDate = \App\Support\HijriDate::format($doc['date']);
+        $qoSignerLabel = $isArOnly
+            ? ($template->signature_label_ar ?: 'المفوض بالتوقيع')
+            : ($template->signature_label_en ?: 'Authorized Signatory');
+        $qoNotesLines = ! empty($doc['notes'])
+            ? array_values(array_filter(preg_split('/\r\n|\r|\n/', trim($doc['notes'])), fn ($l) => trim($l) !== ''))
+            : [];
+        $qoAlign = $isArOnly ? 'text-right' : 'text-left';
+    @endphp
+
+    <div class="flex items-start justify-between gap-4">
+        <div class="w-1/4">
+            @if ($showLogo && $company->logo_path)
+                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-16 w-auto object-contain">
+            @endif
+        </div>
+        <div class="w-1/2 pt-2 text-center text-lg font-bold text-slate-900">
+            {{ $isArOnly ? ($doc['type_label_ar'] ?? $doc['type_label']) : $doc['type_label'] }}
+        </div>
+        <div class="w-1/4 text-right text-xs text-slate-700 space-y-0.5">
+            <div>{{ $lbl('No.') }} : {{ $doc['number'] }}</div>
+            <div>{{ $lbl('Date') }} : {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
+            @if ($hijriDate)<div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>@endif
+            @if ($company->cr_number)<div>{{ $lbl('C.R.') }} : {{ $company->cr_number }}</div>@endif
+        </div>
+    </div>
+    <div class="mt-1.5 h-0.5 bg-slate-900"></div>
+
+    <div class="mt-5 {{ $qoAlign }} text-sm space-y-1">
+        <p class="font-bold">
+            @if ($isArOnly)
+                السادة/ {{ $doc['party']->name_ar ?: $doc['party']->name }} المحترمين
+            @else
+                {{ $doc['party_label'] }}: {{ $doc['party']->name }}
+            @endif
+        </p>
+        <p>{{ $isArOnly ? 'السلام عليكم ورحمة الله وبركاته،' : 'Dear Sirs,' }}</p>
+        <p class="font-semibold">
+            @if ($isArOnly)
+                يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:
+            @else
+                We, {{ $company->name }}, are pleased to submit the following {{ \Illuminate\Support\Str::lower($doc['type_label']) }} in accordance with the items below:
+            @endif
+        </p>
+    </div>
+
+    <table class="w-full text-sm mt-5 border border-slate-300">
+        <thead>
+            <tr class="text-slate-700" style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}">
+                <th class="border border-slate-300 px-2 py-1.5 w-10">{{ $isArOnly ? 'البند' : '#' }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 {{ $qoAlign }}">{{ $lbl('Description') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-20">{{ $lbl('Unit') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-20">{{ $lbl('Qty') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-24">{{ $lbl('Unit price') }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 text-end w-28">{{ $lbl('Total') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-500">{{ $index + 1 }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-slate-800 {{ $qoAlign }}">
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                    </td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit ?? '—' }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="border border-slate-300 px-2 py-1.5 align-top text-end font-medium text-slate-900">{{ number_format($line->line_total, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="4" class="border border-slate-300 px-2 py-1.5 font-semibold {{ $qoAlign }}">{{ $lbl('Total excluding VAT') }}</td>
+                <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end">{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td>
+            </tr>
+            @if (($doc['discount_total'] ?? 0) > 0)
+                <tr>
+                    <td colspan="4" class="border border-slate-300 px-2 py-1.5 {{ $qoAlign }}">{{ $lbl('Discount') }}</td>
+                    <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end">-{{ number_format($doc['discount_total'], 2) }}</td>
+                </tr>
+            @endif
+            <tr>
+                <td colspan="4" class="border border-slate-300 px-2 py-1.5 {{ $qoAlign }}">{{ $lbl('VAT') }}</td>
+                <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end">{{ number_format($doc['vat_total'], 2) }}</td>
+            </tr>
+            <tr class="bg-slate-50">
+                <td colspan="4" class="border border-slate-300 px-2 py-1.5 font-bold {{ $qoAlign }}">{{ $lbl('Total including VAT') }}</td>
+                <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end font-bold">{{ number_format($doc['total'], 2) }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    @if (count($qoNotesLines) > 0)
+        <div class="mt-5 text-sm {{ $qoAlign }}">
+            <p class="font-bold">{{ $lbl('Payment Terms') }}</p>
+            <ol class="mt-1 space-y-0.5 {{ $isArOnly ? 'list-inside' : 'list-decimal list-inside' }}">
+                @foreach ($qoNotesLines as $i => $line)
+                    <li>{{ $isArOnly ? ($i + 1) . '. ' . $line : $line }}</li>
+                @endforeach
+            </ol>
+        </div>
+    @endif
+
+    <p class="mt-8 text-sm {{ $qoAlign }}">{{ $isArOnly ? 'وتفضلوا بقبول فائق الاحترام،،،' : 'Yours faithfully,' }}</p>
+    <div class="mt-2 {{ $qoAlign }}">
+        @if ($company->stamp_path)
+            <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ $lbl('Company stamp') }}" class="h-24 w-24 object-contain">
+        @endif
+        <p class="mt-1 font-bold text-slate-800">{{ $qoSignerLabel }}</p>
+        @if ($company->phone)<p class="text-slate-500">{{ $company->phone }}</p>@endif
+    </div>
+
+    <div class="mt-10 border-t border-slate-200 pt-3 text-center text-xs text-slate-400">
+        @if ($company->address || $company->city)
+            <p>{{ $company->address }}{{ $company->address && $company->city ? ' - ' : '' }}{{ $company->city }}</p>
+        @endif
+        <p>
+            Kingdom of Saudi Arabia — <span dir="rtl">المملكة العربية السعودية</span>
+            @if ($company->phone) &nbsp;·&nbsp; Phone: {{ $company->phone }} @endif
+        </p>
+    </div>
+
+@else
+    {{-- minimal / bordered / boxed — a single professional foundation
+         shared by all three, differentiated only by the left accent
+         stripe (bordered) and the fully accent-filled totals card
+         (boxed). This is what every zero-config company sees, including
+         every real ZATCA tax invoice PlatformInvoiceService generates
+         for a subscription payment — so it needed to look like a real
+         business's invoice, not a bare table. --}}
+    <div class="h-1.5 rounded-full mb-6" style="background-color: {{ $accent }}"></div>
+
+    <div class="flex justify-between items-start {{ $layout === 'bordered' ? 'border-s-4 ps-4' : '' }}" @if ($layout === 'bordered') style="border-color: {{ $accent }}" @endif>
+        <div class="flex items-center gap-4">
+            @if ($showLogo && $company->logo_path)
+                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-16 w-16 rounded-xl object-cover ring-1 ring-slate-100 shadow-sm">
+            @endif
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ $primary($company->name, $company->name_ar) }}</h1>
+                @if ($secondary($company->name_ar))<p class="text-sm font-medium text-slate-600" dir="rtl">{{ $company->name_ar }}</p>@endif
+                @if ($company->vat_number)
+                    <span class="mt-1.5 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{{ $lbl('VAT') }} {{ $company->vat_number }}</span>
+                @endif
+                @if ($company->address)<p class="mt-1 text-sm text-slate-500">{{ $company->address }}</p>@endif
+            </div>
+        </div>
+        <div class="text-end">
+            <span class="inline-block rounded-full px-4 py-1.5 text-sm font-bold text-white" style="background-color: {{ $accent }}">
+                {{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}
+            </span>
+            @if ($secondary($doc['type_label_ar'] ?? null))<p class="mt-1 text-xs text-slate-400" dir="rtl">{{ $doc['type_label_ar'] }}</p>@endif
+            <p class="mt-2 text-sm font-semibold text-slate-700">{{ $doc['number'] }}</p>
+            <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</p>
+            @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</p>@endif
+        </div>
+    </div>
+
+    <div class="mt-8 grid grid-cols-2 gap-4">
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</h3>
+            <p class="mt-1.5 font-semibold text-slate-800">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</p>
+            @if ($secondary($doc['party']->name_ar ?? null))<p class="text-sm text-slate-500" dir="rtl">{{ $doc['party']->name_ar }}</p>@endif
+            @if ($showPartyVatNumber && $doc['party']->vat_number)<p class="mt-1 text-sm text-slate-500">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</p>@endif
+            @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<p class="text-sm text-slate-500">{{ $doc['party']->fullAddress() }}</p>@endif
+            @if (!empty($doc['party']->email))<p class="text-sm text-slate-500">{{ $doc['party']->email }}</p>@endif
+        </div>
+        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card text-end">
+            @if (!empty($doc['qr_code']))
+                @if (!empty($doc['zatca_status']))
+                    <p class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                        {{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}
+                    </p>
+                @endif
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="ms-auto h-32 w-32" onerror="this.style.display='none'">
+                <p class="mt-1 text-xs text-slate-400">{{ $lbl('Scan to verify invoice details') }}</p>
+            @endif
+        </div>
+    </div>
+
+    <div class="mt-8 overflow-hidden rounded-2xl border border-slate-100 shadow-card">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-start text-white" style="background-color: {{ $tableHeaderColor ?: $accent }}">
+                    <th class="py-3 px-4 text-xs font-semibold uppercase tracking-wide">{{ $lbl('Description') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Qty') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Unit price') }}</th>
+                    @if ($showVatColumn)
+                        <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('VAT') }}</th>
+                    @endif
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Total') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($doc['lines'] as $i => $line)
+                    <tr class="{{ $i % 2 === 1 ? 'bg-slate-50/70' : '' }} border-b border-slate-100 last:border-0">
+                        <td class="py-3 px-4">
+                            {{ $primary($line->description, $line->name_ar) }}
+                            @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                            @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
+                        </td>
+                        <td class="py-3 px-4 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                        <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
+                        @if ($showVatColumn)
+                            <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
+                        @endif
+                        <td class="py-3 px-4 text-end font-medium text-slate-900">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->line_total, 2) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    @php $boxed = $layout === 'boxed'; @endphp
+    <div class="mt-6 flex justify-end">
+        <div class="w-full max-w-xs space-y-2 rounded-2xl border p-4 text-sm shadow-card {{ $boxed ? 'text-white border-transparent' : 'border-slate-100' }}" @if ($boxed) style="background-color: {{ $totalsColor }}" @endif>
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Subtotal') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'], 2) }}</span></div>
+            @if (($doc['discount_total'] ?? 0) > 0)
+                <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</span><span>-{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['discount_total'], 2) }}</span></div>
+            @endif
+            <div class="flex justify-between {{ $boxed ? 'text-white/80' : 'text-slate-500' }}"><span>{{ $lbl('VAT') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</span></div>
+            @if ($boxed)
+                <div class="flex justify-between border-t border-white/30 pt-2 text-base font-bold text-white"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+            @else
+                <div class="flex justify-between rounded-xl px-3 py-2 text-base font-bold text-white" style="background-color: {{ $totalsColor }}"><span>{{ $lbl('Total') }}</span><span>{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</span></div>
+            @endif
+            @foreach ($doc['extra_rows'] ?? [] as $row)
+                @php
+                    $rowColor = 'text-slate-500';
+                    if ($boxed) {
+                        $rowColor = 'text-white/80';
+                    } elseif (($row['variant'] ?? null) === 'red') {
+                        $rowColor = 'font-semibold text-red-600';
+                    } elseif (($row['variant'] ?? null) === 'green') {
+                        $rowColor = 'font-semibold text-emerald-600';
+                    } elseif ($row['emphasis'] ?? false) {
+                        $rowColor = 'font-semibold text-brand-700';
+                    }
+                @endphp
+                <div class="flex justify-between {{ $rowColor }}"><span>{{ $row['label'] }}</span><span>{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</span></div>
+            @endforeach
+        </div>
+    </div>
+
+    @if ($bankAccounts->isNotEmpty())
+        @php $ba = $bankAccounts->first(); @endphp
+        <div class="mt-8 rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card text-sm">
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">{{ $lbl('Payment details') }}</h4>
+            <p class="text-slate-600">
+                {{ $ba->name }}
+                @if ($ba->bank_name) — {{ $ba->bank_name }} @endif
+                @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }} @endif
+            </p>
+        </div>
+    @endif
+
+    @if (!empty($doc['notes']))
+        <div class="mt-6 pt-4 border-t border-slate-100 text-sm">
+            @include('documents.print.notes-list', ['text' => $doc['notes'], 'accent' => $accent, 'class' => 'text-slate-500'])
+        </div>
+    @endif
+
+    @if ($template && ($template->notes_en || $template->notes_ar))
+        <div class="mt-2 text-sm">
+            @include('documents.print.template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-400'])
+        </div>
+    @endif
+
+    @if ($template && ($template->terms_en || $template->terms_ar))
+        <div class="mt-4 pt-2 text-sm">
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $lbl('Terms & Conditions') }}</h4>
+            @include('documents.print.template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'class' => 'text-slate-500'])
+        </div>
+    @endif
+
+    @include('documents.print.signature')
+
+    <div class="mt-10 border-t border-slate-100 pt-4 text-center text-xs text-slate-400">
+        {{ $company->name }} @if ($company->name_ar) — {{ $company->name_ar }} @endif &nbsp;·&nbsp; {{ $doc['number'] }}
+    </div>
+@endif
+
+@if ($template && $template->footer_path)
+    <img src="{{ Storage::url($template->footer_path) }}" alt="" class="w-full object-contain mt-8">
+@endif
+
+</div>
+
+</div>
