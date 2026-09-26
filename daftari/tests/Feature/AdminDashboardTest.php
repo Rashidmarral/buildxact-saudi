@@ -76,4 +76,58 @@ class AdminDashboardTest extends TestCase
         $response->assertViewHas('failedJobsCount', fn ($count) => $count === 0);
         $response->assertSee(__('System health'));
     }
+
+    /**
+     * The four hand-rolled CSS-bar sections (subscription status, revenue
+     * trend, plan distribution, signups trend) were rewritten as Chart.js
+     * canvases. This can't read numbers back out of a <canvas>, so it
+     * asserts on what the markup itself must still contain: a canvas per
+     * chart when there's data to plot, and the same empty-state copy as
+     * before when there isn't.
+     */
+    public function test_dashboard_renders_chart_canvases_with_seeded_data(): void
+    {
+        $plan = Plan::create(['name' => 'Pro', 'slug' => 'pro-'.uniqid(), 'price_monthly' => 100, 'price_yearly' => 1000, 'is_active' => true]);
+        $company = Company::create(['name' => 'Chart Admin Co', 'slug' => 'chart-admin-'.uniqid(), 'status' => 'active']);
+        Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly', 'current_period_start' => now(), 'current_period_end' => now()->addMonth()]);
+        Payment::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'amount' => 100, 'currency' => 'SAR', 'status' => 'paid', 'paid_at' => now()]);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('id="subscriptionStatusChart"', false);
+        $response->assertSee('id="revenueTrendChart"', false);
+        $response->assertSee('id="planDistributionChart"', false);
+        $response->assertSee('id="signupsTrendChart"', false);
+        $response->assertDontSee(__('No subscriptions yet.'));
+        $response->assertDontSee(__('No revenue collected yet.'));
+        $response->assertDontSee(__('No active subscriptions yet.'));
+        $response->assertDontSee(__('No signups yet.'));
+    }
+
+    public function test_dashboard_shows_chart_empty_states_with_no_data(): void
+    {
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertDontSee('id="subscriptionStatusChart"', false);
+        $response->assertDontSee('id="revenueTrendChart"', false);
+        $response->assertDontSee('id="planDistributionChart"', false);
+        $response->assertDontSee('id="signupsTrendChart"', false);
+        $response->assertSee(__('No subscriptions yet.'));
+        $response->assertSee(__('No revenue collected yet.'));
+        $response->assertSee(__('No active subscriptions yet.'));
+        $response->assertSee(__('No signups yet.'));
+    }
+
+    public function test_dashboard_renders_in_arabic(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->actingAs($admin)->get(route('locale.switch', 'ar'));
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee(__('Subscription status'))
+            ->assertSee(__('Revenue — last 6 months'));
+    }
 }

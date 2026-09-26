@@ -4,9 +4,11 @@
 
 @section('content')
 @php
-    $revenueMax = max(1, $revenueTrend->max('value'));
-    $signupsMax = max(1, $signupsTrend->max('value'));
-    $planMax = max(1, $planDistribution->max('subscriptions_count') ?: 1);
+    // Same brand-led palette as the company dashboard's Chart.js charts,
+    // reused here so both dashboards read as one product.
+    $chartPalette = ['#1ab27e', '#8b5cf6', '#f59e0b', '#f43f5e', '#06b6d4', '#94a3b8'];
+    $planLabels = $planDistribution->map(fn ($plan) => app()->getLocale() === 'ar' && $plan->name_ar ? $plan->name_ar : $plan->name)->all();
+    $planCounts = $planDistribution->map(fn ($plan) => $plan->subscriptions_count)->all();
 @endphp
 
 <div class="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3 xl:grid-cols-6">
@@ -192,21 +194,23 @@
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
         <h2 class="font-semibold text-slate-900">{{ __('Subscription status') }}</h2>
         <p class="text-xs text-slate-400">{{ __('Current status per company') }}</p>
-        <div class="mt-5 space-y-4">
-            @php $subStatusMax = max(1, $subscriptionStatusDistribution->max('count') ?: 1); @endphp
-            @forelse ($subscriptionStatusDistribution as $row)
-                <div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="font-medium text-slate-700">{{ $row['label'] }}</span>
-                        <span class="text-slate-400">{{ $row['count'] }}</span>
-                    </div>
-                    <div class="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                        <div class="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all duration-700 ease-smooth" style="width: {{ round($row['count'] / $subStatusMax * 100) }}%"></div>
-                    </div>
-                </div>
-            @empty
-                <p class="text-sm text-slate-400">{{ __('No subscriptions yet.') }}</p>
-            @endforelse
+        <div class="mt-5">
+            @if ($subscriptionStatusDistribution->isEmpty())
+                <p class="flex h-48 items-center justify-center text-sm text-slate-400">{{ __('No subscriptions yet.') }}</p>
+            @else
+                <div class="h-48"><canvas id="subscriptionStatusChart"></canvas></div>
+                <ul class="mt-4 space-y-1.5">
+                    @foreach ($subscriptionStatusDistribution as $index => $row)
+                        <li class="flex items-center justify-between text-sm">
+                            <span class="flex items-center gap-2 font-medium text-slate-700">
+                                <span class="h-2 w-2 rounded-full" style="background-color: {{ $chartPalette[$index % count($chartPalette)] }}"></span>
+                                {{ $row['label'] }}
+                            </span>
+                            <span class="text-slate-400">{{ $row['count'] }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
     </div>
 </div>
@@ -217,35 +221,22 @@
             <h2 class="font-semibold text-slate-900">{{ __('Revenue — last 6 months') }}</h2>
             <span class="text-xs text-slate-400">{{ __('SAR, collected payments') }}</span>
         </div>
-        <div class="mt-6 flex h-40 items-end gap-3 sm:gap-5">
-            @foreach ($revenueTrend as $point)
-                <div class="flex flex-1 flex-col items-center gap-2">
-                    <div class="relative flex h-32 w-full items-end justify-center rounded-lg bg-slate-50">
-                        <div class="w-full max-w-10 rounded-t-md bg-gradient-to-t from-brand-600 to-brand-400 transition-all duration-700 ease-smooth" style="height: {{ max(4, round($point['value'] / $revenueMax * 100)) }}%" title="SAR {{ number_format($point['value'], 0) }}"></div>
-                    </div>
-                    <span class="text-xs font-medium text-slate-400">{{ $point['label'] }}</span>
-                </div>
-            @endforeach
-        </div>
+        @if ($revenueTrend->sum('value') <= 0)
+            <p class="flex h-56 items-center justify-center text-sm text-slate-400">{{ __('No revenue collected yet.') }}</p>
+        @else
+            <div class="mt-6 h-56"><canvas id="revenueTrendChart"></canvas></div>
+        @endif
     </div>
 
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
         <h2 class="font-semibold text-slate-900">{{ __('Plan distribution') }}</h2>
         <p class="text-xs text-slate-400">{{ __('Active subscriptions') }}</p>
-        <div class="mt-5 space-y-4">
-            @forelse ($planDistribution as $plan)
-                <div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="font-medium text-slate-700">{{ app()->getLocale() === 'ar' && $plan->name_ar ? $plan->name_ar : $plan->name }}</span>
-                        <span class="text-slate-400">{{ $plan->subscriptions_count }}</span>
-                    </div>
-                    <div class="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                        <div class="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all duration-700 ease-smooth" style="width: {{ round($plan->subscriptions_count / $planMax * 100) }}%"></div>
-                    </div>
-                </div>
-            @empty
-                <p class="text-sm text-slate-400">{{ __('No active subscriptions yet.') }}</p>
-            @endforelse
+        <div class="mt-5">
+            @if ($planDistribution->isEmpty())
+                <p class="flex h-48 items-center justify-center text-sm text-slate-400">{{ __('No active subscriptions yet.') }}</p>
+            @else
+                <div class="h-48"><canvas id="planDistributionChart"></canvas></div>
+            @endif
         </div>
     </div>
 </div>
@@ -253,16 +244,11 @@
 <div class="mt-6 grid gap-5 lg:grid-cols-3">
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card lg:col-span-1">
         <h2 class="font-semibold text-slate-900">{{ __('New signups — last 6 months') }}</h2>
-        <div class="mt-6 flex h-32 items-end gap-2.5">
-            @foreach ($signupsTrend as $point)
-                <div class="flex flex-1 flex-col items-center gap-2">
-                    <div class="relative flex h-24 w-full items-end justify-center rounded-lg bg-slate-50">
-                        <div class="w-full max-w-8 rounded-t-md bg-gradient-to-t from-sky-600 to-sky-400 transition-all duration-700 ease-smooth" style="height: {{ max(4, round($point['value'] / $signupsMax * 100)) }}%" title="{{ $point['value'] }}"></div>
-                    </div>
-                    <span class="text-xs font-medium text-slate-400">{{ $point['label'] }}</span>
-                </div>
-            @endforeach
-        </div>
+        @if ($signupsTrend->sum('value') <= 0)
+            <p class="flex h-40 items-center justify-center text-sm text-slate-400">{{ __('No signups yet.') }}</p>
+        @else
+            <div class="mt-6 h-40"><canvas id="signupsTrendChart"></canvas></div>
+        @endif
     </div>
 
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card lg:col-span-1">
@@ -389,4 +375,98 @@
         </table>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const gridColor = 'rgba(148, 163, 184, 0.15)';
+        const palette = @json($chartPalette);
+
+        @if ($subscriptionStatusDistribution->isNotEmpty())
+            new Chart(document.getElementById('subscriptionStatusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: @json($subscriptionStatusDistribution->pluck('label')),
+                    datasets: [{
+                        data: @json($subscriptionStatusDistribution->pluck('count')),
+                        backgroundColor: palette,
+                        borderWidth: 0,
+                    }],
+                },
+                options: {
+                    cutout: '68%',
+                    plugins: { legend: { display: false } },
+                },
+            });
+        @endif
+
+        @if ($revenueTrend->sum('value') > 0)
+            new Chart(document.getElementById('revenueTrendChart'), {
+                type: 'bar',
+                data: {
+                    labels: @json($revenueTrend->pluck('label')),
+                    datasets: [{
+                        label: '{{ __('Revenue') }}',
+                        data: @json($revenueTrend->pluck('value')),
+                        backgroundColor: '#1ab27e',
+                        borderRadius: 6,
+                        maxBarThickness: 40,
+                    }],
+                },
+                options: {
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => 'SAR ' + ctx.parsed.y.toLocaleString() } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                        y: { grid: { color: gridColor }, ticks: { font: { size: 11 }, callback: (v) => 'SAR ' + v.toLocaleString() }, beginAtZero: true },
+                    },
+                },
+            });
+        @endif
+
+        @if ($planDistribution->isNotEmpty())
+            new Chart(document.getElementById('planDistributionChart'), {
+                type: 'bar',
+                data: {
+                    labels: @json($planLabels),
+                    datasets: [{
+                        data: @json($planCounts),
+                        backgroundColor: palette,
+                        borderRadius: 6,
+                        maxBarThickness: 24,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { font: { size: 11 } }, beginAtZero: true },
+                        y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                    },
+                },
+            });
+        @endif
+
+        @if ($signupsTrend->sum('value') > 0)
+            new Chart(document.getElementById('signupsTrendChart'), {
+                type: 'bar',
+                data: {
+                    labels: @json($signupsTrend->pluck('label')),
+                    datasets: [{
+                        label: '{{ __('Signups') }}',
+                        data: @json($signupsTrend->pluck('value')),
+                        backgroundColor: '#06b6d4',
+                        borderRadius: 6,
+                        maxBarThickness: 28,
+                    }],
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                        y: { grid: { color: gridColor }, ticks: { font: { size: 11 }, precision: 0 }, beginAtZero: true },
+                    },
+                },
+            });
+        @endif
+    });
+</script>
 @endsection
