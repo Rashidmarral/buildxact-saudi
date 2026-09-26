@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApprovalChainStep;
 use App\Models\AuditLog;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -12,12 +14,20 @@ use Illuminate\Support\Facades\Auth;
  * above the configured amount can no longer be approved/posted by whoever
  * created it; it needs a user holding the separate "approvals" permission
  * to sign off first. Null/0 keeps today's behavior (no gate at all).
+ *
+ * This page also configures the optional multi-tier approval chains that
+ * sit on top of these flat thresholds — see ApprovalChainController and
+ * ApprovalChainService.
  */
 class ApprovalSettingsController extends Controller
 {
     public function show()
     {
-        return view('user.settings.approvals', ['company' => Auth::user()->company]);
+        return view('user.settings.approvals', [
+            'company' => Auth::user()->company,
+            'chainSteps' => ApprovalChainStep::query()->with('role')->orderBy('document_type')->orderBy('step_number')->get()->groupBy('document_type'),
+            'roles' => Role::orderBy('name')->get(),
+        ]);
     }
 
     public function update(Request $request)

@@ -36,6 +36,52 @@
     </form>
 
     <div>
+        <h2 class="text-lg font-semibold text-slate-900">{{ __('Multi-tier approval chains') }}</h2>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Optionally require a sequence of roles to sign off in order — e.g. a purchase order over 5,000 SAR needs the Manager role, then Finance; over 20,000 SAR it also needs the GM role afterward. Adding a step for a document type replaces its flat threshold above with this chain.') }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-5">
+        @foreach (['purchase_order' => __('Purchase orders'), 'expense' => __('Expenses')] as $type => $label)
+            <div>
+                <h3 class="text-sm font-semibold text-slate-800">{{ $label }}</h3>
+                <div class="mt-2 space-y-2">
+                    @forelse ($chainSteps->get($type, collect()) as $step)
+                        <div class="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
+                            <span class="font-medium text-slate-700">{{ __('Step :n', ['n' => $step->step_number]) }} — {{ $step->role?->name }}</span>
+                            <span class="text-slate-500">{{ __('≥ :amount SAR', ['amount' => number_format($step->min_amount, 2)]) }}</span>
+                            <form method="POST" action="{{ route('app.settings.approvals.chain-steps.destroy', $step) }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                            </form>
+                        </div>
+                    @empty
+                        <p class="text-xs text-slate-400">{{ __('No chain configured — the flat threshold above applies.') }}</p>
+                    @endforelse
+                </div>
+                <form method="POST" action="{{ route('app.settings.approvals.chain-steps.store') }}" class="mt-3 flex flex-wrap items-end gap-3">
+                    @csrf
+                    <input type="hidden" name="document_type" value="{{ $type }}">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Approver role') }}</label>
+                        <select name="role_id" required class="rounded-lg border border-slate-200 text-sm">
+                            <option value="">{{ __('Select a role') }}</option>
+                            @foreach ($roles as $role)
+                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Required at or above (SAR)') }}</label>
+                        <input type="number" step="0.01" min="0" name="min_amount" required class="w-40 rounded-lg border border-slate-200 text-sm">
+                    </div>
+                    <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900">{{ __('Add step') }}</button>
+                </form>
+            </div>
+        @endforeach
+    </div>
+
+    <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Overdue invoice reminders') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Automatically email clients an escalating reminder — friendly at 7 days overdue, firmer at 14, a final notice at 30 — for as long as an invoice stays unpaid.') }}</p>
     </div>

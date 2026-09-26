@@ -119,6 +119,7 @@ use App\Http\Controllers\User\TeamController;
 use App\Http\Controllers\User\TwoFactorController;
 use App\Http\Controllers\User\WarehouseController;
 use App\Http\Controllers\User\PaymentGatewayController;
+use App\Http\Controllers\User\ApprovalChainController;
 use App\Http\Controllers\User\ApprovalSettingsController;
 use App\Http\Controllers\User\SmsSettingsController;
 use App\Http\Controllers\User\WhatsappSettingsController;
@@ -671,6 +672,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
         Route::post('settings/approvals/lock-date', [ApprovalSettingsController::class, 'updateLockDate'])->name('settings.approvals.lock-date');
         Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
+        Route::post('settings/approvals/chain-steps', [ApprovalChainController::class, 'store'])->name('settings.approvals.chain-steps.store');
+        Route::delete('settings/approvals/chain-steps/{approvalChainStep}', [ApprovalChainController::class, 'destroy'])->name('settings.approvals.chain-steps.destroy');
     });
 
     Route::middleware('permission:settings')->prefix('settings/custom-fields')->name('settings.custom-fields.')->group(function () {

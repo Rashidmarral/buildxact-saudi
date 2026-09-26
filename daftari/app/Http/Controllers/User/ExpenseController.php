@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\ApprovalChainService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -45,11 +46,23 @@ class ExpenseController extends Controller
         $data['created_by'] = Auth::id();
 
         $company = Auth::user()->company;
-        $requiresApproval = $company->expenseRequiresApproval((float) $data['gross_amount']);
+        $chain = app(ApprovalChainService::class);
+        $amount = (float) $data['gross_amount'];
+
+        // A configured chain fully replaces the flat threshold for this
+        // document type (see ApprovalChainService); with no chain
+        // configured at all, expenseRequiresApproval() behaves exactly
+        // as before.
+        $chainSteps = $chain->isConfigured('expense') ? $chain->applicableSteps('expense', $amount) : null;
+        $requiresApproval = $chainSteps !== null ? $chainSteps->isNotEmpty() : $company->expenseRequiresApproval($amount);
         $data['status'] = $requiresApproval ? 'pending_approval' : 'approved';
 
-        $expense = DB::transaction(function () use ($data, $requiresApproval, $ledger) {
+        $expense = DB::transaction(function () use ($data, $requiresApproval, $ledger, $chain, $chainSteps) {
             $expense = Expense::create($data);
+
+            if ($chainSteps !== null && $chainSteps->isNotEmpty()) {
+                $chain->start($expense, $chainSteps);
+            }
 
             if (! $requiresApproval) {
                 $ledger->postExpense($expense);
@@ -59,7 +72,16 @@ class ExpenseController extends Controller
         });
 
         if ($requiresApproval) {
-            $this->notifyApprovers($expense);
+            if ($chainSteps !== null && $chainSteps->isNotEmpty()) {
+                $chain->notifyStepApprovers($chain->currentStep($expense), fn (User $user) => $user->notify(new GenericNotification(
+                    title: __('Expense awaiting your approval'),
+                    body: __(':amount :currency from :vendor', ['amount' => number_format($expense->gross_amount, 2), 'currency' => $expense->company->currency, 'vendor' => $expense->vendor_name ?: __('Unknown vendor')]),
+                    url: route('app.expenses.index'),
+                    icon: 'purchases',
+                )));
+            } else {
+                $this->notifyApprovers($expense);
+            }
 
             return redirect()->route('app.expenses.index')->with('status', __('Expense submitted for approval.'));
         }
@@ -148,8 +170,27 @@ class ExpenseController extends Controller
 
     public function approve(Expense $expense, LedgerPostingService $ledger)
     {
-        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        $chain = app(ApprovalChainService::class);
+        $currentStep = $expense->status === 'pending_approval' ? $chain->currentStep($expense) : null;
+
+        if ($currentStep) {
+            abort_unless($chain->canActOn($currentStep, Auth::user()), 403);
+        } else {
+            abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        }
+
         abort_unless($expense->status === 'pending_approval', 404);
+
+        if ($currentStep && ! $chain->approveStep($currentStep, Auth::user())) {
+            $chain->notifyStepApprovers($chain->currentStep($expense), fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Expense awaiting your approval'),
+                body: __(':amount :currency from :vendor', ['amount' => number_format($expense->gross_amount, 2), 'currency' => $expense->company->currency, 'vendor' => $expense->vendor_name ?: __('Unknown vendor')]),
+                url: route('app.expenses.index'),
+                icon: 'purchases',
+            )));
+
+            return back()->with('status', __('Approved — waiting on the next approver.'));
+        }
 
         DB::transaction(function () use ($expense, $ledger) {
             $expense->update(['status' => 'approved', 'approved_by' => Auth::id(), 'approved_at' => now()]);
@@ -163,10 +204,22 @@ class ExpenseController extends Controller
 
     public function reject(Request $request, Expense $expense)
     {
-        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        $chain = app(ApprovalChainService::class);
+        $currentStep = $expense->status === 'pending_approval' ? $chain->currentStep($expense) : null;
+
+        if ($currentStep) {
+            abort_unless($chain->canActOn($currentStep, Auth::user()), 403);
+        } else {
+            abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        }
+
         abort_unless($expense->status === 'pending_approval', 404);
 
         $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        if ($currentStep) {
+            $chain->rejectCurrent($expense, Auth::user(), $data['rejection_reason'] ?? null);
+        }
 
         $expense->update(['status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(), 'rejection_reason' => $data['rejection_reason'] ?? null]);
 

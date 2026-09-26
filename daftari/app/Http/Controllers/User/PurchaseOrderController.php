@@ -18,6 +18,7 @@ use App\Models\TaxRate;
 use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\GenericNotification;
+use App\Services\ApprovalChainService;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -111,14 +112,9 @@ class PurchaseOrderController extends Controller
         $status = null;
 
         if ($postImmediately) {
-            if ($order->company->poRequiresApproval((float) $order->total)) {
-                $order->update(['status' => 'pending_approval']);
-                $this->notifyApprovers($order);
-                $status = __('Purchase order created and submitted for approval.');
-            } else {
-                $order->update(['status' => 'approved']);
-                $status = __('Purchase order created and approved.');
-            }
+            $status = $this->submitForApproval($order)
+                ? __('Purchase order created and submitted for approval.')
+                : __('Purchase order created and approved.');
         }
 
         return redirect()->route('app.purchase-orders.show', $order)->with('status', $status ?? __('Purchase order created.'));
@@ -181,14 +177,9 @@ class PurchaseOrderController extends Controller
         $status = null;
 
         if ($postImmediately) {
-            if ($purchaseOrder->company->poRequiresApproval((float) $purchaseOrder->fresh()->total)) {
-                $purchaseOrder->update(['status' => 'pending_approval']);
-                $this->notifyApprovers($purchaseOrder);
-                $status = __('Purchase order updated and submitted for approval.');
-            } else {
-                $purchaseOrder->update(['status' => 'approved']);
-                $status = __('Purchase order updated and approved.');
-            }
+            $status = $this->submitForApproval($purchaseOrder->refresh())
+                ? __('Purchase order updated and submitted for approval.')
+                : __('Purchase order updated and approved.');
         }
 
         return redirect()->route('app.purchase-orders.show', $purchaseOrder)->with('status', $status ?? __('Purchase order updated.'));
@@ -246,10 +237,34 @@ class PurchaseOrderController extends Controller
         // A plain draft (never crossed the approval threshold) can still
         // be self-approved by anyone with the ordinary "purchases"
         // permission this route already requires — the stricter
-        // "approvals" permission only matters once it's actually sitting
-        // in pending_approval, waiting on a designated approver.
+        // approval check only matters once it's actually sitting in
+        // pending_approval, waiting on a designated approver.
         if ($purchaseOrder->status === 'pending_approval') {
-            abort_unless(Auth::user()->hasPermission('approvals'), 403);
+            $chain = app(ApprovalChainService::class);
+            $currentStep = $chain->currentStep($purchaseOrder);
+
+            if ($currentStep) {
+                // A company with a configured chain: the current step's
+                // role (or the owner) must sign off, and a non-final step
+                // just advances the chain — the order stays pending until
+                // the last step approves it.
+                abort_unless($chain->canActOn($currentStep, Auth::user()), 403);
+
+                if (! $chain->approveStep($currentStep, Auth::user())) {
+                    $chain->notifyStepApprovers($chain->currentStep($purchaseOrder), fn (User $user) => $user->notify(new GenericNotification(
+                        title: __('Purchase order awaiting your approval'),
+                        body: __(':number — :amount :currency', ['number' => $purchaseOrder->po_number, 'amount' => number_format((float) $purchaseOrder->total, 2), 'currency' => $purchaseOrder->company->currency]),
+                        url: route('app.purchase-orders.show', $purchaseOrder),
+                        icon: 'purchases',
+                    )));
+
+                    return back()->with('status', __('Approved — waiting on the next approver.'));
+                }
+            } else {
+                // No chain configured for this company — the older flat
+                // "approvals" permission gate.
+                abort_unless(Auth::user()->hasPermission('approvals'), 403);
+            }
 
             $purchaseOrder->update([
                 'status' => 'approved',
@@ -267,10 +282,22 @@ class PurchaseOrderController extends Controller
 
     public function reject(Request $request, PurchaseOrder $purchaseOrder)
     {
-        abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        $chain = app(ApprovalChainService::class);
+        $currentStep = $purchaseOrder->status === 'pending_approval' ? $chain->currentStep($purchaseOrder) : null;
+
+        if ($currentStep) {
+            abort_unless($chain->canActOn($currentStep, Auth::user()), 403);
+        } else {
+            abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        }
+
         abort_unless($purchaseOrder->status === 'pending_approval', 404);
 
         $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        if ($currentStep) {
+            $chain->rejectCurrent($purchaseOrder, Auth::user(), $data['rejection_reason'] ?? null);
+        }
 
         $purchaseOrder->update([
             'status' => 'rejected',
@@ -453,6 +480,51 @@ class PurchaseOrderController extends Controller
         $attachment->delete();
 
         return back()->with('status', __('Attachment removed.'));
+    }
+
+    /**
+     * Puts a just-created/edited order through whichever approval gate
+     * applies — a configured multi-tier chain if the company has defined
+     * one for purchase orders, otherwise the older flat po_approval_threshold
+     * gate, unchanged. Returns true when the order was parked in
+     * pending_approval, false when it was approved outright.
+     */
+    private function submitForApproval(PurchaseOrder $order): bool
+    {
+        $chain = app(ApprovalChainService::class);
+        $total = (float) $order->total;
+
+        if ($chain->isConfigured('purchase_order')) {
+            $steps = $chain->applicableSteps('purchase_order', $total);
+
+            if ($steps->isEmpty()) {
+                $order->update(['status' => 'approved']);
+
+                return false;
+            }
+
+            $order->update(['status' => 'pending_approval']);
+            $chain->start($order, $steps);
+            $chain->notifyStepApprovers($chain->currentStep($order), fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Purchase order awaiting your approval'),
+                body: __(':number — :amount :currency', ['number' => $order->po_number, 'amount' => number_format($total, 2), 'currency' => $order->company->currency]),
+                url: route('app.purchase-orders.show', $order),
+                icon: 'purchases',
+            )));
+
+            return true;
+        }
+
+        if ($order->company->poRequiresApproval($total)) {
+            $order->update(['status' => 'pending_approval']);
+            $this->notifyApprovers($order);
+
+            return true;
+        }
+
+        $order->update(['status' => 'approved']);
+
+        return false;
     }
 
     private function notifyApprovers(PurchaseOrder $order): void
