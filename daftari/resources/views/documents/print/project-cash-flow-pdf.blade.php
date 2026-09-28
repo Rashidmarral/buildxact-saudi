@@ -12,6 +12,8 @@
     $typeLabels = [
         'receipt' => __('Receipt'),
         'payment' => __('Payment'),
+        'withdrawal' => __('Withdrawal'),
+        'deposit' => __('Deposit'),
         'transfer' => __('Transfer'),
     ];
 @endphp

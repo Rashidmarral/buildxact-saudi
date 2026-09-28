@@ -131,6 +131,7 @@ class ProjectCashFlowController extends Controller
             ->get()
             ->map(fn (ReceiptVoucher $v) => [
                 'date' => $v->date,
+                'created_at' => $v->created_at,
                 'id' => 'receipt-'.$v->id,
                 'type' => 'receipt',
                 'number' => $v->voucher_number,
@@ -148,6 +149,7 @@ class ProjectCashFlowController extends Controller
             ->get()
             ->map(fn (PaymentVoucher $v) => [
                 'date' => $v->date,
+                'created_at' => $v->created_at,
                 'id' => 'payment-'.$v->id,
                 'type' => 'payment',
                 'number' => $v->voucher_number,
@@ -167,24 +169,40 @@ class ProjectCashFlowController extends Controller
 
                 return [
                     'date' => $t->date,
+                    'created_at' => $t->created_at,
                     'id' => 'transfer-'.$t->id,
-                    'type' => 'transfer',
+                    // BankTransfer::kind() distinguishes a withdrawal
+                    // (bank→cash) and a deposit (cash→bank) from a plain
+                    // transfer — this only changes how the row reads on
+                    // the statement, so a withdrawal is instantly
+                    // recognizable from a plain account-to-account move.
+                    'type' => $t->kind(),
                     'number' => null,
                     'party' => __(':from → :to', ['from' => $t->fromAccount->name, 'to' => $t->toAccount->name]),
                     'account' => $bankAccountId ? ($isIncoming ? $t->toAccount->name : $t->fromAccount->name) : null,
                     'in_amount' => $isIncoming ? (float) $t->amount : 0.0,
                     'out_amount' => $isIncoming ? 0.0 : (float) $t->amount,
-                    'url' => route('app.bank-transfers.index'),
+                    'url' => route('app.bank-transfers.show', $t),
                 ];
             });
 
-        // PHP's sort functions have been stable since 8.0, so rows that
-        // land on the same date keep this collection's original relative
-        // order (receipts, then payments, then transfers) — a plain
-        // ascending sort by date alone is enough for a deterministic
-        // chronological order.
+        // Sorting by date alone isn't enough: several rows sharing the
+        // same date (very common — a same-day withdrawal followed by a
+        // cash payment out of it) would otherwise fall back to this
+        // collection's concatenation order (receipts, then payments, then
+        // transfers) rather than the order they actually happened in,
+        // which could show a payment before the withdrawal that funded
+        // it — a nonsensical dip into negative balance on the statement.
+        // created_at is a wall-clock tiebreaker across all three record
+        // types, but the created_at/updated_at columns only store
+        // whole-second precision (Eloquent's default datetime format has
+        // no microseconds), so two rows saved within the same second —
+        // easily done from the UI, and routine from a script/import —
+        // still tie there. A last tiebreaker settles that: an incoming
+        // amount sorts before an outgoing one at the same instant, since
+        // money can't fund a payment before it arrives.
         $rows = $receipts->concat($payments)->concat($transfers)
-            ->sortBy(fn (array $row) => $row['date'])
+            ->sortBy(fn (array $row) => $row['date']->format('Y-m-d').'-'.$row['created_at']->format('Y-m-d H:i:s').'-'.($row['in_amount'] > 0 ? '0' : '1'))
             ->values();
 
         $openingBalance = $bankAccountId ? (float) BankAccount::find($bankAccountId)?->opening_balance : 0.0;

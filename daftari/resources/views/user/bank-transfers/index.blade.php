@@ -25,7 +25,7 @@
             </thead>
             <tbody>
                 @foreach ($transfers as $transfer)
-                    <tr class="border-b border-slate-50 last:border-0">
+                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.bank-transfers.show', $transfer) }}'">
                         <td class="px-6 py-3">{{ $transfer->date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $transfer->fromAccount->name }}</td>
                         <td class="px-6 py-3">{{ $transfer->toAccount->name }}</td>

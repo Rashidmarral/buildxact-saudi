@@ -266,4 +266,129 @@ class ProjectCashFlowModuleTest extends \Tests\TestCase
         $response->assertOk();
         $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
     }
+
+    // ------------------------------------------------------------------
+    // Withdrawal / deposit tracking — how much cash was taken out, how
+    // much remains, and (via the destination cash account's own
+    // statement) exactly what it was later spent on.
+    // ------------------------------------------------------------------
+
+    public function test_a_bank_to_cash_transfer_is_labeled_a_withdrawal_and_a_cash_to_bank_transfer_a_deposit(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $bank = $this->makeBankAccount($company, 'SNB Current Account');
+        $cash = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
+
+        BankTransfer::create([
+            'company_id' => $company->id, 'from_bank_account_id' => $bank->id, 'to_bank_account_id' => $cash->id,
+            'amount' => 5000, 'date' => now()->toDateString(), 'created_by' => $owner->id,
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $bank));
+        $response->assertOk()->assertSee(__('Withdrawal'));
+
+        $response = $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $cash));
+        $response->assertOk()->assertSee(__('Withdrawal'));
+
+        BankTransfer::create([
+            'company_id' => $company->id, 'from_bank_account_id' => $cash->id, 'to_bank_account_id' => $bank->id,
+            'amount' => 1000, 'date' => now()->toDateString(), 'created_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $cash))
+            ->assertOk()->assertSee(__('Deposit'));
+    }
+
+    /**
+     * The real end-to-end scenario: withdraw cash from the bank, see how
+     * much of it remains in the cash account after spending part of it,
+     * and see exactly where it went — all from the cash account's own
+     * statement, discoverable from the picker's inline balance.
+     */
+    public function test_withdrawn_cash_remaining_balance_and_its_spend_are_all_visible_on_the_cash_accounts_statement(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $bank = $this->makeBankAccount($company, 'SNB Current Account');
+        $cash = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
+
+        // Withdraw 5,000 SAR from the bank into petty cash.
+        BankTransfer::create([
+            'company_id' => $company->id, 'from_bank_account_id' => $bank->id, 'to_bank_account_id' => $cash->id,
+            'amount' => 5000, 'date' => now()->toDateString(), 'created_by' => $owner->id,
+        ]);
+
+        // Spend part of that cash on a site expense.
+        PaymentVoucher::create([
+            'company_id' => $company->id, 'bank_account_id' => $cash->id, 'party_type' => 'manual',
+            'voucher_number' => 'PV-CASH-1', 'date' => now()->toDateString(), 'payee_name' => 'Site labourers',
+            'amount' => 1800, 'method' => 'cash', 'status' => 'issued',
+        ]);
+
+        $this->assertEqualsWithDelta(3200.0, $cash->currentBalance(), 0.01);
+
+        // The picker shows the cash account's remaining balance inline.
+        $this->actingAs($owner)->get(route('app.project-cash-flow.index'))
+            ->assertOk()
+            ->assertSee('Petty Cash')
+            ->assertSee(\App\Support\Money::format(3200));
+
+        // Its own statement shows the withdrawal in, the spend out, and
+        // exactly who it was paid to.
+        $response = $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $cash));
+        $response->assertOk()
+            ->assertSee(__('Withdrawal'))
+            ->assertSee(__('Payment'))
+            ->assertSee('Site labourers')
+            ->assertSee(\App\Support\Money::format(3200));
+    }
+
+    /**
+     * Regression: a same-day withdrawal followed by a payment out of that
+     * same cash must sort in the order they actually happened (withdrawal
+     * first), not by this ledger's internal receipts/payments/transfers
+     * concatenation order — the latter would show the payment first and
+     * dip the running balance negative before the withdrawal "arrives".
+     */
+    public function test_a_same_day_withdrawal_and_payment_sort_in_creation_order_not_balance_negative(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $bank = $this->makeBankAccount($company, 'SNB Current Account');
+        $cash = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
+        $today = now()->toDateString();
+
+        $transfer = BankTransfer::create([
+            'company_id' => $company->id, 'from_bank_account_id' => $bank->id, 'to_bank_account_id' => $cash->id,
+            'amount' => 20000, 'date' => $today, 'created_by' => $owner->id,
+        ]);
+        $payment = PaymentVoucher::create([
+            'company_id' => $company->id, 'bank_account_id' => $cash->id, 'party_type' => 'manual',
+            'voucher_number' => 'PV-CASH-2', 'date' => $today, 'payee_name' => 'Daily labourers',
+            'amount' => 7500, 'method' => 'cash', 'status' => 'issued',
+        ]);
+        // created_at only stores whole-second precision, so two rows
+        // created moments apart in real use (or, as forced here, on
+        // purpose) routinely land on the exact same stored timestamp —
+        // this must still resolve to the withdrawal first, since money
+        // can't fund a payment before it arrives.
+        $payment->created_at = $transfer->created_at;
+        $payment->save();
+
+        $response = $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $cash));
+        $response->assertOk();
+
+        $content = $response->getContent();
+        $withdrawalPosition = strpos($content, __('Withdrawal'));
+        $paymentPosition = strpos($content, 'Daily labourers');
+        $this->assertNotFalse($withdrawalPosition);
+        $this->assertNotFalse($paymentPosition);
+        $this->assertLessThan($paymentPosition, $withdrawalPosition, 'The withdrawal row must render before the payment it funded.');
+
+        // No intermediate negative balance: the lowest running balance on
+        // this two-row statement is the final 12,500, never -7,500.
+        $response->assertDontSee('-7,500.00');
+        $response->assertSee(\App\Support\Money::format(12500));
+    }
 }

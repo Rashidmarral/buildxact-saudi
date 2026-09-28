@@ -28,15 +28,23 @@
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="font-semibold text-slate-900 mb-1">{{ __('By bank account') }}</h3>
-        <p class="text-xs text-slate-400 mb-4">{{ __('A chronological, running-balance statement for one account, across every project.') }}</p>
+        <p class="text-xs text-slate-400 mb-4">{{ __('A chronological, running-balance statement for one account, across every project — including how much cash currently remains on hand for a Cash-type account (e.g. after a withdrawal).') }}</p>
         @if ($bankAccounts->isEmpty())
             <p class="text-sm text-slate-400 py-6 text-center">{{ __('No active bank/cash accounts yet.') }}</p>
         @else
             <div class="divide-y divide-slate-50">
                 @foreach ($bankAccounts as $account)
                     <a href="{{ route('app.project-cash-flow.bank-account.show', $account) }}" class="flex items-center justify-between py-3 hover:bg-slate-50 -mx-2 px-2 rounded-lg">
-                        <span class="font-medium text-slate-700">{{ $account->name }}</span>
-                        <span class="text-slate-300">→</span>
+                        <span class="flex items-center gap-2">
+                            <span class="font-medium text-slate-700">{{ $account->name }}</span>
+                            @if ($account->type === 'cash')
+                                <span class="inline-block rounded-full bg-amber-50 text-amber-700 text-xs font-medium px-2 py-0.5">{{ __('Cash') }}</span>
+                            @endif
+                        </span>
+                        <span class="flex items-center gap-3">
+                            <span class="text-sm font-semibold text-slate-900 tabular-nums">{{ \App\Support\Money::format($account->currentBalance()) }}</span>
+                            <span class="text-slate-300">→</span>
+                        </span>
                     </a>
                 @endforeach
             </div>

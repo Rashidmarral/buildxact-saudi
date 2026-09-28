@@ -200,6 +200,7 @@
     "A cash payment voucher with the amount in words.": "سند صرف نقدي يتضمن المبلغ كتابةً.",
     "A cheque that has been issued and recorded but hasn't yet cleared the bank.": "شيك تم إصداره وتسجيله لكنه لم يُصفَّ بعد لدى البنك.",
     "A chronological statement of every receipt, payment, and transfer through this account, with a running balance.": "بيان زمني لكل إيصال ودفعة وتحويل عبر هذا الحساب، مع رصيد متحرك.",
+    "A chronological, running-balance statement for one account, across every project — including how much cash currently remains on hand for a Cash-type account (e.g. after a withdrawal).": "بيان زمني برصيد متحرك لحساب واحد، عبر جميع المشاريع — يشمل مقدار النقد المتبقي حاليًا في حساب من نوع نقدي (مثلاً بعد سحب).",
     "A chronological, running-balance statement for one account, across every project.": "بيان زمني برصيد متحرك لحساب واحد، عبر جميع المشاريع.",
     "A copy of your receipt is attached to this email.": "نسخة من إيصالك مرفقة بهذا البريد الإلكتروني.",
     "A cost center cannot be its own parent.": "لا يمكن أن يكون مركز التكلفة أصلًا لنفسه.",
@@ -599,6 +600,9 @@
     "At least 8 characters": "8 أحرف على الأقل",
     "At least 8 characters.": "8 أحرف على الأقل.",
     "At least one registered activity below mentions software/technology/IT services. Still worth confirming the exact wording covers SaaS sales with your business advisor.": "يُشير نشاط واحد على الأقل من الأنشطة المسجلة أدناه إلى خدمات البرمجيات/التقنية/تقنية المعلومات. يظل من المفيد التأكد من أن الصياغة الدقيقة تغطي بيع خدمات SaaS مع مستشارك التجاري.",
+    "Attach the proof for this movement — an ATM slip, a bank transfer confirmation, a photo of the cash count.": "أرفق إثبات هذه الحركة — إيصال صراف آلي، تأكيد تحويل بنكي، صورة لعد النقد.",
+    "Attach the proof for this payment — a receipt, an invoice from the payee, a signed acknowledgement.": "أرفق إثبات هذه الدفعة — إيصال، فاتورة من المستفيد، إقرار موقّع.",
+    "Attach the proof for this receipt — a bank deposit slip, an ATM/transfer confirmation, a signed acknowledgement.": "أرفق إثبات هذا الإيصال — إيصال إيداع بنكي، تأكيد صراف آلي/تحويل، إقرار موقّع.",
     "Attachment (optional)": "مرفق (اختياري)",
     "Attachment removed.": "تمت إزالة المرفق.",
     "Attachments": "المرفقات",
@@ -4741,6 +4745,7 @@
     "While on, everyone outside the allowed exceptions sees a maintenance page instead of the app.": "أثناء التفعيل، يرى الجميع خارج الاستثناءات المسموحة صفحة صيانة بدلاً من التطبيق.",
     "Who will be managing this account?": "من سيتولى إدارة هذا الحساب؟",
     "Windows example": "مثال ويندوز",
+    "Withdrawal": "سحب",
     "Withholding Tax": "ضريبة الاستقطاع",
     "Withholding tax": "ضريبة الاستقطاع",
     "Withholding tax categories": "فئات ضريبة الاستقطاع",
@@ -4970,6 +4975,7 @@
     "—": "—",
     "— Select —": "— اختر —",
     "•••••••• (configured — leave blank to keep)": "•••••••• (مُعد — اتركه فارغًا للإبقاء عليه)",
+    "← Back": "← رجوع",
     "← Project Cash Flow": "← التدفق النقدي للمشروع",
     "≥ :amount SAR": "≥ :amount ريال"
 }

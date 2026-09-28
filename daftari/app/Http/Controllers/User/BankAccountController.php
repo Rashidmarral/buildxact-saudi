@@ -90,7 +90,7 @@ class BankAccountController extends Controller
                 'account' => $accountId && (int) $t->to_bank_account_id === $accountId ? $t->toAccount->name : $t->fromAccount->name,
                 'amount' => (float) $t->amount,
                 'status' => 'issued',
-                'url' => route('app.bank-transfers.index'),
+                'url' => route('app.bank-transfers.show', $t),
             ]);
 
         $transactions = $receipts->concat($payments)->concat($transfers)

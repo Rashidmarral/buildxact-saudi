@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Models\Attachment;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
@@ -14,10 +16,13 @@ use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ReceiptVoucherController extends Controller
 {
+    use EnforcesStorageQuota;
+
     public function downloadPdf(ReceiptVoucher $receiptVoucher, MpdfRenderer $renderer)
     {
         $receiptVoucher->loadMissing('bankAccount', 'invoice.items', 'counterAccount');
@@ -122,7 +127,7 @@ class ReceiptVoucherController extends Controller
 
     public function show(ReceiptVoucher $receiptVoucher)
     {
-        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice.items', 'counterAccount');
+        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice.items', 'counterAccount', 'project', 'attachments');
 
         $template = $receiptVoucher->company->defaultTemplateFor('receipt_voucher');
 
@@ -279,6 +284,38 @@ class ReceiptVoucherController extends Controller
         });
 
         return back()->with('status', __('Receipt voucher voided.'));
+    }
+
+    public function storeAttachment(Request $request, ReceiptVoucher $receiptVoucher)
+    {
+        if ($rejected = $this->rejectIfStorageQuotaReached($receiptVoucher->company)) {
+            return $rejected;
+        }
+
+        $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
+
+        $file = $request->file('file');
+
+        $receiptVoucher->attachments()->create([
+            'company_id' => $receiptVoucher->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('receipt-voucher-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(ReceiptVoucher $receiptVoucher, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === ReceiptVoucher::class && $attachment->attachable_id === $receiptVoucher->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
     }
 
     private function validated(Request $request): array

@@ -41,4 +41,35 @@
     @include('documents.print.voucher-body', ['voucher' => $voucher, 'type' => 'receipt'])
     @include('documents.print.chrome-footer', ['company' => $voucher->company, 'template' => $template])
 </div>
+
+<div class="max-w-3xl bg-white rounded-xl border border-slate-100 p-6 mt-6 print:hidden">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-900">{{ __('Attachments') }}</h3>
+        <button type="button" onclick="document.getElementById('attach-file-input').click()" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Attach file') }}</button>
+        <form method="POST" action="{{ route('app.receipt-vouchers.attachments.store', $voucher) }}" enctype="multipart/form-data" id="attach-file-form" class="hidden">
+            @csrf
+            <input type="file" name="file" id="attach-file-input" onchange="document.getElementById('attach-file-form').submit()">
+        </form>
+    </div>
+    <p class="text-xs text-slate-400 mb-3">{{ __('Attach the proof for this receipt — a bank deposit slip, an ATM/transfer confirmation, a signed acknowledgement.') }}</p>
+
+    @if ($voucher->attachments->isEmpty())
+        <p class="text-sm text-slate-400">{{ __('No attachments') }}</p>
+    @else
+        <ul class="divide-y divide-slate-50">
+            @foreach ($voucher->attachments as $attachment)
+                <li class="flex items-center justify-between py-2 text-sm">
+                    <a href="{{ Storage::url($attachment->path) }}" target="_blank" class="text-brand-700 hover:underline">{{ $attachment->original_name }}</a>
+                    <div class="flex items-center gap-3 text-slate-400">
+                        <span>{{ $attachment->humanSize() }}</span>
+                        <form method="POST" action="{{ route('app.receipt-vouchers.attachments.destroy', [$voucher, $attachment]) }}" onsubmit="return confirm('{{ __('Remove this attachment?') }}')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:underline">{{ __('Remove') }}</button>
+                        </form>
+                    </div>
+                </li>
+            @endforeach
+        </ul>
+    @endif
+</div>
 @endsection

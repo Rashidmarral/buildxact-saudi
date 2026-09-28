@@ -439,10 +439,16 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
         Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.pdf');
+        Route::post('receipt-vouchers/{receiptVoucher}/attachments', [ReceiptVoucherController::class, 'storeAttachment'])->name('receipt-vouchers.attachments.store');
+        Route::delete('receipt-vouchers/{receiptVoucher}/attachments/{attachment}', [ReceiptVoucherController::class, 'destroyAttachment'])->name('receipt-vouchers.attachments.destroy');
         Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
         Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('payment-vouchers.pdf');
-        Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store']);
+        Route::post('payment-vouchers/{paymentVoucher}/attachments', [PaymentVoucherController::class, 'storeAttachment'])->name('payment-vouchers.attachments.store');
+        Route::delete('payment-vouchers/{paymentVoucher}/attachments/{attachment}', [PaymentVoucherController::class, 'destroyAttachment'])->name('payment-vouchers.attachments.destroy');
+        Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store', 'show']);
+        Route::post('bank-transfers/{bankTransfer}/attachments', [BankTransferController::class, 'storeAttachment'])->name('bank-transfers.attachments.store');
+        Route::delete('bank-transfers/{bankTransfer}/attachments/{attachment}', [BankTransferController::class, 'destroyAttachment'])->name('bank-transfers.attachments.destroy');
 
         Route::get('bank-accounts/{bankAccount}/reconciliations', [BankReconciliationController::class, 'index'])->name('bank-reconciliations.index');
         Route::get('bank-accounts/{bankAccount}/reconciliations/create', [BankReconciliationController::class, 'create'])->name('bank-reconciliations.create');

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Models\Attachment;
 use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\Client;
@@ -15,10 +17,13 @@ use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class PaymentVoucherController extends Controller
 {
+    use EnforcesStorageQuota;
+
     public function index()
     {
         $vouchers = PaymentVoucher::with('bankAccount', 'client', 'supplier')->latest('date')->latest('id')->paginate(20);
@@ -136,7 +141,7 @@ class PaymentVoucherController extends Controller
 
     public function show(PaymentVoucher $paymentVoucher)
     {
-        $paymentVoucher->load('bankAccount', 'expense', 'bill.items', 'client', 'supplier', 'counterAccount');
+        $paymentVoucher->load('bankAccount', 'expense', 'bill.items', 'client', 'supplier', 'counterAccount', 'project', 'attachments');
 
         $template = $paymentVoucher->company->defaultTemplateFor('payment_voucher');
 
@@ -315,6 +320,38 @@ class PaymentVoucherController extends Controller
         });
 
         return back()->with('status', __('Payment voucher voided.'));
+    }
+
+    public function storeAttachment(Request $request, PaymentVoucher $paymentVoucher)
+    {
+        if ($rejected = $this->rejectIfStorageQuotaReached($paymentVoucher->company)) {
+            return $rejected;
+        }
+
+        $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
+
+        $file = $request->file('file');
+
+        $paymentVoucher->attachments()->create([
+            'company_id' => $paymentVoucher->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('payment-voucher-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(PaymentVoucher $paymentVoucher, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === PaymentVoucher::class && $attachment->attachable_id === $paymentVoucher->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
     }
 
     private function validated(Request $request): array
