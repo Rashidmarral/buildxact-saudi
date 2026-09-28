@@ -91,6 +91,7 @@ use App\Http\Controllers\User\ManualJournalEntryController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\ProjectController;
+use App\Http\Controllers\User\ProjectCashFlowController;
 use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\PurchaseReturnController;
 use App\Http\Controllers\User\QuotationController;
@@ -585,6 +586,14 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('loyalty-cards', [LoyaltyCardController::class, 'store'])->name('loyalty-cards.store');
         Route::get('loyalty-cards/lookup', [LoyaltyCardController::class, 'lookup'])->name('loyalty-cards.lookup');
         Route::post('loyalty-cards/{card}/top-up', [LoyaltyCardController::class, 'topUp'])->name('loyalty-cards.top-up');
+    });
+
+    Route::middleware(['permission:project_cash_flow', 'module:project_cash_flow'])->prefix('project-cash-flow')->name('project-cash-flow.')->group(function () {
+        Route::get('/', [ProjectCashFlowController::class, 'index'])->name('index');
+        Route::get('projects/{project}', [ProjectCashFlowController::class, 'show'])->name('show');
+        Route::get('projects/{project}/pdf', [ProjectCashFlowController::class, 'pdf'])->middleware('throttle:pdf')->name('pdf');
+        Route::get('bank-accounts/{bankAccount}', [ProjectCashFlowController::class, 'bankAccountShow'])->name('bank-account.show');
+        Route::get('bank-accounts/{bankAccount}/pdf', [ProjectCashFlowController::class, 'bankAccountPdf'])->middleware('throttle:pdf')->name('bank-account.pdf');
     });
 
     Route::middleware(['permission:repair_shop', 'module:repair_shop'])->group(function () {

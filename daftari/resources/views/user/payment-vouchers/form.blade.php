@@ -72,10 +72,10 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Related expense (optional)') }}</label>
-                    <select name="expense_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <select name="expense_id" id="expense_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         <option value="">{{ __('None') }}</option>
                         @foreach ($expenses as $expense)
-                            <option value="{{ $expense->id }}" @selected(old('expense_id', $voucher->expense_id ?? null) == $expense->id)>{{ $expense->vendor_name }} — {{ \App\Support\Money::format($expense->amount) }} ({{ $expense->expense_date->format('Y-m-d') }})</option>
+                            <option value="{{ $expense->id }}" data-project-id="{{ $expense->project_id }}" @selected(old('expense_id', $voucher->expense_id ?? null) == $expense->id)>{{ $expense->vendor_name }} — {{ \App\Support\Money::format($expense->amount) }} ({{ $expense->expense_date->format('Y-m-d') }})</option>
                         @endforeach
                     </select>
                 </div>
@@ -139,6 +139,18 @@
                         <p class="mt-1 text-xs text-slate-400">{{ __('Leave on Automatic to post against Accounts Payable / Operating Expenses as usual.') }}</p>
                     </div>
                 </div>
+                @if (app(\App\Services\Features\FeatureAccessService::class)->enabled(auth()->user()->company, 'project_cash_flow'))
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Project (optional)') }}</label>
+                        <select name="project_id" id="project_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                            <option value="">{{ __('None') }}</option>
+                            @foreach ($projects as $project)
+                                <option value="{{ $project->id }}" @selected(old('project_id', $voucher->project_id ?? null) == $project->id)>{{ $project->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Tags this payment for the Project Cash Flow statement. Filled in automatically when the linked bill or expense already has a project.') }}</p>
+                    </div>
+                @endif
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Amount') }}</label>
                     <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount', $voucher->amount ?? '') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -255,12 +267,32 @@
             });
     }
 
+    // If the module is off this element doesn't exist — every call below
+    // is written to tolerate that (no project field to fill/lock at all).
+    const projectSelect = document.getElementById('project_id');
+
+    function applyProjectLock(projectId) {
+        if (!projectSelect) return;
+        if (projectId) {
+            projectSelect.value = projectId;
+            projectSelect.classList.add('pointer-events-none', 'bg-slate-100');
+        } else {
+            projectSelect.classList.remove('pointer-events-none', 'bg-slate-100');
+        }
+    }
+
     function applyBillSelection() {
         const bill = billsById[billSelect.value];
         if (!bill) {
             summaryBox.classList.add('hidden');
+            applyProjectLock(null);
             return;
         }
+
+        // A bill that already belongs to a project always wins — locks the
+        // field so this voucher can never disagree with its bill about
+        // which project the cash belongs to.
+        applyProjectLock(bill.project_id);
 
         summaryBox.classList.remove('hidden');
         summaryNumber.textContent = bill.bill_number;
@@ -286,6 +318,17 @@
     supplierSelect.addEventListener('change', () => loadBills());
     billSelect.addEventListener('change', () => applyBillSelection());
     if (supplierSelect.value) loadBills(initialBillId);
+
+    const expenseSelect = document.getElementById('expense_id');
+    if (expenseSelect) {
+        expenseSelect.addEventListener('change', () => {
+            // Only relevant while no bill is selected — a chosen bill's
+            // project already takes precedence via applyBillSelection().
+            if (billSelect.value) return;
+            const projectId = expenseSelect.selectedOptions[0]?.dataset.projectId || null;
+            applyProjectLock(projectId);
+        });
+    }
 })();
 </script>
 @endsection

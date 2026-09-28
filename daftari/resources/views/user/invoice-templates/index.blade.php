@@ -12,6 +12,7 @@
         'purchase_order' => __('Purchase orders'),
         'receipt_voucher' => __('Receipt vouchers'),
         'payment_voucher' => __('Payment vouchers'),
+        'project_cash_flow' => __('Project Cash Flow'),
     ];
 @endphp
 

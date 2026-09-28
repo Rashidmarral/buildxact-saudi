@@ -18,7 +18,7 @@ class InvoiceTemplateController extends Controller
 {
     private const TYPES = [
         'all', 'invoice', 'quotation', 'proforma', 'bill', 'purchase_order',
-        'receipt_voucher', 'payment_voucher',
+        'receipt_voucher', 'payment_voucher', 'project_cash_flow',
     ];
 
     private const LAYOUTS = ['minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead', 'quotation_offer'];

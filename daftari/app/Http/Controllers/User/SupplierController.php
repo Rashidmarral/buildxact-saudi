@@ -64,6 +64,7 @@ class SupplierController extends Controller
                 'date' => $bill->bill_date->format('Y-m-d'),
                 'total' => number_format((float) $bill->total, 2),
                 'balance' => number_format($bill->balanceDue(), 2),
+                'project_id' => $bill->project_id,
                 'items' => $bill->items->map(fn ($line) => [
                     'description' => $line->description,
                     'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),

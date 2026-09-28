@@ -133,6 +133,7 @@ class PlanController extends Controller
         $data['has_restaurant'] = $request->boolean('has_restaurant');
         $data['has_repair_shop'] = $request->boolean('has_repair_shop');
         $data['has_coffee_shop'] = $request->boolean('has_coffee_shop');
+        $data['has_project_cash_flow'] = $request->boolean('has_project_cash_flow');
 
         return $data;
     }

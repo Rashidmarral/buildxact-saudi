@@ -35,6 +35,18 @@
                 <input type="date" name="date" value="{{ old('date', now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
+        @if (app(\App\Services\Features\FeatureAccessService::class)->enabled(auth()->user()->company, 'project_cash_flow'))
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Project (optional)') }}</label>
+                <select name="project_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('None') }}</option>
+                    @foreach ($projects as $project)
+                        <option value="{{ $project->id }}" @selected(old('project_id') == $project->id)>{{ $project->name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-400">{{ __('Tags this transfer for the Project Cash Flow statement.') }}</p>
+            </div>
+        @endif
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Notes') }}</label>
             <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes') }}</textarea>

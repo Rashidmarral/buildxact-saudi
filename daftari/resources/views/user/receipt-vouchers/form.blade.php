@@ -129,6 +129,18 @@
                         <p class="mt-1 text-xs text-slate-400">{{ __('Leave on Automatic to post against Accounts Receivable / Other Income as usual.') }}</p>
                     </div>
                 </div>
+                @if (app(\App\Services\Features\FeatureAccessService::class)->enabled(auth()->user()->company, 'project_cash_flow'))
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Project (optional)') }}</label>
+                        <select name="project_id" id="project_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                            <option value="">{{ __('None') }}</option>
+                            @foreach ($projects as $project)
+                                <option value="{{ $project->id }}" @selected(old('project_id', $voucher->project_id ?? null) == $project->id)>{{ $project->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Tags this receipt for the Project Cash Flow statement. Filled in automatically when the linked invoice already has a project.') }}</p>
+                    </div>
+                @endif
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Amount') }}</label>
                     <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount', $voucher->amount ?? '') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -246,11 +258,30 @@
             });
     }
 
+    // If the module is off this element doesn't exist — every call below
+    // is written to tolerate that (no project field to fill/lock at all).
+    const projectSelect = document.getElementById('project_id');
+
     function applyInvoiceSelection() {
         const invoice = invoicesById[invoiceSelect.value];
         if (!invoice) {
             summaryBox.classList.add('hidden');
+            if (projectSelect) projectSelect.classList.remove('pointer-events-none', 'bg-slate-100');
             return;
+        }
+
+        // An invoice that already belongs to a project always wins — locks
+        // the field (visually, not via `disabled`, which would drop it
+        // from the submitted form data) so this voucher can never disagree
+        // with its invoice about which project the cash belongs to. An
+        // invoice with no project leaves the choice free.
+        if (projectSelect) {
+            if (invoice.project_id) {
+                projectSelect.value = invoice.project_id;
+                projectSelect.classList.add('pointer-events-none', 'bg-slate-100');
+            } else {
+                projectSelect.classList.remove('pointer-events-none', 'bg-slate-100');
+            }
         }
 
         summaryBox.classList.remove('hidden');

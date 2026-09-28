@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\BankTransfer;
+use App\Models\Project;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,7 @@ class BankTransferController extends Controller
     {
         return view('user.bank-transfers.form', [
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
         ]);
     }
 
@@ -34,6 +36,7 @@ class BankTransferController extends Controller
         $data = $request->validate([
             'from_bank_account_id' => ['required', 'different:to_bank_account_id', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
             'to_bank_account_id' => ['required', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'date' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],

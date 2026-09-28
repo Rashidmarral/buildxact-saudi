@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\Project;
 use App\Models\ReceiptVoucher;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
@@ -52,6 +53,7 @@ class ReceiptVoucherController extends Controller
             'clients' => $clients,
             'suppliers' => $suppliers,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'projects' => Project::orderBy('name')->get(),
             'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
                 'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
                 'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
@@ -87,6 +89,7 @@ class ReceiptVoucherController extends Controller
 
             $voucher = ReceiptVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
@@ -144,6 +147,7 @@ class ReceiptVoucherController extends Controller
             'clients' => $clients,
             'suppliers' => $suppliers,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'projects' => Project::orderBy('name')->get(),
             'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
                 'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
                 'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
@@ -163,6 +167,7 @@ class ReceiptVoucherController extends Controller
                 'date' => $receiptVoucher->invoice->issue_date->format('Y-m-d'),
                 'total' => number_format((float) $receiptVoucher->invoice->total, 2),
                 'balance' => number_format($receiptVoucher->invoice->balanceDue(), 2),
+                'project_id' => $receiptVoucher->invoice->project_id,
                 'items' => $receiptVoucher->invoice->items->map(fn ($line) => [
                     'description' => $line->description,
                     'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),
@@ -216,6 +221,7 @@ class ReceiptVoucherController extends Controller
 
             $receiptVoucher->update([
                 'bank_account_id' => $data['bank_account_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
@@ -286,6 +292,7 @@ class ReceiptVoucherController extends Controller
             'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
             'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'date' => ['required', 'date'],
             'payer_name' => ['required', 'string', 'max:255'],
             'party_name_ar' => ['nullable', 'string', 'max:255'],

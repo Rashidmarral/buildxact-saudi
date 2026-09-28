@@ -8,6 +8,7 @@ use App\Models\Bill;
 use App\Models\Client;
 use App\Models\Expense;
 use App\Models\PaymentVoucher;
+use App\Models\Project;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
@@ -54,6 +55,7 @@ class PaymentVoucherController extends Controller
             'suppliers' => $suppliers,
             'clients' => $clients,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'projects' => Project::orderBy('name')->get(),
             'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
                 'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
                 'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
@@ -99,6 +101,7 @@ class PaymentVoucherController extends Controller
 
             $voucher = PaymentVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
@@ -164,6 +167,7 @@ class PaymentVoucherController extends Controller
             'suppliers' => $suppliers,
             'clients' => $clients,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'projects' => Project::orderBy('name')->get(),
             'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
                 'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
                 'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
@@ -183,6 +187,7 @@ class PaymentVoucherController extends Controller
                 'date' => $paymentVoucher->bill->bill_date->format('Y-m-d'),
                 'total' => number_format((float) $paymentVoucher->bill->total, 2),
                 'balance' => number_format($paymentVoucher->bill->balanceDue(), 2),
+                'project_id' => $paymentVoucher->bill->project_id,
                 'items' => $paymentVoucher->bill->items->map(fn ($line) => [
                     'description' => $line->description,
                     'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),
@@ -246,6 +251,7 @@ class PaymentVoucherController extends Controller
 
             $paymentVoucher->update([
                 'bank_account_id' => $data['bank_account_id'],
+                'project_id' => $data['project_id'] ?? null,
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
@@ -323,6 +329,7 @@ class PaymentVoucherController extends Controller
             'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'expense_id' => ['nullable', Rule::exists('expenses', 'id')->where('company_id', $companyId)],
             'bill_id' => ['nullable', Rule::exists('bills', 'id')->where('company_id', $companyId)],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'date' => ['required', 'date'],
             'payee_name' => ['required', 'string', 'max:255'],
             'party_name_ar' => ['nullable', 'string', 'max:255'],

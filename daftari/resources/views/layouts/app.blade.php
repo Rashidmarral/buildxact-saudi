@@ -182,6 +182,20 @@
                     </details>
                 @endif
 
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'project_cash_flow'))
+                    @php($projectCashFlowActive = request()->routeIs('app.project-cash-flow.*'))
+                    <details class="group" @if($projectCashFlowActive) open @endif>
+                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $projectCashFlowActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
+                            <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'trend-up', 'class' => 'h-[18px] w-[18px]'])</span>
+                            <span class="flex-1 font-medium">{{ __('Project Cash Flow') }}</span>
+                            <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
+                        </summary>
+                        <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
+                            @include('partials.nav-subitem', ['route' => 'app.project-cash-flow.index', 'label' => __('Cash Flow Statement')])
+                        </div>
+                    </details>
+                @endif
+
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'repair_shop'))
                     @php($repairShopActive = request()->routeIs('app.repair-jobs.*'))
                     <details class="group" @if($repairShopActive) open @endif>

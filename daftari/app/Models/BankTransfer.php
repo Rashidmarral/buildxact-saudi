@@ -11,7 +11,7 @@ class BankTransfer extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'from_bank_account_id', 'to_bank_account_id', 'created_by',
+        'company_id', 'from_bank_account_id', 'to_bank_account_id', 'project_id', 'created_by',
         'amount', 'date', 'notes',
     ];
 
@@ -28,5 +28,10 @@ class BankTransfer extends Model
     public function toAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class, 'to_bank_account_id');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 }

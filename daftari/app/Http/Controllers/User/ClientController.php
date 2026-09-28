@@ -112,6 +112,7 @@ class ClientController extends Controller
                 'date' => $invoice->issue_date->format('Y-m-d'),
                 'total' => number_format((float) $invoice->total, 2),
                 'balance' => number_format($invoice->balanceDue(), 2),
+                'project_id' => $invoice->project_id,
                 'items' => $invoice->items->map(fn ($line) => [
                     'description' => $line->description,
                     'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),

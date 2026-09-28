@@ -12,7 +12,7 @@ class PaymentVoucher extends Model
     use BelongsToCompany, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'bank_account_id', 'party_type', 'client_id', 'supplier_id', 'counter_account_id',
+        'company_id', 'bank_account_id', 'project_id', 'party_type', 'client_id', 'supplier_id', 'counter_account_id',
         'expense_id', 'bill_id', 'bill_payment_id', 'created_by', 'voucher_number', 'date', 'payee_name',
         'party_name_ar', 'party_vat_number', 'party_phone', 'party_email', 'party_address',
         'amount', 'wht_amount', 'method', 'reference', 'notes', 'status',
@@ -26,6 +26,11 @@ class PaymentVoucher extends Model
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function client(): BelongsTo
