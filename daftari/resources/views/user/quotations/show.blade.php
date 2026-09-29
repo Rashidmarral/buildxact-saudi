@@ -111,7 +111,10 @@
     @include('documents.print.body', ['doc' => $doc, 'company' => $quotation->company, 'template' => $template])
 </div>
 
-@if ($quotation->status === 'accepted' || $quotation->is_staged)
+@php
+    $canRetroactivelyStage = $quotation->status === 'converted' && ! $quotation->is_staged && $quotation->converted_invoice_id;
+@endphp
+@if ($quotation->status === 'accepted' || $quotation->is_staged || $canRetroactivelyStage)
     <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
         <div class="flex items-center justify-between mb-1">
             <h3 class="font-semibold text-slate-900">{{ __('Payment Plan') }}</h3>
@@ -121,7 +124,13 @@
                 <button type="button" onclick="document.getElementById('payment-plan-builder').classList.toggle('hidden')" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Edit plan') }}</button>
             @endif
         </div>
-        <p class="text-sm text-slate-500 mb-4">{{ __('Split this quotation\'s total into stages — advance payment, then progress payments — and generate one invoice per stage whenever you\'re ready to bill it.') }}</p>
+        @if ($canRetroactivelyStage)
+            <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                {{ __('This quotation was already converted to invoice :number for the full amount. Setting up a payment plan will automatically issue a credit note reducing it down to stage 1\'s own share, then let you generate separate invoices for the remaining stages.', ['number' => $quotation->convertedInvoice->invoice_number]) }}
+            </div>
+        @else
+            <p class="text-sm text-slate-500 mb-4">{{ __('Split this quotation\'s total into stages — advance payment, then progress payments — and generate one invoice per stage whenever you\'re ready to bill it.') }}</p>
+        @endif
 
         @if ($quotation->is_staged)
             <div class="divide-y divide-slate-50 mb-4">

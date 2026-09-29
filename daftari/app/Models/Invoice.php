@@ -259,9 +259,17 @@ class Invoice extends Model
         $this->save();
     }
 
+    /**
+     * A credit note issued against this invoice reduces what the client
+     * actually still owes — it previously didn't, since this only
+     * subtracted amount_paid, leaving a credited invoice's displayed
+     * balance wrong (the exact CreditNoteController eligibility check,
+     * remainingCreditableTotal(), already accounted for credits; this
+     * did not).
+     */
     public function balanceDue(): float
     {
-        return round((float) $this->total - (float) $this->amount_paid, 2);
+        return round((float) $this->total - (float) $this->amount_paid - $this->creditedTotal(), 2);
     }
 
     public function isFullyPaid(): bool

@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\CreditNote;
 use App\Models\Invoice;
 use App\Models\Quotation;
 use App\Models\QuotationPaymentPlanStage;
@@ -35,12 +36,22 @@ class QuotationPaymentPlanTest extends TestCase
 
     private function makeAcceptedQuotation(Company $company, Client $client): Quotation
     {
-        return Quotation::create([
+        $quotation = Quotation::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'quotation_number' => 'QTN-00003',
             'type' => 'quotation', 'status' => 'accepted', 'accepted_at' => now(), 'accepted_by_name' => 'Client Co.',
             'issue_date' => now()->toDateString(), 'currency' => 'SAR',
             'subtotal' => 625000, 'vat_total' => 93750, 'total' => 718750,
         ]);
+
+        // A real quotation always has line items — needed so
+        // convertToInvoice() (which copies quotation items onto the new
+        // invoice) produces an invoice with a non-zero total.
+        $quotation->items()->create([
+            'description' => 'Asphalt paving works', 'quantity' => 1, 'unit_price' => 625000,
+            'vat_rate' => 15, 'vat_amount' => 93750, 'line_total' => 718750, 'sort_order' => 0,
+        ]);
+
+        return $quotation;
     }
 
     private function makeOwner(Company $company): User
@@ -258,6 +269,129 @@ class QuotationPaymentPlanTest extends TestCase
         // Company A can't even resolve quotationB via route-model binding
         // (BelongsToCompany scopes it out of their company), so this 404s.
         $response = $this->actingAs($ownerA)->post(route('app.quotations.payment-plan.generate-invoice', [$quotationB, $stage]));
+        $response->assertNotFound();
+    }
+
+    /**
+     * The real-world scenario that prompted this feature: the user
+     * plainly converted QTN-00003 (no staging set up yet), recorded the
+     * client's 20% advance payment straight on that one invoice, then
+     * only afterwards wanted to switch to the 5-stage plan already
+     * written into the quotation's own payment terms. The system must
+     * credit the existing invoice down to stage 1's own share so it
+     * isn't left billing the full amount alongside four new stage
+     * invoices.
+     */
+    public function test_retroactively_staging_an_already_converted_quotation_credits_the_existing_invoice_down_to_stage_one(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client Co.']);
+        $quotation = $this->makeAcceptedQuotation($company, $client);
+
+        $this->actingAs($owner)->post(route('app.quotations.convert', $quotation));
+        $invoice = Invoice::latest('id')->first();
+        $this->assertFalse($quotation->fresh()->is_staged);
+
+        // The client's 20% advance, recorded on the plain invoice before
+        // staging existed for this quotation.
+        $payResponse = $this->actingAs($owner)->post(route('app.invoices.payments.store', $invoice), [
+            'amount' => 143750,
+            'paid_at' => now()->toDateString(),
+            'method' => 'bank_transfer',
+        ]);
+        $payResponse->assertSessionDoesntHaveErrors();
+        $this->assertSame('partially_paid', $invoice->fresh()->status);
+
+        $response = $this->actingAs($owner)->post(route('app.quotations.payment-plan.store', $quotation), [
+            'stages' => [
+                ['description' => 'Advance payment upon signing', 'percentage' => 20],
+                ['description' => 'Upon completion of Subgrade Leveling & Preparation', 'percentage' => 30],
+                ['description' => 'Upon completion of Aggregate Base Course', 'percentage' => 30],
+                ['description' => 'Upon completion of Asphalt + MC-1', 'percentage' => 15],
+                ['description' => 'Final payment upon handover', 'percentage' => 5],
+            ],
+        ]);
+
+        $response->assertSessionDoesntHaveErrors();
+
+        $quotation->refresh();
+        $this->assertTrue($quotation->is_staged);
+        // Four stages remain to be invoiced — still 'accepted', not yet
+        // fully converted.
+        $this->assertSame('accepted', $quotation->status);
+        $this->assertCount(5, $quotation->paymentPlanStages);
+
+        $stage1 = $quotation->paymentPlanStages->first();
+        $this->assertSame($invoice->id, $stage1->invoice_id);
+        $this->assertNotNull($stage1->invoiced_at);
+
+        // 80% of 718,750 credited off — the invoice now only covers
+        // stage 1's own 143,750 share.
+        $creditNote = CreditNote::where('invoice_id', $invoice->id)->first();
+        $this->assertNotNull($creditNote);
+        $this->assertEqualsWithDelta(575000, (float) $creditNote->total, 0.01);
+        $this->assertSame('issued', $creditNote->status);
+
+        // The 143,750 already paid now exactly covers the invoice's
+        // credited-down total — balanceDue() nets to zero, so the
+        // invoice is fully paid.
+        $invoice->refresh();
+        $this->assertEqualsWithDelta(0, $invoice->balanceDue(), 0.01);
+        $this->assertSame('paid', $invoice->status);
+
+        // Stages 2-5 are still open and can be invoiced independently.
+        $remainingStages = $quotation->paymentPlanStages->skip(1);
+        $this->assertCount(4, $remainingStages);
+        $this->assertTrue($remainingStages->every(fn ($s) => is_null($s->invoice_id)));
+
+        $stage2 = $remainingStages->first();
+        $stageResponse = $this->actingAs($owner)->post(route('app.quotations.payment-plan.generate-invoice', [$quotation, $stage2]));
+        $stage2Invoice = Invoice::latest('id')->first();
+        $stageResponse->assertRedirect(route('app.invoices.show', $stage2Invoice));
+        $this->assertEqualsWithDelta(215625, (float) $stage2Invoice->total, 0.01);
+    }
+
+    public function test_retroactive_staging_needs_no_credit_note_when_stage_one_is_the_full_amount(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client Co.']);
+        $quotation = $this->makeAcceptedQuotation($company, $client);
+
+        $this->actingAs($owner)->post(route('app.quotations.convert', $quotation));
+        $invoice = Invoice::latest('id')->first();
+
+        $response = $this->actingAs($owner)->post(route('app.quotations.payment-plan.store', $quotation), [
+            'stages' => [['description' => 'Full amount', 'percentage' => 100]],
+        ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertSame(0, CreditNote::where('invoice_id', $invoice->id)->count());
+
+        $stage = $quotation->fresh()->paymentPlanStages->first();
+        $this->assertSame($invoice->id, $stage->invoice_id);
+        // A single 100% stage means the quotation is already fully
+        // staged-invoiced — mirrors the fresh-staging flow's own
+        // "converted once every stage is invoiced" rule.
+        $this->assertSame('converted', $quotation->fresh()->status);
+    }
+
+    public function test_a_draft_quotation_cannot_set_up_a_payment_plan(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client Co.']);
+        $quotation = Quotation::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'quotation_number' => 'QTN-00099',
+            'type' => 'quotation', 'status' => 'draft', 'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+            'subtotal' => 1000, 'vat_total' => 150, 'total' => 1150,
+        ]);
+
+        $response = $this->actingAs($owner)->post(route('app.quotations.payment-plan.store', $quotation), [
+            'stages' => [['description' => 'Full amount', 'percentage' => 100]],
+        ]);
+
         $response->assertNotFound();
     }
 }

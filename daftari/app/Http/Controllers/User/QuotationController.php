@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
+use App\Jobs\SyncCreditNoteToZatca;
 use App\Mail\QuotationMail;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Client;
+use App\Models\CreditNote;
+use App\Models\CreditNoteItem;
 use App\Models\Invoice;
 use App\Models\Item;
 use App\Models\Project;
@@ -22,6 +25,7 @@ use App\Models\TaxRate;
 use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\GenericNotification;
+use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -492,11 +496,20 @@ class QuotationController extends Controller
      * for a quotation billed in installments (advance + progress payments)
      * rather than one invoice for the full amount. Each stage is invoiced
      * independently later via generateStageInvoice(), so nothing here
-     * creates an Invoice yet.
+     * creates an Invoice yet — EXCEPT the retroactive case below.
+     *
+     * A quotation already converted via the plain convertToInvoice() path
+     * (status='converted', not staged) can still opt into staging after
+     * the fact. That single existing invoice already bills 100% of the
+     * job, so it can't just sit alongside new stage invoices — it's
+     * credited down to stage one's own share via reduceInvoiceToStageOne()
+     * and linked as that stage, before any further stages can be raised.
      */
     public function storePaymentPlan(Request $request, Quotation $quotation)
     {
-        abort_unless($quotation->status === 'accepted', 404);
+        $isRetroactive = $quotation->status === 'converted' && ! $quotation->is_staged && $quotation->converted_invoice_id;
+
+        abort_unless($quotation->status === 'accepted' || $isRetroactive, 404);
 
         if ($quotation->paymentPlanIsLocked()) {
             return back()->withErrors(['stages' => __('This payment plan can no longer be edited — one of its stages has already been invoiced.')]);
@@ -513,11 +526,12 @@ class QuotationController extends Controller
             return back()->withErrors(['stages' => __('Stage percentages must add up to 100% (currently :sum%).', ['sum' => rtrim(rtrim(number_format($sum, 2), '0'), '.')])])->withInput();
         }
 
-        DB::transaction(function () use ($quotation, $data) {
+        DB::transaction(function () use ($quotation, $data, $isRetroactive) {
             $quotation->paymentPlanStages()->delete();
 
+            $stages = [];
             foreach ($data['stages'] as $i => $stage) {
-                $quotation->paymentPlanStages()->create([
+                $stages[] = $quotation->paymentPlanStages()->create([
                     'company_id' => $quotation->company_id,
                     'sort_order' => $i,
                     'description' => $stage['description'],
@@ -526,12 +540,94 @@ class QuotationController extends Controller
                 ]);
             }
 
-            $quotation->update(['is_staged' => true]);
+            // Normally still 'accepted' here — at least one un-invoiced
+            // stage remains, and generateStageInvoice() flips it to
+            // 'converted' once every stage is done, matching the
+            // fresh-staging path. The one exception is a retroactive
+            // single 100% stage: reduceInvoiceToStageOne() immediately
+            // links it to the already-existing invoice, so the quotation
+            // is already fully stage-invoiced by the time this returns.
+            $quotation->update(['is_staged' => true, 'status' => 'accepted']);
+
+            if ($isRetroactive) {
+                $this->reduceInvoiceToStageOne($quotation, $stages[0]);
+            }
+
+            if ($quotation->fresh()->isFullyStageInvoiced()) {
+                $quotation->update(['status' => 'converted']);
+            }
         });
 
         AuditLog::record('quotation.payment_plan_set', $quotation, __('Set up a :count-stage payment plan for :number', ['count' => count($data['stages']), 'number' => $quotation->quotation_number]));
 
         return back()->with('status', __('Payment plan saved.'));
+    }
+
+    /**
+     * The retroactive-staging case: the quotation's one existing invoice
+     * (from a plain convertToInvoice()) bills 100% of the job. Credits it
+     * down to just stage one's share via a Credit Note — the ZATCA-
+     * compliant way to reduce an already-issued invoice, rather than
+     * editing its total directly — then links it as that stage.
+     */
+    private function reduceInvoiceToStageOne(Quotation $quotation, QuotationPaymentPlanStage $stage): void
+    {
+        $invoice = $quotation->convertedInvoice()->firstOrFail();
+        $creditAmount = round((float) $invoice->total - $stage->amount(), 2);
+
+        if ($creditAmount > 0.01) {
+            $company = $invoice->company;
+            $vatRate = $invoice->subtotal > 0
+                ? round(((float) $invoice->vat_total / (float) $invoice->subtotal) * 100, 2)
+                : 15.0;
+            $creditSubtotal = round($creditAmount / (1 + $vatRate / 100), 2);
+
+            $creditNote = CreditNote::create([
+                'invoice_id' => $invoice->id,
+                'client_id' => $invoice->client_id,
+                'branch_id' => $invoice->branch_id,
+                'created_by' => Auth::id(),
+                'credit_note_number' => $company->nextCreditNoteNumber(),
+                'issue_date' => now()->toDateString(),
+                'reason' => __('Switched to staged billing — this invoice now covers only stage 1 (":description", :percentage% of :number). See the remaining stages on the quotation.', [
+                    'description' => $stage->description,
+                    'percentage' => rtrim(rtrim(number_format((float) $stage->percentage, 2), '0'), '.'),
+                    'number' => $quotation->quotation_number,
+                ]),
+                'status' => 'issued',
+                'currency' => $invoice->currency,
+                'exchange_rate' => $invoice->exchange_rate,
+            ]);
+
+            $item = new CreditNoteItem([
+                'credit_note_id' => $creditNote->id,
+                'description' => __('Adjustment for staged billing — remaining stages of :number', ['number' => $quotation->quotation_number]),
+                'quantity' => 1,
+                'unit_price' => $creditSubtotal,
+                'vat_rate' => $vatRate,
+            ]);
+            $item->recalculate();
+            $item->save();
+
+            $creditNote->recalculateTotals();
+
+            app(LedgerPostingService::class)->postCreditNote($creditNote);
+
+            AuditLog::record('credit_note.create', $creditNote, __('Issued credit note :number for :invoice (switched :quotation to staged billing)', [
+                'number' => $creditNote->credit_note_number, 'invoice' => $invoice->invoice_number, 'quotation' => $quotation->quotation_number,
+            ]));
+
+            if ($company->zatca_sync_frequency === 'instant') {
+                SyncCreditNoteToZatca::dispatch($creditNote->id);
+            }
+        }
+
+        // creditedTotal() reads the credit note just created above fresh
+        // from the database, so balanceDue()/isFullyPaid() already
+        // reflect it without needing $invoice->fresh().
+        $invoice->update(['status' => $invoice->isFullyPaid() ? 'paid' : 'partially_paid']);
+
+        $stage->update(['invoice_id' => $invoice->id, 'invoiced_at' => now()]);
     }
 
     /**
