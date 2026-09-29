@@ -185,7 +185,13 @@
             @csrf
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Amount') }}</label>
-                <input type="number" step="0.01" min="0.01" max="{{ $invoice->balanceDue() }}" name="amount" value="{{ $invoice->balanceDue() }}" required class="mt-1 w-32 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <div class="mt-1 flex items-center gap-1">
+                    @foreach ([20, 25, 50, 100] as $pct)
+                        <button type="button" onclick="setPaymentPercent({{ $pct }})" class="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:border-brand-300 hover:text-brand-700">{{ $pct }}%</button>
+                    @endforeach
+                    <input type="number" id="payment-custom-percent" placeholder="{{ __('Custom %') }}" step="0.01" min="0.01" max="100" oninput="setPaymentPercent(this.value)" class="w-16 rounded-md border border-slate-200 text-[11px] px-1.5 py-0.5 focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <input type="number" step="0.01" min="0.01" max="{{ $invoice->balanceDue() }}" name="amount" id="payment-amount" value="{{ $invoice->balanceDue() }}" required class="mt-1 w-32 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Date') }}</label>
@@ -213,6 +219,16 @@
             @endif
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Record payment') }}</button>
         </form>
+        <p class="text-xs text-slate-400 mt-3">{{ __('Percentages apply to the invoice total and fill in the amount below — edit it directly for any other figure. Recording a payment sets this invoice\'s status to Partially paid or Paid automatically.') }}</p>
+        <script>
+            function setPaymentPercent(pct) {
+                const total = {{ (float) $invoice->total }};
+                const balanceDue = {{ (float) $invoice->balanceDue() }};
+                const pctValue = parseFloat(pct) || 0;
+                const amount = Math.min(balanceDue, Math.round(total * pctValue / 100 * 100) / 100);
+                document.getElementById('payment-amount').value = amount > 0 ? amount.toFixed(2) : '';
+            }
+        </script>
     @endif
 </div>
 
