@@ -476,4 +476,38 @@ class MachineryModuleTest extends \Tests\TestCase
         $labels = collect($response->json('groups'))->pluck('label');
         $this->assertFalse($labels->contains(__('Machinery & Equipment')));
     }
+
+    // ------------------------------------------------------------------
+    // Dashboard charts — the first paid-module presence on the main
+    // dashboard, so this both proves the data shape and guards the gate.
+    // ------------------------------------------------------------------
+
+    public function test_dashboard_shows_machinery_charts_only_when_the_module_is_enabled(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Renter Co.']);
+        $asset = MachineryAsset::create(['company_id' => $company->id, 'asset_code' => 'EQ-DASH1', 'name' => 'Dash Paver', 'status' => 'rented_out']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'machinery_asset_id' => $asset->id,
+            'invoice_number' => 'INV-DASH1', 'status' => 'sent', 'issue_date' => now(), 'due_date' => now()->addDays(30),
+            'subtotal' => 1000, 'vat_total' => 150, 'total' => 1150, 'currency' => 'SAR',
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('app.dashboard'));
+        $response->assertOk()->assertSee(__('Machinery Revenue vs. Cost'))->assertSee(__('Fleet Status'));
+
+        $charts = $response->original->getData()['charts'];
+        $this->assertTrue($charts['machineryEnabled']);
+        $this->assertSame('Dash Paver', $charts['machineryTopMachines'][0]['label']);
+        $this->assertEqualsWithDelta(1150, $charts['machineryTopMachines'][0]['revenue'], 0.01);
+        $this->assertSame(1, $charts['machineryFleetStatus']->firstWhere('label', __('Rented out'))['count']);
+        $this->assertEqualsWithDelta(1150, end($charts['machineryRevenueTrend']['revenue']), 0.01);
+
+        $withoutModule = $this->makeCompany(withModule: false);
+        $ownerWithout = $this->makeOwner($withoutModule);
+        $response = $this->actingAs($ownerWithout)->get(route('app.dashboard'));
+        $response->assertOk()->assertDontSee(__('Machinery Revenue vs. Cost'));
+        $this->assertFalse($response->original->getData()['charts']['machineryEnabled']);
+    }
 }

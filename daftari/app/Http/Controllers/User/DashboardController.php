@@ -11,7 +11,9 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoicePayment;
 use App\Models\Item;
+use App\Models\MachineryAsset;
 use App\Models\Quotation;
+use App\Services\Features\FeatureAccessService;
 use App\Services\Reports\FinancialReportService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
@@ -46,6 +48,17 @@ class DashboardController extends Controller
 
         $aging = $this->receivablesAging();
         $charts = $this->charts();
+
+        // First paid-module presence on this dashboard — gated the same
+        // way the routes themselves are (permission + the company's plan
+        // or an admin override actually carrying the feature), so the
+        // section never appears for a company that hasn't installed it.
+        $charts['machineryEnabled'] = Auth::user()->hasPermission('machinery_equipment')
+            && app(FeatureAccessService::class)->enabled($company, 'machinery_equipment');
+
+        if ($charts['machineryEnabled']) {
+            $charts = array_merge($charts, $this->machineryCharts());
+        }
 
         $checklist = [
             ['label' => __('Add your company logo'), 'done' => (bool) $company->logo_path, 'route' => 'app.settings.index'],
@@ -167,6 +180,58 @@ class DashboardController extends Controller
             'topItems' => $topItems,
             'topCustomers' => $topCustomers,
             'paymentMethods' => $paymentMethods,
+        ];
+    }
+
+    /**
+     * Fleet status breakdown, revenue vs. running cost per machine, and a
+     * 6-month rental/sale revenue trend — mirrors charts()'s own
+     * fetch-then-group-in-PHP approach rather than a driver-specific SQL
+     * GROUP BY.
+     */
+    private function machineryCharts(): array
+    {
+        $statusLabels = [
+            'available' => __('Available'), 'rented_out' => __('Rented out'), 'deployed' => __('Deployed'),
+            'maintenance' => __('Maintenance'), 'sold' => __('Sold'), 'retired' => __('Retired'),
+        ];
+
+        $countsByStatus = MachineryAsset::get(['status'])->countBy('status');
+        $fleetStatus = collect($statusLabels)
+            ->map(fn ($label, $key) => ['label' => $label, 'count' => (int) ($countsByStatus[$key] ?? 0)])
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values();
+
+        $topMachines = MachineryAsset::orderBy('name')->get()
+            ->map(fn (MachineryAsset $asset) => [
+                'label' => $asset->name,
+                'revenue' => round($asset->totalRevenue(), 2),
+                'cost' => round($asset->totalRunningCost(), 2),
+            ])
+            ->sortByDesc('revenue')
+            ->take(8)
+            ->values();
+
+        $since6Months = now()->subMonths(5)->startOfMonth();
+        $months = collect(range(5, 0))->map(fn ($i) => now()->subMonths($i)->format('Y-m'));
+        $monthLabels = $months->map(fn ($m) => Carbon::createFromFormat('Y-m', $m)->translatedFormat('M Y'));
+
+        $revenueByMonth = Invoice::whereNotNull('machinery_asset_id')
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->where('issue_date', '>=', $since6Months)
+            ->get(['issue_date', 'total'])
+            ->groupBy(fn ($i) => $i->issue_date->format('Y-m'))
+            ->map->sum('total');
+
+        $revenueTrend = [
+            'labels' => $monthLabels->all(),
+            'revenue' => $months->map(fn ($m) => round((float) ($revenueByMonth[$m] ?? 0), 2))->all(),
+        ];
+
+        return [
+            'machineryFleetStatus' => $fleetStatus,
+            'machineryTopMachines' => $topMachines,
+            'machineryRevenueTrend' => $revenueTrend,
         ];
     }
 }

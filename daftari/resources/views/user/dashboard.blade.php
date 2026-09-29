@@ -140,6 +140,46 @@
     </div>
 </div>
 
+@if ($charts['machineryEnabled'])
+    <div class="mt-5 grid gap-5 lg:grid-cols-3">
+        <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card lg:col-span-2">
+            <h2 class="mb-1 font-semibold text-slate-900">{{ __('Machinery Revenue vs. Cost') }}</h2>
+            <p class="mb-4 text-sm text-slate-500">{{ __('Top machines by revenue, all time.') }}</p>
+            @if ($charts['machineryTopMachines']->isEmpty())
+                <p class="flex h-72 items-center justify-center text-sm text-slate-400">{{ __('No machinery revenue or cost recorded yet.') }}</p>
+            @else
+                <div class="h-72">
+                    <canvas id="chart-machinery-top"></canvas>
+                </div>
+            @endif
+        </div>
+
+        <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
+            <h2 class="mb-1 font-semibold text-slate-900">{{ __('Fleet Status') }}</h2>
+            <p class="mb-4 text-sm text-slate-500">{{ __('Every machine, right now.') }}</p>
+            @if ($charts['machineryFleetStatus']->isEmpty())
+                <p class="flex h-56 items-center justify-center text-sm text-slate-400">{{ __('No machinery registered yet.') }}</p>
+            @else
+                <div class="h-56">
+                    <canvas id="chart-machinery-fleet-status"></canvas>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <div class="mt-5 rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
+        <h2 class="mb-1 font-semibold text-slate-900">{{ __('Machinery Revenue Trend') }}</h2>
+        <p class="mb-4 text-sm text-slate-500">{{ __('Rental and sale invoices tagged to a machine, last 6 months.') }}</p>
+        @if (array_sum($charts['machineryRevenueTrend']['revenue']) <= 0)
+            <p class="flex h-64 items-center justify-center text-sm text-slate-400">{{ __('No machinery revenue recorded in this period.') }}</p>
+        @else
+            <div class="h-64">
+                <canvas id="chart-machinery-revenue-trend"></canvas>
+            </div>
+        @endif
+    </div>
+@endif
+
 <div class="mt-5 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">
     <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
         <h2 class="font-semibold text-slate-900">{{ __('Recent invoices') }}</h2>
@@ -237,6 +277,49 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 11 } } } } },
         });
+    @endif
+
+    @if ($charts['machineryEnabled'])
+        @if ($charts['machineryTopMachines']->isNotEmpty())
+            const machineryTop = @json($charts['machineryTopMachines']);
+            new Chart(document.getElementById('chart-machinery-top'), {
+                type: 'bar',
+                data: {
+                    labels: machineryTop.map(m => m.label),
+                    datasets: [
+                        { label: @js(__('Revenue')), data: machineryTop.map(m => m.revenue), backgroundColor: '#1ab27e', borderRadius: 6, maxBarThickness: 28 },
+                        { label: @js(__('Running cost')), data: machineryTop.map(m => m.cost), backgroundColor: '#f43f5e', borderRadius: 6, maxBarThickness: 28 },
+                    ],
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
+            });
+        @endif
+
+        @if ($charts['machineryFleetStatus']->isNotEmpty())
+            const fleetStatus = @json($charts['machineryFleetStatus']);
+            new Chart(document.getElementById('chart-machinery-fleet-status'), {
+                type: 'doughnut',
+                data: {
+                    labels: fleetStatus.map(s => s.label),
+                    datasets: [{ data: fleetStatus.map(s => s.count), backgroundColor: palette, borderWidth: 0 }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 11 } } } } },
+            });
+        @endif
+
+        @if (array_sum($charts['machineryRevenueTrend']['revenue']) > 0)
+            const machineryTrend = @json($charts['machineryRevenueTrend']);
+            new Chart(document.getElementById('chart-machinery-revenue-trend'), {
+                type: 'line',
+                data: {
+                    labels: machineryTrend.labels,
+                    datasets: [
+                        { label: @js(__('Revenue')), data: machineryTrend.revenue, borderColor: '#1ab27e', backgroundColor: 'rgba(26,178,126,0.12)', fill: true, tension: 0.35, pointRadius: 3 },
+                    ],
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
+            });
+        @endif
     @endif
 });
 </script>
