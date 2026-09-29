@@ -92,6 +92,10 @@ use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCashFlowController;
+use App\Http\Controllers\User\CompanyLetterController;
+use App\Http\Controllers\User\MachineryAssetController;
+use App\Http\Controllers\User\MachineryProjectDeploymentController;
+use App\Http\Controllers\User\MachineryRentalContractController;
 use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\PurchaseReturnController;
 use App\Http\Controllers\User\QuotationController;
@@ -600,6 +604,24 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('projects/{project}/pdf', [ProjectCashFlowController::class, 'pdf'])->middleware('throttle:pdf')->name('pdf');
         Route::get('bank-accounts/{bankAccount}', [ProjectCashFlowController::class, 'bankAccountShow'])->name('bank-account.show');
         Route::get('bank-accounts/{bankAccount}/pdf', [ProjectCashFlowController::class, 'bankAccountPdf'])->middleware('throttle:pdf')->name('bank-account.pdf');
+    });
+
+    Route::middleware(['permission:machinery_equipment', 'module:machinery_equipment'])->prefix('machinery')->name('machinery.')->group(function () {
+        Route::resource('assets', MachineryAssetController::class)->parameters(['assets' => 'machineryAsset']);
+        Route::post('assets/{machineryAsset}/sell', [MachineryAssetController::class, 'sell'])->name('assets.sell');
+        Route::post('assets/{machineryAsset}/attachments', [MachineryAssetController::class, 'storeAttachment'])->name('assets.attachments.store');
+        Route::delete('assets/{machineryAsset}/attachments/{attachment}', [MachineryAssetController::class, 'destroyAttachment'])->name('assets.attachments.destroy');
+        Route::get('assets/{machineryAsset}/statement/pdf', [MachineryAssetController::class, 'statementPdf'])->middleware('throttle:pdf')->name('assets.statement.pdf');
+
+        Route::resource('rental-contracts', MachineryRentalContractController::class)->parameters(['rental-contracts' => 'rentalContract'])->only(['index', 'create', 'store', 'show']);
+        Route::post('rental-contracts/{rentalContract}/generate-invoice', [MachineryRentalContractController::class, 'generateInvoice'])->name('rental-contracts.generate-invoice');
+        Route::post('rental-contracts/{rentalContract}/end', [MachineryRentalContractController::class, 'end'])->name('rental-contracts.end');
+
+        Route::resource('deployments', MachineryProjectDeploymentController::class)->parameters(['deployments' => 'deployment'])->only(['index', 'create', 'store']);
+        Route::post('deployments/{deployment}/end', [MachineryProjectDeploymentController::class, 'end'])->name('deployments.end');
+
+        Route::resource('letters', CompanyLetterController::class)->parameters(['letters' => 'letter']);
+        Route::get('letters/{letter}/pdf', [CompanyLetterController::class, 'pdf'])->middleware('throttle:pdf')->name('letters.pdf');
     });
 
     Route::middleware(['permission:repair_shop', 'module:repair_shop'])->group(function () {

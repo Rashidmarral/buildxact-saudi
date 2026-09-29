@@ -196,6 +196,22 @@
                     </details>
                 @endif
 
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'machinery_equipment'))
+                    @php($machineryActive = request()->routeIs('app.machinery.*'))
+                    <details class="group" @if($machineryActive) open @endif>
+                        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $machineryActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
+                            <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'machinery', 'class' => 'h-[18px] w-[18px]'])</span>
+                            <span class="flex-1 font-medium">{{ __('Machinery & Equipment') }}</span>
+                            <span class="text-slate-600 transition-transform duration-200 group-open:rotate-180">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
+                        </summary>
+                        <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
+                            @include('partials.nav-subitem', ['route' => 'app.machinery.assets.index', 'label' => __('Assets')])
+                            @include('partials.nav-subitem', ['route' => 'app.machinery.rental-contracts.index', 'label' => __('Rental Contracts')])
+                            @include('partials.nav-subitem', ['route' => 'app.machinery.letters.index', 'label' => __('Letters & Agreements')])
+                        </div>
+                    </details>
+                @endif
+
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'repair_shop'))
                     @php($repairShopActive = request()->routeIs('app.repair-jobs.*'))
                     <details class="group" @if($repairShopActive) open @endif>

@@ -58,6 +58,9 @@ class Company extends Model
         'pos_sale_prefix', 'next_pos_sale_number',
         'restaurant_order_prefix', 'next_restaurant_order_number',
         'repair_job_prefix', 'next_repair_job_number',
+        'machinery_prefix', 'next_machinery_number',
+        'rental_contract_prefix', 'next_rental_contract_number',
+        'letter_prefix', 'next_letter_number',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -99,6 +102,12 @@ class Company extends Model
         'next_restaurant_order_number' => 1,
         'repair_job_prefix' => 'JOB',
         'next_repair_job_number' => 1,
+        'machinery_prefix' => 'EQ',
+        'next_machinery_number' => 1,
+        'rental_contract_prefix' => 'RC',
+        'next_rental_contract_number' => 1,
+        'letter_prefix' => 'LTR',
+        'next_letter_number' => 1,
         'primary_customer_type' => 'mixed',
         'negative_number_format' => 'minus',
         'currency' => 'SAR',
@@ -387,6 +396,33 @@ class Company extends Model
         $number = $this->nextSequenceNumber('next_repair_job_number');
 
         return $this->repair_job_prefix.'-'.str_pad((string) $number, 6, '0', STR_PAD_LEFT);
+    }
+
+    public function nextMachineryNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_machinery_number');
+
+        return $this->machinery_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function nextRentalContractNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_rental_contract_number');
+
+        return $this->rental_contract_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * The reference number is only a starting suggestion — CompanyLetter
+     * lets it be retyped per letter (e.g. to match an external format like
+     * "DCC/QTN-00003/HO-01"), since no bespoke multi-segment numbering
+     * scheme exists anywhere else in the app to build one for here either.
+     */
+    public function nextLetterNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_letter_number');
+
+        return $this->letter_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextQuotationNumber(string $type = 'quotation'): string

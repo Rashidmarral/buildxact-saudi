@@ -13,6 +13,8 @@
         'receipt_voucher' => __('Receipt vouchers'),
         'payment_voucher' => __('Payment vouchers'),
         'project_cash_flow' => __('Project Cash Flow'),
+        'letter' => __('Letters & Agreements'),
+        'machinery_statement' => __('Machinery Statement'),
     ];
 @endphp
 

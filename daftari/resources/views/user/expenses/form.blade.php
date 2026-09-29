@@ -96,6 +96,19 @@
         </div>
     @endif
 
+    @if (app(\App\Services\Features\FeatureAccessService::class)->enabled(auth()->user()->company, 'machinery_equipment') && $machinery->isNotEmpty())
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Machinery (optional)') }}</label>
+            <select name="machinery_asset_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None') }}</option>
+                @foreach ($machinery as $asset)
+                    <option value="{{ $asset->id }}" @selected(old('machinery_asset_id', $expense->machinery_asset_id) == $asset->id)>{{ $asset->name }} ({{ $asset->asset_code }})</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-xs text-slate-400">{{ __('Tags this fuel/maintenance/wage cost to a specific machine, e.g. one deployed on the project above.') }}</p>
+        </div>
+    @endif
+
     <button type="submit" class="w-full rounded-lg bg-brand-800 px-6 py-3 font-semibold text-white hover:bg-brand-900">{{ __('Save') }}</button>
 </form>
 
