@@ -171,7 +171,8 @@
                 <h4 class="font-semibold text-slate-900">{{ __('Additional details') }}</h4>
                 <p class="text-xs text-slate-500 mt-1 mb-3">{{ __('Add a reference or description to make the transaction easier to find later.') }}</p>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reference') }}</label>
-                <input type="text" name="reference" value="{{ old('reference', $voucher->reference ?? '') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" name="reference" placeholder="{{ __('e.g. IBAN, transaction ID, cheque number') }}" value="{{ old('reference', $voucher->reference ?? '') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <p class="mt-1 text-xs text-slate-400">{{ __('For an online bank transfer, note the recipient\'s IBAN/account or the transfer\'s transaction ID here so it\'s easy to match against the bank statement later.') }}</p>
                 <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('For') }}</label>
                 <textarea name="notes" id="notes" rows="2" placeholder="{{ __('What is this payment for? e.g. a service or product description.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $voucher->notes ?? '') }}</textarea>
                 <p class="mt-1 text-xs text-slate-400">{{ __('Printed on the voucher next to "For".') }}</p>

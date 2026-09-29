@@ -32,8 +32,9 @@
         <p class="text-xl font-bold text-red-600 mt-1">{{ \App\Support\Money::format($summary['paid']) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
-        <p class="text-xs text-slate-400">{{ __('Total transferred out') }}</p>
-        <p class="text-xl font-bold text-red-600 mt-1">{{ \App\Support\Money::format($summary['transferred']) }}</p>
+        <p class="text-xs text-slate-400">{{ __('Moved to other accounts') }}</p>
+        <p class="text-xl font-bold text-slate-600 mt-1">{{ \App\Support\Money::format($summary['transferred']) }}</p>
+        <p class="text-xs text-slate-400 mt-1">{{ __('Not yet spent — e.g. a bank withdrawal into petty cash') }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net cash position') }}</p>

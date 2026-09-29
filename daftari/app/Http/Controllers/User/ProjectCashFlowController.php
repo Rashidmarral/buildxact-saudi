@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\BankTransfer;
+use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\Project;
 use App\Models\ReceiptVoucher;
@@ -17,6 +18,7 @@ use Illuminate\Support\Str;
  * received, paid, and transferred for one Project (or one BankAccount),
  * plus a branded PDF export of it. Sits entirely on top of the existing,
  * ungated Cash & Banks records (ReceiptVoucher/PaymentVoucher/BankTransfer)
+ * plus directly-paid Expenses (Purchases & Expenses' own money-out record)
  * — every route here is gated behind the project_cash_flow permission and
  * module (see routes/web.php), so this controller never needs to check
  * access itself.
@@ -139,6 +141,7 @@ class ProjectCashFlowController extends Controller
                 'account' => $v->bankAccount?->name,
                 'in_amount' => (float) $v->amount,
                 'out_amount' => 0.0,
+                'affects_balance' => true,
                 'url' => route('app.receipt-vouchers.show', $v),
             ]);
 
@@ -157,7 +160,34 @@ class ProjectCashFlowController extends Controller
                 'account' => $v->bankAccount?->name,
                 'in_amount' => 0.0,
                 'out_amount' => (float) $v->amount,
+                'affects_balance' => true,
                 'url' => route('app.payment-vouchers.show', $v),
+            ]);
+
+        // Expenses paid directly out of an account (no Payment Voucher
+        // involved at all — see BankAccount::currentBalance()) are just as
+        // real a cash-out as a Payment Voucher; a project's "used the
+        // withdrawn cash for parts/labour" story is incomplete without
+        // them. An unpaid Expense (bank_account_id null) hasn't touched
+        // any account yet, and only 'approved' ones have actually posted.
+        $expenses = Expense::with('bankAccount', 'project')
+            ->whereNotNull('bank_account_id')
+            ->where('status', 'approved')
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->when($bankAccountId, fn ($q) => $q->where('bank_account_id', $bankAccountId))
+            ->get()
+            ->map(fn (Expense $e) => [
+                'date' => $e->expense_date,
+                'created_at' => $e->created_at,
+                'id' => 'expense-'.$e->id,
+                'type' => 'expense',
+                'number' => $e->reference,
+                'party' => $e->vendor_name ?: ($e->description ?: __('Expense')),
+                'account' => $e->bankAccount?->name,
+                'in_amount' => 0.0,
+                'out_amount' => (float) $e->gross_amount,
+                'affects_balance' => true,
+                'url' => route('app.expenses.edit', $e),
             ]);
 
         $transfers = BankTransfer::with('fromAccount', 'toAccount', 'project')
@@ -182,6 +212,16 @@ class ProjectCashFlowController extends Controller
                     'account' => $bankAccountId ? ($isIncoming ? $t->toAccount->name : $t->fromAccount->name) : null,
                     'in_amount' => $isIncoming ? (float) $t->amount : 0.0,
                     'out_amount' => $isIncoming ? 0.0 : (float) $t->amount,
+                    // A transfer genuinely moves money into/out of the one
+                    // account being viewed, so it must affect that
+                    // account's own running balance. But viewed project-
+                    // wide (no single account picked), it's just money
+                    // relocating between two of the company's own
+                    // accounts — not yet spent — so it must NOT also
+                    // subtract from the project's total, or a withdrawal
+                    // followed by an Expense/Payment Voucher paid out of
+                    // the destination account would count as spent twice.
+                    'affects_balance' => $bankAccountId !== null,
                     'url' => route('app.bank-transfers.show', $t),
                 ];
             });
@@ -201,7 +241,7 @@ class ProjectCashFlowController extends Controller
         // still tie there. A last tiebreaker settles that: an incoming
         // amount sorts before an outgoing one at the same instant, since
         // money can't fund a payment before it arrives.
-        $rows = $receipts->concat($payments)->concat($transfers)
+        $rows = $receipts->concat($payments)->concat($expenses)->concat($transfers)
             ->sortBy(fn (array $row) => $row['date']->format('Y-m-d').'-'.$row['created_at']->format('Y-m-d H:i:s').'-'.($row['in_amount'] > 0 ? '0' : '1'))
             ->values();
 
@@ -209,7 +249,15 @@ class ProjectCashFlowController extends Controller
         $balance = $openingBalance;
 
         $rows = $rows->map(function (array $row) use (&$balance) {
-            $balance += $row['in_amount'] - $row['out_amount'];
+            // A transfer viewed project-wide (see the 'transfers' map
+            // above) carries affects_balance=false: it's real money moving
+            // between two of the company's own accounts, not spending, and
+            // whatever is later paid out of the destination account is
+            // already counted in its own row — letting this row also
+            // subtract would count that same money as spent twice.
+            if ($row['affects_balance'] ?? true) {
+                $balance += $row['in_amount'] - $row['out_amount'];
+            }
             $row['balance_after'] = $balance;
 
             return $row;

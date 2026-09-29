@@ -142,25 +142,43 @@ class Project extends Model
         return (float) $this->receiptVouchers()->where('status', 'issued')->sum('amount');
     }
 
+    /**
+     * Payment Vouchers plus Expenses paid directly out of an account (an
+     * Expense whose "Financial account" is something other than "Unpaid" —
+     * see ExpenseController::store()). An unpaid Expense stays a payable
+     * until it's later settled by a Payment Voucher, so it's excluded here
+     * until then; the 'approved' filter mirrors postExpense() only ever
+     * being called once an Expense clears approval.
+     */
     public function cashPaid(): float
     {
-        return (float) $this->paymentVouchers()->where('status', 'issued')->sum('amount');
+        return (float) $this->paymentVouchers()->where('status', 'issued')->sum('amount')
+            + (float) $this->expenses()->where('status', 'approved')->whereNotNull('bank_account_id')->sum('gross_amount');
     }
 
     /**
      * BankTransfer has no status column — every transfer posts
-     * immediately (see BankTransferController::store()). A project has no
-     * "own account" a transfer could land in, so any transfer tagged to
-     * this project is always counted as cash leaving the project's story,
-     * regardless of which of the company's bank accounts it moved between.
+     * immediately (see BankTransferController::store()). Purely
+     * informational: a transfer only moves money between two of the
+     * company's own accounts (e.g. a bank withdrawal into a project's
+     * petty cash) — it isn't spent yet, so it's deliberately excluded from
+     * netCashPosition() below. Whatever is later actually paid out of the
+     * destination account already shows up in cashPaid() once it happens.
      */
     public function cashTransferredOut(): float
     {
         return (float) $this->bankTransfers()->sum('amount');
     }
 
+    /**
+     * Deliberately cashReceived() - cashPaid() only — cashTransferredOut()
+     * is excluded. A transfer just relocates money between the company's
+     * own accounts (e.g. bank → petty cash); counting it here as well as
+     * counting whatever is later paid out of that destination account
+     * would spend the same money twice on this statement.
+     */
     public function netCashPosition(): float
     {
-        return $this->cashReceived() - $this->cashPaid() - $this->cashTransferredOut();
+        return $this->cashReceived() - $this->cashPaid();
     }
 }

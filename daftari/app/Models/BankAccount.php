@@ -34,6 +34,19 @@ class BankAccount extends Model
         return $this->hasMany(PaymentVoucher::class);
     }
 
+    /**
+     * Expenses paid directly out of this account (its "Financial account"
+     * chosen as something other than "Unpaid (record as payable)") — a
+     * second, voucher-free way real cash leaves an account. Only ones with
+     * status 'approved' have actually been posted to the ledger (see
+     * ExpenseController::store()/approve()); an expense left unpaid never
+     * touches an account until it's later settled by a Payment Voucher.
+     */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     public function reconciliations(): HasMany
     {
         return $this->hasMany(BankReconciliation::class);
@@ -43,9 +56,10 @@ class BankAccount extends Model
     {
         $received = $this->receiptVouchers()->where('status', 'issued')->sum('amount');
         $paid = $this->paymentVouchers()->where('status', 'issued')->sum('amount');
+        $expensesPaid = $this->expenses()->where('status', 'approved')->sum('gross_amount');
         $transfersIn = BankTransfer::where('to_bank_account_id', $this->id)->sum('amount');
         $transfersOut = BankTransfer::where('from_bank_account_id', $this->id)->sum('amount');
 
-        return (float) $this->opening_balance + $received - $paid + $transfersIn - $transfersOut;
+        return (float) $this->opening_balance + $received - $paid - $expensesPaid + $transfersIn - $transfersOut;
     }
 }

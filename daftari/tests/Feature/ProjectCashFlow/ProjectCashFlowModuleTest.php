@@ -9,6 +9,7 @@ use App\Models\BankTransfer;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\CompanyOverride;
+use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\Plan;
 use App\Models\Project;
@@ -199,7 +200,12 @@ class ProjectCashFlowModuleTest extends \Tests\TestCase
         $this->assertEqualsWithDelta(105007.07, $project->cashReceived(), 0.01);
         $this->assertEqualsWithDelta(20000, $project->cashPaid(), 0.01);
         $this->assertEqualsWithDelta(15000, $project->cashTransferredOut(), 0.01);
-        $this->assertEqualsWithDelta(105007.07 - 20000 - 15000, $project->netCashPosition(), 0.01);
+        // netCashPosition() deliberately excludes cashTransferredOut(): a
+        // transfer just relocates money between the company's own
+        // accounts (e.g. bank → petty cash) — it isn't spent, so it must
+        // not also reduce the project's total alongside whatever is later
+        // actually paid out of the destination account.
+        $this->assertEqualsWithDelta(105007.07 - 20000, $project->netCashPosition(), 0.01);
 
         $response = $this->actingAs($owner)->get(route('app.project-cash-flow.show', $project));
         $response->assertOk();
@@ -209,8 +215,11 @@ class ProjectCashFlowModuleTest extends \Tests\TestCase
         $response->assertDontSee('999,999');
 
         // Running balance after all three counted rows, in date order:
-        // 105007.07 - 20000 - 15000 = 70007.07.
-        $response->assertSee(\App\Support\Money::format(70007.07));
+        // the transfer's own -15,000 still shows on its row (it really did
+        // leave this account) but does not reduce the total, since nothing
+        // has been paid out of the destination account in this scenario —
+        // 105007.07 - 20000 = 85007.07, not 70007.07.
+        $response->assertSee(\App\Support\Money::format(85007.07));
     }
 
     public function test_a_bank_account_statement_shows_the_opening_and_running_balance(): void
@@ -390,5 +399,90 @@ class ProjectCashFlowModuleTest extends \Tests\TestCase
         // this two-row statement is the final 12,500, never -7,500.
         $response->assertDontSee('-7,500.00');
         $response->assertSee(\App\Support\Money::format(12500));
+    }
+
+    /**
+     * Regression: an Expense paid directly out of an account (its
+     * "Financial account" set to something other than "Unpaid") posts to
+     * the GL via LedgerPostingService::postExpense() with no Payment
+     * Voucher ever created — before this fix, BankAccount::currentBalance()
+     * and the Cash Flow ledger only read ReceiptVoucher/PaymentVoucher/
+     * BankTransfer, so this real cash-out was silently invisible on both.
+     */
+    public function test_a_directly_paid_expense_reduces_the_cash_account_balance_and_appears_on_the_ledger(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $bank = $this->makeBankAccount($company, 'SNB Current Account');
+        $cash = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PRJ-JAMUM', 'name' => 'Jamum', 'status' => 'active']);
+
+        BankTransfer::create([
+            'company_id' => $company->id, 'from_bank_account_id' => $bank->id, 'to_bank_account_id' => $cash->id,
+            'amount' => 70000, 'date' => now()->toDateString(), 'created_by' => $owner->id, 'project_id' => $project->id,
+        ]);
+
+        $partsExpense = Expense::create([
+            'company_id' => $company->id, 'bank_account_id' => $cash->id, 'project_id' => $project->id,
+            'vendor_name' => 'Al Jeul Building Materials', 'description' => 'Steel fixing parts',
+            'amount' => 20000, 'gross_amount' => 20000, 'vat_amount' => 0, 'tax_category' => 'zero_rated',
+            'expense_date' => now()->toDateString(), 'status' => 'approved',
+        ]);
+
+        // An unpaid expense (no bank_account_id) is a payable, not yet a
+        // cash movement — it must not touch the balance until it's later
+        // settled by a Payment Voucher.
+        Expense::create([
+            'company_id' => $company->id, 'project_id' => $project->id,
+            'vendor_name' => 'Unrelated unpaid bill', 'description' => 'Not yet paid',
+            'amount' => 99999, 'gross_amount' => 99999, 'vat_amount' => 0, 'tax_category' => 'zero_rated',
+            'expense_date' => now()->toDateString(), 'status' => 'approved',
+        ]);
+
+        // A pending-approval expense hasn't posted to the ledger yet
+        // either, even though it already names Petty Cash as its account.
+        Expense::create([
+            'company_id' => $company->id, 'bank_account_id' => $cash->id, 'project_id' => $project->id,
+            'vendor_name' => 'Awaiting approval', 'description' => 'Not yet approved',
+            'amount' => 55555, 'gross_amount' => 55555, 'vat_amount' => 0, 'tax_category' => 'zero_rated',
+            'expense_date' => now()->toDateString(), 'status' => 'pending_approval',
+        ]);
+
+        $this->assertEquals(50000, $cash->currentBalance());
+        $this->assertEquals(20000, $project->fresh()->cashPaid());
+
+        $response = $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $cash));
+        $response->assertOk()
+            ->assertSee(__('Expense'))
+            ->assertSee('Al Jeul Building Materials')
+            ->assertDontSee('Unrelated unpaid bill')
+            ->assertDontSee('Awaiting approval')
+            ->assertSee(\App\Support\Money::format(50000));
+
+        // Labour salary paid from the same withdrawn cash, tagged the same
+        // way — both categories of spend end up on the one statement.
+        Expense::create([
+            'company_id' => $company->id, 'bank_account_id' => $cash->id, 'project_id' => $project->id,
+            'vendor_name' => 'Site labour salaries', 'amount' => 15000, 'gross_amount' => 15000,
+            'vat_amount' => 0, 'tax_category' => 'zero_rated', 'expense_date' => now()->toDateString(), 'status' => 'approved',
+        ]);
+
+        $this->assertEquals(35000, $cash->fresh()->currentBalance());
+
+        // Regression: the 70,000 withdrawal (BankTransfer, tagged to this
+        // project) must not ALSO count as project spend on top of the two
+        // Expenses paid out of the cash it funded — that would double the
+        // real 35,000 spent into a nonsensical -105,000 net position.
+        $project->refresh();
+        $this->assertEquals(70000, $project->cashTransferredOut());
+        $this->assertEquals(35000, $project->cashPaid());
+        $this->assertEquals(-35000, $project->netCashPosition());
+
+        $projectResponse = $this->actingAs($owner)->get(route('app.project-cash-flow.show', $project));
+        $projectResponse->assertOk()
+            ->assertSee('Al Jeul Building Materials')
+            ->assertSee('Site labour salaries')
+            ->assertSee(\App\Support\Money::format(-35000))
+            ->assertDontSee(\App\Support\Money::format(-105000));
     }
 }

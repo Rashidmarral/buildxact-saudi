@@ -12,6 +12,7 @@
     $typeLabels = [
         'receipt' => __('Receipt'),
         'payment' => __('Payment'),
+        'expense' => __('Expense'),
         'withdrawal' => __('Withdrawal'),
         'deposit' => __('Deposit'),
         'transfer' => __('Transfer'),
@@ -62,7 +63,7 @@
         <tr>
             <td><div class="k">{{ __('Total received') }}</div><div class="v in-amount">{{ \App\Support\Money::format($summary['received']) }}</div></td>
             <td><div class="k">{{ __('Total paid') }}</div><div class="v out-amount">{{ \App\Support\Money::format($summary['paid']) }}</div></td>
-            <td><div class="k">{{ __('Total transferred out') }}</div><div class="v out-amount">{{ \App\Support\Money::format($summary['transferred']) }}</div></td>
+            <td><div class="k">{{ __('Moved to other accounts') }}</div><div class="v">{{ \App\Support\Money::format($summary['transferred']) }}</div></td>
             <td><div class="k">{{ __('Net cash position') }}</div><div class="v">{{ \App\Support\Money::format($summary['net']) }}</div></td>
         </tr>
     </table>

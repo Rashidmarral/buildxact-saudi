@@ -25,6 +25,8 @@
                             <span class="inline-block rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1">{{ __('Receipt') }}</span>
                         @elseif ($row['type'] === 'payment')
                             <span class="inline-block rounded-full bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1">{{ __('Payment') }}</span>
+                        @elseif ($row['type'] === 'expense')
+                            <span class="inline-block rounded-full bg-rose-50 text-rose-700 text-xs font-medium px-2.5 py-1">{{ __('Expense') }}</span>
                         @elseif ($row['type'] === 'withdrawal')
                             <span class="inline-block rounded-full bg-orange-50 text-orange-700 text-xs font-medium px-2.5 py-1">{{ __('Withdrawal') }}</span>
                         @elseif ($row['type'] === 'deposit')
@@ -34,9 +36,15 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 font-medium text-brand-700">{{ $row['number'] ?: '—' }}</td>
-                    <td class="px-6 py-3">{{ $row['party'] }}</td>
-                    <td class="px-6 py-3 text-right tabular-nums {{ $row['in_amount'] > 0 ? 'text-emerald-600' : 'text-slate-300' }}">{{ $row['in_amount'] > 0 ? \App\Support\Money::format($row['in_amount']) : '—' }}</td>
-                    <td class="px-6 py-3 text-right tabular-nums {{ $row['out_amount'] > 0 ? 'text-red-600' : 'text-slate-300' }}">{{ $row['out_amount'] > 0 ? \App\Support\Money::format($row['out_amount']) : '—' }}</td>
+                    <td class="px-6 py-3">
+                        {{ $row['party'] }}
+                        @if (! ($row['affects_balance'] ?? true))
+                            <span class="block text-xs text-slate-400">{{ __('Internal transfer — moved between your own accounts, not yet spent') }}</span>
+                        @endif
+                    </td>
+                    @php $countsHere = $row['affects_balance'] ?? true; @endphp
+                    <td class="px-6 py-3 text-right tabular-nums {{ $row['in_amount'] > 0 ? ($countsHere ? 'text-emerald-600' : 'text-slate-400') : 'text-slate-300' }}">{{ $row['in_amount'] > 0 ? \App\Support\Money::format($row['in_amount']) : '—' }}</td>
+                    <td class="px-6 py-3 text-right tabular-nums {{ $row['out_amount'] > 0 ? ($countsHere ? 'text-red-600' : 'text-slate-400') : 'text-slate-300' }}">{{ $row['out_amount'] > 0 ? \App\Support\Money::format($row['out_amount']) : '—' }}</td>
                     <td class="px-6 py-3 text-right tabular-nums font-semibold text-slate-900">{{ \App\Support\Money::format($row['balance_after']) }}</td>
                 </tr>
             @empty
