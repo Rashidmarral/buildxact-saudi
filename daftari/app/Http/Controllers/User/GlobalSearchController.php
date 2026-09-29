@@ -5,11 +5,14 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Bill;
 use App\Models\Client;
+use App\Models\CompanyLetter;
 use App\Models\Invoice;
 use App\Models\Item;
+use App\Models\MachineryAsset;
 use App\Models\PurchaseOrder;
 use App\Models\Quotation;
 use App\Models\Supplier;
+use App\Services\Features\FeatureAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -23,7 +26,7 @@ class GlobalSearchController extends Controller
      */
     private const LIMIT = 5;
 
-    public function search(Request $request)
+    public function search(Request $request, FeatureAccessService $featureAccess)
     {
         $term = trim((string) $request->query('q', ''));
 
@@ -148,6 +151,39 @@ class GlobalSearchController extends Controller
                         'title' => $q->quotation_number,
                         'subtitle' => $q->client->name,
                         'url' => route('app.quotations.show', $q),
+                    ]),
+                ];
+            }
+        }
+
+        if ($user->hasPermission('machinery_equipment') && $featureAccess->enabled($user->company, 'machinery_equipment')) {
+            $machines = MachineryAsset::where(fn ($q) => $q->where('name', 'like', $like)
+                ->orWhere('asset_code', 'like', $like))
+                ->orderBy('name')->limit(self::LIMIT)->get();
+
+            if ($machines->isNotEmpty()) {
+                $groups[] = [
+                    'label' => __('Machinery & Equipment'),
+                    'items' => $machines->map(fn ($m) => [
+                        'title' => $m->name,
+                        'subtitle' => $m->asset_code,
+                        'url' => route('app.machinery.assets.show', $m),
+                    ]),
+                ];
+            }
+
+            $letters = CompanyLetter::where(fn ($q) => $q->where('title', 'like', $like)
+                ->orWhere('title_ar', 'like', $like)
+                ->orWhere('reference_number', 'like', $like))
+                ->orderByDesc('letter_date')->limit(self::LIMIT)->get();
+
+            if ($letters->isNotEmpty()) {
+                $groups[] = [
+                    'label' => __('Letters & Agreements'),
+                    'items' => $letters->map(fn ($l) => [
+                        'title' => $l->title,
+                        'subtitle' => $l->reference_number,
+                        'url' => route('app.machinery.letters.show', $l),
                     ]),
                 ];
             }

@@ -20,8 +20,11 @@ use App\Models\Plan;
 use App\Models\Project;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Notifications\GenericNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * Machinery & Equipment: a paid module (like Coffee Shop, Project Cash
@@ -354,5 +357,123 @@ class MachineryModuleTest extends \Tests\TestCase
             ->assertSessionDoesntHaveErrors();
 
         $this->assertDatabaseMissing('attachments', ['id' => $attachment->id]);
+    }
+
+    // ------------------------------------------------------------------
+    // Expiry reminders — a machine's registration/insurance lapsing
+    // silently was a real gap: the columns existed but nothing watched
+    // them. Mirrors CheckLowStock's notify-once/clear-on-resolution shape.
+    // ------------------------------------------------------------------
+
+    public function test_a_machine_with_registration_expiring_soon_notifies_users_once(): void
+    {
+        Notification::fake();
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $asset = MachineryAsset::create([
+            'company_id' => $company->id, 'asset_code' => 'EQ-00010', 'name' => 'Roller',
+            'status' => 'available', 'registration_expiry_date' => now()->addDays(10)->toDateString(),
+        ]);
+
+        Artisan::call('machinery:send-expiry-reminders');
+
+        Notification::assertSentTo($owner, GenericNotification::class, function (GenericNotification $notification) use ($asset) {
+            return str_contains($notification->body, $asset->asset_code);
+        });
+        $this->assertNotNull($asset->fresh()->registration_reminder_sent_at);
+
+        // Re-running the command the same day must not re-notify.
+        Artisan::call('machinery:send-expiry-reminders');
+        Notification::assertSentToTimes($owner, GenericNotification::class, 1);
+    }
+
+    public function test_renewing_a_machines_registration_clears_the_reminder_guard(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $this->makeOwner($company);
+        $asset = MachineryAsset::create([
+            'company_id' => $company->id, 'asset_code' => 'EQ-00011', 'name' => 'Roller',
+            'status' => 'available', 'registration_expiry_date' => now()->addDays(10)->toDateString(),
+            'registration_reminder_sent_at' => now()->subDay(),
+        ]);
+
+        // Renewed to a date well outside the reminder window — the next
+        // cycle's own reminder must not be silenced by the old guard.
+        $asset->update(['registration_expiry_date' => now()->addYear()->toDateString()]);
+
+        Artisan::call('machinery:send-expiry-reminders');
+
+        $this->assertNull($asset->fresh()->registration_reminder_sent_at);
+    }
+
+    // ------------------------------------------------------------------
+    // Utilization — days rented + deployed over days owned.
+    // ------------------------------------------------------------------
+
+    public function test_utilization_percent_reflects_rental_and_deployment_days_against_days_owned(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Renter Co.']);
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PRJ-2', 'name' => 'Site', 'status' => 'active']);
+
+        $fixedAsset = FixedAsset::create([
+            'company_id' => $company->id, 'asset_code' => 'AST-100010', 'name' => 'Paver',
+            'acquisition_date' => now()->subDays(19)->toDateString(), 'acquisition_cost' => 100000,
+            'useful_life_years' => 5, 'status' => 'active',
+        ]);
+        $asset = MachineryAsset::create([
+            'company_id' => $company->id, 'fixed_asset_id' => $fixedAsset->id, 'asset_code' => 'EQ-00012',
+            'name' => 'Paver', 'status' => 'available',
+        ]);
+
+        MachineryRentalContract::create([
+            'company_id' => $company->id, 'machinery_asset_id' => $asset->id, 'client_id' => $client->id,
+            'contract_number' => 'RC-TEST-1', 'start_date' => now()->subDays(9)->toDateString(),
+            'end_date' => now()->subDays(5)->toDateString(), 'rate' => 500, 'rate_type' => 'daily', 'status' => 'completed',
+        ]);
+        MachineryProjectDeployment::create([
+            'company_id' => $company->id, 'machinery_asset_id' => $asset->id, 'project_id' => $project->id,
+            'start_date' => now()->subDays(4)->toDateString(), 'end_date' => now()->toDateString(), 'status' => 'completed',
+        ]);
+
+        // 20 days owned (19 days ago + today), 5 rented days + 5 deployed
+        // days = 10 active days out of 20 owned = 50%.
+        $this->assertEqualsWithDelta(50.0, $asset->fresh()->load('rentalContracts', 'deployments')->utilizationPercent(), 0.5);
+
+        $this->actingAs($owner)->get(route('app.machinery.assets.show', $asset))->assertOk()->assertSee('%', false);
+    }
+
+    // ------------------------------------------------------------------
+    // Global search — machinery and letters were previously invisible to
+    // the app-wide search, unlike every other record type.
+    // ------------------------------------------------------------------
+
+    public function test_global_search_finds_machinery_and_letters_only_when_the_module_is_enabled(): void
+    {
+        $withModule = $this->makeCompany(withModule: true);
+        $ownerWith = $this->makeOwner($withModule);
+        $asset = MachineryAsset::create(['company_id' => $withModule->id, 'asset_code' => 'EQ-SEARCH1', 'name' => 'Findable Paver', 'status' => 'available']);
+        $letter = CompanyLetter::create([
+            'company_id' => $withModule->id, 'document_type' => 'custom', 'reference_number' => 'LTR-SEARCH1',
+            'title' => 'Findable Letter', 'letter_date' => now()->toDateString(), 'party_a_role' => 'Company',
+            'party_b_role' => 'Client', 'party_b_name' => 'Someone', 'language_mode' => 'bilingual',
+            'content' => [['text_en' => 'Body.', 'text_ar' => 'نص.', 'is_heading' => false]],
+        ]);
+
+        $response = $this->actingAs($ownerWith)->get(route('app.search', ['q' => 'Findable']));
+        $response->assertOk();
+        $labels = collect($response->json('groups'))->pluck('label');
+        $this->assertTrue($labels->contains(__('Machinery & Equipment')));
+        $this->assertTrue($labels->contains(__('Letters & Agreements')));
+
+        $withoutModule = $this->makeCompany(withModule: false);
+        $ownerWithout = $this->makeOwner($withoutModule);
+        MachineryAsset::create(['company_id' => $withoutModule->id, 'asset_code' => 'EQ-SEARCH2', 'name' => 'Findable Grader', 'status' => 'available']);
+
+        $response = $this->actingAs($ownerWithout)->get(route('app.search', ['q' => 'Findable']));
+        $response->assertOk();
+        $labels = collect($response->json('groups'))->pluck('label');
+        $this->assertFalse($labels->contains(__('Machinery & Equipment')));
     }
 }

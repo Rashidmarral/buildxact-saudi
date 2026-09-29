@@ -23,7 +23,8 @@ class MachineryAsset extends Model
         'company_id', 'fixed_asset_id', 'asset_code', 'name', 'name_ar', 'category',
         'make', 'model', 'serial_number', 'plate_or_chassis_number', 'year_of_manufacture',
         'status', 'default_rental_rate', 'rental_rate_type', 'operator_employee_id',
-        'registration_expiry_date', 'insurance_expiry_date', 'notes', 'created_by',
+        'registration_expiry_date', 'insurance_expiry_date',
+        'registration_reminder_sent_at', 'insurance_reminder_sent_at', 'notes', 'created_by',
     ];
 
     protected function casts(): array
@@ -31,6 +32,8 @@ class MachineryAsset extends Model
         return [
             'registration_expiry_date' => 'date',
             'insurance_expiry_date' => 'date',
+            'registration_reminder_sent_at' => 'datetime',
+            'insurance_reminder_sent_at' => 'datetime',
             'default_rental_rate' => 'decimal:2',
         ];
     }
@@ -108,5 +111,27 @@ class MachineryAsset extends Model
     public function netResult(): float
     {
         return $this->totalRevenue() - $this->totalRunningCost() - (float) ($this->fixedAsset?->accumulated_depreciation ?? 0);
+    }
+
+    /**
+     * Share of the machine's owned lifetime spent earning (rented out or
+     * deployed on a project), 0-100. A machine's status only allows one
+     * rental/deployment at a time, so these periods never overlap and
+     * summing their days can't double-count. Null before there's an
+     * acquisition date to measure from.
+     */
+    public function utilizationPercent(): ?float
+    {
+        $acquiredAt = $this->fixedAsset?->acquisition_date ?? $this->created_at;
+
+        if (! $acquiredAt) {
+            return null;
+        }
+
+        $ownedDays = max(1, $acquiredAt->diffInDays(now()) + 1);
+        $activeDays = $this->rentalContracts->sum(fn (MachineryRentalContract $c) => $c->activeDays())
+            + $this->deployments->sum(fn (MachineryProjectDeployment $d) => $d->activeDays());
+
+        return round(min(100, ($activeDays / $ownedDays) * 100), 1);
     }
 }

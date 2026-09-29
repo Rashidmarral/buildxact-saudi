@@ -44,6 +44,14 @@ class MachineryProjectDeployment extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** Days the machine was actually deployed on this project, for utilization stats. */
+    public function activeDays(): int
+    {
+        $end = $this->end_date ?? now();
+
+        return max(1, $this->start_date->diffInDays($end) + 1);
+    }
+
     /**
      * Notional only — see the migration's docblock for why this is never
      * summed into Project::costs()/cashPaid().
@@ -54,9 +62,6 @@ class MachineryProjectDeployment extends Model
             return 0.0;
         }
 
-        $end = $this->end_date ?? now();
-        $days = max(1, $this->start_date->diffInDays($end) + 1);
-
-        return round((float) $this->internal_daily_rate * $days, 2);
+        return round((float) $this->internal_daily_rate * $this->activeDays(), 2);
     }
 }

@@ -44,7 +44,7 @@
     </div>
 </div>
 
-<div class="grid sm:grid-cols-4 gap-4 mb-6">
+<div class="grid sm:grid-cols-5 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net book value') }}</p>
         <p class="text-xl font-bold text-slate-900 mt-1">{{ $asset->fixedAsset ? \App\Support\Money::format($asset->fixedAsset->netBookValue()) : '—' }}</p>
@@ -60,6 +60,11 @@
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net result (est.)') }}</p>
         <p class="text-xl font-bold {{ $asset->netResult() >= 0 ? 'text-slate-900' : 'text-red-600' }} mt-1">{{ \App\Support\Money::format($asset->netResult()) }}</p>
+    </div>
+    @php($utilization = $asset->utilizationPercent())
+    <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <p class="text-xs text-slate-400">{{ __('Utilization') }}</p>
+        <p class="text-xl font-bold text-slate-900 mt-1">{{ $utilization !== null ? $utilization.'%' : '—' }}</p>
     </div>
 </div>
 

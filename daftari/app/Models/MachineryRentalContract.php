@@ -69,4 +69,12 @@ class MachineryRentalContract extends Model
     {
         return $this->client?->display_name ?? $this->renter_name ?? __('Unnamed renter');
     }
+
+    /** Days the machine was actually out on this contract, for utilization stats. */
+    public function activeDays(): int
+    {
+        $end = $this->end_date ?? now();
+
+        return max(1, $this->start_date->diffInDays($end) + 1);
+    }
 }
