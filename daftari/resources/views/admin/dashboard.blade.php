@@ -241,6 +241,20 @@
     </div>
 </div>
 
+<div class="mt-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
+    <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-slate-900">{{ __('Module adoption') }}</h2>
+        <span class="text-xs text-slate-400">{{ __('Actively-subscribed companies with each module on') }}</span>
+    </div>
+    @if ($moduleAdoption->isEmpty())
+        <p class="flex h-56 items-center justify-center text-sm text-slate-400">{{ __('No gated modules are in use yet.') }}</p>
+    @else
+        <div class="mt-6" style="height: {{ max(180, $moduleAdoption->count() * 34) }}px;">
+            <canvas id="moduleAdoptionChart"></canvas>
+        </div>
+    @endif
+</div>
+
 <div class="mt-6 grid gap-5 lg:grid-cols-3">
     <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-card lg:col-span-1">
         <h2 class="font-semibold text-slate-900">{{ __('New signups — last 6 months') }}</h2>
@@ -439,6 +453,29 @@
                     plugins: { legend: { display: false } },
                     scales: {
                         x: { grid: { color: gridColor }, ticks: { font: { size: 11 } }, beginAtZero: true },
+                        y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                    },
+                },
+            });
+        @endif
+
+        @if ($moduleAdoption->isNotEmpty())
+            new Chart(document.getElementById('moduleAdoptionChart'), {
+                type: 'bar',
+                data: {
+                    labels: @json($moduleAdoption->pluck('label')),
+                    datasets: [{
+                        data: @json($moduleAdoption->pluck('count')),
+                        backgroundColor: palette,
+                        borderRadius: 6,
+                        maxBarThickness: 22,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { font: { size: 11 }, precision: 0 }, beginAtZero: true },
                         y: { grid: { display: false }, ticks: { font: { size: 11 } } },
                     },
                 },

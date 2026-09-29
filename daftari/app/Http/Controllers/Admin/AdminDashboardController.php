@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyOverride;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\SystemHealthService;
+use App\Support\FeatureRegistry;
 use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
@@ -138,6 +140,8 @@ class AdminDashboardController extends Controller
             $q->withoutGlobalScopes()->where('status', 'active');
         }])->orderBy('sort_order')->get()->filter(fn ($plan) => $plan->subscriptions_count > 0)->values();
 
+        $moduleAdoption = $this->moduleAdoption($activeSubscriptions);
+
         // Subscription status distribution — current state per company,
         // reusing $latestSubscriptions computed above (no extra query).
         $subscriptionStatusLabels = [
@@ -223,11 +227,47 @@ class AdminDashboardController extends Controller
 
         return view('admin.dashboard', compact(
             'stats', 'recentCompanies', 'signupsTrend', 'revenueTrend',
-            'planDistribution', 'trialsEndingSoon', 'recentPayments',
+            'planDistribution', 'moduleAdoption', 'trialsEndingSoon', 'recentPayments',
             'failedZatcaCompanies', 'failedPayments',
             'subscriptionStatusDistribution', 'expiredSubscriptionCompanies',
             'failedJobsCount', 'noRecentLoginCompanies',
             'systemHealthChecks', 'recentErrorCount', 'storageCheck'
         ));
+    }
+
+    /**
+     * How many actively-subscribed companies have each gated module on —
+     * the platform's first "which paid modules actually get adopted"
+     * view. Mirrors FeatureAccessService::enabled()'s precedence (a
+     * company's explicit CompanyOverride beats its plan's column) but
+     * works in bulk over $activeSubscriptions (already fetched above, so
+     * this adds no new subscription/plan query) rather than calling that
+     * per-company method once per company per module. Deliberately
+     * doesn't factor in PlatformFeatureToggle's platform-wide kill switch
+     * — a temporary rollback there shouldn't make a module's real
+     * adoption look like it dropped to zero on this chart.
+     */
+    private function moduleAdoption($activeSubscriptions): \Illuminate\Support\Collection
+    {
+        $gatedModules = collect(FeatureRegistry::catalog())->filter(fn ($m) => $m['type'] === 'gated' && $m['column']);
+
+        $overridesByCompany = CompanyOverride::withoutGlobalScopes()
+            ->where('type', 'feature')
+            ->whereIn('key', $gatedModules->keys())
+            ->get()
+            ->groupBy('company_id');
+
+        return $gatedModules->map(function ($meta, $key) use ($activeSubscriptions, $overridesByCompany) {
+            $count = $activeSubscriptions->filter(function ($sub) use ($key, $meta, $overridesByCompany) {
+                $override = $overridesByCompany->get($sub->company_id)?->firstWhere('key', $key);
+
+                return $override ? $override->value === '1' : (bool) $sub->plan->{$meta['column']};
+            })->pluck('company_id')->unique()->count();
+
+            return ['key' => $key, 'label' => $meta['label'], 'count' => $count];
+        })
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->sortByDesc('count')
+            ->values();
     }
 }

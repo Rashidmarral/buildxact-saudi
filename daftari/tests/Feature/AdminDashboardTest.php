@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\CompanyOverride;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -114,10 +115,53 @@ class AdminDashboardTest extends TestCase
         $response->assertDontSee('id="revenueTrendChart"', false);
         $response->assertDontSee('id="planDistributionChart"', false);
         $response->assertDontSee('id="signupsTrendChart"', false);
+        $response->assertDontSee('id="moduleAdoptionChart"', false);
         $response->assertSee(__('No subscriptions yet.'));
         $response->assertSee(__('No revenue collected yet.'));
         $response->assertSee(__('No active subscriptions yet.'));
         $response->assertSee(__('No signups yet.'));
+        $response->assertSee(__('No gated modules are in use yet.'));
+    }
+
+    /**
+     * The dashboard previously had no "which paid modules are actually
+     * adopted" view at all — only plan/subscription-status breakdowns.
+     * This counts a company once per module toggled on by its plan, and
+     * confirms a per-company CompanyOverride wins over the plan column,
+     * matching FeatureAccessService::enabled()'s own precedence.
+     */
+    public function test_module_adoption_counts_plan_columns_and_honors_company_overrides(): void
+    {
+        $planWithMachinery = Plan::create([
+            'name' => 'Pro', 'slug' => 'pro-'.uniqid(), 'price_monthly' => 100, 'price_yearly' => 1000,
+            'is_active' => true, 'has_machinery_equipment' => true, 'has_payroll' => false,
+        ]);
+        $planWithoutMachinery = Plan::create([
+            'name' => 'Basic', 'slug' => 'basic-'.uniqid(), 'price_monthly' => 50, 'price_yearly' => 500,
+            'is_active' => true, 'has_machinery_equipment' => false, 'has_payroll' => false,
+        ]);
+
+        $companyA = Company::create(['name' => 'Has Machinery', 'slug' => 'has-mach-'.uniqid(), 'status' => 'active']);
+        Subscription::create(['company_id' => $companyA->id, 'plan_id' => $planWithMachinery->id, 'status' => 'active', 'billing_cycle' => 'monthly', 'current_period_start' => now(), 'current_period_end' => now()->addMonth()]);
+
+        // Plan says no payroll, but an admin override turns it on for this
+        // one company — the override must still be counted as adoption.
+        $companyB = Company::create(['name' => 'Override Payroll', 'slug' => 'override-payroll-'.uniqid(), 'status' => 'active']);
+        Subscription::create(['company_id' => $companyB->id, 'plan_id' => $planWithoutMachinery->id, 'status' => 'active', 'billing_cycle' => 'monthly', 'current_period_start' => now(), 'current_period_end' => now()->addMonth()]);
+        CompanyOverride::create(['company_id' => $companyB->id, 'type' => 'feature', 'key' => 'payroll', 'value' => '1']);
+
+        // Plan says machinery is on, but an override explicitly turns it
+        // back off for this company — must NOT be counted.
+        $companyC = Company::create(['name' => 'Override Off', 'slug' => 'override-off-'.uniqid(), 'status' => 'active']);
+        Subscription::create(['company_id' => $companyC->id, 'plan_id' => $planWithMachinery->id, 'status' => 'active', 'billing_cycle' => 'monthly', 'current_period_start' => now(), 'current_period_end' => now()->addMonth()]);
+        CompanyOverride::create(['company_id' => $companyC->id, 'type' => 'feature', 'key' => 'machinery_equipment', 'value' => '0']);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.dashboard'));
+        $response->assertOk()->assertSee(__('Module adoption'));
+
+        $moduleAdoption = $response->original->getData()['moduleAdoption'];
+        $this->assertSame(1, $moduleAdoption->firstWhere('key', 'machinery_equipment')['count']);
+        $this->assertSame(1, $moduleAdoption->firstWhere('key', 'payroll')['count']);
     }
 
     public function test_dashboard_renders_in_arabic(): void
