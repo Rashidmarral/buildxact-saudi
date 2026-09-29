@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\CompanyLetter;
@@ -14,6 +16,8 @@ use App\Services\MpdfRenderer;
 use App\Support\LetterPresets;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -27,6 +31,8 @@ use Illuminate\Validation\Rule;
  */
 class CompanyLetterController extends Controller
 {
+    use EnforcesStorageQuota;
+
     public function index()
     {
         $letters = CompanyLetter::with('machinery', 'project')->orderByDesc('letter_date')->paginate(20);
@@ -54,6 +60,7 @@ class CompanyLetterController extends Controller
             'letter' => new CompanyLetter([
                 'document_type' => $documentType,
                 'title' => $blueprint['title'],
+                'title_ar' => $blueprint['title_ar'] ?? null,
                 'party_a_role' => $blueprint['party_a_role'],
                 'party_b_role' => $blueprint['party_b_role'],
                 'content' => $blueprint['content'],
@@ -76,11 +83,15 @@ class CompanyLetterController extends Controller
         $data = $this->validated($request);
         $company = Auth::user()->company;
 
-        $letter = CompanyLetter::create($data + [
+        // Wrapped so a failed create() (a DB-level constraint, not
+        // ordinary validation, which already ran above) rolls back the
+        // reference number with it, rather than permanently burning it —
+        // matches MachineryAssetController::store()/MachineryRentalContractController::store().
+        $letter = DB::transaction(fn () => CompanyLetter::create($data + [
             'company_id' => $company->id,
             'reference_number' => $company->nextLetterNumber(),
             'created_by' => Auth::id(),
-        ]);
+        ]));
 
         AuditLog::record('letter.create', $letter, __('Generated letter :number', ['number' => $letter->reference_number]));
 
@@ -110,6 +121,8 @@ class CompanyLetterController extends Controller
     {
         $letter->update($this->validated($request));
 
+        AuditLog::record('letter.update', $letter, __('Updated letter :number', ['number' => $letter->reference_number]));
+
         return redirect()->route('app.machinery.letters.show', $letter)->with('status', __('Letter updated.'));
     }
 
@@ -117,7 +130,46 @@ class CompanyLetterController extends Controller
     {
         $letter->delete();
 
+        AuditLog::record('letter.delete', $letter, __('Deleted letter :number', ['number' => $letter->reference_number]));
+
         return redirect()->route('app.machinery.letters.index')->with('status', __('Letter deleted.'));
+    }
+
+    /**
+     * The scanned signed copy — a generated letter is meant to be
+     * printed, physically signed by both parties, then attached back
+     * here as the actual record of what was agreed. Mirrors
+     * PurchaseOrderController's attachment pattern exactly.
+     */
+    public function storeAttachment(Request $request, CompanyLetter $letter)
+    {
+        if ($rejected = $this->rejectIfStorageQuotaReached($letter->company)) {
+            return $rejected;
+        }
+
+        $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
+
+        $file = $request->file('file');
+        $letter->attachments()->create([
+            'company_id' => $letter->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('letter-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(CompanyLetter $letter, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === CompanyLetter::class && $attachment->attachable_id === $letter->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
     }
 
     public function pdf(CompanyLetter $letter, MpdfRenderer $renderer)
@@ -148,6 +200,7 @@ class CompanyLetterController extends Controller
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'document_type' => ['required', 'string', 'max:40'],
             'title' => ['required', 'string', 'max:255'],
+            'title_ar' => ['nullable', 'string', 'max:255'],
             'letter_date' => ['required', 'date'],
             'party_a_role' => ['required', 'string', 'max:60'],
             'party_a_name' => ['nullable', 'string', 'max:255'],

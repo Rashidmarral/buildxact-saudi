@@ -27,8 +27,12 @@
             <h3 class="font-semibold text-slate-900">{{ __('Header') }}</h3>
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Title') }}</label>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Title (English)') }}</label>
                     <input type="text" name="title" value="{{ old('title', $letter->title) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Title (Arabic)') }}</label>
+                    <input type="text" name="title_ar" dir="rtl" value="{{ old('title_ar', $letter->title_ar) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Date') }}</label>

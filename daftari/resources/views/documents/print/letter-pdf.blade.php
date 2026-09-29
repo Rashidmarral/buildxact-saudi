@@ -70,8 +70,8 @@
     <tr>
         <td class="{{ $showEn ? '' : 'ar' }}"><div class="k">{{ $showEn ? __('To') : 'إلى' }}</div>{{ $letter->party_b_name }}</td>
         @if ($bilingual)<td class="ar"><div class="k">إلى</div>{{ $letter->party_b_name }}</td>@endif
-        <td class="{{ $showEn ? '' : 'ar' }}"><div class="k">{{ $showEn ? __('Subject') : 'الموضوع' }}</div>{{ $letter->title }}</td>
-        @if ($bilingual)<td class="ar"><div class="k">الموضوع</div>{{ $letter->title }}</td>@endif
+        <td class="{{ $showEn ? '' : 'ar' }}"><div class="k">{{ $showEn ? __('Subject') : 'الموضوع' }}</div>{{ $showEn ? $letter->title : $letter->titleAr() }}</td>
+        @if ($bilingual)<td class="ar"><div class="k">الموضوع</div>{{ $letter->titleAr() }}</td>@endif
     </tr>
     @if ($letter->project)
         <tr>
@@ -82,9 +82,9 @@
 </table>
 
 @if ($bilingual)
-    <table class="title-bar split"><tr><td>{{ $letter->title }}</td><td class="ar">{{ $letter->title }}</td></tr></table>
+    <table class="title-bar split"><tr><td>{{ $letter->title }}</td><td class="ar">{{ $letter->titleAr() }}</td></tr></table>
 @else
-    <div class="title-bar {{ $showAr ? 'ar' : '' }}">{{ $letter->title }}</div>
+    <div class="title-bar {{ $showAr ? 'ar' : '' }}">{{ $showEn ? $letter->title : $letter->titleAr() }}</div>
 @endif
 
 <table style="margin-top: 10px;">

@@ -145,6 +145,8 @@ class MachineryAssetController extends Controller
 
         $machineryAsset->update($data);
 
+        AuditLog::record('machinery.update', $machineryAsset, __('Updated machinery :code', ['code' => $machineryAsset->asset_code]));
+
         return redirect()->route('app.machinery.assets.show', $machineryAsset)->with('status', __('Machinery updated.'));
     }
 
@@ -156,6 +158,8 @@ class MachineryAssetController extends Controller
         }
 
         $machineryAsset->delete();
+
+        AuditLog::record('machinery.delete', $machineryAsset, __('Deleted machinery :code', ['code' => $machineryAsset->asset_code]));
 
         return redirect()->route('app.machinery.assets.index')->with('status', __('Machinery deleted.'));
     }

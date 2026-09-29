@@ -34,7 +34,7 @@ class LetterPresets
     }
 
     /**
-     * @return array{title: string, party_a_role: string, party_b_role: string, content: array<int, array{text_en: string, text_ar: string, is_heading: bool}>}
+     * @return array{title: string, title_ar: string, party_a_role: string, party_b_role: string, content: array<int, array{text_en: string, text_ar: string, is_heading: bool}>}
      */
     public static function blueprint(string $kind): array
     {
@@ -55,7 +55,8 @@ class LetterPresets
     private static function saleAgreement(): array
     {
         return [
-            'title' => __('Machinery Sale Agreement'),
+            'title' => 'Machinery Sale Agreement',
+            'title_ar' => 'اتفاقية بيع آلية',
             'party_a_role' => 'Seller',
             'party_b_role' => 'Buyer',
             'content' => [
@@ -104,7 +105,8 @@ class LetterPresets
     private static function purchaseAgreement(): array
     {
         return [
-            'title' => __('Machinery Purchase Agreement'),
+            'title' => 'Machinery Purchase Agreement',
+            'title_ar' => 'اتفاقية شراء آلية',
             'party_a_role' => 'Buyer',
             'party_b_role' => 'Seller',
             'content' => [
@@ -148,7 +150,8 @@ class LetterPresets
     private static function rentalAgreement(): array
     {
         return [
-            'title' => __('Machinery Rental Agreement'),
+            'title' => 'Machinery Rental Agreement',
+            'title_ar' => 'اتفاقية تأجير آلية',
             'party_a_role' => 'Owner',
             'party_b_role' => 'Renter',
             'content' => [
@@ -207,7 +210,8 @@ class LetterPresets
     private static function workHandoverLetter(): array
     {
         return [
-            'title' => __('Work Handover Letter'),
+            'title' => 'Work Handover Letter',
+            'title_ar' => 'خطاب تسليم أعمال',
             'party_a_role' => 'Contractor',
             'party_b_role' => 'Client',
             'content' => [
@@ -238,7 +242,8 @@ class LetterPresets
     private static function blank(): array
     {
         return [
-            'title' => __('Letter'),
+            'title' => 'Letter',
+            'title_ar' => 'خطاب',
             'party_a_role' => 'Company',
             'party_b_role' => 'Client',
             'content' => [

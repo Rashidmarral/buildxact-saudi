@@ -622,6 +622,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
         Route::resource('letters', CompanyLetterController::class)->parameters(['letters' => 'letter']);
         Route::get('letters/{letter}/pdf', [CompanyLetterController::class, 'pdf'])->middleware('throttle:pdf')->name('letters.pdf');
+        Route::post('letters/{letter}/attachments', [CompanyLetterController::class, 'storeAttachment'])->name('letters.attachments.store');
+        Route::delete('letters/{letter}/attachments/{attachment}', [CompanyLetterController::class, 'destroyAttachment'])->name('letters.attachments.destroy');
     });
 
     Route::middleware(['permission:repair_shop', 'module:repair_shop'])->group(function () {

@@ -7,6 +7,9 @@
     <div>
         <a href="{{ route('app.machinery.letters.index') }}" class="text-sm text-slate-400 hover:text-slate-600">{{ __('← Letters & Agreements') }}</a>
         <h1 class="text-xl font-bold text-slate-900 mt-1">{{ $letter->title }}</h1>
+        @if ($letter->title_ar)
+            <p class="text-sm text-slate-500" dir="rtl">{{ $letter->title_ar }}</p>
+        @endif
         <p class="text-sm text-slate-500 mt-1">{{ $letter->reference_number }} — {{ $letter->letter_date->format('Y-m-d') }}</p>
     </div>
     <div class="flex items-center gap-2">
@@ -42,7 +45,7 @@
     </div>
 </div>
 
-<div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+<div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4 mb-6">
     <h3 class="font-semibold text-slate-900">{{ __('Content') }}</h3>
     @foreach ($letter->content as $block)
         <div class="grid sm:grid-cols-2 gap-4 {{ $block['is_heading'] ? 'font-semibold text-slate-900' : 'text-slate-600' }} text-sm border-b border-slate-50 pb-4 last:border-0">
@@ -50,5 +53,29 @@
             <p dir="rtl">{{ $block['text_ar'] }}</p>
         </div>
     @endforeach
+</div>
+
+<div class="bg-white rounded-xl border border-slate-100 p-6">
+    <h3 class="font-semibold text-slate-900 mb-3">{{ __('Attachments') }}</h3>
+    <form method="POST" action="{{ route('app.machinery.letters.attachments.store', $letter) }}" enctype="multipart/form-data" class="mb-4">
+        @csrf
+        <input type="file" name="file" required class="text-sm">
+        <button type="submit" class="ms-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Upload') }}</button>
+    </form>
+    <p class="text-xs text-slate-400 mb-3">{{ __('Once this letter is printed and signed, attach the scanned copy here as the record of what was actually agreed.') }}</p>
+    @forelse ($letter->attachments as $attachment)
+        <div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+            <a href="{{ Storage::url($attachment->path) }}" target="_blank" class="text-sm text-brand-700 hover:underline">{{ $attachment->original_name }}</a>
+            <span class="flex items-center gap-3">
+                <span class="text-xs text-slate-400">{{ $attachment->humanSize() }}</span>
+                <form method="POST" action="{{ route('app.machinery.letters.attachments.destroy', [$letter, $attachment]) }}" onsubmit="return confirm('{{ __('Remove this attachment?') }}')">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="text-xs text-red-600 hover:underline">{{ __('Remove') }}</button>
+                </form>
+            </span>
+        </div>
+    @empty
+        <p class="text-sm text-slate-400">{{ __('No attachments yet.') }}</p>
+    @endforelse
 </div>
 @endsection

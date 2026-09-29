@@ -22,7 +22,7 @@ class CompanyLetter extends Model
 
     protected $fillable = [
         'company_id', 'machinery_asset_id', 'machinery_rental_contract_id', 'project_id',
-        'document_type', 'reference_number', 'title', 'letter_date',
+        'document_type', 'reference_number', 'title', 'title_ar', 'letter_date',
         'party_a_role', 'party_a_name', 'party_b_role', 'party_b_name', 'party_b_details',
         'client_id', 'supplier_id', 'language_mode', 'content', 'created_by',
     ];
@@ -73,5 +73,10 @@ class CompanyLetter extends Model
     public function partyAName(): string
     {
         return $this->party_a_name ?: $this->company->name;
+    }
+
+    public function titleAr(): string
+    {
+        return $this->title_ar ?: $this->title;
     }
 }

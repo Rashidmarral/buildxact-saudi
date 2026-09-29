@@ -21,6 +21,7 @@ use App\Models\Project;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 
 /**
  * Machinery & Equipment: a paid module (like Coffee Shop, Project Cash
@@ -318,5 +319,40 @@ class MachineryModuleTest extends \Tests\TestCase
 
         $letter->update(['language_mode' => 'english_only']);
         $this->actingAs($owner)->get(route('app.machinery.letters.pdf', $letter))->assertOk();
+    }
+
+    // ------------------------------------------------------------------
+    // Letter attachments — the scanned, signed copy. The relation and
+    // eager-load already existed; this exercises the upload/remove
+    // endpoints added to close that gap.
+    // ------------------------------------------------------------------
+
+    public function test_a_signed_copy_can_be_attached_to_and_removed_from_a_letter(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $letter = CompanyLetter::create([
+            'company_id' => $company->id, 'document_type' => 'custom', 'reference_number' => 'LTR-00001',
+            'title' => 'Letter', 'letter_date' => now()->toDateString(), 'party_a_role' => 'Company',
+            'party_b_role' => 'Client', 'party_b_name' => 'Someone', 'language_mode' => 'bilingual',
+            'content' => [['text_en' => 'Body.', 'text_ar' => 'نص.', 'is_heading' => false]],
+        ]);
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.attachments.store', $letter), [
+            'file' => UploadedFile::fake()->image('signed-copy.jpg'),
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('attachments', [
+            'attachable_type' => CompanyLetter::class, 'attachable_id' => $letter->id, 'original_name' => 'signed-copy.jpg',
+        ]);
+
+        $this->actingAs($owner)->get(route('app.machinery.letters.show', $letter))
+            ->assertOk()->assertSee('signed-copy.jpg');
+
+        $attachment = $letter->attachments()->first();
+        $this->actingAs($owner)->delete(route('app.machinery.letters.attachments.destroy', [$letter, $attachment]))
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseMissing('attachments', ['id' => $attachment->id]);
     }
 }
