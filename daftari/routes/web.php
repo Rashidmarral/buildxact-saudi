@@ -343,6 +343,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('quotations/{quotation}/accept', [QuotationController::class, 'accept'])->name('quotations.accept');
         Route::post('quotations/{quotation}/reject', [QuotationController::class, 'reject'])->name('quotations.reject');
         Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convertToInvoice'])->name('quotations.convert');
+        Route::post('quotations/{quotation}/payment-plan', [QuotationController::class, 'storePaymentPlan'])->name('quotations.payment-plan.store');
+        Route::post('quotations/{quotation}/payment-plan/{stage}/generate-invoice', [QuotationController::class, 'generateStageInvoice'])->name('quotations.payment-plan.generate-invoice');
         Route::post('quotations/{quotation}/attachments', [QuotationController::class, 'storeAttachment'])->name('quotations.attachments.store');
         Route::delete('quotations/{quotation}/attachments/{attachment}', [QuotationController::class, 'destroyAttachment'])->name('quotations.attachments.destroy');
         Route::get('quotations/{quotation}/pdf', [QuotationController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('quotations.pdf');

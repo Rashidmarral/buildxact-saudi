@@ -16,6 +16,7 @@ use App\Models\Item;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Models\QuotationPaymentPlanStage;
 use App\Models\Salesperson;
 use App\Models\TaxRate;
 use App\Models\Unit;
@@ -483,6 +484,134 @@ class QuotationController extends Controller
         });
 
         return redirect()->route('app.invoices.show', $invoice)->with('status', __('Quotation converted to invoice.'));
+    }
+
+    /**
+     * Defines (or, before any stage has been invoiced, redefines) this
+     * quotation's payment-plan stages — an alternative to convertToInvoice()
+     * for a quotation billed in installments (advance + progress payments)
+     * rather than one invoice for the full amount. Each stage is invoiced
+     * independently later via generateStageInvoice(), so nothing here
+     * creates an Invoice yet.
+     */
+    public function storePaymentPlan(Request $request, Quotation $quotation)
+    {
+        abort_unless($quotation->status === 'accepted', 404);
+
+        if ($quotation->paymentPlanIsLocked()) {
+            return back()->withErrors(['stages' => __('This payment plan can no longer be edited — one of its stages has already been invoiced.')]);
+        }
+
+        $data = $request->validate([
+            'stages' => ['required', 'array', 'min:1'],
+            'stages.*.description' => ['required', 'string', 'max:255'],
+            'stages.*.percentage' => ['required', 'numeric', 'min:0.01', 'max:100'],
+        ]);
+
+        $sum = round(collect($data['stages'])->sum(fn ($s) => (float) $s['percentage']), 2);
+        if (abs($sum - 100) > 0.01) {
+            return back()->withErrors(['stages' => __('Stage percentages must add up to 100% (currently :sum%).', ['sum' => rtrim(rtrim(number_format($sum, 2), '0'), '.')])])->withInput();
+        }
+
+        DB::transaction(function () use ($quotation, $data) {
+            $quotation->paymentPlanStages()->delete();
+
+            foreach ($data['stages'] as $i => $stage) {
+                $quotation->paymentPlanStages()->create([
+                    'company_id' => $quotation->company_id,
+                    'sort_order' => $i,
+                    'description' => $stage['description'],
+                    'percentage' => $stage['percentage'],
+                    'created_by' => Auth::id(),
+                ]);
+            }
+
+            $quotation->update(['is_staged' => true]);
+        });
+
+        AuditLog::record('quotation.payment_plan_set', $quotation, __('Set up a :count-stage payment plan for :number', ['count' => count($data['stages']), 'number' => $quotation->quotation_number]));
+
+        return back()->with('status', __('Payment plan saved.'));
+    }
+
+    /**
+     * Raises one draft Invoice for a single payment-plan stage — the
+     * stage's percentage share of the quotation's VAT-inclusive total,
+     * as one free-text line (a stage bills a portion of the whole job,
+     * not particular quotation line items). Once every stage has been
+     * invoiced, the quotation is marked converted, matching the
+     * single-invoice path's terminal state.
+     */
+    public function generateStageInvoice(Quotation $quotation, QuotationPaymentPlanStage $stage)
+    {
+        abort_unless($stage->quotation_id === $quotation->id, 404);
+
+        if ($stage->invoice_id) {
+            return back()->withErrors(['stage' => __('This stage has already been invoiced.')]);
+        }
+
+        $invoice = DB::transaction(function () use ($quotation, $stage) {
+            $company = Auth::user()->company;
+
+            // The quotation's own blended VAT rate (vat_total / subtotal),
+            // so a stage invoice's VAT split matches the quotation's own
+            // rate even though the stage is one lump-sum line, not a copy
+            // of individual quotation items.
+            $vatRate = $quotation->subtotal > 0
+                ? round(((float) $quotation->vat_total / (float) $quotation->subtotal) * 100, 2)
+                : 15.0;
+
+            $stageTotal = $stage->amount();
+            $stageSubtotal = round($stageTotal / (1 + $vatRate / 100), 2);
+            $stageVat = round($stageTotal - $stageSubtotal, 2);
+
+            $invoice = Invoice::create([
+                'client_id' => $quotation->client_id,
+                'project_id' => $quotation->project_id,
+                'quotation_id' => $quotation->id,
+                'branch_id' => $quotation->branch_id ?? $company->default_branch_id,
+                'created_by' => Auth::id(),
+                'invoice_number' => $company->nextInvoiceNumber(),
+                'type' => 'standard',
+                'status' => 'draft',
+                'issue_date' => now()->toDateString(),
+                'due_date' => now()->addDays(30)->toDateString(),
+                'currency' => $quotation->currency,
+                'notes' => __('Stage :order of :count — :description (:percentage% of :number).', [
+                    'order' => $stage->sort_order + 1,
+                    'count' => $quotation->paymentPlanStages()->count(),
+                    'description' => $stage->description,
+                    'percentage' => rtrim(rtrim(number_format((float) $stage->percentage, 2), '0'), '.'),
+                    'number' => $quotation->quotation_number,
+                ]),
+            ]);
+
+            $invoice->items()->create([
+                'description' => $stage->description,
+                'quantity' => 1,
+                'unit_price' => $stageSubtotal,
+                'vat_rate' => $vatRate,
+                'vat_amount' => $stageVat,
+                'line_total' => $stageSubtotal,
+                'sort_order' => 0,
+            ]);
+
+            $invoice->recalculateTotals();
+
+            $stage->update(['invoice_id' => $invoice->id, 'invoiced_at' => now()]);
+
+            if ($quotation->fresh()->isFullyStageInvoiced()) {
+                $quotation->update(['status' => 'converted']);
+            }
+
+            return $invoice;
+        });
+
+        AuditLog::record('quotation.stage_invoice_generated', $quotation, __('Generated invoice :invoice for stage ":description" of :number', [
+            'invoice' => $invoice->invoice_number, 'description' => $stage->description, 'number' => $quotation->quotation_number,
+        ]));
+
+        return redirect()->route('app.invoices.show', $invoice)->with('status', __('Stage invoice generated.'));
     }
 
     /**

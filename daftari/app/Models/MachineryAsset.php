@@ -128,7 +128,13 @@ class MachineryAsset extends Model
             return null;
         }
 
-        $ownedDays = max(1, $acquiredAt->diffInDays(now()) + 1);
+        // startOfDay() on both sides — acquiredAt may be a plain date (no
+        // time component) while now() carries the current time-of-day;
+        // diffing a date against a full timestamp gives a fractional day
+        // count that drifts with the clock, unlike activeDays() above
+        // (start_date/end_date are both dates, so that diff is always a
+        // clean whole number).
+        $ownedDays = max(1, $acquiredAt->copy()->startOfDay()->diffInDays(now()->startOfDay()) + 1);
         $activeDays = $this->rentalContracts->sum(fn (MachineryRentalContract $c) => $c->activeDays())
             + $this->deployments->sum(fn (MachineryProjectDeployment $d) => $d->activeDays());
 

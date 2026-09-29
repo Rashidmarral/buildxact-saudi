@@ -17,7 +17,7 @@ class Quotation extends Model
 
     protected $fillable = [
         'company_id', 'client_id', 'project_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
-        'quotation_number', 'type', 'status', 'issue_date', 'expiry_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value',
+        'quotation_number', 'type', 'status', 'is_staged', 'issue_date', 'expiry_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value',
         'vat_total', 'total', 'currency', 'notes', 'bank_account_id',
         'approved_by', 'approved_at', 'approval_rejection_reason',
         'accepted_at', 'accepted_by_name', 'accepted_signature', 'accepted_ip',
@@ -30,6 +30,7 @@ class Quotation extends Model
             'expiry_date' => 'date',
             'approved_at' => 'datetime',
             'accepted_at' => 'datetime',
+            'is_staged' => 'boolean',
         ];
     }
 
@@ -102,6 +103,34 @@ class Quotation extends Model
     public function items(): HasMany
     {
         return $this->hasMany(QuotationItem::class);
+    }
+
+    /** Every invoice generated from this quotation's payment-plan stages. */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function paymentPlanStages(): HasMany
+    {
+        return $this->hasMany(QuotationPaymentPlanStage::class)->orderBy('sort_order');
+    }
+
+    /**
+     * Locked once the first stage is actually invoiced — redefining the
+     * plan after that would orphan the stage a real Invoice already
+     * points back to.
+     */
+    public function paymentPlanIsLocked(): bool
+    {
+        return $this->paymentPlanStages()->whereNotNull('invoice_id')->exists();
+    }
+
+    public function isFullyStageInvoiced(): bool
+    {
+        return $this->is_staged
+            && $this->paymentPlanStages()->exists()
+            && $this->paymentPlanStages()->whereNull('invoice_id')->doesntExist();
     }
 
     public function recalculateTotals(): void
