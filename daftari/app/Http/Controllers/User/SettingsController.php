@@ -111,6 +111,7 @@ class SettingsController extends Controller
             'logo' => ['nullable', 'image', 'max:2048'],
             'favicon' => ['nullable', 'image', 'mimes:png,ico,jpg,jpeg,webp', 'max:512'],
             'stamp' => ['nullable', 'image', 'max:2048'],
+            'stamp_size' => ['nullable', 'integer', 'min:60', 'max:260'],
         ]);
 
         $company = Auth::user()->company;

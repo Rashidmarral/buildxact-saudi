@@ -19,7 +19,17 @@
                 <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total VAT') }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
                 <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #1e293b;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1.5pt solid #1e293b;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                 @foreach ($doc['extra_rows'] ?? [] as $row)
-                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; color: #64748b;">{{ \App\Support\Money::format($row['value']) }}</td></tr>
+                    @php
+                        $rowColor = match ($row['variant'] ?? null) { 'red' => '#dc2626', 'green' => '#059669', default => '#64748b' };
+                        $rowWeight = ! empty($row['emphasis']) ? 'font-weight: bold;' : '';
+                    @endphp
+                    <tr>
+                        <td style="padding: 3px 0; color: {{ $rowColor }}; {{ $rowWeight }}">
+                            {{ $primary($row['label'], $row['label_ar'] ?? null) }}
+                            @if ($secondary($row['label_ar'] ?? null))<div class="ar" style="font-size: 8pt;">{{ $row['label_ar'] }}</div>@endif
+                        </td>
+                        <td class="text-end" style="padding: 3px 0; color: {{ $rowColor }}; {{ $rowWeight }}">{{ \App\Support\Money::format($row['value']) }}</td>
+                    </tr>
                 @endforeach
             </table>
         </td>

@@ -35,6 +35,9 @@
     $bankAccounts = $doc['bank_accounts'] ?? (($doc['bank_account'] ?? null) ? collect([$doc['bank_account']]) : collect());
     $logoData = $embed($company->logo_path ?? null);
     $stampData = $embed($company->stamp_path ?? null);
+    // A company-chosen override (Settings -> stamp size) beats each
+    // layout's own default below; null falls back to that default.
+    $stampSizeOverride = $company->stamp_size ?: null;
     $letterheadData = $embed($template->letterhead_path ?? null);
     $footerData = $embed($template->footer_path ?? null);
 
@@ -68,8 +71,12 @@
        needs meaningfully more physical area for the same module count to
        stay scannable. */
     .qr-img { width: 180px; height: 180px; }
-    .footer-note { margin-top: {{ $footerGap }}px; font-size: 8.5pt; color: #94a3b8; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: {{ $isCompact ? 6 : 8 }}px; }
-    .stamp-img { width: 130px; height: 130px; }
+    .footer-note { margin-top: {{ $footerGap + 4 }}px; font-size: 8.5pt; color: #94a3b8; text-align: center; }
+    /* No fixed height here — a real company stamp/seal is rarely a
+       perfect square, and mPDF (unlike a browser) has no object-fit
+       support, so forcing both width and height stretches/distorts a
+       non-square stamp image. Width alone lets it scale proportionally. */
+    .stamp-img { width: 130px; }
     .notes-block { margin-top: {{ $notesGap }}px; font-size: 9pt; }
 </style>
 </head>
@@ -160,7 +167,13 @@
 
     @include('documents.print.pdf-bank-totals', ['doc' => $doc, 'bankAccounts' => $bankAccounts])
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 140])
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
+
+    @if (($doc['payments'] ?? collect())->isNotEmpty())
+        @include('documents.print.pdf-payments-received', ['payments' => $doc['payments']])
+    @endif
+
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 160])
 
     @include('documents.print.pdf-signature')
 
@@ -243,12 +256,22 @@
                     <tr><td style="padding: 2px 0; font-weight: bold;">{{ $lbl('Total Tax') }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($doc['vat_total'], 2) }}</td></tr>
                     <tr><td style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ $lbl('Grand Total') }}</td><td class="text-end" style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ number_format($doc['total'], 2) }}</td></tr>
                     @foreach ($doc['extra_rows'] ?? [] as $row)
-                        <tr><td style="padding: 2px 0;">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($row['value'], 2) }}</td></tr>
+                        @php
+                            $rowColor = match ($row['variant'] ?? null) { 'red' => '#dc2626', 'green' => '#059669', default => '#334155' };
+                            $rowWeight = ! empty($row['emphasis']) ? 'font-weight: bold;' : '';
+                        @endphp
+                        <tr><td style="padding: 2px 0; color: {{ $rowColor }}; {{ $rowWeight }}">{{ $primary($row['label'], $row['label_ar'] ?? null) }}</td><td class="text-end" style="padding: 2px 0; color: {{ $rowColor }}; {{ $rowWeight }}">{{ number_format($row['value'], 2) }}</td></tr>
                     @endforeach
                 </table>
             </td>
         </tr>
     </table>
+
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
+
+    @if (($doc['payments'] ?? collect())->isNotEmpty())
+        @include('documents.print.pdf-payments-received', ['payments' => $doc['payments']])
+    @endif
 
     @if (!empty($doc['salesperson']))
         <div style="margin-top: 12px; font-size: 9.5pt;">
@@ -266,7 +289,7 @@
         </div>
     @endif
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 130])
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 150])
 
     @include('documents.print.pdf-signature')
 
@@ -421,7 +444,7 @@
         <tr>
             <td style="width: 45%; text-align: {{ $qoRight }};">
                 @if ($stampData)
-                    <img src="{{ $stampData }}" style="width: 90px; height: 90px;" alt="">
+                    <img src="{{ $stampData }}" style="width: {{ $stampSizeOverride ?: 130 }}px;" alt="">
                 @endif
                 <div style="font-weight: bold; margin-top: 4px;">{{ $qoSignerLabel }}</div>
                 @if ($company->phone)<div class="muted">{{ $company->phone }}</div>@endif
@@ -540,12 +563,28 @@
                         <tr><td colspan="2" style="padding: 6px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 10px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
                     @endif
                     @foreach ($doc['extra_rows'] ?? [] as $row)
-                        <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($row['value']) }}</td></tr>
+                        @php
+                            $rowColor = match ($row['variant'] ?? null) { 'red' => '#dc2626', 'green' => $boxed ? '#a7f3d0' : '#059669', default => $boxed ? '#ffffff' : '#64748b' };
+                            $rowWeight = ! empty($row['emphasis']) ? 'font-weight: bold;' : '';
+                        @endphp
+                        <tr>
+                            <td style="padding: 3px 0; color: {{ $rowColor }}; {{ $rowWeight }}">
+                                {{ $primary($row['label'], $row['label_ar'] ?? null) }}
+                                @if ($secondary($row['label_ar'] ?? null))<div class="ar" style="font-size: 8pt;">{{ $row['label_ar'] }}</div>@endif
+                            </td>
+                            <td class="text-end" style="padding: 3px 0; color: {{ $rowColor }}; {{ $rowWeight }}">{{ \App\Support\Money::format($row['value']) }}</td>
+                        </tr>
                     @endforeach
                 </table>
             </td>
         </tr>
     </table>
+
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
+
+    @if (($doc['payments'] ?? collect())->isNotEmpty())
+        @include('documents.print.pdf-payments-received', ['payments' => $doc['payments']])
+    @endif
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
@@ -557,7 +596,7 @@
         </table>
     @endif
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => 120])
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 140])
 
     @include('documents.print.pdf-signature')
 

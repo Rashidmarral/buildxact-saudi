@@ -75,6 +75,19 @@
                     @endif
                 </div>
                 <p class="mt-1 text-xs text-slate-400">{{ __('Shown on bills and purchase orders when uploaded.') }}</p>
+                @if ($company->hasFeature('stamps'))
+                    <div class="mt-3 max-w-xs">
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Stamp size on PDF') }}</label>
+                        <select name="stamp_size" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            <option value="" @selected(! $company->stamp_size)>{{ __('Default') }}</option>
+                            <option value="100" @selected($company->stamp_size == 100)>{{ __('Small') }}</option>
+                            <option value="140" @selected($company->stamp_size == 140)>{{ __('Medium') }}</option>
+                            <option value="180" @selected($company->stamp_size == 180)>{{ __('Large') }}</option>
+                            <option value="220" @selected($company->stamp_size == 220)>{{ __('Extra large') }}</option>
+                        </select>
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Scales by width only, so a non-square stamp is never stretched.') }}</p>
+                    </div>
+                @endif
             </div>
             <div class="grid sm:grid-cols-2 gap-5">
                 <div>

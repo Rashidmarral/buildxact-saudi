@@ -278,7 +278,7 @@ class Invoice extends Model
      */
     public function pdfData(): array
     {
-        $this->loadMissing('items', 'client', 'bankAccount');
+        $this->loadMissing('items', 'client', 'bankAccount', 'invoicePayments');
 
         $bankAccount = $this->bankAccount ?? $this->company->defaultBankAccount();
 
@@ -296,6 +296,7 @@ class Invoice extends Model
             'party' => $this->client,
             'qr_code' => $this->qr_code,
             'zatca_status' => $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
+            'payment_status' => $this->status,
             'lines' => $this->items,
             'currency' => $this->currency,
             'subtotal' => $this->subtotal,
@@ -313,9 +314,15 @@ class Invoice extends Model
                     'label' => __('Retention held').' ('.rtrim(rtrim(number_format($this->retention_rate, 2), '0'), '.').'%)',
                     'value' => $this->retention_amount,
                 ] : null,
-                ['label' => __('Paid'), 'value' => $this->amount_paid],
+                $this->amount_paid > 0 ? ['label' => __('Paid'), 'label_ar' => 'المدفوع', 'value' => $this->amount_paid, 'emphasis' => true, 'variant' => 'green'] : null,
                 \App\Support\Money::balanceRow($this->balanceDue()),
             ])),
+            // Only the "Paid so far" running total is core to the totals
+            // box above (shown even with a single lump-sum payment); this
+            // itemized list is the supporting detail — which payments,
+            // when, and how — shown only once there's more than one row
+            // worth listing.
+            'payments' => $this->invoicePayments,
             'bank_account' => $bankAccount,
             'salesperson' => $this->salesperson,
             'notes' => $this->notes,

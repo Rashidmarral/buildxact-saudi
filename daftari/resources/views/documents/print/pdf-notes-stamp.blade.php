@@ -34,7 +34,9 @@
             @endif
             @if ($stampData)
                 <td style="width: 25%; text-align: center; vertical-align: bottom;">
-                    <img src="{{ $stampData }}" class="stamp-img" style="width: {{ $stampSize ?? 90 }}px; height: {{ $stampSize ?? 90 }}px;" alt="">
+                    {{-- Width only — height omitted so a non-square stamp
+                         scales proportionally instead of stretching. --}}
+                    <img src="{{ $stampData }}" class="stamp-img" style="width: {{ $stampSize ?? 90 }}px;" alt="">
                 </td>
             @endif
         </tr>

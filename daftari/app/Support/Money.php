@@ -60,11 +60,12 @@ class Money
     public static function balanceRow(float $balanceDue): array
     {
         if ($balanceDue < -0.004) {
-            return ['label' => __('Overpaid'), 'value' => abs($balanceDue), 'emphasis' => true, 'variant' => 'green'];
+            return ['label' => __('Overpaid'), 'label_ar' => 'مبلغ زائد', 'value' => abs($balanceDue), 'emphasis' => true, 'variant' => 'green'];
         }
 
         return [
             'label' => __('Balance due'),
+            'label_ar' => 'الرصيد المستحق',
             'value' => max($balanceDue, 0.0),
             'emphasis' => true,
             'variant' => $balanceDue > 0.004 ? 'red' : null,
