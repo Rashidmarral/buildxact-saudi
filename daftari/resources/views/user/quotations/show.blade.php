@@ -166,9 +166,9 @@
                     @php($existingStages = $quotation->paymentPlanStages)
                     @forelse ($existingStages as $stage)
                         <div class="grid grid-cols-12 gap-2 items-center stage-row">
-                            <input type="text" name="stages[][description]" value="{{ $stage->description }}" placeholder="{{ __('e.g. Advance payment') }}" class="col-span-7 rounded-lg border-slate-200 text-sm" required>
+                            <input type="text" name="stages[{{ $loop->index }}][description]" value="{{ $stage->description }}" placeholder="{{ __('e.g. Advance payment') }}" class="col-span-7 rounded-lg border-slate-200 text-sm" required>
                             <div class="col-span-3 relative">
-                                <input type="number" step="0.01" min="0.01" max="100" name="stages[][percentage]" value="{{ (float) $stage->percentage }}" oninput="updateStageTotal()" class="stage-percentage w-full rounded-lg border-slate-200 text-sm pe-6" required>
+                                <input type="number" step="0.01" min="0.01" max="100" name="stages[{{ $loop->index }}][percentage]" value="{{ (float) $stage->percentage }}" oninput="updateStageTotal()" class="stage-percentage w-full rounded-lg border-slate-200 text-sm pe-6" required>
                                 <span class="absolute end-2 top-2 text-xs text-slate-400">%</span>
                             </div>
                             <span class="col-span-1 text-xs text-slate-500 stage-amount">—</span>
@@ -176,9 +176,9 @@
                         </div>
                     @empty
                         <div class="grid grid-cols-12 gap-2 items-center stage-row">
-                            <input type="text" name="stages[][description]" placeholder="{{ __('e.g. Advance payment') }}" class="col-span-7 rounded-lg border-slate-200 text-sm" required>
+                            <input type="text" name="stages[0][description]" placeholder="{{ __('e.g. Advance payment') }}" class="col-span-7 rounded-lg border-slate-200 text-sm" required>
                             <div class="col-span-3 relative">
-                                <input type="number" step="0.01" min="0.01" max="100" name="stages[][percentage]" oninput="updateStageTotal()" class="stage-percentage w-full rounded-lg border-slate-200 text-sm pe-6" required>
+                                <input type="number" step="0.01" min="0.01" max="100" name="stages[0][percentage]" oninput="updateStageTotal()" class="stage-percentage w-full rounded-lg border-slate-200 text-sm pe-6" required>
                                 <span class="absolute end-2 top-2 text-xs text-slate-400">%</span>
                             </div>
                             <span class="col-span-1 text-xs text-slate-500 stage-amount">—</span>
@@ -197,14 +197,23 @@
 
     <script>
         const quotationTotal = {{ (float) $quotation->total }};
+        // Each row needs its OWN shared index across its description and
+        // percentage inputs (stages[N][description]/stages[N][percentage])
+        // — using empty stages[][...] brackets on both fields silently
+        // breaks PHP's array parsing: every field occurrence appends a new
+        // top-level array element instead of grouping by row, so the
+        // description and percentage of the same stage end up in two
+        // different, incomplete array entries.
+        let nextStageIndex = {{ max($quotation->paymentPlanStages->count(), 1) }};
 
         function rowTemplate() {
+            const index = nextStageIndex++;
             const row = document.createElement('div');
             row.className = 'grid grid-cols-12 gap-2 items-center stage-row';
             row.innerHTML = `
-                <input type="text" name="stages[][description]" placeholder="{{ __('e.g. Advance payment') }}" class="col-span-7 rounded-lg border-slate-200 text-sm" required>
+                <input type="text" name="stages[${index}][description]" placeholder="{{ __('e.g. Advance payment') }}" class="col-span-7 rounded-lg border-slate-200 text-sm" required>
                 <div class="col-span-3 relative">
-                    <input type="number" step="0.01" min="0.01" max="100" name="stages[][percentage]" oninput="updateStageTotal()" class="stage-percentage w-full rounded-lg border-slate-200 text-sm pe-6" required>
+                    <input type="number" step="0.01" min="0.01" max="100" name="stages[${index}][percentage]" oninput="updateStageTotal()" class="stage-percentage w-full rounded-lg border-slate-200 text-sm pe-6" required>
                     <span class="absolute end-2 top-2 text-xs text-slate-400">%</span>
                 </div>
                 <span class="col-span-1 text-xs text-slate-500 stage-amount">—</span>

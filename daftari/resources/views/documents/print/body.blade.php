@@ -30,11 +30,24 @@
     // Static UI labels ("Description", "Subtotal", ...) always have an
     // Arabic translation in lang/ar.json, so arabic_only/english_only can
     // resolve them directly instead of needing hand-written Arabic in
-    // every layout branch.
-    $lbl = fn (string $key) => $languageMode === 'arabic_only'
-        ? \Illuminate\Support\Facades\Lang::get($key, [], 'ar')
-        : \Illuminate\Support\Facades\Lang::get($key, [], 'en');
-    $lblAr = fn (string $key) => \Illuminate\Support\Facades\Lang::get($key, [], 'ar');
+    // every layout branch. In bilingual mode both languages are combined
+    // on one line — this previously always returned English alone outside
+    // arabic_only mode, so most of this template's own structural labels
+    // (Subtotal, VAT, table headers, ...) silently rendered English-only
+    // even on a "bilingual" layout.
+    $lbl = function (string $key) use ($languageMode) {
+        if ($languageMode === 'arabic_only') {
+            return \Illuminate\Support\Facades\Lang::get($key, [], 'ar');
+        }
+
+        if ($languageMode === 'english_only') {
+            return \Illuminate\Support\Facades\Lang::get($key, [], 'en');
+        }
+
+        $ar = \Illuminate\Support\Facades\Lang::get($key, [], 'ar');
+
+        return $ar !== $key ? "{$key} / {$ar}" : $key;
+    };
 
     // Name pairs (company/party/item) have a primary line plus an
     // optional Arabic secondary line — this picks the primary text for

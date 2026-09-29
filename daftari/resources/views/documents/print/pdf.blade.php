@@ -45,9 +45,27 @@
     $tableDirection = $template->table_direction ?? 'ltr';
     $showEn = $languageMode !== 'arabic_only';
     $showAr = $languageMode !== 'english_only';
-    $lbl = fn (string $key) => $languageMode === 'arabic_only'
-        ? \Illuminate\Support\Facades\Lang::get($key, [], 'ar')
-        : \Illuminate\Support\Facades\Lang::get($key, [], 'en');
+    // Structural labels (Subtotal, VAT, Description, table headers, ...) —
+    // as opposed to $primary/$secondary, which carry the document's own
+    // bilingual data (party name, item description). This previously
+    // always returned the plain English key outside arabic_only mode, so
+    // every "bilingual" layout's static labels silently rendered English-
+    // only — only the dynamic $primary/$secondary content was actually
+    // bilingual. Now combines both languages on one line in bilingual
+    // mode, falling back to English alone if a key has no ar.json entry.
+    $lbl = function (string $key) use ($languageMode) {
+        if ($languageMode === 'arabic_only') {
+            return \Illuminate\Support\Facades\Lang::get($key, [], 'ar');
+        }
+
+        if ($languageMode === 'english_only') {
+            return \Illuminate\Support\Facades\Lang::get($key, [], 'en');
+        }
+
+        $ar = \Illuminate\Support\Facades\Lang::get($key, [], 'ar');
+
+        return $ar !== $key ? "{$key} / {$ar}" : $key;
+    };
     $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
     $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
 @endphp

@@ -157,8 +157,11 @@ class InvoiceTemplateFlexibilityTest extends TestCase
         $response = $this->actingAs($owner)->get(route('app.invoices.show', $invoice));
 
         $response->assertOk();
-        // The column header is gone...
-        $response->assertDontSee(__('VAT').'</th>', false);
+        // The column header is gone — bilingual mode's structural labels
+        // render as "English / Arabic" (see $lbl() in body.blade.php), so
+        // this checks for that exact combined header text next to its
+        // closing tag, not just the word "VAT" alone.
+        $response->assertDontSee(__('VAT').' / ضريبة القيمة المضافة</th>', false);
         // ...but the VAT total in the summary section is still there.
         $response->assertSee(__('VAT'));
         $response->assertSee('15.00');
@@ -177,7 +180,7 @@ class InvoiceTemplateFlexibilityTest extends TestCase
         $response = $this->actingAs($owner)->get(route('app.invoices.show', $invoice));
 
         $response->assertOk();
-        $response->assertSee(__('VAT').'</th>', false);
+        $response->assertSee(__('VAT').' / ضريبة القيمة المضافة</th>', false);
     }
 
     public function test_the_templates_index_page_renders_with_the_new_fields_set(): void

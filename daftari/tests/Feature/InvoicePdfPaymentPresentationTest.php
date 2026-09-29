@@ -91,6 +91,31 @@ class InvoicePdfPaymentPresentationTest extends TestCase
         $this->assertStringContainsString('#dc2626', $html);
     }
 
+    /**
+     * "Subtotal / Total VAT / Total still coming in english only" — the
+     * $lbl() helper used for every structural label in this template
+     * (Subtotal, Discount, Total VAT/Tax, Total, table headers, ...)
+     * previously always returned plain English outside arabic_only mode,
+     * even on a "bilingual" layout. Only the dynamic $primary/$secondary
+     * content (party name, item description, the Paid/Balance due extra
+     * rows) was actually bilingual.
+     */
+    public function test_the_core_totals_labels_render_bilingually_on_the_bilingual_classic_layout(): void
+    {
+        [$company] = $this->makeOwner();
+        $company->invoiceTemplates()->updateOrCreate(
+            ['document_type' => 'invoice'],
+            ['name' => 'Bilingual', 'layout' => 'bilingual_classic', 'language_mode' => 'bilingual', 'is_default' => true]
+        );
+        $invoice = $this->makePartiallyPaidInvoice($company);
+
+        $html = $this->renderPdfHtml($invoice);
+
+        $this->assertStringContainsString('Subtotal / المجموع الفرعي', $html);
+        $this->assertStringContainsString('Total VAT / إجمالي ضريبة القيمة المضافة', $html);
+        $this->assertStringContainsString('Total / الإجمالي', $html);
+    }
+
     public function test_a_partially_paid_invoice_shows_the_partially_paid_badge(): void
     {
         [$company] = $this->makeOwner();

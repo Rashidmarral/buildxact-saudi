@@ -252,6 +252,49 @@ class QuotationPaymentPlanTest extends TestCase
             ->assertOk()->assertDontSee(__('Edit plan'))->assertSee(__('View invoice'));
     }
 
+    /**
+     * Regression guard: the stage builder form previously named both
+     * inputs of a row stages[][description] / stages[][percentage] —
+     * empty brackets on every field. PHP treats each empty-bracket
+     * occurrence as its own new array append, so submitting more than one
+     * row split each stage's description and percentage into two
+     * different, incomplete array entries (see the PHP array-parsing
+     * proof: stages[][description]=A&stages[][percentage]=10&... yields
+     * [0=>['description'=>'A'], 1=>['percentage'=>10], ...], never
+     * [0=>['description'=>'A','percentage'=>10]]) — producing exactly the
+     * "stages.1.description field is required" / "stages.0.percentage
+     * field is required" errors a real user hit. Each row's two inputs
+     * must share one explicit numeric index instead.
+     */
+    public function test_the_payment_plan_forms_stage_inputs_share_one_index_per_row(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client Co.']);
+        $quotation = $this->makeAcceptedQuotation($company, $client);
+
+        $this->actingAs($owner)->post(route('app.quotations.payment-plan.store', $quotation), [
+            'stages' => [
+                ['description' => 'Advance payment', 'percentage' => 20],
+                ['description' => 'Second payment', 'percentage' => 30],
+                ['description' => 'Final payment', 'percentage' => 50],
+            ],
+        ]);
+
+        $html = $this->actingAs($owner)->get(route('app.quotations.show', $quotation))->getContent();
+
+        // No field may use empty stages[][...] brackets.
+        $this->assertStringNotContainsString('stages[][description]', $html);
+        $this->assertStringNotContainsString('stages[][percentage]', $html);
+
+        // Every row's description and percentage inputs share the same
+        // explicit index.
+        foreach (range(0, 2) as $i) {
+            $this->assertStringContainsString("stages[{$i}][description]", $html);
+            $this->assertStringContainsString("stages[{$i}][percentage]", $html);
+        }
+    }
+
     public function test_company_a_cannot_generate_a_stage_invoice_for_company_bs_quotation(): void
     {
         $companyA = $this->makeCompany();
