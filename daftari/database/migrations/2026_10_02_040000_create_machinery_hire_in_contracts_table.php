@@ -34,7 +34,7 @@ return new class extends Migration
             $table->decimal('rate', 12, 2);
             $table->string('rate_type', 20); // daily, weekly, monthly, per_unit
             $table->string('rate_unit_label', 60)->nullable(); // e.g. "sq. meter" — only when rate_type = per_unit
-            $table->boolean('operator_included')->default(true);
+            $table->boolean('operator_included')->default(false);
             $table->string('operator_name')->nullable(); // the SUPPLIER's own driver — free text, not an Employee
             $table->string('fuel_responsibility', 20)->default('supplier'); // supplier, company
             $table->foreignId('project_id')->nullable()->constrained()->nullOnDelete();

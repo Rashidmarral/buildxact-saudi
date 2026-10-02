@@ -94,6 +94,7 @@ use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCashFlowController;
 use App\Http\Controllers\User\CompanyLetterController;
 use App\Http\Controllers\User\MachineryAssetController;
+use App\Http\Controllers\User\MachineryHireInContractController;
 use App\Http\Controllers\User\MachineryOperatorController;
 use App\Http\Controllers\User\MachineryProjectDeploymentController;
 use App\Http\Controllers\User\MachineryRentalContractController;
@@ -629,6 +630,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::delete('letters/{letter}/attachments/{attachment}', [CompanyLetterController::class, 'destroyAttachment'])->name('letters.attachments.destroy');
 
         Route::resource('operators', MachineryOperatorController::class)->parameters(['operators' => 'employee'])->only(['index', 'create', 'store']);
+
+        Route::resource('hire-in-contracts', MachineryHireInContractController::class)->parameters(['hire-in-contracts' => 'hireInContract'])->only(['index', 'create', 'store', 'show']);
+        Route::post('hire-in-contracts/{hireInContract}/end', [MachineryHireInContractController::class, 'end'])->name('hire-in-contracts.end');
     });
 
     Route::middleware(['permission:repair_shop', 'module:repair_shop'])->group(function () {
