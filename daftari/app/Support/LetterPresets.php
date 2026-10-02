@@ -18,6 +18,7 @@ class LetterPresets
         'machinery_sale_agreement',
         'machinery_purchase_agreement',
         'machinery_rental_agreement',
+        'machinery_hire_in_agreement',
         'work_handover_letter',
         'custom',
     ];
@@ -28,6 +29,7 @@ class LetterPresets
             'machinery_sale_agreement' => __('Machinery Sale Agreement'),
             'machinery_purchase_agreement' => __('Machinery Purchase Agreement'),
             'machinery_rental_agreement' => __('Machinery Rental Agreement'),
+            'machinery_hire_in_agreement' => __('Equipment Hire Agreement'),
             'work_handover_letter' => __('Work Handover Letter'),
             default => __('Custom Letter'),
         };
@@ -42,6 +44,7 @@ class LetterPresets
             'machinery_sale_agreement' => self::saleAgreement(),
             'machinery_purchase_agreement' => self::purchaseAgreement(),
             'machinery_rental_agreement' => self::rentalAgreement(),
+            'machinery_hire_in_agreement' => self::hireInAgreement(),
             'work_handover_letter' => self::workHandoverLetter(),
             default => self::blank(),
         };
@@ -202,6 +205,68 @@ class LetterPresets
                 self::block(
                     'This Agreement is executed in both Arabic and English; in the event of any discrepancy between the two texts, the Arabic text shall prevail.',
                     'حُرر هذا الاتفاق باللغتين العربية والإنجليزية، وفي حال وجود أي تعارض بين النصين يُعتد بالنص العربي.'
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * The reverse of rentalAgreement(): here the COMPANY is the hirer
+     * (First Party), not the owner — modeled directly on a real bilingual
+     * "MC1 & RC2 Vehicle/Equipment Agreement" where the company hires a
+     * spray-tanker + driver from an external supplier at a per-m² rate,
+     * generalized beyond that one equipment type.
+     */
+    private static function hireInAgreement(): array
+    {
+        return [
+            'title' => 'Equipment Hire Agreement',
+            'title_ar' => 'اتفاقية استئجار معدات',
+            'party_a_role' => 'First Party (Hirer)',
+            'party_b_role' => 'Second Party (Equipment Supplier)',
+            'content' => [
+                self::block(
+                    'This Equipment Hire Agreement ("Agreement") is entered into on the date below between the First Party and the Second Party named above, under which the Second Party shall provide the equipment and services described below to the First Party.',
+                    'أُبرمت اتفاقية استئجار المعدات هذه ("الاتفاق") بتاريخه أدناه بين الطرف الأول والطرف الثاني المذكورين أعلاه، يقوم الطرف الثاني بموجبها بتوفير المعدة والخدمات الموصوفة أدناه للطرف الأول.'
+                ),
+                self::block('1. Provision of Equipment and Operator', '1. توفير المعدة والمشغل', true),
+                self::block(
+                    'The Second Party shall provide the equipment described in this agreement together with a qualified, licensed driver/operator for its operation, for the duration stated below.',
+                    'يلتزم الطرف الثاني بتوفير المعدة الموصوفة في هذا الاتفاق مع مشغل/سائق مؤهل ومرخص لتشغيلها، طوال المدة المحددة أدناه.'
+                ),
+                self::block('2. Fuel, Maintenance, and Operating Costs', '2. الوقود والصيانة وتكاليف التشغيل', true),
+                self::block(
+                    'Unless otherwise stated in this agreement, the Second Party shall bear all costs of diesel/fuel, routine maintenance, repairs, spare parts, tyres, oils and lubricants, and all other costs necessary to keep the equipment operating.',
+                    'ما لم يُنص على خلاف ذلك في هذا الاتفاق، يتحمل الطرف الثاني جميع تكاليف الديزل/الوقود والصيانة الدورية والإصلاحات وقطع الغيار والإطارات والزيوت ومواد التزليق وجميع التكاليف الأخرى اللازمة لاستمرار تشغيل المعدة.'
+                ),
+                self::block('3. First Party\'s Obligations', '3. التزامات الطرف الأول', true),
+                self::block(
+                    'The First Party shall provide only the materials and/or site access specified in this agreement and shall bear their cost; the First Party bears no responsibility for the equipment\'s fuel, maintenance, or operating costs.',
+                    'يلتزم الطرف الأول بتوفير المواد و/أو الوصول إلى الموقع المحدد في هذا الاتفاق فقط ويتحمل تكلفتها؛ ولا يتحمل الطرف الأول أي مسؤولية عن وقود المعدة أو صيانتها أو تكاليف تشغيلها.'
+                ),
+                self::block('4. Availability of Equipment', '4. توفر المعدة', true),
+                self::block(
+                    'The Second Party shall make the equipment and operator available whenever requested by the First Party for the duration of this agreement, and shall not refuse, delay, or withdraw the equipment without the First Party\'s prior written approval.',
+                    'يلتزم الطرف الثاني بتوفير المعدة والمشغل عند طلب الطرف الأول طوال مدة هذا الاتفاق، ولا يجوز له رفض أو تأخير أو سحب المعدة دون موافقة الطرف الأول الخطية المسبقة.'
+                ),
+                self::block('5. No Substitution Without Consent', '5. عدم الاستبدال دون موافقة', true),
+                self::block(
+                    'The equipment and operator approved under this agreement may not be substituted for different equipment or a different operator without the First Party\'s prior consent.',
+                    'لا يجوز استبدال المعدة أو المشغل المعتمدين بموجب هذا الاتفاق بمعدة أو مشغل آخر دون موافقة الطرف الأول المسبقة.'
+                ),
+                self::block('6. Liability for Loss or Damage to Materials', '6. المسؤولية عن فقد أو تلف المواد', true),
+                self::block(
+                    'The Second Party shall bear the cost of any loss, leakage, spillage, or damage to the First Party\'s materials occurring during transport or handling by the equipment while in the Second Party\'s custody or operation.',
+                    'يتحمل الطرف الثاني تكلفة أي فقد أو تسرب أو انسكاب أو تلف يلحق بمواد الطرف الأول يحدث أثناء النقل أو المناولة بواسطة المعدة طالما كانت في عهدة أو تحت تشغيل الطرف الثاني.'
+                ),
+                self::block('7. Rate and Payment', '7. الأجرة والسداد', true),
+                self::block(
+                    'The agreed rate is stated on this agreement and is inclusive of the equipment, operator, fuel, and maintenance unless stated otherwise, [inclusive/exclusive] of 15% Value Added Tax per ZATCA regulations. Payment shall be made against measured/certified work or the agreed billing period.',
+                    'الأجرة المتفق عليها مذكورة في هذا الاتفاق وتشمل المعدة والمشغل والوقود والصيانة ما لم يُنص على خلاف ذلك، [شاملة/غير شاملة] ضريبة القيمة المضافة بنسبة 15% وفقًا لأنظمة هيئة الزكاة والضريبة والجمارك. يتم السداد وفق الأعمال المقاسة/المعتمدة أو فترة الفوترة المتفق عليها.'
+                ),
+                self::block(
+                    'This Agreement is governed by the laws and regulations of the Kingdom of Saudi Arabia. Any dispute shall first be settled amicably; failing that, it shall be referred to the competent courts of the Kingdom of Saudi Arabia. This Agreement is executed in both Arabic and English; in the event of any discrepancy, the Arabic text shall prevail.',
+                    'يخضع هذا الاتفاق لأنظمة وقوانين المملكة العربية السعودية. تتم تسوية أي نزاع وديًا أولًا، وفي حال تعذر ذلك يُحال إلى المحاكم المختصة في المملكة العربية السعودية. حُرر هذا الاتفاق باللغتين العربية والإنجليزية، وفي حال وجود أي تعارض يُعتد بالنص العربي.'
                 ),
             ],
         ];

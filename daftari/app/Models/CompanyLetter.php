@@ -21,7 +21,7 @@ class CompanyLetter extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'machinery_asset_id', 'machinery_rental_contract_id', 'project_id',
+        'company_id', 'machinery_asset_id', 'machinery_rental_contract_id', 'machinery_hire_in_contract_id', 'project_id',
         'document_type', 'reference_number', 'title', 'title_ar', 'letter_date',
         'party_a_role', 'party_a_name', 'party_b_role', 'party_b_name', 'party_b_details',
         'client_id', 'supplier_id', 'language_mode', 'content', 'created_by',
@@ -43,6 +43,11 @@ class CompanyLetter extends Model
     public function rentalContract(): BelongsTo
     {
         return $this->belongsTo(MachineryRentalContract::class, 'machinery_rental_contract_id');
+    }
+
+    public function hireInContract(): BelongsTo
+    {
+        return $this->belongsTo(MachineryHireInContract::class, 'machinery_hire_in_contract_id');
     }
 
     public function project(): BelongsTo

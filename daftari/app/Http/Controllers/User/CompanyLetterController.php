@@ -9,6 +9,7 @@ use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\CompanyLetter;
 use App\Models\MachineryAsset;
+use App\Models\MachineryHireInContract;
 use App\Models\MachineryRentalContract;
 use App\Models\Project;
 use App\Models\Supplier;
@@ -56,18 +57,40 @@ class CompanyLetterController extends Controller
             $machinery = $machinery ?? $rentalContract?->machinery;
         }
 
+        // The hire-in case prefills the opposite way from every other
+        // kind: the SUPPLIER (not a client) is party B, since this
+        // company is the one hiring equipment in, not providing it.
+        $hireInContract = null;
+        $hireInOverrides = [];
+        if ($hireInId = $request->integer('machinery_hire_in_contract_id')) {
+            $hireInContract = MachineryHireInContract::find($hireInId);
+            if ($hireInContract) {
+                $hireInOverrides = [
+                    'party_a_role' => 'First Party (Hirer)',
+                    'party_b_role' => 'Second Party (Equipment Supplier)',
+                    'party_b_name' => $hireInContract->supplierDisplayName(),
+                    'party_b_details' => $hireInContract->supplier_cr_number ? __('C.R. No.: :number', ['number' => $hireInContract->supplier_cr_number]) : null,
+                    'supplier_id' => $hireInContract->supplier_id,
+                ];
+            }
+        }
+
         return view('user.machinery.letters.form', [
             'letter' => new CompanyLetter([
                 'document_type' => $documentType,
                 'title' => $blueprint['title'],
                 'title_ar' => $blueprint['title_ar'] ?? null,
-                'party_a_role' => $blueprint['party_a_role'],
-                'party_b_role' => $blueprint['party_b_role'],
+                'party_a_role' => $hireInOverrides['party_a_role'] ?? $blueprint['party_a_role'],
+                'party_b_role' => $hireInOverrides['party_b_role'] ?? $blueprint['party_b_role'],
+                'party_b_name' => $hireInOverrides['party_b_name'] ?? null,
+                'party_b_details' => $hireInOverrides['party_b_details'] ?? null,
+                'supplier_id' => $hireInOverrides['supplier_id'] ?? null,
                 'content' => $blueprint['content'],
                 'language_mode' => 'bilingual',
                 'letter_date' => now()->toDateString(),
                 'machinery_asset_id' => $machinery?->id,
                 'machinery_rental_contract_id' => $rentalContract?->id,
+                'machinery_hire_in_contract_id' => $hireInContract?->id,
                 'project_id' => $request->integer('project_id') ?: null,
             ]),
             'kinds' => LetterPresets::KINDS,
@@ -100,7 +123,7 @@ class CompanyLetterController extends Controller
 
     public function show(CompanyLetter $letter)
     {
-        $letter->load('machinery', 'rentalContract', 'project', 'client', 'supplier', 'attachments');
+        $letter->load('machinery', 'rentalContract', 'hireInContract', 'project', 'client', 'supplier', 'attachments');
 
         return view('user.machinery.letters.show', compact('letter'));
     }
@@ -197,6 +220,7 @@ class CompanyLetterController extends Controller
         $data = $request->validate([
             'machinery_asset_id' => ['nullable', Rule::exists('machinery_assets', 'id')->where('company_id', $companyId)],
             'machinery_rental_contract_id' => ['nullable', Rule::exists('machinery_rental_contracts', 'id')->where('company_id', $companyId)],
+            'machinery_hire_in_contract_id' => ['nullable', Rule::exists('machinery_hire_in_contracts', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'document_type' => ['required', 'string', 'max:40'],
             'title' => ['required', 'string', 'max:255'],
