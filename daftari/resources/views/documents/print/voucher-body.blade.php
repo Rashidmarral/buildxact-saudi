@@ -17,6 +17,7 @@
     $isCheque = $voucher->method === 'cheque';
 
     $purpose = $voucher->notes ?: $voucher->defaultPurpose();
+    $purposeAr = $voucher->notes_ar ?: $purpose;
 
     $amountWordsEn = \App\Support\NumberToWords::englishRiyals((float) $voucher->amount);
     $amountWordsAr = \App\Support\NumberToWords::arabicRiyals((float) $voucher->amount);
@@ -77,6 +78,14 @@
                 {{ __('Cash') }} <span dir="rtl">نقداً</span>
             </label>
             <label class="flex items-center gap-1.5">
+                <span class="inline-flex h-4 w-4 items-center justify-center rounded border {{ $voucher->method === 'bank_transfer' ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300' }}">{{ $voucher->method === 'bank_transfer' ? '✓' : '' }}</span>
+                {{ __('Bank transfer') }} <span dir="rtl">حوالة بنكية</span>
+            </label>
+            <label class="flex items-center gap-1.5">
+                <span class="inline-flex h-4 w-4 items-center justify-center rounded border {{ $voucher->method === 'card' ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300' }}">{{ $voucher->method === 'card' ? '✓' : '' }}</span>
+                {{ __('Card') }} <span dir="rtl">بطاقة</span>
+            </label>
+            <label class="flex items-center gap-1.5">
                 <span class="inline-flex h-4 w-4 items-center justify-center rounded border {{ $isCheque ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300' }}">{{ $isCheque ? '✓' : '' }}</span>
                 {{ __('Cheque') }} <span dir="rtl">بشيك</span>
             </label>
@@ -91,7 +100,7 @@
         @if ($purpose)
             <div class="flex items-start justify-between gap-4 flex-wrap border-t border-dashed border-slate-200 pt-3">
                 <div class="flex-1 min-w-0"><span class="text-slate-400">{{ __('For') }}:</span> <span class="font-medium text-slate-800">{{ $purpose }}</span></div>
-                <div class="flex-1 min-w-0 text-end" dir="rtl"><span class="text-slate-400">وذلك مقابل:</span> <span class="font-medium text-slate-800">{{ $purpose }}</span></div>
+                <div class="flex-1 min-w-0 text-end" dir="rtl"><span class="text-slate-400">وذلك مقابل:</span> <span class="font-medium text-slate-800">{{ $purposeAr }}</span></div>
             </div>
         @endif
 

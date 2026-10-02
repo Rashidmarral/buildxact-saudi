@@ -71,6 +71,15 @@
         </div>
 
         <div class="border-t border-slate-100 pt-5">
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="is_personal" value="1" @checked(old('is_personal', $account->is_personal ?? false)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                {{ __('Personal / pass-through account') }}
+            </label>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Use this when company money is routed through a personal account before being spent on the business (e.g. paying a supplier who only accepts cash personally). It stays fully usable for tagging expenses and transfers, but is left out of customer-facing payment instructions on invoices and quotations.') }}</p>
+            <input type="text" name="personal_owner_name" value="{{ old('personal_owner_name', $account->personal_owner_name) }}" placeholder="{{ __('Held by (e.g. Ahmed Al-Qahtani)') }}" class="mt-2 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        </div>
+
+        <div class="border-t border-slate-100 pt-5">
             <h4 class="font-semibold text-slate-900">{{ __('Opening balance (optional)') }}</h4>
             <div class="grid sm:grid-cols-2 gap-4 mt-3">
                 <div>

@@ -128,6 +128,7 @@ class PaymentVoucherController extends Controller
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'notes_ar' => $data['notes_ar'] ?? null,
                 'status' => 'issued',
             ]);
 
@@ -276,6 +277,7 @@ class PaymentVoucherController extends Controller
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'notes_ar' => $data['notes_ar'] ?? null,
             ]);
 
             $ledger->postPaymentVoucher($paymentVoucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense']));
@@ -378,6 +380,7 @@ class PaymentVoucherController extends Controller
             'method' => ['required', 'in:cash,bank_transfer,card,cheque'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'notes_ar' => ['nullable', 'string', 'max:2000'],
         ]);
     }
 }

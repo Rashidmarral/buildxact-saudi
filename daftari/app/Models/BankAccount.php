@@ -13,13 +13,14 @@ class BankAccount extends Model
     protected $fillable = [
         'company_id', 'name', 'bank_name', 'account_holder_name', 'account_number', 'iban',
         'bank_phone', 'bank_address', 'type', 'opening_balance', 'opening_balance_date',
-        'opening_balance_reference', 'currency', 'is_active',
+        'opening_balance_reference', 'currency', 'is_active', 'is_personal', 'personal_owner_name',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_personal' => 'boolean',
             'opening_balance_date' => 'date',
         ];
     }

@@ -114,6 +114,7 @@ class ReceiptVoucherController extends Controller
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'notes_ar' => $data['notes_ar'] ?? null,
                 'status' => 'issued',
             ]);
 
@@ -244,6 +245,7 @@ class ReceiptVoucherController extends Controller
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'notes_ar' => $data['notes_ar'] ?? null,
             ]);
 
             $ledger->postReceiptVoucher($receiptVoucher->fresh(['bankAccount', 'counterAccount', 'invoice']));
@@ -341,6 +343,7 @@ class ReceiptVoucherController extends Controller
             'method' => ['required', 'in:cash,bank_transfer,card,cheque'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'notes_ar' => ['nullable', 'string', 'max:2000'],
         ]);
     }
 }

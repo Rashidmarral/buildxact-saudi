@@ -12,6 +12,7 @@
     $isCheque = $voucher->method === 'cheque';
 
     $purpose = $voucher->notes ?: $voucher->defaultPurpose();
+    $purposeAr = $voucher->notes_ar ?: $purpose;
 
     $amountWordsEn = \App\Support\NumberToWords::englishRiyals((float) $voucher->amount);
     $amountWordsAr = \App\Support\NumberToWords::arabicRiyals((float) $voucher->amount);
@@ -85,6 +86,10 @@
             <td colspan="2">
                 <span class="checkbox">{{ $voucher->method === 'cash' ? 'X' : '' }}</span> {{ __('Cash') }} / نقداً
                 &nbsp;&nbsp;
+                <span class="checkbox">{{ $voucher->method === 'bank_transfer' ? 'X' : '' }}</span> {{ __('Bank transfer') }} / حوالة بنكية
+                &nbsp;&nbsp;
+                <span class="checkbox">{{ $voucher->method === 'card' ? 'X' : '' }}</span> {{ __('Card') }} / بطاقة
+                &nbsp;&nbsp;
                 <span class="checkbox">{{ $isCheque ? 'X' : '' }}</span> {{ __('Cheque') }} / بشيك
                 @if ($isCheque)
                     &nbsp;&nbsp; {{ __('No.') }}: <span class="v">{{ $voucher->reference ?: '—' }}</span>
@@ -97,7 +102,7 @@
         @if ($purpose)
             <tr>
                 <td><span class="k">{{ __('For') }}</span><br><span class="v">{{ $purpose }}</span></td>
-                <td style="text-align: right;"><span class="k">وذلك مقابل</span><br><span class="v">{{ $purpose }}</span></td>
+                <td style="text-align: right;"><span class="k">وذلك مقابل</span><br><span class="v">{{ $purposeAr }}</span></td>
             </tr>
         @endif
         @if ($voucher->counterAccount)

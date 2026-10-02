@@ -38,7 +38,7 @@ class RecurringInvoiceController extends Controller
             'units' => Unit::orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
-            'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)->where('is_personal', false)->orderBy('name')->get(),
         ]);
     }
 
@@ -88,7 +88,7 @@ class RecurringInvoiceController extends Controller
             'units' => Unit::orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
-            'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)->where('is_personal', false)->orderBy('name')->get(),
         ]);
     }
 

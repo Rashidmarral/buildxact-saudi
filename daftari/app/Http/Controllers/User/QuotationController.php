@@ -71,7 +71,7 @@ class QuotationController extends Controller
         $items = Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get();
         $units = Unit::orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
-        $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
+        $bankAccounts = BankAccount::where('is_active', true)->where('is_personal', false)->orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
         $company = Auth::user()->company;
         $type = $request->get('type', 'quotation') === 'proforma' ? 'proforma' : 'quotation';
@@ -225,7 +225,7 @@ class QuotationController extends Controller
         $items = Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get();
         $units = Unit::orderBy('name')->get();
         $salespersons = Salesperson::where('is_active', true)->orderBy('name')->get();
-        $bankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
+        $bankAccounts = BankAccount::where('is_active', true)->where('is_personal', false)->orderBy('name')->get();
         $projects = Project::orderBy('name')->get();
 
         return view('user.quotations.form', compact('quotation', 'clients', 'items', 'units', 'salespersons', 'bankAccounts', 'projects'));

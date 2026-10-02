@@ -27,6 +27,9 @@
             @unless ($account->is_active)
                 <span class="inline-block mt-2 rounded-full bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-1">{{ __('Inactive') }}</span>
             @endunless
+            @if ($account->is_personal)
+                <span class="inline-block mt-2 rounded-full bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1">{{ __('Personal / pass-through') }}@if ($account->personal_owner_name) — {{ $account->personal_owner_name }}@endif</span>
+            @endif
             <div class="mt-4 flex gap-3 text-xs">
                 <a href="{{ route('app.bank-reconciliations.index', $account) }}" class="text-brand-700 hover:underline">{{ __('Reconcile') }}</a>
                 <a href="{{ route('app.bank-accounts.edit', $account) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>

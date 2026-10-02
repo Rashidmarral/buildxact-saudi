@@ -30,7 +30,10 @@ class BankAccountController extends Controller
             return back()->withErrors(['plan_limit' => __('You have reached your plan\'s bank/cash account limit. Upgrade your plan to add more accounts.')])->withInput();
         }
 
-        BankAccount::create($this->validated($request) + ['is_active' => $request->boolean('is_active', true)]);
+        BankAccount::create($this->validated($request) + [
+            'is_active' => $request->boolean('is_active', true),
+            'is_personal' => $request->boolean('is_personal'),
+        ]);
 
         return redirect()->route('app.bank-accounts.index')->with('status', __('Bank account added.'));
     }
@@ -42,7 +45,10 @@ class BankAccountController extends Controller
 
     public function update(Request $request, BankAccount $bankAccount)
     {
-        $bankAccount->update($this->validated($request) + ['is_active' => $request->boolean('is_active', true)]);
+        $bankAccount->update($this->validated($request) + [
+            'is_active' => $request->boolean('is_active', true),
+            'is_personal' => $request->boolean('is_personal'),
+        ]);
 
         return redirect()->route('app.bank-accounts.index')->with('status', __('Bank account updated.'));
     }
@@ -128,6 +134,7 @@ class BankAccountController extends Controller
             'opening_balance' => ['nullable', 'numeric'],
             'opening_balance_date' => ['nullable', 'date'],
             'opening_balance_reference' => ['nullable', 'string', 'max:255'],
+            'personal_owner_name' => ['nullable', 'string', 'max:255'],
         ]);
     }
 }

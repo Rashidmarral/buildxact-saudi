@@ -165,6 +165,9 @@
                 <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('For') }}</label>
                 <textarea name="notes" id="notes" rows="2" placeholder="{{ __('What is this receipt for? e.g. a service or product description.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $voucher->notes ?? '') }}</textarea>
                 <p class="mt-1 text-xs text-slate-400">{{ __('Printed on the voucher next to "For".') }}</p>
+                <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('For (Arabic)') }}</label>
+                <textarea name="notes_ar" id="notes_ar" dir="rtl" rows="2" placeholder="{{ __('Arabic description, if different from the "For" text above.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes_ar', $voucher->notes_ar ?? '') }}</textarea>
+                <p class="mt-1 text-xs text-slate-400">{{ __('Printed next to "وذلك مقابل". Leave blank to reuse the English text.') }}</p>
             </div>
         </div>
     </div>
