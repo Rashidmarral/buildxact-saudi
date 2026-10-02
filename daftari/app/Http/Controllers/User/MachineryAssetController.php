@@ -45,7 +45,7 @@ class MachineryAssetController extends Controller
             'asset' => new MachineryAsset(['status' => 'available']),
             'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
-            'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
+            'employees' => Employee::where('status', 'active')->where('is_operator', true)->orderBy('full_name')->get(),
         ]);
     }
 
@@ -115,7 +115,7 @@ class MachineryAssetController extends Controller
             'asset' => $machineryAsset,
             'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
-            'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
+            'employees' => Employee::where('status', 'active')->where('is_operator', true)->orderBy('full_name')->get(),
         ]);
     }
 

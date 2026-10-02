@@ -207,6 +207,7 @@
                         <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
                             @include('partials.nav-subitem', ['route' => 'app.machinery.assets.index', 'label' => __('Assets')])
                             @include('partials.nav-subitem', ['route' => 'app.machinery.rental-contracts.index', 'label' => __('Rental Contracts')])
+                            @include('partials.nav-subitem', ['route' => 'app.machinery.operators.index', 'label' => __('Operators')])
                             @include('partials.nav-subitem', ['route' => 'app.machinery.letters.index', 'label' => __('Letters & Agreements')])
                         </div>
                     </details>

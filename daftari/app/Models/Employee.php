@@ -15,6 +15,7 @@ class Employee extends Model
         'company_id', 'branch_id', 'employee_number', 'full_name', 'full_name_ar',
         'national_id', 'nationality', 'is_saudi', 'date_of_birth', 'gender',
         'mobile', 'email', 'address', 'job_title', 'department',
+        'is_operator', 'license_number', 'license_expiry_date',
         'hire_date', 'termination_date', 'status',
         'iban', 'bank_name', 'gosi_subscription_number',
         'basic_salary', 'housing_allowance', 'transport_allowance', 'other_allowance',
@@ -25,9 +26,11 @@ class Employee extends Model
     {
         return [
             'is_saudi' => 'boolean',
+            'is_operator' => 'boolean',
             'date_of_birth' => 'date',
             'hire_date' => 'date',
             'termination_date' => 'date',
+            'license_expiry_date' => 'date',
             'basic_salary' => 'decimal:2',
             'housing_allowance' => 'decimal:2',
             'transport_allowance' => 'decimal:2',

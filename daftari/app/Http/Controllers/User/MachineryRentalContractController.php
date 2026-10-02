@@ -34,7 +34,7 @@ class MachineryRentalContractController extends Controller
             'machinery' => $machinery,
             'selectedMachineryId' => $selected,
             'clients' => Client::orderBy('name')->get(),
-            'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
+            'employees' => Employee::where('status', 'active')->where('is_operator', true)->orderBy('full_name')->get(),
             'projects' => Project::orderBy('name')->get(),
         ]);
     }

@@ -83,6 +83,21 @@
                 <input type="date" name="hire_date" value="{{ old('hire_date', optional($employee->hire_date)->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
         </div>
+        <label class="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" name="is_operator" value="1" @checked(old('is_operator', $employee->is_operator ?? false)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+            {{ __('Equipment operator / driver') }}
+        </label>
+        <p class="text-xs text-slate-400 -mt-3">{{ __('Makes this employee selectable as an operator/driver on machinery assets and rental contracts.') }}</p>
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('License number') }}</label>
+                <input type="text" name="license_number" value="{{ old('license_number', $employee->license_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('License expiry date') }}</label>
+                <input type="date" name="license_expiry_date" value="{{ old('license_expiry_date', optional($employee->license_expiry_date)->toDateString()) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            </div>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-5">
