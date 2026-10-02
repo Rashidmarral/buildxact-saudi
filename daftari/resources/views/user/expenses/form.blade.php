@@ -109,6 +109,19 @@
         </div>
     @endif
 
+    @if (app(\App\Services\Features\FeatureAccessService::class)->enabled(auth()->user()->company, 'machinery_equipment') && $hireInContracts->isNotEmpty())
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Hired equipment (optional)') }}</label>
+            <select name="machinery_hire_in_contract_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None') }}</option>
+                @foreach ($hireInContracts as $contract)
+                    <option value="{{ $contract->id }}" @selected(old('machinery_hire_in_contract_id', $expense->machinery_hire_in_contract_id) == $contract->id)>{{ $contract->contract_number }} — {{ $contract->equipment_description }} ({{ $contract->supplierDisplayName() }})</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-xs text-slate-400">{{ __('Tags this cost to equipment hired in from an external supplier — e.g. fuel you paid directly, or the supplier\'s billed amount.') }}</p>
+        </div>
+    @endif
+
     <button type="submit" class="w-full rounded-lg bg-brand-800 px-6 py-3 font-semibold text-white hover:bg-brand-900">{{ __('Save') }}</button>
 </form>
 

@@ -9,6 +9,7 @@ use App\Models\BankAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\MachineryAsset;
+use App\Models\MachineryHireInContract;
 use App\Models\Project;
 use App\Models\User;
 use App\Notifications\GenericNotification;
@@ -29,13 +30,17 @@ class ExpenseController extends Controller
         return view('user.expenses.index', compact('expenses', 'categories'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         return view('user.expenses.form', [
-            'expense' => new Expense,
+            'expense' => new Expense([
+                'project_id' => $request->integer('project_id') ?: null,
+                'machinery_hire_in_contract_id' => $request->integer('machinery_hire_in_contract_id') ?: null,
+            ]),
             'categories' => ExpenseCategory::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'machinery' => MachineryAsset::orderBy('name')->get(),
+            'hireInContracts' => MachineryHireInContract::where('status', 'active')->orderBy('contract_number')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
         ]);
@@ -273,6 +278,7 @@ class ExpenseController extends Controller
             'expense_category_id' => ['nullable', Rule::exists('expense_categories', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'machinery_asset_id' => ['nullable', Rule::exists('machinery_assets', 'id')->where('company_id', $companyId)],
+            'machinery_hire_in_contract_id' => ['nullable', Rule::exists('machinery_hire_in_contracts', 'id')->where('company_id', $companyId)],
             'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
             'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'vendor_name' => ['nullable', 'string', 'max:255'],

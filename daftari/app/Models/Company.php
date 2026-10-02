@@ -106,6 +106,8 @@ class Company extends Model
         'next_machinery_number' => 1,
         'rental_contract_prefix' => 'RC',
         'next_rental_contract_number' => 1,
+        'hire_in_contract_prefix' => 'HC',
+        'next_hire_in_contract_number' => 1,
         'letter_prefix' => 'LTR',
         'next_letter_number' => 1,
         'primary_customer_type' => 'mixed',
@@ -410,6 +412,13 @@ class Company extends Model
         $number = $this->nextSequenceNumber('next_rental_contract_number');
 
         return $this->rental_contract_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function nextHireInContractNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_hire_in_contract_number');
+
+        return $this->hire_in_contract_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     /**

@@ -14,7 +14,7 @@ class Expense extends Model
     public const TAX_CATEGORIES = ['standard_15', 'zero_rated', 'exempt'];
 
     protected $fillable = [
-        'company_id', 'expense_category_id', 'project_id', 'machinery_asset_id', 'bank_account_id', 'account_id', 'created_by',
+        'company_id', 'expense_category_id', 'project_id', 'machinery_asset_id', 'machinery_hire_in_contract_id', 'bank_account_id', 'account_id', 'created_by',
         'vendor_name', 'description', 'amount', 'gross_amount', 'vat_amount', 'tax_category',
         'reference', 'expense_date', 'receipt_path',
         'status', 'approved_by', 'approved_at', 'rejection_reason',
@@ -46,6 +46,11 @@ class Expense extends Model
     public function machinery(): BelongsTo
     {
         return $this->belongsTo(MachineryAsset::class, 'machinery_asset_id');
+    }
+
+    public function hireInContract(): BelongsTo
+    {
+        return $this->belongsTo(MachineryHireInContract::class, 'machinery_hire_in_contract_id');
     }
 
     public function bankAccount(): BelongsTo
