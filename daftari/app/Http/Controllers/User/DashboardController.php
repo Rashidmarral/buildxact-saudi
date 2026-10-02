@@ -1,0 +1,402 @@
+<?php
+
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Controller;
+use App\Models\Bill;
+use App\Models\BillPayment;
+use App\Models\Client;
+use App\Models\Expense;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\InvoicePayment;
+use App\Models\Item;
+use App\Models\LoyaltyCardTransaction;
+use App\Models\MachineryAsset;
+use App\Models\PayrollRun;
+use App\Models\PosSale;
+use App\Models\Project;
+use App\Models\Quotation;
+use App\Models\RepairJob;
+use App\Models\RestaurantOrder;
+use App\Models\ZatcaInvoiceLog;
+use App\Services\Features\FeatureAccessService;
+use App\Services\Reports\FinancialReportService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Carbon;
+
+class DashboardController extends Controller
+{
+    public function index()
+    {
+        $company = Auth::user()->company;
+
+        $invoices = Invoice::query();
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
+
+        $stats = [
+            'total_invoiced' => (clone $invoices)->sum('total'),
+            'total_outstanding' => (clone $invoices)->whereIn('status', ['sent', 'partially_paid', 'overdue'])->get()->sum(fn ($i) => $i->balanceDue()),
+            'total_paid_this_month' => (clone $invoices)->whereMonth('issue_date', now()->month)->whereYear('issue_date', now()->year)->sum('amount_paid'),
+            'total_expenses_this_month' => Expense::whereMonth('expense_date', now()->month)->whereYear('expense_date', now()->year)->sum('amount'),
+            'total_purchases_this_month' => Bill::whereMonth('bill_date', now()->month)->whereYear('bill_date', now()->year)->sum('total'),
+            'invoice_count' => (clone $invoices)->count(),
+            'overdue_count' => (clone $invoices)->where('status', 'overdue')->count(),
+            'open_quotations' => Quotation::whereIn('status', ['draft', 'issued'])->count(),
+            // Reuses the same GL-backed indirect-method figures the Income
+            // Statement report shows, rather than a rough sales-minus-
+            // expenses guess — this month's operating profit, exactly as
+            // an accountant would read it there.
+            'profit_this_month' => app(FinancialReportService::class)->incomeStatement($company, $monthStart, $monthEnd)['netProfit'],
+        ];
+
+        $recentInvoices = Invoice::with('client')->latest('issue_date')->latest('id')->take(8)->get();
+
+        $aging = $this->receivablesAging();
+        $charts = $this->charts();
+
+        // Every paid module's dashboard presence is gated the same way its
+        // own routes are (permission + the company's plan or an admin
+        // override actually carrying the feature) — the same
+        // FeatureAccessService::enabled() check as EnsureModuleEnabled's
+        // middleware, so a section never appears for a company that
+        // hasn't installed it, and "anyModuleEnabled" decides whether the
+        // shared "Your Modules" heading renders at all.
+        $featureAccess = app(FeatureAccessService::class);
+        $moduleGate = fn (string $key) => Auth::user()->hasPermission($key) && $featureAccess->enabled($company, $key);
+
+        $charts['machineryEnabled'] = $moduleGate('machinery_equipment');
+        if ($charts['machineryEnabled']) {
+            $charts = array_merge($charts, $this->machineryCharts());
+        }
+
+        $charts['projectCashFlowEnabled'] = $moduleGate('project_cash_flow');
+        if ($charts['projectCashFlowEnabled']) {
+            $charts = array_merge($charts, $this->projectCashFlowChart());
+        }
+
+        $charts['restaurantEnabled'] = $moduleGate('restaurant');
+        if ($charts['restaurantEnabled']) {
+            $charts = array_merge($charts, $this->restaurantChart());
+        }
+
+        $charts['repairShopEnabled'] = $moduleGate('repair_shop');
+        if ($charts['repairShopEnabled']) {
+            $charts = array_merge($charts, $this->repairShopChart());
+        }
+
+        $charts['coffeeShopEnabled'] = $moduleGate('coffee_shop');
+        if ($charts['coffeeShopEnabled']) {
+            $charts = array_merge($charts, $this->coffeeShopChart());
+        }
+
+        $charts['payrollEnabled'] = $moduleGate('payroll');
+        if ($charts['payrollEnabled']) {
+            $charts = array_merge($charts, $this->payrollChart());
+        }
+
+        $charts['posEnabled'] = $moduleGate('pos');
+        if ($charts['posEnabled']) {
+            $charts = array_merge($charts, $this->posChart());
+        }
+
+        $charts['zatcaEnabled'] = $moduleGate('zatca');
+        if ($charts['zatcaEnabled']) {
+            $charts = array_merge($charts, $this->zatcaChart());
+        }
+
+        $charts['anyModuleEnabled'] = $charts['machineryEnabled'] || $charts['projectCashFlowEnabled']
+            || $charts['restaurantEnabled'] || $charts['repairShopEnabled'] || $charts['coffeeShopEnabled']
+            || $charts['payrollEnabled'] || $charts['posEnabled'] || $charts['zatcaEnabled'];
+
+        $checklist = [
+            ['label' => __('Add your company logo'), 'done' => (bool) $company->logo_path, 'route' => 'app.settings.index'],
+            ['label' => __('Add your VAT number'), 'done' => (bool) $company->vat_number, 'route' => 'app.settings.index'],
+            ['label' => __('Add a client'), 'done' => Client::exists(), 'route' => 'app.clients.create'],
+            ['label' => __('Add an item or service'), 'done' => Item::exists(), 'route' => 'app.items.create'],
+            ['label' => __('Create your first invoice'), 'done' => Invoice::exists(), 'route' => 'app.invoices.create'],
+            ['label' => __('Record your first expense'), 'done' => Expense::exists(), 'route' => 'app.expenses.create'],
+        ];
+
+        // Audit finding LOW-32: ZATCA e-invoicing compliance is central
+        // to this product, yet the onboarding checklist never mentioned
+        // it — a company could tick off everything above and still be
+        // issuing invoices with no CSID, no clearance, no compliance at
+        // all. Only shown when the plan actually includes ZATCA Phase 2;
+        // isZatcaOnboarded() would otherwise sit permanently unchecked
+        // for a company whose plan doesn't carry the feature at all.
+        if ($company->hasFeature('zatca_phase2')) {
+            $checklist[] = ['label' => __('Complete ZATCA e-invoicing setup'), 'done' => $company->isZatcaOnboarded(), 'route' => 'app.zatca.dashboard'];
+        }
+
+        return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist', 'charts'));
+    }
+
+    private function receivablesAging(): array
+    {
+        $outstanding = Invoice::with('client')
+            ->whereIn('status', ['sent', 'partially_paid', 'overdue'])
+            ->get();
+
+        $buckets = ['current' => 0.0, '1_30' => 0.0, '31_60' => 0.0, '61_plus' => 0.0];
+
+        foreach ($outstanding as $invoice) {
+            $balance = $invoice->balanceDue();
+            if ($balance <= 0) {
+                continue;
+            }
+
+            $daysOverdue = $invoice->due_date ? now()->diffInDays($invoice->due_date, false) * -1 : -1;
+
+            if ($daysOverdue <= 0) {
+                $buckets['current'] += $balance;
+            } elseif ($daysOverdue <= 30) {
+                $buckets['1_30'] += $balance;
+            } elseif ($daysOverdue <= 60) {
+                $buckets['31_60'] += $balance;
+            } else {
+                $buckets['61_plus'] += $balance;
+            }
+        }
+
+        return $buckets;
+    }
+
+    /**
+     * Every series here is fetched as plain rows and grouped in PHP
+     * (Collection::groupBy) rather than a raw SQL GROUP BY — the same
+     * approach receivablesAging() already uses — so this stays portable
+     * across whatever database driver the deployment uses instead of
+     * leaning on a driver-specific DATE()/GROUP BY dialect, and a 7-day
+     * window keeps every one of these a small, cheap fetch.
+     */
+    private function charts(): array
+    {
+        $since7 = now()->subDays(6)->startOfDay();
+        $since30 = now()->subDays(29)->startOfDay();
+        $since90 = now()->subDays(89)->startOfDay();
+
+        $days = collect(range(6, 0))->map(fn ($i) => now()->subDays($i)->toDateString());
+        $dayLabels = $days->map(fn ($d) => Carbon::parse($d)->translatedFormat('M j'))->all();
+
+        $invoicesByDay = Invoice::where('issue_date', '>=', $since7)->get(['issue_date', 'total'])
+            ->groupBy(fn ($i) => $i->issue_date->toDateString())->map->sum('total');
+        $billsByDay = Bill::where('bill_date', '>=', $since7)->get(['bill_date', 'total'])
+            ->groupBy(fn ($b) => $b->bill_date->toDateString())->map->sum('total');
+        $receivedByDay = InvoicePayment::where('paid_at', '>=', $since7)->get(['paid_at', 'amount'])
+            ->groupBy(fn ($p) => $p->paid_at->toDateString())->map->sum('amount');
+        $sentByDay = BillPayment::where('paid_at', '>=', $since7)->get(['paid_at', 'amount'])
+            ->groupBy(fn ($p) => $p->paid_at->toDateString())->map->sum('amount');
+
+        $salesPurchases = [
+            'labels' => $dayLabels,
+            'sales' => $days->map(fn ($d) => round((float) ($invoicesByDay[$d] ?? 0), 2))->all(),
+            'purchases' => $days->map(fn ($d) => round((float) ($billsByDay[$d] ?? 0), 2))->all(),
+        ];
+
+        $paymentFlow = [
+            'labels' => $dayLabels,
+            'received' => $days->map(fn ($d) => round((float) ($receivedByDay[$d] ?? 0), 2))->all(),
+            'sent' => $days->map(fn ($d) => round((float) ($sentByDay[$d] ?? 0), 2))->all(),
+        ];
+
+        $topItems = InvoiceItem::whereHas('invoice', fn ($q) => $q->where('issue_date', '>=', $since30))
+            ->get(['item_id', 'description', 'line_total'])
+            ->groupBy(fn ($line) => $line->item_id ?? 'row:'.$line->description)
+            ->map(fn ($group) => ['label' => $group->first()->description, 'total' => round((float) $group->sum('line_total'), 2)])
+            ->sortByDesc('total')
+            ->take(5)
+            ->values();
+
+        $topCustomers = Invoice::where('issue_date', '>=', $since90)
+            ->with('client:id,name')
+            ->get(['client_id', 'total'])
+            ->groupBy('client_id')
+            ->map(fn ($group) => ['label' => $group->first()->client?->display_name ?? __('Walk-in'), 'total' => round((float) $group->sum('total'), 2)])
+            ->sortByDesc('total')
+            ->take(5)
+            ->values();
+
+        $paymentMethods = InvoicePayment::where('paid_at', '>=', $since90)
+            ->get(['method', 'amount'])
+            ->groupBy(fn ($p) => $p->method ?: 'other')
+            ->map(fn ($group) => (float) $group->sum('amount'))
+            ->sortByDesc(fn ($amount) => $amount);
+
+        return [
+            'salesPurchases' => $salesPurchases,
+            'paymentFlow' => $paymentFlow,
+            'topItems' => $topItems,
+            'topCustomers' => $topCustomers,
+            'paymentMethods' => $paymentMethods,
+        ];
+    }
+
+    /**
+     * Fleet status breakdown, revenue vs. running cost per machine, and a
+     * 6-month rental/sale revenue trend — mirrors charts()'s own
+     * fetch-then-group-in-PHP approach rather than a driver-specific SQL
+     * GROUP BY.
+     */
+    private function machineryCharts(): array
+    {
+        $statusLabels = [
+            'available' => __('Available'), 'rented_out' => __('Rented out'), 'deployed' => __('Deployed'),
+            'maintenance' => __('Maintenance'), 'sold' => __('Sold'), 'retired' => __('Retired'),
+        ];
+
+        $countsByStatus = MachineryAsset::get(['status'])->countBy('status');
+        $fleetStatus = collect($statusLabels)
+            ->map(fn ($label, $key) => ['label' => $label, 'count' => (int) ($countsByStatus[$key] ?? 0)])
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values();
+
+        $topMachines = MachineryAsset::orderBy('name')->get()
+            ->map(fn (MachineryAsset $asset) => [
+                'label' => $asset->name,
+                'revenue' => round($asset->totalRevenue(), 2),
+                'cost' => round($asset->totalRunningCost(), 2),
+            ])
+            ->sortByDesc('revenue')
+            ->take(8)
+            ->values();
+
+        $since6Months = now()->subMonths(5)->startOfMonth();
+        $months = collect(range(5, 0))->map(fn ($i) => now()->subMonths($i)->format('Y-m'));
+        $monthLabels = $months->map(fn ($m) => Carbon::createFromFormat('Y-m', $m)->translatedFormat('M Y'));
+
+        $revenueByMonth = Invoice::whereNotNull('machinery_asset_id')
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->where('issue_date', '>=', $since6Months)
+            ->get(['issue_date', 'total'])
+            ->groupBy(fn ($i) => $i->issue_date->format('Y-m'))
+            ->map->sum('total');
+
+        $revenueTrend = [
+            'labels' => $monthLabels->all(),
+            'revenue' => $months->map(fn ($m) => round((float) ($revenueByMonth[$m] ?? 0), 2))->all(),
+        ];
+
+        return [
+            'machineryFleetStatus' => $fleetStatus,
+            'machineryTopMachines' => $topMachines,
+            'machineryRevenueTrend' => $revenueTrend,
+        ];
+    }
+
+    /** Revenue vs. costs for the top 6 projects by revenue, all time. */
+    private function projectCashFlowChart(): array
+    {
+        $projects = Project::orderBy('name')->get()
+            ->map(fn (Project $p) => [
+                'label' => $p->name,
+                'revenue' => round($p->revenue(), 2),
+                'costs' => round($p->costs(), 2),
+            ])
+            ->sortByDesc('revenue')
+            ->take(6)
+            ->values();
+
+        return ['projectCashFlowTopProjects' => $projects];
+    }
+
+    /** Order counts by status, last 30 days. */
+    private function restaurantChart(): array
+    {
+        $statusLabels = [
+            'open' => __('Open'), 'kitchen' => __('In kitchen'), 'ready' => __('Ready'),
+            'completed' => __('Completed'), 'cancelled' => __('Cancelled'),
+        ];
+
+        $counts = RestaurantOrder::where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->get(['status'])->countBy('status');
+
+        $data = collect($statusLabels)
+            ->map(fn ($label, $key) => ['label' => $label, 'count' => (int) ($counts[$key] ?? 0)])
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values();
+
+        return ['restaurantOrdersByStatus' => $data];
+    }
+
+    /** Job counts by status, last 30 days. */
+    private function repairShopChart(): array
+    {
+        $statusLabels = [
+            'received' => __('Received'), 'diagnosing' => __('Diagnosing'), 'awaiting_approval' => __('Awaiting approval'),
+            'in_repair' => __('In repair'), 'ready' => __('Ready'), 'collected' => __('Collected'), 'cancelled' => __('Cancelled'),
+        ];
+
+        $counts = RepairJob::where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->get(['status'])->countBy('status');
+
+        $data = collect($statusLabels)
+            ->map(fn ($label, $key) => ['label' => $label, 'count' => (int) ($counts[$key] ?? 0)])
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values();
+
+        return ['repairJobsByStatus' => $data];
+    }
+
+    /** Loyalty program top-ups vs. redemptions, by amount, last 30 days. */
+    private function coffeeShopChart(): array
+    {
+        $typeLabels = ['top_up' => __('Top-ups'), 'redeem' => __('Redemptions')];
+
+        $byType = LoyaltyCardTransaction::where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->get(['type', 'amount'])->groupBy('type')->map(fn ($group) => round((float) $group->sum('amount'), 2));
+
+        $data = collect($typeLabels)
+            ->map(fn ($label, $key) => ['label' => $label, 'amount' => abs((float) ($byType[$key] ?? 0))])
+            ->filter(fn ($row) => $row['amount'] > 0)
+            ->values();
+
+        return ['loyaltyTransactionsByType' => $data];
+    }
+
+    /** Gross vs. net pay across the last 6 payroll runs. */
+    private function payrollChart(): array
+    {
+        $runs = PayrollRun::orderByDesc('pay_date')->take(6)->get(['pay_date', 'total_gross', 'total_net'])
+            ->sortBy('pay_date')->values();
+
+        return ['payrollTrend' => [
+            'labels' => $runs->map(fn ($r) => $r->pay_date->translatedFormat('M Y'))->all(),
+            'gross' => $runs->map(fn ($r) => round((float) $r->total_gross, 2))->all(),
+            'net' => $runs->map(fn ($r) => round((float) $r->total_net, 2))->all(),
+        ]];
+    }
+
+    /** Completed sales total by day, last 7 days. */
+    private function posChart(): array
+    {
+        $since7 = now()->subDays(6)->startOfDay();
+        $days = collect(range(6, 0))->map(fn ($i) => now()->subDays($i)->toDateString());
+        $dayLabels = $days->map(fn ($d) => Carbon::parse($d)->translatedFormat('M j'));
+
+        $salesByDay = PosSale::whereNull('voided_at')->where('created_at', '>=', $since7)->get(['created_at', 'total'])
+            ->groupBy(fn ($s) => $s->created_at->toDateString())->map->sum('total');
+
+        return ['posSalesTrend' => [
+            'labels' => $dayLabels->all(),
+            'sales' => $days->map(fn ($d) => round((float) ($salesByDay[$d] ?? 0), 2))->all(),
+        ]];
+    }
+
+    /** Submissions by status, last 30 days. */
+    private function zatcaChart(): array
+    {
+        $statusLabels = ['cleared' => __('Cleared'), 'reported' => __('Reported'), 'failed' => __('Failed')];
+
+        $counts = ZatcaInvoiceLog::where('submitted_at', '>=', now()->subDays(29)->startOfDay())
+            ->get(['status'])->countBy('status');
+
+        $data = collect($statusLabels)
+            ->map(fn ($label, $key) => ['label' => $label, 'count' => (int) ($counts[$key] ?? 0)])
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values();
+
+        return ['zatcaSubmissionsByStatus' => $data];
+    }
+}
