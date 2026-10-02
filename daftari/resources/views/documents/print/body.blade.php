@@ -194,6 +194,10 @@
         </div>
     </div>
 
+    @if (($doc['payments'] ?? collect())->isNotEmpty())
+        @include('documents.print.payments-received', ['payments' => $doc['payments'], 'primary' => $primary, 'secondary' => $secondary])
+    @endif
+
     @if (!empty($doc['notes']))
         <div class="mt-8 text-sm">
             <h4 class="font-semibold text-slate-800">{{ __('Notes') }} <span class="text-xs text-slate-400" dir="rtl">ملاحظات</span></h4>
@@ -334,6 +338,10 @@
             @endforeach
         </div>
     </div>
+
+    @if (($doc['payments'] ?? collect())->isNotEmpty())
+        @include('documents.print.payments-received', ['payments' => $doc['payments'], 'primary' => $primary, 'secondary' => $secondary])
+    @endif
 
     @if (!empty($doc['salesperson']))
         <div class="mt-6 text-sm">
@@ -646,6 +654,14 @@
             @endforeach
         </div>
     </div>
+
+    @if (($doc['payments'] ?? collect())->isNotEmpty())
+        <div class="flex justify-end">
+            <div class="w-full max-w-xs">
+                @include('documents.print.payments-received', ['payments' => $doc['payments'], 'primary' => $primary, 'secondary' => $secondary])
+            </div>
+        </div>
+    @endif
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp

@@ -145,6 +145,7 @@
             ['label' => __('Paid'), 'value' => $invoice->amount_paid],
             \App\Support\Money::balanceRow($invoice->balanceDue()),
         ])),
+        'payments' => $invoice->invoicePayments,
         'bank_account' => $invoice->bankAccount ?? $invoice->company->defaultBankAccount(),
         'salesperson' => $invoice->salesperson,
         'notes' => $invoice->notes,
