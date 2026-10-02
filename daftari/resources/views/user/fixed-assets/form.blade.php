@@ -1,14 +1,23 @@
 @extends('layouts.app')
 
-@section('title', __('New Fixed Asset'))
+@php($editing = $asset->exists)
+
+@section('title', $editing ? __('Edit Fixed Asset') : __('New Fixed Asset'))
 
 @section('content')
 <div class="max-w-2xl">
-    <h1 class="text-xl font-bold text-slate-900 mb-1">{{ __('New Fixed Asset') }}</h1>
-    <p class="text-sm text-slate-500 mb-6">{{ __('Registering an asset posts its acquisition cost to your ledger and starts straight-line monthly depreciation.') }}</p>
+    <h1 class="text-xl font-bold text-slate-900 mb-1">{{ $editing ? __('Edit Fixed Asset') : __('New Fixed Asset') }}</h1>
+    @if ($editing)
+        <p class="text-sm text-slate-500 mb-6">{{ __('Correcting these facts rebuilds the acquisition journal entry from scratch. Only available before any depreciation has been posted against this asset.') }}</p>
+    @else
+        <p class="text-sm text-slate-500 mb-6">{{ __('Registering an asset posts its acquisition cost to your ledger and starts straight-line monthly depreciation.') }}</p>
+    @endif
 
-    <form method="POST" action="{{ route('app.fixed-assets.store') }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+    <form method="POST" action="{{ $editing ? route('app.fixed-assets.update', $asset) : route('app.fixed-assets.store') }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
         @csrf
+        @if ($editing)
+            @method('PUT')
+        @endif
 
         <div class="grid sm:grid-cols-2 gap-4">
             <div>
@@ -30,7 +39,7 @@
             </div>
             <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Acquisition cost') }}</label>
-                <input type="number" step="0.01" min="0.01" name="acquisition_cost" value="{{ old('acquisition_cost') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" step="0.01" min="0.01" name="acquisition_cost" value="{{ old('acquisition_cost', $asset->acquisition_cost) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 @error('acquisition_cost')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
             </div>
         </div>
@@ -38,7 +47,7 @@
         <div class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Salvage value') }}</label>
-                <input type="number" step="0.01" min="0" name="salvage_value" value="{{ old('salvage_value', 0) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <input type="number" step="0.01" min="0" name="salvage_value" value="{{ old('salvage_value', $asset->salvage_value ?? 0) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <p class="text-xs text-slate-400 mt-1">{{ __('Estimated resale value at end of useful life.') }}</p>
             </div>
             <div>
@@ -52,9 +61,9 @@
             <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Financial account') }}</label>
                 <select name="bank_account_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                    <option value="" @selected(! old('bank_account_id'))>{{ __('Unpaid (record as payable)') }}</option>
+                    <option value="" @selected(! old('bank_account_id', $asset->bank_account_id))>{{ __('Unpaid (record as payable)') }}</option>
                     @foreach ($bankAccounts as $account)
-                        <option value="{{ $account->id }}" @selected(old('bank_account_id') == $account->id)>{{ $account->name }}</option>
+                        <option value="{{ $account->id }}" @selected(old('bank_account_id', $asset->bank_account_id) == $account->id)>{{ $account->name }}</option>
                     @endforeach
                 </select>
                 <p class="text-xs text-slate-400 mt-1">{{ __('Leave unpaid to settle later with a payment voucher.') }}</p>
@@ -64,7 +73,7 @@
                 <select name="account_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                     <option value="">{{ __('Use default Fixed Assets account') }}</option>
                     @foreach ($glAccounts as $account)
-                        <option value="{{ $account->id }}" @selected(old('account_id') == $account->id)>{{ $account->code }} — {{ $account->name }}</option>
+                        <option value="{{ $account->id }}" @selected(old('account_id', $asset->account_id) == $account->id)>{{ $account->code }} — {{ $account->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -72,10 +81,10 @@
 
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Notes') }}</label>
-            <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes') }}</textarea>
+            <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $asset->notes) }}</textarea>
         </div>
 
-        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Register asset') }}</button>
+        <button type="submit" class="rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">{{ $editing ? __('Save changes') : __('Register asset') }}</button>
     </form>
 </div>
 @endsection

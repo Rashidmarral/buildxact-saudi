@@ -431,6 +431,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::get('/', [FixedAssetController::class, 'index'])->name('index');
             Route::get('create', [FixedAssetController::class, 'create'])->name('create');
             Route::post('/', [FixedAssetController::class, 'store'])->name('store');
+            Route::get('{fixedAsset}/edit', [FixedAssetController::class, 'edit'])->name('edit');
+            Route::put('{fixedAsset}', [FixedAssetController::class, 'update'])->name('update');
             Route::get('{fixedAsset}', [FixedAssetController::class, 'show'])->name('show');
             Route::post('run-depreciation', [FixedAssetController::class, 'runDepreciation'])->name('run-depreciation');
             Route::post('{fixedAsset}/dispose', [FixedAssetController::class, 'dispose'])->name('dispose');

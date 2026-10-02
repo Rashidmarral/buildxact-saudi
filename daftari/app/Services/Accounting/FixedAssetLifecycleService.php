@@ -35,27 +35,64 @@ class FixedAssetLifecycleService
         return DB::transaction(function () use ($data, $company) {
             $asset = FixedAsset::create($data);
 
-            $fixedAssetsAccount = Account::find($asset->account_id) ?? AccountMapping::resolve($company->id, 'FIXED_ASSETS_DEFAULT');
-            $creditAccount = $asset->bank_account_id
-                ? AccountMapping::resolve($company->id, $asset->bankAccount->type === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK')
-                : AccountMapping::resolve($company->id, 'ACCOUNTS_PAYABLE');
-
-            if ($fixedAssetsAccount && $creditAccount) {
-                $this->ledger->post(
-                    $company,
-                    'fixed_asset',
-                    $asset->id,
-                    __('Acquired :name (:code)', ['name' => $asset->name, 'code' => $asset->asset_code]),
-                    $asset->acquisition_date,
-                    [
-                        ['account_id' => $fixedAssetsAccount->id, 'debit' => (float) $asset->acquisition_cost],
-                        ['account_id' => $creditAccount->id, 'credit' => (float) $asset->acquisition_cost],
-                    ]
-                );
-            }
+            $this->postAcquisitionJournal($company, $asset, 'fixed_asset', __('Acquired :name (:code)', ['name' => $asset->name, 'code' => $asset->asset_code]));
 
             return $asset;
         });
+    }
+
+    /**
+     * Corrects an asset's acquisition facts (cost, date, financing
+     * account, etc.) after the fact — e.g. a machine registered with a
+     * placeholder cost because the real purchase price wasn't known yet.
+     * Only safe while nothing downstream has relied on the original
+     * numbers: no depreciation posted against it, and not yet disposed.
+     * Rebuilds the acquisition journal entry from scratch (deletePosting
+     * + repost) rather than reverse()'s audit-trail-preserving approach,
+     * since this is an in-place correction, not a cancellation.
+     */
+    public function amend(FixedAsset $fixedAsset, array $data): ?string
+    {
+        if ($fixedAsset->status !== 'active') {
+            return __('This asset has already been disposed and cannot be amended.');
+        }
+
+        if ((float) $fixedAsset->accumulated_depreciation > 0) {
+            return __('Depreciation has already been posted against this asset, so its acquisition facts can no longer be changed here — dispose it and register a corrected asset instead.');
+        }
+
+        $company = $fixedAsset->company;
+        $data['account_id'] = $data['account_id'] ?? AccountMapping::resolve($company->id, 'FIXED_ASSETS_DEFAULT')?->id;
+
+        DB::transaction(function () use ($data, $company, $fixedAsset) {
+            $this->ledger->deletePosting($company, 'fixed_asset', $fixedAsset->id);
+            $fixedAsset->update($data);
+            $this->postAcquisitionJournal($company, $fixedAsset->refresh(), 'fixed_asset', __('Acquired :name (:code)', ['name' => $fixedAsset->name, 'code' => $fixedAsset->asset_code]));
+        });
+
+        return null;
+    }
+
+    private function postAcquisitionJournal(Company $company, FixedAsset $asset, string $sourceType, string $description): void
+    {
+        $fixedAssetsAccount = Account::find($asset->account_id) ?? AccountMapping::resolve($company->id, 'FIXED_ASSETS_DEFAULT');
+        $creditAccount = $asset->bank_account_id
+            ? AccountMapping::resolve($company->id, $asset->bankAccount->type === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK')
+            : AccountMapping::resolve($company->id, 'ACCOUNTS_PAYABLE');
+
+        if ($fixedAssetsAccount && $creditAccount) {
+            $this->ledger->post(
+                $company,
+                $sourceType,
+                $asset->id,
+                $description,
+                $asset->acquisition_date,
+                [
+                    ['account_id' => $fixedAssetsAccount->id, 'debit' => (float) $asset->acquisition_cost],
+                    ['account_id' => $creditAccount->id, 'credit' => (float) $asset->acquisition_cost],
+                ]
+            );
+        }
     }
 
     /**

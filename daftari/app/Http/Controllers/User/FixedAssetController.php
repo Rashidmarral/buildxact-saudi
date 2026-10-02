@@ -57,6 +57,30 @@ class FixedAssetController extends Controller
         return redirect()->route('app.fixed-assets.show', $asset)->with('status', __('Fixed asset registered.'));
     }
 
+    public function edit(FixedAsset $fixedAsset)
+    {
+        return view('user.fixed-assets.form', [
+            'asset' => $fixedAsset,
+            'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+        ]);
+    }
+
+    public function update(Request $request, FixedAsset $fixedAsset, FixedAssetLifecycleService $lifecycle)
+    {
+        $data = $this->validated($request);
+
+        $error = $lifecycle->amend($fixedAsset, $data);
+
+        if ($error) {
+            return back()->withErrors(['asset' => $error]);
+        }
+
+        AuditLog::record('fixed_asset.update', $fixedAsset, __('Updated fixed asset :code', ['code' => $fixedAsset->asset_code]));
+
+        return redirect()->route('app.fixed-assets.show', $fixedAsset)->with('status', __('Fixed asset updated.'));
+    }
+
     public function show(FixedAsset $fixedAsset)
     {
         $depreciationEntries = JournalEntry::where('company_id', $fixedAsset->company_id)

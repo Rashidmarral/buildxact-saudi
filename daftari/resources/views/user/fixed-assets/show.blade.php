@@ -16,6 +16,9 @@
         @else
             <span class="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">{{ __('Active') }}</span>
         @endif
+        @if ($asset->status === 'active' && (float) $asset->accumulated_depreciation === 0.0)
+            <a href="{{ route('app.fixed-assets.edit', $asset) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">{{ __('Edit') }}</a>
+        @endif
     </div>
 </div>
 

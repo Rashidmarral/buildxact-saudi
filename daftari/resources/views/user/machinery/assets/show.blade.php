@@ -48,6 +48,9 @@
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net book value') }}</p>
         <p class="text-xl font-bold text-slate-900 mt-1">{{ $asset->fixedAsset ? \App\Support\Money::format($asset->fixedAsset->netBookValue()) : '—' }}</p>
+        @if ($asset->fixedAsset && $asset->fixedAsset->status === 'active' && (float) $asset->fixedAsset->accumulated_depreciation === 0.0)
+            <a href="{{ route('app.fixed-assets.edit', $asset->fixedAsset) }}" class="text-xs font-semibold text-brand-700 hover:underline mt-1 inline-block">{{ __('Update cost/date') }}</a>
+        @endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Total revenue') }}</p>
