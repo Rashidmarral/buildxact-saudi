@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Project extends Model
 {
@@ -95,6 +96,18 @@ class Project extends Model
     }
 
     /**
+     * Payments recorded against this project's own invoices — the Sales
+     * side of cashReceived() alongside receiptVouchers(). Only those
+     * tagged to a bank account actually count there (see the class
+     * docblock on InvoicePayment's migration): one with no account on
+     * file was never tied to a specific account in the first place.
+     */
+    public function invoicePayments(): HasManyThrough
+    {
+        return $this->hasManyThrough(InvoicePayment::class, Invoice::class);
+    }
+
+    /**
      * Billed revenue: totals of every non-draft invoice linked to this
      * project — real numbers from real invoices, not a stored estimate.
      */
@@ -139,7 +152,8 @@ class Project extends Model
      */
     public function cashReceived(): float
     {
-        return (float) $this->receiptVouchers()->where('status', 'issued')->sum('amount');
+        return (float) $this->receiptVouchers()->where('status', 'issued')->sum('amount')
+            + (float) $this->invoicePayments()->whereNotNull('invoice_payments.bank_account_id')->sum('invoice_payments.amount');
     }
 
     /**

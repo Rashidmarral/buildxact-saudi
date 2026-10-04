@@ -197,12 +197,13 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load('items', 'client', 'invoicePayments', 'bankAccount', 'warehouse', 'attachments', 'installments');
+        $invoice->load('items', 'client', 'invoicePayments.bankAccount', 'bankAccount', 'warehouse', 'attachments', 'installments');
         $template = $invoice->company->defaultTemplateFor('invoice');
         $whatsappEnabled = (bool) WhatsappConfig::where('is_enabled', true)->exists();
         $smsEnabled = (bool) SmsConfig::where('is_enabled', true)->exists();
+        $paymentBankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
 
-        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled', 'smsEnabled'));
+        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled', 'smsEnabled', 'paymentBankAccounts'));
     }
 
     public function downloadPdf(Invoice $invoice, MpdfRenderer $renderer)
@@ -514,6 +515,13 @@ class InvoiceController extends Controller
             'paid_at' => ['required', 'date'],
             'method' => ['nullable', 'string', 'max:30'],
             'reference' => ['nullable', 'string', 'max:255'],
+            // Which real account the money landed in — without this, a
+            // genuinely received payment was invisible on that account's
+            // own statement and on the Project Cash Flow page (see
+            // ProjectCashFlowController::buildLedger(), which never
+            // queried InvoicePayment at all). Optional for backward
+            // compatibility with payments recorded before this existed.
+            'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $invoice->company_id)],
             // Only meaningful when the invoice's currency differs from the
             // company's — the rate actually in effect on the day the money
             // was banked, which can differ from the invoice's own booked

@@ -164,6 +164,7 @@
                 <tr class="text-left text-slate-500 border-b border-slate-100">
                     <th class="py-2">{{ __('Date') }}</th>
                     <th class="py-2">{{ __('Method') }}</th>
+                    <th class="py-2">{{ __('Account') }}</th>
                     <th class="py-2">{{ __('Reference') }}</th>
                     <th class="py-2 text-end">{{ __('Amount') }}</th>
                 </tr>
@@ -173,6 +174,7 @@
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="py-2">{{ $payment->paid_at->format('Y-m-d') }}</td>
                         <td class="py-2">{{ $payment->method ?: '—' }}</td>
+                        <td class="py-2">{{ $payment->bankAccount?->name ?: '—' }}</td>
                         <td class="py-2">{{ $payment->reference ?: '—' }}</td>
                         <td class="py-2 text-end">{{ \App\Support\Money::format($payment->amount) }}</td>
                     </tr>
@@ -206,6 +208,16 @@
                     <option value="card">{{ __('Card') }}</option>
                     <option value="other">{{ __('Other') }}</option>
                 </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Received into') }}</label>
+                <select name="bank_account_id" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('Unspecified') }}</option>
+                    @foreach ($paymentBankAccounts as $account)
+                        <option value="{{ $account->id }}" @selected(old('bank_account_id') == $account->id)>{{ $account->name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-[11px] text-slate-400 mt-1">{{ __('Which account received this — shows the payment on that account\'s own statement and on Project Cash Flow.') }}</p>
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Reference') }}</label>

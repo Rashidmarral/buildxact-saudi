@@ -103,6 +103,7 @@ class ExpenseController extends Controller
             'categories' => ExpenseCategory::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'machinery' => MachineryAsset::orderBy('name')->get(),
+            'hireInContracts' => MachineryHireInContract::where('status', 'active')->orderBy('contract_number')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
         ]);

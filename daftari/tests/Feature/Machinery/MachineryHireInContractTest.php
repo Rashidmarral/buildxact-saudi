@@ -109,6 +109,31 @@ class MachineryHireInContractTest extends TestCase
         $response->assertSee($contract->contract_number);
     }
 
+    /**
+     * Reported bug: edit() never passed 'hireInContracts' to the shared
+     * expenses.form view, so the form's "Hired equipment" block — which
+     * create() renders fine — crashed every expense edit page with
+     * "Undefined variable $hireInContracts" once the machinery_equipment
+     * module was enabled.
+     */
+    public function test_the_expense_edit_form_also_renders_without_error(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $contract = $this->makeContract($company);
+        $expense = Expense::create([
+            'company_id' => $company->id, 'vendor_name' => 'Simat Al-Rifah Co.',
+            'description' => 'September measured work', 'gross_amount' => 10000, 'amount' => 10000,
+            'tax_category' => 'standard_15', 'expense_date' => now()->toDateString(),
+            'machinery_hire_in_contract_id' => $contract->id, 'status' => 'approved', 'created_by' => $owner->id,
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('app.expenses.edit', $expense));
+
+        $response->assertOk();
+        $response->assertSee($contract->contract_number);
+    }
+
     public function test_a_real_supplier_record_can_be_linked_instead_of_free_text(): void
     {
         $company = $this->makeCompany();

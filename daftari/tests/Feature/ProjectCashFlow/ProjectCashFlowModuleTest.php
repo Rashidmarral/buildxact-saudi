@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\CompanyOverride;
 use App\Models\Expense;
+use App\Models\Invoice;
 use App\Models\PaymentVoucher;
 use App\Models\Plan;
 use App\Models\Project;
@@ -484,5 +485,72 @@ class ProjectCashFlowModuleTest extends \Tests\TestCase
             ->assertSee('Site labour salaries')
             ->assertSee(\App\Support\Money::format(-35000))
             ->assertDontSee(\App\Support\Money::format(-105000));
+    }
+
+    /**
+     * Reported bug: a real client payment, recorded on the invoice via
+     * "Record payment", never showed up on that project's Cash Flow page
+     * at all and didn't move the bank account's own balance — because
+     * buildLedger()/currentBalance()/cashReceived() only ever read
+     * ReceiptVoucher, never InvoicePayment. Fixed by letting a payment
+     * optionally carry the real bank_account_id it was received into.
+     */
+    public function test_an_invoice_payment_tagged_to_a_bank_account_appears_on_both_statements_and_moves_the_balance(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PRJ-JAMUM', 'name' => 'Jamum', 'status' => 'active']);
+        $account = $this->makeBankAccount($company, 'SNB Current Account');
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Sada Al Jeul Construction']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'project_id' => $project->id,
+            'invoice_number' => 'INV-1', 'status' => 'sent', 'issue_date' => now(), 'due_date' => now()->addDays(30),
+            'subtotal' => 91310.50, 'vat_total' => 13696.58, 'total' => 105007.08, 'currency' => 'SAR',
+        ]);
+
+        $this->actingAs($owner)->post(route('app.invoices.payments.store', $invoice), [
+            'amount' => 105007.08, 'paid_at' => now()->toDateString(), 'method' => 'bank_transfer',
+            'bank_account_id' => $account->id,
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertEqualsWithDelta(105007.08, $account->fresh()->currentBalance(), 0.01);
+        $this->assertEqualsWithDelta(105007.08, $project->fresh()->cashReceived(), 0.01);
+
+        $this->actingAs($owner)->get(route('app.project-cash-flow.show', $project))
+            ->assertOk()
+            ->assertSee('INV-1')
+            ->assertSee(\App\Support\Money::format(105007.08));
+
+        $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $account))
+            ->assertOk()
+            ->assertSee('INV-1')
+            ->assertSee(\App\Support\Money::format(105007.08));
+    }
+
+    /**
+     * Backward compatibility: a payment recorded without picking an
+     * account (the field is optional, and every payment recorded before
+     * this feature existed has none) must keep working exactly as before
+     * — it just stays invisible on the per-account/per-project statements,
+     * same as it always was.
+     */
+    public function test_an_invoice_payment_without_a_bank_account_still_records_but_stays_off_both_statements(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PRJ-JAMUM', 'name' => 'Jamum', 'status' => 'active']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client Co.']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'project_id' => $project->id,
+            'invoice_number' => 'INV-2', 'status' => 'sent', 'issue_date' => now(), 'due_date' => now()->addDays(30),
+            'subtotal' => 1000, 'vat_total' => 150, 'total' => 1150, 'currency' => 'SAR',
+        ]);
+
+        $this->actingAs($owner)->post(route('app.invoices.payments.store', $invoice), [
+            'amount' => 1150, 'paid_at' => now()->toDateString(), 'method' => 'bank_transfer',
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertSame('paid', $invoice->fresh()->status);
+        $this->assertEqualsWithDelta(0.0, $project->fresh()->cashReceived(), 0.01);
     }
 }

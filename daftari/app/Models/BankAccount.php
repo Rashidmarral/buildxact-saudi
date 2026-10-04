@@ -53,9 +53,22 @@ class BankAccount extends Model
         return $this->hasMany(BankReconciliation::class);
     }
 
+    /**
+     * Invoice payments recorded against this account (see
+     * InvoiceController::storePayment()) — Sales' own money-in record,
+     * alongside Receipt Vouchers. A payment recorded before this field
+     * existed has no bank_account_id and so was never tied to a specific
+     * account, so it can't appear here either.
+     */
+    public function invoicePayments(): HasMany
+    {
+        return $this->hasMany(InvoicePayment::class);
+    }
+
     public function currentBalance(): float
     {
-        $received = $this->receiptVouchers()->where('status', 'issued')->sum('amount');
+        $received = $this->receiptVouchers()->where('status', 'issued')->sum('amount')
+            + $this->invoicePayments()->sum('amount');
         $paid = $this->paymentVouchers()->where('status', 'issued')->sum('amount');
         $expensesPaid = $this->expenses()->where('status', 'approved')->sum('gross_amount');
         $transfersIn = BankTransfer::where('to_bank_account_id', $this->id)->sum('amount');

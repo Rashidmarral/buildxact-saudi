@@ -383,7 +383,9 @@ class LedgerPostingService
         $invoice = $payment->invoice;
         $company = $invoice->company;
         $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
-        $cashOrBank = $this->account($company, $payment->method === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK');
+        $cashOrBank = $payment->bankAccount
+            ? $this->bankOrCashAccount($company, $payment->bankAccount->type)
+            : $this->account($company, $payment->method === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK');
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank], 'invoice payment');
 
