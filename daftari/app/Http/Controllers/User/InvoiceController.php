@@ -14,6 +14,7 @@ use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoicePayment;
 use App\Models\Item;
 use App\Models\ItemStock;
 use App\Models\Project;
@@ -553,6 +554,45 @@ class InvoiceController extends Controller
         }
 
         return back()->with('status', __('Payment recorded.'));
+    }
+
+    /**
+     * Corrects a previously-recorded payment — most commonly to attach
+     * the real bank_account_id to one recorded before that field existed
+     * (see storePayment()'s docblock), but any field can be fixed here.
+     * Rebuilds its journal entry from scratch (deletePosting + repost,
+     * same pattern as FixedAssetLifecycleService::amend()) rather than
+     * reverse()'s audit-trail-preserving approach, since this is an
+     * in-place correction, not a cancellation — and recomputes the
+     * invoice's own amount_paid/status in case the amount changed.
+     */
+    public function updatePayment(Request $request, Invoice $invoice, InvoicePayment $payment, LedgerPostingService $ledger)
+    {
+        abort_unless($payment->invoice_id === $invoice->id, 404);
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:'.max($invoice->balanceDue() + (float) $payment->amount, 0.01)],
+            'paid_at' => ['required', 'date'],
+            'method' => ['nullable', 'string', 'max:30'],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $invoice->company_id)],
+            'exchange_rate' => ['nullable', 'numeric', 'min:0.000001'],
+        ]);
+
+        DB::transaction(function () use ($invoice, $payment, $data, $ledger) {
+            $ledger->deletePosting($invoice->company, 'invoice_payment', $payment->id);
+            $payment->update($data);
+            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+            $invoice->status = $invoice->isFullyPaid() ? 'paid' : ($invoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+            $invoice->save();
+            $ledger->postInvoicePayment($payment->fresh());
+        });
+
+        AuditLog::record('invoice.payment_update', $invoice, __('Updated a payment of :amount :currency on invoice :number', [
+            'amount' => number_format((float) $data['amount'], 2), 'currency' => $invoice->currency, 'number' => $invoice->invoice_number,
+        ]));
+
+        return back()->with('status', __('Payment updated.'));
     }
 
     /**

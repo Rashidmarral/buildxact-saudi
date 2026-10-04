@@ -159,6 +159,7 @@
     <h3 class="font-semibold text-slate-900 mb-4">{{ __('Payments') }}</h3>
 
     @if ($invoice->invoicePayments->isNotEmpty())
+        <div x-data="{ editingPayment: null }">
         <table class="w-full text-sm mb-6">
             <thead>
                 <tr class="text-left text-slate-500 border-b border-slate-100">
@@ -167,20 +168,64 @@
                     <th class="py-2">{{ __('Account') }}</th>
                     <th class="py-2">{{ __('Reference') }}</th>
                     <th class="py-2 text-end">{{ __('Amount') }}</th>
+                    <th class="py-2"></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($invoice->invoicePayments as $payment)
-                    <tr class="border-b border-slate-50 last:border-0">
+                    <tr class="border-b border-slate-50 last:border-0" x-show="editingPayment !== {{ $payment->id }}">
                         <td class="py-2">{{ $payment->paid_at->format('Y-m-d') }}</td>
                         <td class="py-2">{{ $payment->method ?: '—' }}</td>
                         <td class="py-2">{{ $payment->bankAccount?->name ?: '—' }}</td>
                         <td class="py-2">{{ $payment->reference ?: '—' }}</td>
                         <td class="py-2 text-end">{{ \App\Support\Money::format($payment->amount) }}</td>
+                        <td class="py-2 text-end">
+                            <button type="button" @click="editingPayment = {{ $payment->id }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Edit') }}</button>
+                        </td>
+                    </tr>
+                    <tr class="border-b border-slate-50 last:border-0 bg-slate-50" x-show="editingPayment === {{ $payment->id }}" x-cloak>
+                        <td colspan="6" class="py-3">
+                            <form method="POST" action="{{ route('app.invoices.payments.update', [$invoice, $payment]) }}" class="flex flex-wrap items-end gap-3">
+                                @csrf
+                                @method('PUT')
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-500">{{ __('Date') }}</label>
+                                    <input type="date" name="paid_at" value="{{ $payment->paid_at->toDateString() }}" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-500">{{ __('Method') }}</label>
+                                    <select name="method" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                        @foreach (['cash' => __('Cash'), 'bank_transfer' => __('Bank transfer'), 'card' => __('Card'), 'other' => __('Other')] as $value => $label)
+                                            <option value="{{ $value }}" @selected($payment->method === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-500">{{ __('Received into') }}</label>
+                                    <select name="bank_account_id" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                        <option value="">{{ __('Unspecified') }}</option>
+                                        @foreach ($paymentBankAccounts as $account)
+                                            <option value="{{ $account->id }}" @selected($payment->bank_account_id === $account->id)>{{ $account->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-500">{{ __('Reference') }}</label>
+                                    <input type="text" name="reference" value="{{ $payment->reference }}" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-500">{{ __('Amount') }}</label>
+                                    <input type="number" step="0.01" min="0.01" name="amount" value="{{ $payment->amount }}" required class="mt-1 w-28 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                </div>
+                                <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save changes') }}</button>
+                                <button type="button" @click="editingPayment = null" class="text-sm font-medium text-slate-500 hover:underline">{{ __('Cancel') }}</button>
+                            </form>
+                        </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
+        </div>
     @endif
 
     @if ($invoice->balanceDue() > 0)
