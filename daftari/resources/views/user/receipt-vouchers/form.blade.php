@@ -135,7 +135,7 @@
                         <select name="project_id" id="project_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                             <option value="">{{ __('None') }}</option>
                             @foreach ($projects as $project)
-                                <option value="{{ $project->id }}" @selected(old('project_id', $voucher->project_id ?? null) == $project->id)>{{ $project->name }}</option>
+                                <option value="{{ $project->id }}" @selected(old('project_id', $voucher->project_id ?? $prefillProjectId ?? null) == $project->id)>{{ $project->name }}</option>
                             @endforeach
                         </select>
                         <p class="mt-1 text-xs text-slate-400">{{ __('Tags this receipt for the Project Cash Flow statement. Filled in automatically when the linked invoice already has a project.') }}</p>

@@ -47,13 +47,18 @@ class ReceiptVoucherController extends Controller
         return view('user.receipt-vouchers.index', compact('vouchers'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $company = Auth::user()->company;
         $clients = Client::orderBy('name')->get();
         $suppliers = Supplier::orderBy('name')->get();
 
         return view('user.receipt-vouchers.form', [
+            // Not a real $voucher — the form's isset($voucher) checks are
+            // how it tells "new" apart from "edit" (see store()/update()
+            // both sharing this view), so prefilling the project from a
+            // quick-link needs its own variable instead.
+            'prefillProjectId' => $request->integer('project_id') ?: null,
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'clients' => $clients,
             'suppliers' => $suppliers,

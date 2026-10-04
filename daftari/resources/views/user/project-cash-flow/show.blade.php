@@ -18,6 +18,7 @@
                 @endforeach
             </select>
         </form>
+        <a href="{{ route('app.receipt-vouchers.create', ['project_id' => $project->id]) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('+ Record income') }}</a>
         <a href="{{ route('app.project-cash-flow.pdf', array_merge(['project' => $project], request()->only('bank_account_id'))) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
     </div>
 </div>

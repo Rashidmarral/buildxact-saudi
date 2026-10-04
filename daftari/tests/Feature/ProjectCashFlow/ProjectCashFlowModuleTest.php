@@ -553,4 +553,40 @@ class ProjectCashFlowModuleTest extends \Tests\TestCase
         $this->assertSame('paid', $invoice->fresh()->status);
         $this->assertEqualsWithDelta(0.0, $project->fresh()->cashReceived(), 0.01);
     }
+
+    /**
+     * "add there is an option to add income from projects as well and
+     * have option where income goes and which account" — the Receipt
+     * Voucher form already has exactly this (bank_account_id for which
+     * account, counter_account_id for where it's booked, project_id to
+     * tag it), but nothing on the Project Cash Flow page itself linked to
+     * it or prefilled the project. This covers both the new quick-link
+     * and the regression risk of passing a real $voucher from create():
+     * the form's isset($voucher) checks are how it tells "new" apart
+     * from "edit", so that would have silently turned every "new" receipt
+     * voucher page into an "edit" one pointed at a nonexistent record.
+     */
+    public function test_the_project_page_links_to_a_prefilled_record_income_form(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PRJ-JAMUM', 'name' => 'Jamum', 'status' => 'active']);
+
+        $this->actingAs($owner)->get(route('app.project-cash-flow.show', $project))
+            ->assertOk()
+            ->assertSee(route('app.receipt-vouchers.create', ['project_id' => $project->id]), false);
+
+        $response = $this->actingAs($owner)->get(route('app.receipt-vouchers.create', ['project_id' => $project->id]));
+        $response->assertOk()
+            ->assertSee(__('New Receipt Voucher'))
+            ->assertDontSee(__('Edit Receipt Voucher'))
+            ->assertSee('selected', false);
+
+        // The plain create page (no project_id) must still read as "new",
+        // not silently become an edit form with no record behind it.
+        $this->actingAs($owner)->get(route('app.receipt-vouchers.create'))
+            ->assertOk()
+            ->assertSee(__('New Receipt Voucher'))
+            ->assertSee(__('Save'));
+    }
 }
