@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\BankTransfer;
 use App\Models\Expense;
+use App\Models\Income;
 use App\Models\InvoicePayment;
 use App\Models\PaymentVoucher;
 use App\Models\Project;
@@ -19,11 +20,13 @@ use Illuminate\Support\Str;
  * received, paid, and transferred for one Project (or one BankAccount),
  * plus a branded PDF export of it. Sits entirely on top of the existing,
  * ungated Cash & Banks records (ReceiptVoucher/PaymentVoucher/BankTransfer)
- * plus directly-paid Expenses (Purchases & Expenses' own money-out record)
- * and InvoicePayments tagged to a bank account (Sales' own money-in
- * record — an invoice payment with no bank_account_id set, e.g. one
- * recorded before that field existed, still isn't included here; it was
- * never tied to a specific account in the first place)
+ * plus directly-paid Expenses (Purchases & Expenses' own money-out record),
+ * InvoicePayments tagged to a bank account (Sales' own money-in record —
+ * an invoice payment with no bank_account_id set, e.g. one recorded before
+ * that field existed, still isn't included here; it was never tied to a
+ * specific account in the first place), and Income tagged to a bank
+ * account (the general "money received that isn't tied to an invoice"
+ * record — same caveat: one left as "Unreceived" has no account yet)
  * — every route here is gated behind the project_cash_flow permission and
  * module (see routes/web.php), so this controller never needs to check
  * access itself.
@@ -218,6 +221,29 @@ class ProjectCashFlowController extends Controller
                 'url' => route('app.invoices.show', $p->invoice),
             ]);
 
+        // General income not tied to an invoice (see the Income model's
+        // docblock) — uses gross_amount, same reasoning as $expenses
+        // above: the account actually received the full amount including
+        // VAT collected.
+        $incomes = Income::with('bankAccount', 'project')
+            ->whereNotNull('bank_account_id')
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->when($bankAccountId, fn ($q) => $q->where('bank_account_id', $bankAccountId))
+            ->get()
+            ->map(fn (Income $i) => [
+                'date' => $i->income_date,
+                'created_at' => $i->created_at,
+                'id' => 'income-'.$i->id,
+                'type' => 'income',
+                'number' => $i->reference,
+                'party' => $i->payer_name ?: ($i->description ?: __('Income')),
+                'account' => $i->bankAccount?->name,
+                'in_amount' => (float) $i->gross_amount,
+                'out_amount' => 0.0,
+                'affects_balance' => true,
+                'url' => route('app.incomes.edit', $i),
+            ]);
+
         $transfers = BankTransfer::with('fromAccount', 'toAccount', 'project')
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($bankAccountId, fn ($q) => $q->where(fn ($q2) => $q2->where('from_bank_account_id', $bankAccountId)->orWhere('to_bank_account_id', $bankAccountId)))
@@ -269,7 +295,7 @@ class ProjectCashFlowController extends Controller
         // still tie there. A last tiebreaker settles that: an incoming
         // amount sorts before an outgoing one at the same instant, since
         // money can't fund a payment before it arrives.
-        $rows = $receipts->concat($payments)->concat($expenses)->concat($invoicePayments)->concat($transfers)
+        $rows = $receipts->concat($payments)->concat($expenses)->concat($invoicePayments)->concat($incomes)->concat($transfers)
             ->sortBy(fn (array $row) => $row['date']->format('Y-m-d').'-'.$row['created_at']->format('Y-m-d H:i:s').'-'.($row['in_amount'] > 0 ? '0' : '1'))
             ->values();
 

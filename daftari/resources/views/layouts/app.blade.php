@@ -124,6 +124,7 @@
                     </div>
                 </details>
 
+                @include('partials.nav-item', ['route' => 'app.incomes.index', 'label' => __('Income'), 'icon' => 'income'])
                 @include('partials.nav-item', ['route' => 'app.bank-accounts.index', 'label' => __('Cash & Banks'), 'icon' => 'bank'])
                 @include('partials.nav-item', ['route' => 'app.projects.index', 'label' => __('Projects'), 'icon' => 'projects'])
 

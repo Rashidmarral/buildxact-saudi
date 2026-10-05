@@ -14,6 +14,7 @@ use App\Models\CustomsDeclaration;
 use App\Models\DebitNote;
 use App\Models\EndOfServiceSettlement;
 use App\Models\Expense;
+use App\Models\Income;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
@@ -768,6 +769,39 @@ class LedgerPostingService
         }
 
         return $this->post($company, 'expense', $expense->id, __('Expense: :description', ['description' => $expense->description]), $expense->expense_date, $lines);
+    }
+
+    /**
+     * The revenue-side mirror of postExpense() — money received that
+     * isn't tied to an invoice (see the Income model's docblock). Where
+     * an unpaid Expense is an accrued payable (we owe it), unreceived
+     * Income is an accrued receivable (we're owed it), so the two debit
+     * the same side but the "no account chosen" fallback flips from
+     * Accounts Payable to Accounts Receivable.
+     */
+    public function postIncome(Income $income): ?JournalEntry
+    {
+        $company = $income->company;
+        $incomeAccount = $income->account ?? $this->account($company, 'OTHER_INCOME_DEFAULT');
+        $vatOutput = $this->account($company, 'VAT_OUTPUT');
+
+        $bankAccount = $income->bankAccount;
+        $counterpart = $bankAccount
+            ? $this->bankOrCashAccount($company, $bankAccount->type)
+            : $this->account($company, 'ACCOUNTS_RECEIVABLE');
+
+        $this->requireAccounts(['income account' => $incomeAccount, 'counterpart' => $counterpart], 'income');
+
+        $lines = [
+            ['account_id' => $counterpart->id, 'debit' => $income->amount + $income->vat_amount],
+            ['account_id' => $incomeAccount->id, 'credit' => $income->amount, 'memo' => $income->payer_name],
+        ];
+
+        if ($income->vat_amount > 0 && $vatOutput) {
+            $lines[] = ['account_id' => $vatOutput->id, 'credit' => $income->vat_amount];
+        }
+
+        return $this->post($company, 'income', $income->id, __('Income: :description', ['description' => $income->description]), $income->income_date, $lines);
     }
 
     public function postCustomsDeclaration(CustomsDeclaration $declaration): ?JournalEntry

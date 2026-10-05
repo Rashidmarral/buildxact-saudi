@@ -48,6 +48,7 @@
         'shield-check' => '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
         'funnel' => '<path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>',
         'machinery' => '<rect x="1.5" y="8" width="12" height="8" rx="1"/><path d="M13.5 10.5h4l3.5 3v2.5h-7.5z"/><circle cx="6" cy="18.5" r="2"/><circle cx="17" cy="18.5" r="2"/>',
+        'income' => '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
     ];
     $d = $paths[$name] ?? $paths['dashboard'];
 @endphp

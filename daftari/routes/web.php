@@ -72,6 +72,8 @@ use App\Http\Controllers\User\CustomsDeclarationController;
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\ExpenseCategoryController;
 use App\Http\Controllers\User\ExpenseController;
+use App\Http\Controllers\User\IncomeCategoryController;
+use App\Http\Controllers\User\IncomeController;
 use App\Http\Controllers\User\InventoryController;
 use App\Http\Controllers\User\InvoiceController;
 use App\Http\Controllers\User\InvoiceTemplateController;
@@ -363,6 +365,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('recurring-expenses', RecurringExpenseController::class)->except(['show']);
         Route::post('recurring-expenses/{recurringExpense}/pause', [RecurringExpenseController::class, 'pause'])->name('recurring-expenses.pause');
         Route::post('recurring-expenses/{recurringExpense}/resume', [RecurringExpenseController::class, 'resume'])->name('recurring-expenses.resume');
+    });
+
+    Route::middleware('permission:income')->group(function () {
+        Route::resource('incomes', IncomeController::class)->except(['show']);
+        Route::post('income-categories', [IncomeCategoryController::class, 'store'])->name('income-categories.store');
+        Route::delete('income-categories/{incomeCategory}', [IncomeCategoryController::class, 'destroy'])->name('income-categories.destroy');
     });
 
     Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {

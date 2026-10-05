@@ -574,19 +574,42 @@ class ProjectCashFlowModuleTest extends \Tests\TestCase
 
         $this->actingAs($owner)->get(route('app.project-cash-flow.show', $project))
             ->assertOk()
-            ->assertSee(route('app.receipt-vouchers.create', ['project_id' => $project->id]), false);
+            ->assertSee(route('app.incomes.create', ['project_id' => $project->id]), false);
 
-        $response = $this->actingAs($owner)->get(route('app.receipt-vouchers.create', ['project_id' => $project->id]));
+        $response = $this->actingAs($owner)->get(route('app.incomes.create', ['project_id' => $project->id]));
         $response->assertOk()
-            ->assertSee(__('New Receipt Voucher'))
-            ->assertDontSee(__('Edit Receipt Voucher'))
+            ->assertSee(__('New Income'))
+            ->assertDontSee(__('Edit Income'))
             ->assertSee('selected', false);
+    }
 
-        // The plain create page (no project_id) must still read as "new",
-        // not silently become an edit form with no record behind it.
-        $this->actingAs($owner)->get(route('app.receipt-vouchers.create'))
-            ->assertOk()
-            ->assertSee(__('New Receipt Voucher'))
-            ->assertSee(__('Save'));
+    /**
+     * "add there is an option to add income from projects as well" — the
+     * general Income module (see IncomeTest for its own coverage) must
+     * also feed into this project's cash-flow ledger and summary the same
+     * way directly-paid Expenses and bank-tagged InvoicePayments already
+     * do, otherwise tagging an income to a project would be purely
+     * cosmetic.
+     */
+    public function test_income_tagged_to_a_project_and_account_appears_on_both_statements(): void
+    {
+        $company = $this->makeCompany(withModule: true);
+        $owner = $this->makeOwner($company);
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PRJ-JAMUM', 'name' => 'Jamum', 'status' => 'active']);
+        $account = $this->makeBankAccount($company, 'SNB Current Account');
+
+        $this->actingAs($owner)->post(route('app.incomes.store'), [
+            'income_date' => now()->toDateString(), 'gross_amount' => 5000, 'tax_category' => 'zero_rated',
+            'bank_account_id' => $account->id, 'project_id' => $project->id, 'payer_name' => 'Scrap buyer',
+        ])->assertRedirect();
+
+        $this->assertEqualsWithDelta(5000, $account->fresh()->currentBalance(), 0.01);
+        $this->assertEqualsWithDelta(5000, $project->fresh()->cashReceived(), 0.01);
+
+        $this->actingAs($owner)->get(route('app.project-cash-flow.show', $project))
+            ->assertOk()->assertSee('Scrap buyer')->assertSee(\App\Support\Money::format(5000));
+
+        $this->actingAs($owner)->get(route('app.project-cash-flow.bank-account.show', $account))
+            ->assertOk()->assertSee('Scrap buyer')->assertSee(\App\Support\Money::format(5000));
     }
 }

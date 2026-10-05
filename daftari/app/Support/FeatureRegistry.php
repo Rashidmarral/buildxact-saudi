@@ -44,6 +44,7 @@ class FeatureRegistry
             'purchases' => ['label' => __('Purchases'), 'type' => 'core'],
             'inventory' => ['label' => __('Inventory'), 'type' => 'core'],
             'expenses' => ['label' => __('Expenses'), 'type' => 'core'],
+            'income' => ['label' => __('Income'), 'type' => 'core'],
             'banking' => ['label' => __('Banking'), 'type' => 'core'],
             'reports' => ['label' => __('Reports'), 'type' => 'core'],
             'zatca' => ['label' => __('ZATCA'), 'type' => 'gated', 'column' => 'has_zatca_phase2'],

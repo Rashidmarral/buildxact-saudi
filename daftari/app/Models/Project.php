@@ -45,6 +45,11 @@ class Project extends Model
         return $this->hasMany(Expense::class);
     }
 
+    public function incomes(): HasMany
+    {
+        return $this->hasMany(Income::class);
+    }
+
     /**
      * Quotations sent for this project. Not counted in revenue() — a
      * quotation is only an offer, not billed revenue — but linking it
@@ -153,7 +158,8 @@ class Project extends Model
     public function cashReceived(): float
     {
         return (float) $this->receiptVouchers()->where('status', 'issued')->sum('amount')
-            + (float) $this->invoicePayments()->whereNotNull('invoice_payments.bank_account_id')->sum('invoice_payments.amount');
+            + (float) $this->invoicePayments()->whereNotNull('invoice_payments.bank_account_id')->sum('invoice_payments.amount')
+            + (float) $this->incomes()->whereNotNull('bank_account_id')->sum('gross_amount');
     }
 
     /**

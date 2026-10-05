@@ -65,10 +65,24 @@ class BankAccount extends Model
         return $this->hasMany(InvoicePayment::class);
     }
 
+    /**
+     * Income recorded directly against this account (see
+     * IncomeController) — a voucher-free way real cash arrives, the
+     * revenue-side mirror of expenses() above. Uses gross_amount, same
+     * reasoning as expenses(): the account actually received the full
+     * amount including VAT collected, even though that VAT is a liability
+     * (not yet remitted) rather than the company's own money.
+     */
+    public function incomes(): HasMany
+    {
+        return $this->hasMany(Income::class);
+    }
+
     public function currentBalance(): float
     {
         $received = $this->receiptVouchers()->where('status', 'issued')->sum('amount')
-            + $this->invoicePayments()->sum('amount');
+            + $this->invoicePayments()->sum('amount')
+            + $this->incomes()->sum('gross_amount');
         $paid = $this->paymentVouchers()->where('status', 'issued')->sum('amount');
         $expensesPaid = $this->expenses()->where('status', 'approved')->sum('gross_amount');
         $transfersIn = BankTransfer::where('to_bank_account_id', $this->id)->sum('amount');
