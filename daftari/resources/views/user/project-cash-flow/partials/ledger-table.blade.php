@@ -27,6 +27,10 @@
                             <span class="inline-block rounded-full bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1">{{ __('Payment') }}</span>
                         @elseif ($row['type'] === 'expense')
                             <span class="inline-block rounded-full bg-rose-50 text-rose-700 text-xs font-medium px-2.5 py-1">{{ __('Expense') }}</span>
+                        @elseif ($row['type'] === 'invoice_payment')
+                            <span class="inline-block rounded-full bg-teal-50 text-teal-700 text-xs font-medium px-2.5 py-1">{{ __('Invoice payment') }}</span>
+                        @elseif ($row['type'] === 'income')
+                            <span class="inline-block rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1">{{ __('Income') }}</span>
                         @elseif ($row['type'] === 'withdrawal')
                             <span class="inline-block rounded-full bg-orange-50 text-orange-700 text-xs font-medium px-2.5 py-1">{{ __('Withdrawal') }}</span>
                         @elseif ($row['type'] === 'deposit')

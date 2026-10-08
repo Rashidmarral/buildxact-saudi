@@ -17,8 +17,11 @@
                     <option value="{{ $project->id }}" @selected($selectedProjectId == $project->id)>{{ $project->name }}</option>
                 @endforeach
             </select>
+            <input type="date" name="from" value="{{ $filters['from'] ?? '' }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" title="{{ __('From') }}">
+            <input type="date" name="to" value="{{ $filters['to'] ?? '' }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" title="{{ __('To') }}">
+            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Apply') }}</button>
         </form>
-        <a href="{{ route('app.project-cash-flow.bank-account.pdf', array_merge(['bankAccount' => $bankAccount], request()->only('project_id'))) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
+        <a href="{{ route('app.project-cash-flow.bank-account.pdf', array_merge(['bankAccount' => $bankAccount], request()->only('project_id', 'from', 'to'))) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
     </div>
 </div>
 

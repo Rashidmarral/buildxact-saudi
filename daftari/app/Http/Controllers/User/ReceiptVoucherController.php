@@ -40,11 +40,68 @@ class ReceiptVoucherController extends Controller
         ]);
     }
 
-    public function index()
+    /**
+     * See PaymentVoucherController::index()'s docblock — the same
+     * client/supplier/date filter and issued-only total, on the money-in
+     * side.
+     */
+    public function index(Request $request)
     {
-        $vouchers = ReceiptVoucher::with('bankAccount', 'client', 'supplier')->latest('date')->latest('id')->paginate(20);
+        $query = ReceiptVoucher::with('bankAccount', 'client', 'supplier')
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')));
 
-        return view('user.receipt-vouchers.index', compact('vouchers'));
+        $total = (clone $query)->where('status', 'issued')->sum('amount');
+
+        $vouchers = $query->latest('date')->latest('id')->paginate(20)->withQueryString();
+
+        return view('user.receipt-vouchers.index', [
+            'vouchers' => $vouchers,
+            'total' => $total,
+            'clients' => Client::orderBy('name')->get(),
+            'suppliers' => Supplier::orderBy('name')->get(),
+            'filters' => $request->only('client_id', 'supplier_id', 'from', 'to'),
+        ]);
+    }
+
+    /**
+     * See PaymentVoucherController::summaryPdf()'s docblock — the
+     * money-in equivalent (e.g. every deposit a client has made across
+     * several receipt vouchers, bundled into one statement).
+     */
+    public function summaryPdf(Request $request, MpdfRenderer $renderer)
+    {
+        abort_unless($request->filled('client_id') || $request->filled('supplier_id'), 404);
+
+        $company = Auth::user()->company;
+        $vouchers = ReceiptVoucher::with('bankAccount')
+            ->where('status', 'issued')
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->orderBy('date')
+            ->get();
+
+        $party = $request->filled('client_id') ? Client::find($request->integer('client_id')) : Supplier::find($request->integer('supplier_id'));
+
+        $pdf = $renderer->render('documents.print.voucher-summary-pdf', [
+            'type' => 'receipt',
+            'company' => $company,
+            'party' => $party,
+            'vouchers' => $vouchers,
+            'total' => (float) $vouchers->sum('amount'),
+            'from' => $request->query('from'),
+            'to' => $request->query('to'),
+            'template' => $company->defaultTemplateFor('voucher_summary'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.\Illuminate\Support\Str::slug($party?->name ?: 'receipt-summary').'-receipt-summary.pdf"',
+        ]);
     }
 
     public function create(Request $request)

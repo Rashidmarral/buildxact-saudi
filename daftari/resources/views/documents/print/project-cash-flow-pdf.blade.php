@@ -13,6 +13,8 @@
         'receipt' => __('Receipt'),
         'payment' => __('Payment'),
         'expense' => __('Expense'),
+        'invoice_payment' => __('Invoice payment'),
+        'income' => __('Income'),
         'withdrawal' => __('Withdrawal'),
         'deposit' => __('Deposit'),
         'transfer' => __('Transfer'),
@@ -29,7 +31,7 @@
     .company-name { font-size: 15pt; font-weight: bold; color: #0f172a; }
     .doc-title { font-size: 15pt; font-weight: bold; color: #0f766e; text-align: right; }
     .muted { color: #64748b; font-size: 9pt; }
-    .summary-table td { width: 25%; padding: 10px; border: 1pt solid #e2e8f0; text-align: center; }
+    .summary-table td { width: 20%; padding: 10px; border: 1pt solid #e2e8f0; text-align: center; }
     .summary-table .k { color: #64748b; font-size: 8pt; }
     .summary-table .v { font-size: 12pt; font-weight: bold; color: #0f172a; margin-top: 4px; }
     .ledger-table { margin-top: 14px; }
@@ -54,6 +56,9 @@
             <div class="doc-title">{{ $title }}</div>
             <div class="muted" style="text-align: right;">{{ $subject }}</div>
             <div class="muted" style="text-align: right;">{{ __('Generated') }}: {{ \App\Support\PlatformFormat::date(now()) }}</div>
+            @if (($period['from'] ?? null) || ($period['to'] ?? null))
+                <div class="muted" style="text-align: right;">{{ __('Period') }}: {{ $period['from'] ?: __('Earliest') }} — {{ $period['to'] ?: __('Today') }}</div>
+            @endif
         </td>
     </tr>
 </table>
@@ -62,11 +67,28 @@
     <table class="summary-table" style="margin-top: 16px;">
         <tr>
             <td><div class="k">{{ __('Total received') }}</div><div class="v in-amount">{{ \App\Support\Money::format($summary['received']) }}</div></td>
-            <td><div class="k">{{ __('Total paid') }}</div><div class="v out-amount">{{ \App\Support\Money::format($summary['paid']) }}</div></td>
+            <td><div class="k">{{ __('Payment vouchers') }}</div><div class="v out-amount">{{ \App\Support\Money::format($summary['paid_vouchers']) }}</div></td>
+            <td><div class="k">{{ __('Expenses') }}</div><div class="v out-amount">{{ \App\Support\Money::format($summary['expenses']) }}</div></td>
             <td><div class="k">{{ __('Moved to other accounts') }}</div><div class="v">{{ \App\Support\Money::format($summary['transferred']) }}</div></td>
             <td><div class="k">{{ __('Net cash position') }}</div><div class="v">{{ \App\Support\Money::format($summary['net']) }}</div></td>
         </tr>
     </table>
+
+    @if ($summary['expense_by_category']->isNotEmpty())
+        <table class="ledger-table" style="margin-top: 10px;">
+            <thead>
+                <tr><th colspan="2">{{ __('Expenses by category') }}</th></tr>
+            </thead>
+            <tbody>
+                @foreach ($summary['expense_by_category'] as $row)
+                    <tr>
+                        <td>{{ $row['category'] }} ({{ $row['count'] }})</td>
+                        <td class="num out-amount">{{ \App\Support\Money::format($row['total']) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
 @endif
 
 <table class="ledger-table">

@@ -456,11 +456,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:cash_banks')->group(function () {
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
+        Route::get('receipt-vouchers/summary/pdf', [ReceiptVoucherController::class, 'summaryPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.summary-pdf');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
         Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.pdf');
         Route::post('receipt-vouchers/{receiptVoucher}/attachments', [ReceiptVoucherController::class, 'storeAttachment'])->name('receipt-vouchers.attachments.store');
         Route::delete('receipt-vouchers/{receiptVoucher}/attachments/{attachment}', [ReceiptVoucherController::class, 'destroyAttachment'])->name('receipt-vouchers.attachments.destroy');
+        Route::get('payment-vouchers/summary/pdf', [PaymentVoucherController::class, 'summaryPdf'])->middleware('throttle:pdf')->name('payment-vouchers.summary-pdf');
         Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
         Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('payment-vouchers.pdf');

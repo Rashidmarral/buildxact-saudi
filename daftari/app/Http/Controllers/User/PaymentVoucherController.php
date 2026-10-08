@@ -24,11 +24,74 @@ class PaymentVoucherController extends Controller
 {
     use EnforcesStorageQuota;
 
-    public function index()
+    /**
+     * "there is no option to get total amount paid" for a supplier across
+     * however many separate vouchers were issued to them — adds
+     * supplier/client/date filters plus a total over exactly what's
+     * filtered (status='issued' only, matching every other total in this
+     * app — a voided voucher never counted as real money paid).
+     */
+    public function index(Request $request)
     {
-        $vouchers = PaymentVoucher::with('bankAccount', 'client', 'supplier')->latest('date')->latest('id')->paginate(20);
+        $query = PaymentVoucher::with('bankAccount', 'client', 'supplier')
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')));
 
-        return view('user.payment-vouchers.index', compact('vouchers'));
+        $total = (clone $query)->where('status', 'issued')->sum('amount');
+
+        $vouchers = $query->latest('date')->latest('id')->paginate(20)->withQueryString();
+
+        return view('user.payment-vouchers.index', [
+            'vouchers' => $vouchers,
+            'total' => $total,
+            'suppliers' => Supplier::orderBy('name')->get(),
+            'clients' => Client::orderBy('name')->get(),
+            'filters' => $request->only('supplier_id', 'client_id', 'from', 'to'),
+        ]);
+    }
+
+    /**
+     * "there is option to get 1 single payment voucher for whole amount"
+     * — a company that paid a supplier across several separate vouchers
+     * (a subcontractor's progress payments, say) can bundle exactly the
+     * filtered set into one branded PDF: every voucher listed with its
+     * own date/reference/amount, plus a grand total — the document to
+     * hand the supplier as a consolidated payment summary, without
+     * re-entering anything.
+     */
+    public function summaryPdf(Request $request, MpdfRenderer $renderer)
+    {
+        abort_unless($request->filled('supplier_id') || $request->filled('client_id'), 404);
+
+        $company = Auth::user()->company;
+        $vouchers = PaymentVoucher::with('bankAccount')
+            ->where('status', 'issued')
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->orderBy('date')
+            ->get();
+
+        $party = $request->filled('supplier_id') ? Supplier::find($request->integer('supplier_id')) : Client::find($request->integer('client_id'));
+
+        $pdf = $renderer->render('documents.print.voucher-summary-pdf', [
+            'type' => 'payment',
+            'company' => $company,
+            'party' => $party,
+            'vouchers' => $vouchers,
+            'total' => (float) $vouchers->sum('amount'),
+            'from' => $request->query('from'),
+            'to' => $request->query('to'),
+            'template' => $company->defaultTemplateFor('voucher_summary'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.\Illuminate\Support\Str::slug($party?->name ?: 'payment-summary').'-payment-summary.pdf"',
+        ]);
     }
 
     public function downloadPdf(PaymentVoucher $paymentVoucher, MpdfRenderer $renderer)

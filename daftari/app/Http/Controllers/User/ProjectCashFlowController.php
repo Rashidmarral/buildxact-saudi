@@ -44,19 +44,16 @@ class ProjectCashFlowController extends Controller
     public function show(Project $project, Request $request)
     {
         $bankAccountId = $request->integer('bank_account_id') ?: null;
+        [$from, $to] = $this->periodFromRequest($request);
 
-        $ledger = $this->buildLedger(projectId: $project->id, bankAccountId: $bankAccountId);
+        $ledger = $this->buildLedger(projectId: $project->id, bankAccountId: $bankAccountId, from: $from, to: $to);
 
         return view('user.project-cash-flow.show', [
             'project' => $project,
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'selectedBankAccountId' => $bankAccountId,
-            'summary' => [
-                'received' => $project->cashReceived(),
-                'paid' => $project->cashPaid(),
-                'transferred' => $project->cashTransferredOut(),
-                'net' => $project->netCashPosition(),
-            ],
+            'filters' => ['from' => $from, 'to' => $to],
+            'summary' => $this->summarize($ledger['rows']),
             'ledger' => $ledger,
         ]);
     }
@@ -64,19 +61,16 @@ class ProjectCashFlowController extends Controller
     public function pdf(Project $project, Request $request, MpdfRenderer $renderer)
     {
         $bankAccountId = $request->integer('bank_account_id') ?: null;
-        $ledger = $this->buildLedger(projectId: $project->id, bankAccountId: $bankAccountId);
+        [$from, $to] = $this->periodFromRequest($request);
+        $ledger = $this->buildLedger(projectId: $project->id, bankAccountId: $bankAccountId, from: $from, to: $to);
 
         $pdf = $renderer->render('documents.print.project-cash-flow-pdf', [
             'title' => __('Project Cash Flow Statement'),
             'subject' => $project->name,
             'company' => $project->company,
             'template' => $project->company->defaultTemplateFor('project_cash_flow'),
-            'summary' => [
-                'received' => $project->cashReceived(),
-                'paid' => $project->cashPaid(),
-                'transferred' => $project->cashTransferredOut(),
-                'net' => $project->netCashPosition(),
-            ],
+            'period' => ['from' => $from, 'to' => $to],
+            'summary' => $this->summarize($ledger['rows']),
             'ledger' => $ledger,
         ]);
 
@@ -89,13 +83,15 @@ class ProjectCashFlowController extends Controller
     public function bankAccountShow(BankAccount $bankAccount, Request $request)
     {
         $projectId = $request->integer('project_id') ?: null;
+        [$from, $to] = $this->periodFromRequest($request);
 
-        $ledger = $this->buildLedger(projectId: $projectId, bankAccountId: $bankAccount->id);
+        $ledger = $this->buildLedger(projectId: $projectId, bankAccountId: $bankAccount->id, from: $from, to: $to);
 
         return view('user.project-cash-flow.bank-account-show', [
             'bankAccount' => $bankAccount,
             'projects' => Project::orderBy('name')->get(),
             'selectedProjectId' => $projectId,
+            'filters' => ['from' => $from, 'to' => $to],
             'ledger' => $ledger,
         ]);
     }
@@ -103,13 +99,15 @@ class ProjectCashFlowController extends Controller
     public function bankAccountPdf(BankAccount $bankAccount, Request $request, MpdfRenderer $renderer)
     {
         $projectId = $request->integer('project_id') ?: null;
-        $ledger = $this->buildLedger(projectId: $projectId, bankAccountId: $bankAccount->id);
+        [$from, $to] = $this->periodFromRequest($request);
+        $ledger = $this->buildLedger(projectId: $projectId, bankAccountId: $bankAccount->id, from: $from, to: $to);
 
         $pdf = $renderer->render('documents.print.project-cash-flow-pdf', [
             'title' => __('Bank Account Statement'),
             'subject' => $bankAccount->name,
             'company' => $bankAccount->company,
             'template' => $bankAccount->company->defaultTemplateFor('project_cash_flow'),
+            'period' => ['from' => $from, 'to' => $to],
             'summary' => null,
             'ledger' => $ledger,
         ]);
@@ -118,6 +116,61 @@ class ProjectCashFlowController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.Str::slug($bankAccount->name).'-statement.pdf"',
         ]);
+    }
+
+    private function periodFromRequest(Request $request): array
+    {
+        return [
+            $request->filled('from') ? $request->query('from') : null,
+            $request->filled('to') ? $request->query('to') : null,
+        ];
+    }
+
+    /**
+     * "i am unable to calculate the expenses" — the summary tiles used to
+     * call Project::cashReceived()/cashPaid()/cashTransferredOut()/
+     * netCashPosition(), which are all-time and ignore the bank-account/
+     * date filters already narrowing the ledger below them: picking one
+     * account or a date range changed the table but left the tiles
+     * showing a different, wider number. Deriving every figure from the
+     * same filtered $rows keeps tiles and table in lockstep, and gives
+     * Expenses a total (and a by-category breakdown) of their own instead
+     * of leaving them folded into "paid" alongside Payment Vouchers.
+     */
+    private function summarize(\Illuminate\Support\Collection $rows): array
+    {
+        $received = (float) $rows->whereIn('type', ['receipt', 'invoice_payment', 'income'])->sum('in_amount');
+        $paidVouchers = (float) $rows->where('type', 'payment')->sum('out_amount');
+        $expensesTotal = (float) $rows->where('type', 'expense')->sum('out_amount');
+        $transferred = (float) $rows->whereIn('type', ['withdrawal', 'deposit', 'transfer'])->sum('out_amount');
+
+        $byType = $rows->groupBy('type')->map(fn ($group, $type) => [
+            'type' => $type,
+            'count' => $group->count(),
+            'in' => (float) $group->sum('in_amount'),
+            'out' => (float) $group->sum('out_amount'),
+        ])->values();
+
+        $expenseByCategory = $rows->where('type', 'expense')
+            ->groupBy(fn (array $row) => $row['category'] ?: __('Uncategorized'))
+            ->map(fn ($group, $category) => [
+                'category' => $category,
+                'count' => $group->count(),
+                'total' => (float) $group->sum('out_amount'),
+            ])
+            ->sortByDesc('total')
+            ->values();
+
+        return [
+            'received' => $received,
+            'paid' => $paidVouchers + $expensesTotal,
+            'paid_vouchers' => $paidVouchers,
+            'expenses' => $expensesTotal,
+            'transferred' => $transferred,
+            'net' => $received - ($paidVouchers + $expensesTotal),
+            'by_type' => $byType,
+            'expense_by_category' => $expenseByCategory,
+        ];
     }
 
     /**
@@ -132,12 +185,14 @@ class ProjectCashFlowController extends Controller
      * project-only context (no bank account given), a transfer tagged to
      * the project is always an outflow — see Project::cashTransferredOut().
      */
-    private function buildLedger(?int $projectId, ?int $bankAccountId): array
+    private function buildLedger(?int $projectId, ?int $bankAccountId, ?string $from = null, ?string $to = null): array
     {
         $receipts = ReceiptVoucher::with('bankAccount', 'project')
             ->where('status', 'issued')
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($bankAccountId, fn ($q) => $q->where('bank_account_id', $bankAccountId))
+            ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('date', '<=', $to))
             ->get()
             ->map(fn (ReceiptVoucher $v) => [
                 'date' => $v->date,
@@ -157,6 +212,8 @@ class ProjectCashFlowController extends Controller
             ->where('status', 'issued')
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($bankAccountId, fn ($q) => $q->where('bank_account_id', $bankAccountId))
+            ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('date', '<=', $to))
             ->get()
             ->map(fn (PaymentVoucher $v) => [
                 'date' => $v->date,
@@ -178,11 +235,13 @@ class ProjectCashFlowController extends Controller
         // withdrawn cash for parts/labour" story is incomplete without
         // them. An unpaid Expense (bank_account_id null) hasn't touched
         // any account yet, and only 'approved' ones have actually posted.
-        $expenses = Expense::with('bankAccount', 'project')
+        $expenses = Expense::with('bankAccount', 'project', 'category')
             ->whereNotNull('bank_account_id')
             ->where('status', 'approved')
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($bankAccountId, fn ($q) => $q->where('bank_account_id', $bankAccountId))
+            ->when($from, fn ($q) => $q->whereDate('expense_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('expense_date', '<=', $to))
             ->get()
             ->map(fn (Expense $e) => [
                 'date' => $e->expense_date,
@@ -192,6 +251,7 @@ class ProjectCashFlowController extends Controller
                 'number' => $e->reference,
                 'party' => $e->vendor_name ?: ($e->description ?: __('Expense')),
                 'account' => $e->bankAccount?->name,
+                'category' => $e->category?->name,
                 'in_amount' => 0.0,
                 'out_amount' => (float) $e->gross_amount,
                 'affects_balance' => true,
@@ -206,6 +266,8 @@ class ProjectCashFlowController extends Controller
             ->with('bankAccount', 'invoice.client', 'invoice.project')
             ->whereHas('invoice', fn ($q) => $q->when($projectId, fn ($q2) => $q2->where('project_id', $projectId)))
             ->when($bankAccountId, fn ($q) => $q->where('bank_account_id', $bankAccountId))
+            ->when($from, fn ($q) => $q->whereDate('paid_at', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('paid_at', '<=', $to))
             ->get()
             ->map(fn (InvoicePayment $p) => [
                 'date' => $p->paid_at,
@@ -229,6 +291,8 @@ class ProjectCashFlowController extends Controller
             ->whereNotNull('bank_account_id')
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($bankAccountId, fn ($q) => $q->where('bank_account_id', $bankAccountId))
+            ->when($from, fn ($q) => $q->whereDate('income_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('income_date', '<=', $to))
             ->get()
             ->map(fn (Income $i) => [
                 'date' => $i->income_date,
@@ -247,6 +311,8 @@ class ProjectCashFlowController extends Controller
         $transfers = BankTransfer::with('fromAccount', 'toAccount', 'project')
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($bankAccountId, fn ($q) => $q->where(fn ($q2) => $q2->where('from_bank_account_id', $bankAccountId)->orWhere('to_bank_account_id', $bankAccountId)))
+            ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('date', '<=', $to))
             ->get()
             ->map(function (BankTransfer $t) use ($bankAccountId) {
                 $isIncoming = $bankAccountId && (int) $t->to_bank_account_id === $bankAccountId;
