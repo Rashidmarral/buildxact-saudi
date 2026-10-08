@@ -11,12 +11,27 @@
                 <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
             @endforeach
         </select>
+        @if ($salespersons->isNotEmpty())
+            <select name="salesperson_id" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('All salespersons') }}</option>
+                @foreach ($salespersons as $salesperson)
+                    <option value="{{ $salesperson->id }}" @selected(request('salesperson_id') == $salesperson->id)>{{ $salesperson->name }}</option>
+                @endforeach
+            </select>
+        @endif
     </form>
     <div class="flex items-center gap-2">
         <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Export CSV') }}</a>
         <a href="{{ route('app.invoices.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New invoice') }}</a>
     </div>
 </div>
+
+@if ($salespersonTotals)
+    <div class="flex items-center justify-between mb-4 px-1 text-sm">
+        <p class="text-slate-500">{{ __('Invoices (filtered)') }}: <span class="font-semibold text-slate-900">{{ $salespersonTotals['count'] }}</span> &middot; {{ __('Total') }}: <span class="font-semibold text-slate-900">{{ \App\Support\Money::format($salespersonTotals['total']) }}</span> &middot; {{ __('VAT') }}: <span class="font-semibold text-slate-900">{{ \App\Support\Money::format($salespersonTotals['vat']) }}</span></p>
+        <p class="text-xs text-slate-400">{{ __('Combine every salesperson\'s VAT for the figure actually filed with ZATCA.') }}</p>
+    </div>
+@endif
 
 @if (! $invoices->isEmpty())
     <div x-data="bulkSelect()">
@@ -35,6 +50,7 @@
                         <th class="w-10 px-6 py-3"><input type="checkbox" :checked="allChecked" @change="toggleAll($event.target.checked)"></th>
                         <th class="px-6 py-3 font-medium">{{ __('Invoice') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Client') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Salesperson') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Balance due') }}</th>
@@ -47,6 +63,7 @@
                             <td class="px-6 py-3" onclick="event.stopPropagation()"><input type="checkbox" :checked="selected.includes('{{ $invoice->id }}')" @change="toggleOne('{{ $invoice->id }}', $event.target.checked)"></td>
                             <td class="px-6 py-3 font-medium text-brand-700">{{ $invoice->invoice_number }}</td>
                             <td class="px-6 py-3">{{ $invoice->client->display_name }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $invoice->salesperson?->name ?: '—' }}</td>
                             <td class="px-6 py-3">{{ $invoice->issue_date->format('Y-m-d') }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format($invoice->total) }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format(max($invoice->balanceDue(), 0)) }}</td>

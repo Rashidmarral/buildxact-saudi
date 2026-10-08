@@ -20,6 +20,7 @@
     'warehouse_id' => request('warehouse_id'),
     'client_id' => request('client_id'),
     'supplier_id' => request('supplier_id'),
+    'salesperson_id' => request('salesperson_id'),
 ])])
 
 <form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 grid sm:grid-cols-4 gap-3">
@@ -48,7 +49,22 @@
             @foreach ($suppliers as $supplier)<option value="{{ $supplier->id }}" @selected(request('supplier_id') == $supplier->id)>{{ $supplier->display_name }}</option>@endforeach
         </select>
     </div>
+    @if ($salespersons->isNotEmpty())
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Salesperson') }}</label>
+            <select name="salesperson_id" onchange="this.form.submit()" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('All salespersons') }}</option>
+                @foreach ($salespersons as $salesperson)<option value="{{ $salesperson->id }}" @selected(request('salesperson_id') == $salesperson->id)>{{ $salesperson->name }}</option>@endforeach
+            </select>
+        </div>
+    @endif
 </form>
+
+@if (request()->filled('salesperson_id'))
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-6">
+        {{ __('Showing output tax for this salesperson only. Purchases and expenses below stay company-wide. The figure actually filed with ZATCA is the combined output tax across every salesperson — clear this filter to see it.') }}
+    </div>
+@endif
 
 <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -119,6 +135,7 @@
                     <th class="py-2 px-4">{{ __('Customer') }}</th>
                     <th class="py-2 px-4">{{ __('Tax Number') }}</th>
                     <th class="py-2 px-4">{{ __('Warehouse') }}</th>
+                    <th class="py-2 px-4">{{ __('Salesperson') }}</th>
                     <th class="py-2 px-4 text-end">{{ __('Net Amount Excl. Tax') }}</th>
                     <th class="py-2 px-4 text-end">{{ __('Discount') }}</th>
                     <th class="py-2 px-4 text-end">{{ __('Tax Amount') }}</th>
@@ -134,6 +151,7 @@
                         <td class="py-2 px-4">{{ $row->client->display_name ?? '—' }}</td>
                         <td class="py-2 px-4 text-slate-500">{{ $row->client->vat_number ?? '—' }}</td>
                         <td class="py-2 px-4 text-slate-500">{{ $row->warehouse->name ?? '—' }}</td>
+                        <td class="py-2 px-4 text-slate-500">{{ $row->salesperson->name ?? '—' }}</td>
                         <td class="py-2 px-4 text-end">{{ \App\Support\Money::format($row->subtotal) }}</td>
                         <td class="py-2 px-4 text-end">{{ \App\Support\Money::format($row->discount_total) }}</td>
                         <td class="py-2 px-4 text-end">{{ \App\Support\Money::format($row->vat_total) }}</td>
@@ -146,7 +164,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="10" class="py-8 text-center text-slate-400">{{ __('No sales in this period.') }}</td></tr>
+                    <tr><td colspan="11" class="py-8 text-center text-slate-400">{{ __('No sales in this period.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

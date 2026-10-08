@@ -44,10 +44,23 @@ class InvoiceController extends Controller
 {
     use EnforcesStorageQuota, ExportsCsv, ResolvesPerPage;
 
+    /**
+     * "2 main users like Ashiq and Rizwan, same company, 2 different
+     * business, each generate invoice for their own use — how can i
+     * tackle at the end who have what invoices" — a Salesperson tag was
+     * already a working field on every invoice (see the form), just with
+     * no way to filter by it afterward. Adds that filter plus a
+     * count/total/VAT subtotal over exactly what's filtered (issued
+     * invoices only — draft/cancelled never counted as real revenue,
+     * matching ReportController::vat()'s own exclusion), so each of them
+     * can see their own invoices and VAT collected without the other's
+     * mixed in.
+     */
     public function index(Request $request)
     {
-        $query = Invoice::with('client')
+        $query = Invoice::with('client', 'salesperson')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->when($request->filled('salesperson_id'), fn ($q) => $q->where('salesperson_id', $request->integer('salesperson_id')))
             ->orderByDesc('issue_date')
             ->orderByDesc('id');
 
@@ -55,9 +68,23 @@ class InvoiceController extends Controller
             return $this->csvResponse('invoices.csv', $this->csvHeader(), $query->get()->map(fn ($invoice) => $this->csvRow($invoice)));
         }
 
+        $salespersonTotals = null;
+        if ($request->filled('salesperson_id')) {
+            $counted = (clone $query)->whereNotIn('status', ['draft', 'cancelled'])->get();
+            $salespersonTotals = [
+                'count' => $counted->count(),
+                'total' => (float) $counted->sum('total'),
+                'vat' => (float) $counted->sum('vat_total'),
+            ];
+        }
+
         $invoices = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
-        return view('user.invoices.index', compact('invoices'));
+        return view('user.invoices.index', [
+            'invoices' => $invoices,
+            'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
+            'salespersonTotals' => $salespersonTotals,
+        ]);
     }
 
     /**

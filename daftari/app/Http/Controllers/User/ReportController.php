@@ -48,11 +48,12 @@ class ReportController extends Controller
         $period = $this->resolvePeriod($request);
         $tab = in_array($request->query('tab'), ['sales', 'purchases', 'expenses'], true) ? $request->query('tab') : 'sales';
 
-        $salesRows = Invoice::with('client', 'warehouse')
+        $salesRows = Invoice::with('client', 'warehouse', 'salesperson')
             ->whereBetween('issue_date', [$period['from'], $period['to']])
             ->whereNotIn('status', ['draft', 'cancelled'])
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('warehouse_id', $request->query('warehouse_id')))
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->query('client_id')))
+            ->when($request->filled('salesperson_id'), fn ($q) => $q->where('salesperson_id', $request->query('salesperson_id')))
             ->orderByDesc('issue_date')
             ->get();
 
@@ -109,6 +110,7 @@ class ReportController extends Controller
             'clients' => Client::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
+            'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
         ] + $summary);
     }
 
@@ -131,9 +133,9 @@ class ReportController extends Controller
                     number_format((float) ($e->gross_amount ?? $e->amount), 2, '.', ''), ucfirst((string) $e->status),
                 ])),
             default => $this->csvResponse('tax-report-sales.csv',
-                [__('Date'), __('Reference'), __('Customer'), __('Tax Number'), __('Net Amount Excl. Tax'), __('Discount'), __('Tax Amount'), __('Total Amount'), __('Payment Status')],
+                [__('Date'), __('Reference'), __('Customer'), __('Tax Number'), __('Salesperson'), __('Net Amount Excl. Tax'), __('Discount'), __('Tax Amount'), __('Total Amount'), __('Payment Status')],
                 $salesRows->map(fn (Invoice $i) => [
-                    $i->issue_date?->format('Y-m-d'), $i->invoice_number, $i->client->name ?? '', $i->client->vat_number ?? '',
+                    $i->issue_date?->format('Y-m-d'), $i->invoice_number, $i->client->name ?? '', $i->client->vat_number ?? '', $i->salesperson->name ?? '',
                     number_format((float) $i->subtotal, 2, '.', ''), number_format((float) $i->discount_total, 2, '.', ''),
                     number_format((float) $i->vat_total, 2, '.', ''), number_format((float) $i->total, 2, '.', ''),
                     $this->paymentStatusLabel((float) $i->amount_paid, (float) $i->total),
