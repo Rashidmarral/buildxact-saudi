@@ -248,6 +248,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.trial-balance', 'label' => __('Trial Balance')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.balance-sheet', 'label' => __('Balance Sheet')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.vat', 'label' => __('VAT Return')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.vat-returns.index', 'label' => __('VAT Return Filings')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.account-statement', 'label' => __('Account Statement')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.aging', 'label' => __('Aged Receivables/Payables')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.wht-return', 'label' => __('Withholding Tax')])

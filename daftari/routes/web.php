@@ -54,6 +54,7 @@ use App\Http\Controllers\User\AccountingHealthController;
 use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
 use App\Http\Controllers\User\ApiTokenController;
 use App\Http\Controllers\User\BankAccountController;
+use App\Http\Controllers\User\CashCustodyController;
 use App\Http\Controllers\User\BankReconciliationController;
 use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
@@ -109,6 +110,7 @@ use App\Http\Controllers\User\RecurringExpenseController;
 use App\Http\Controllers\User\RecurringInvoiceController;
 use App\Http\Controllers\User\RecurringJournalEntryController;
 use App\Http\Controllers\User\ReportController;
+use App\Http\Controllers\User\VatReturnPeriodController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\SalespersonController;
 use App\Http\Controllers\User\SettingsController;
@@ -376,6 +378,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:reports')->prefix('reports')->name('reports.')->group(function () {
         Route::get('vat', [ReportController::class, 'vat'])->name('vat')->middleware('feature:vat_return_report');
+        Route::middleware('feature:vat_return_report')->prefix('vat-returns')->name('vat-returns.')->group(function () {
+            Route::get('/', [VatReturnPeriodController::class, 'index'])->name('index');
+            Route::get('create', [VatReturnPeriodController::class, 'create'])->name('create');
+            Route::post('/', [VatReturnPeriodController::class, 'store'])->name('store');
+            Route::get('{vatReturn}', [VatReturnPeriodController::class, 'show'])->name('show');
+            Route::delete('{vatReturn}', [VatReturnPeriodController::class, 'destroy'])->name('destroy');
+        });
         Route::get('sales', [ReportController::class, 'sales'])->name('sales');
         Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement')->middleware('feature:financial_statements');
         Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
@@ -456,6 +465,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:cash_banks')->group(function () {
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
+        Route::get('cash-custody', [CashCustodyController::class, 'index'])->name('cash-custody.index');
         Route::get('receipt-vouchers/summary/pdf', [ReceiptVoucherController::class, 'summaryPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.summary-pdf');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');

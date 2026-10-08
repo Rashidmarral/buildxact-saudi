@@ -684,6 +684,11 @@ class Company extends Model
         return $this->hasMany(ZakatCalculation::class);
     }
 
+    public function vatReturnPeriods(): HasMany
+    {
+        return $this->hasMany(VatReturnPeriod::class);
+    }
+
     public function fxRevaluations(): HasMany
     {
         return $this->hasMany(FxRevaluation::class);
