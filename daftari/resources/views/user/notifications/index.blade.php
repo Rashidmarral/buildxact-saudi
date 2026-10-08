@@ -43,5 +43,5 @@
     @endif
 </div>
 
-<div class="mt-4">{{ $notifications->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $notifications])</div>
 @endsection

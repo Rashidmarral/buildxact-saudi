@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Item;
 use App\Models\ItemStock;
 use App\Models\StockAdjustment;
@@ -15,10 +16,12 @@ use Illuminate\Validation\Rule;
 
 class StockAdjustmentController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
         return view('user.stock-adjustments.index', [
-            'adjustments' => StockAdjustment::with('item', 'warehouse')->latest('date')->latest('id')->paginate(20),
+            'adjustments' => StockAdjustment::with('item', 'warehouse')->latest('date')->latest('id')->paginate($this->resolvePerPage($request))->withQueryString(),
             'items' => Item::where('track_inventory', true)->orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
         ]);

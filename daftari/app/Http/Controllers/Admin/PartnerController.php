@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Mail\PartnerInviteMail;
 use App\Models\AuditLog;
@@ -27,6 +28,8 @@ use Illuminate\Validation\Rule;
  */
 class PartnerController extends Controller
 {
+    use ResolvesPerPage;
+
     public const INVITE_EXPIRY_HOURS = 48;
 
     public function index(Request $request)
@@ -44,7 +47,7 @@ class PartnerController extends Controller
             $query->where(fn ($q) => $q->where('name', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%"));
         }
 
-        $partners = $query->latest('id')->paginate(20)->withQueryString();
+        $partners = $query->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         $stats = [
             'pending' => Partner::where('status', 'pending')->count(),

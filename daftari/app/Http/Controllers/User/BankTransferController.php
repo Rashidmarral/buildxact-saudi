@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
 use App\Models\BankAccount;
 use App\Models\BankTransfer;
@@ -17,11 +18,11 @@ use Illuminate\Validation\Rule;
 
 class BankTransferController extends Controller
 {
-    use EnforcesStorageQuota;
+    use EnforcesStorageQuota, ResolvesPerPage;
 
-    public function index()
+    public function index(Request $request)
     {
-        $transfers = BankTransfer::with('fromAccount', 'toAccount')->latest('date')->latest('id')->paginate(20);
+        $transfers = BankTransfer::with('fromAccount', 'toAccount')->latest('date')->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.bank-transfers.index', compact('transfers'));
     }

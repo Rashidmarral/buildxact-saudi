@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\Budget;
@@ -14,10 +15,12 @@ use Illuminate\Validation\Rule;
 
 class BudgetController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
         return view('user.budgets.index', [
-            'budgets' => Budget::withCount('lines')->orderByDesc('fiscal_year')->paginate(20),
+            'budgets' => Budget::withCount('lines')->orderByDesc('fiscal_year')->paginate($this->resolvePerPage($request))->withQueryString(),
         ]);
     }
 

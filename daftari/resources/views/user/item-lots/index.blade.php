@@ -97,7 +97,7 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $lots->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $lots])</div>
 
 @if ($canReceive)
 <dialog id="lot-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">

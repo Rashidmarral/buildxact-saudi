@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Jobs\SyncDebitNoteToZatca;
 use App\Models\AuditLog;
 use App\Models\DebitNote;
@@ -24,14 +25,17 @@ use Illuminate\Validation\Rule;
  */
 class DebitNoteController extends Controller
 {
+    use ResolvesPerPage;
+
     private const ELIGIBLE_STATUSES = ['sent', 'partially_paid', 'paid', 'overdue'];
 
-    public function index()
+    public function index(Request $request)
     {
         $debitNotes = DebitNote::with('client', 'invoice')
             ->orderByDesc('issue_date')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
 
         return view('user.debit-notes.index', compact('debitNotes'));
     }

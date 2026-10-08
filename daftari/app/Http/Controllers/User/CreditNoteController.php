@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Jobs\SyncCreditNoteToZatca;
 use App\Models\AuditLog;
 use App\Models\CreditNote;
@@ -17,14 +18,17 @@ use Illuminate\Validation\Rule;
 
 class CreditNoteController extends Controller
 {
+    use ResolvesPerPage;
+
     private const ELIGIBLE_STATUSES = ['sent', 'partially_paid', 'paid', 'overdue'];
 
-    public function index()
+    public function index(Request $request)
     {
         $creditNotes = CreditNote::with('client', 'invoice')
             ->orderByDesc('issue_date')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
 
         return view('user.credit-notes.index', compact('creditNotes'));
     }

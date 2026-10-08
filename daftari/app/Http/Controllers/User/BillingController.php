@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Coupon;
 use App\Models\Payment;
@@ -21,12 +22,14 @@ use Illuminate\Validation\Rule;
 
 class BillingController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $company = Auth::user()->company;
         $subscription = $company->activeSubscription();
         $plans = Plan::where('is_active', true)->where('is_public', true)->orderBy('sort_order')->get();
-        $payments = $company->payments()->latest('paid_at')->latest('id')->paginate(15);
+        $payments = $company->payments()->latest('paid_at')->latest('id')->paginate($this->resolvePerPage($request, 15))->withQueryString();
 
         $tab = in_array($request->query('tab'), ['overview', 'plans', 'addons'], true) ? $request->query('tab') : 'overview';
 

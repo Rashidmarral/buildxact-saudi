@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Jobs\SendWebhookDelivery;
 use App\Models\AuditLog;
 use App\Models\Webhook;
@@ -11,6 +12,8 @@ use Illuminate\Http\Request;
 
 class WebhookController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index()
     {
         $webhooks = Webhook::latest()->get();
@@ -38,9 +41,9 @@ class WebhookController extends Controller
             ->with('reveal_webhook_secret', true);
     }
 
-    public function show(Webhook $webhook)
+    public function show(Webhook $webhook, Request $request)
     {
-        $deliveries = $webhook->deliveries()->paginate(20);
+        $deliveries = $webhook->deliveries()->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.settings.webhooks.show', [
             'webhook' => $webhook,

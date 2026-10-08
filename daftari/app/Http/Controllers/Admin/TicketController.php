@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Auth;
  */
 class TicketController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $query = Ticket::query()->with(['company:id,name', 'assignedAdmin:id,name']);
@@ -45,7 +48,7 @@ class TicketController extends Controller
             $query->where(fn ($q) => $q->where('subject', 'like', "%{$term}%")->orWhere('ticket_number', 'like', "%{$term}%"));
         }
 
-        $tickets = $query->latest('id')->paginate(20)->withQueryString();
+        $tickets = $query->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         $stats = [
             'open' => Ticket::where('status', 'open')->count(),

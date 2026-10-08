@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\AuditLog;
@@ -19,9 +20,11 @@ use Illuminate\Support\Facades\DB;
 
 class PayrollRunController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $payrollRuns = PayrollRun::orderByDesc('period_year')->orderByDesc('period_month')->paginate(20);
+        $payrollRuns = PayrollRun::orderByDesc('period_year')->orderByDesc('period_month')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.payroll.index', compact('payrollRuns'));
     }

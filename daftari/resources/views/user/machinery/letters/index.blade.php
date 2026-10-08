@@ -38,5 +38,5 @@
     @endif
 </div>
 
-<div class="mt-4">{{ $letters->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $letters])</div>
 @endsection

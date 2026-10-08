@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Auth;
  */
 class TicketController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $query = Ticket::where('company_id', Auth::user()->company_id);
@@ -27,7 +30,7 @@ class TicketController extends Controller
             $query->where('status', $request->string('status'));
         }
 
-        $tickets = $query->latest('id')->paginate(20)->withQueryString();
+        $tickets = $query->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.tickets.index', compact('tickets'));
     }

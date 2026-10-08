@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Bill;
@@ -28,7 +29,7 @@ use Illuminate\Validation\Rule;
 
 class PurchaseOrderController extends Controller
 {
-    use EnforcesStorageQuota, ExportsCsv;
+    use EnforcesStorageQuota, ExportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -51,7 +52,7 @@ class PurchaseOrderController extends Controller
             );
         }
 
-        $orders = $query->paginate(20)->withQueryString();
+        $orders = $query->paginate($this->resolvePerPage($request))->withQueryString();
 
         $counts = [
             'all' => PurchaseOrder::count(),

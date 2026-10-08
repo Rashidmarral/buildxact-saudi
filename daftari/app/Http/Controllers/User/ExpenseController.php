@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
@@ -22,9 +23,11 @@ use Illuminate\Validation\Rule;
 
 class ExpenseController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $expenses = Expense::with('category', 'bankAccount', 'account')->orderByDesc('expense_date')->paginate(20);
+        $expenses = Expense::with('category', 'bankAccount', 'account')->orderByDesc('expense_date')->paginate($this->resolvePerPage($request))->withQueryString();
         $categories = ExpenseCategory::orderBy('name')->get();
 
         return view('user.expenses.index', compact('expenses', 'categories'));

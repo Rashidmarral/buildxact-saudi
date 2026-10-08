@@ -142,7 +142,7 @@
             </table>
         @endif
     </div>
-    <div class="mt-4">{{ $payments->links() }}</div>
+    <div class="mt-4">@include('partials.pagination', ['paginator' => $payments])</div>
 @elseif ($tab === 'plans')
     @php
         $limitRows = [

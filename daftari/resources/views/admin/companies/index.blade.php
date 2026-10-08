@@ -134,5 +134,5 @@
     </table>
 </div>
 
-<div class="mt-4">{{ $companies->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $companies])</div>
 @endsection

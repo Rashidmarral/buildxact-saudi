@@ -96,7 +96,7 @@
         </tbody>
     </table>
 </div>
-<div class="mt-3">{{ $invoiceLogs->links() }}</div>
+<div class="mt-3">@include('partials.pagination', ['paginator' => $invoiceLogs, 'perPageKey' => 'invoice_per_page'])</div>
 
 <h2 class="text-base font-semibold text-slate-900 mb-3 mt-8">{{ __('Credit notes') }}</h2>
 <div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
@@ -139,7 +139,7 @@
         </tbody>
     </table>
 </div>
-<div class="mt-3">{{ $creditNoteLogs->links() }}</div>
+<div class="mt-3">@include('partials.pagination', ['paginator' => $creditNoteLogs, 'perPageKey' => 'credit_note_per_page'])</div>
 
 <h2 class="text-base font-semibold text-slate-900 mb-3 mt-8">{{ __('Debit notes') }}</h2>
 <div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
@@ -182,5 +182,5 @@
         </tbody>
     </table>
 </div>
-<div class="mt-3">{{ $debitNoteLogs->links() }}</div>
+<div class="mt-3">@include('partials.pagination', ['paginator' => $debitNoteLogs, 'perPageKey' => 'debit_note_per_page'])</div>
 @endsection

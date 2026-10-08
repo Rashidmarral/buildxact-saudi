@@ -92,6 +92,6 @@
         @endif
     </div>
 
-    <div class="mt-4">{{ $invoices->links() }}</div>
+    <div class="mt-4">@include('partials.pagination', ['paginator' => $invoices])</div>
 @endif
 @endsection

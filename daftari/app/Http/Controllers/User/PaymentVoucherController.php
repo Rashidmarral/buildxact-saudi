@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
 use App\Models\BankAccount;
 use App\Models\Bill;
@@ -22,7 +23,7 @@ use Illuminate\Validation\Rule;
 
 class PaymentVoucherController extends Controller
 {
-    use EnforcesStorageQuota;
+    use EnforcesStorageQuota, ResolvesPerPage;
 
     /**
      * "there is no option to get total amount paid" for a supplier across
@@ -41,7 +42,7 @@ class PaymentVoucherController extends Controller
 
         $total = (clone $query)->where('status', 'issued')->sum('amount');
 
-        $vouchers = $query->latest('date')->latest('id')->paginate(20)->withQueryString();
+        $vouchers = $query->latest('date')->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.payment-vouchers.index', [
             'vouchers' => $vouchers,

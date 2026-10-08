@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Client;
@@ -32,11 +33,11 @@ use Illuminate\Validation\Rule;
  */
 class CompanyLetterController extends Controller
 {
-    use EnforcesStorageQuota;
+    use EnforcesStorageQuota, ResolvesPerPage;
 
-    public function index()
+    public function index(Request $request)
     {
-        $letters = CompanyLetter::with('machinery', 'project')->orderByDesc('letter_date')->paginate(20);
+        $letters = CompanyLetter::with('machinery', 'project')->orderByDesc('letter_date')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.machinery.letters.index', compact('letters'));
     }

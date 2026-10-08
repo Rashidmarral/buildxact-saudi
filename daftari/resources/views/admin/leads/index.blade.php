@@ -110,5 +110,5 @@
         </tbody>
     </table>
 </div>
-<div class="mt-4">{{ $leads->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $leads])</div>
 @endsection

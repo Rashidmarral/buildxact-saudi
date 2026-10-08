@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\InvoiceTemplate;
@@ -22,6 +23,8 @@ use RuntimeException;
 
 class PosController extends Controller
 {
+    use ResolvesPerPage;
+
     public function terminal(Request $request)
     {
         $registers = PosRegister::where('is_active', true)->orderBy('name')->get();
@@ -159,9 +162,9 @@ class PosController extends Controller
         return redirect()->route('app.pos.sales.show', $sale)->with('status', __('Sale completed.'));
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $sales = PosSale::with('register', 'creator')->orderByDesc('created_at')->paginate(25);
+        $sales = PosSale::with('register', 'creator')->orderByDesc('created_at')->paginate($this->resolvePerPage($request, 25))->withQueryString();
 
         return view('user.pos.sales-index', compact('sales'));
     }

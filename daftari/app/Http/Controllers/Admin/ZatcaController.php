@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
@@ -30,6 +31,8 @@ use Illuminate\Support\Collection;
  */
 class ZatcaController extends Controller
 {
+    use ResolvesPerPage;
+
     /**
      * Exactly the field set App\Http\Controllers\User\ZatcaController::
      * resetOnboarding() already resets for a company's own owner — mirrored
@@ -92,7 +95,7 @@ class ZatcaController extends Controller
             };
         }
 
-        $companies = $query->orderBy('name')->paginate(20)->withQueryString();
+        $companies = $query->orderBy('name')->paginate($this->resolvePerPage($request))->withQueryString();
 
         [$lastSubmission, $lastSuccessful, $failedCounts] = $this->perCompanyAggregates($companies->pluck('id'));
 
@@ -155,19 +158,19 @@ class ZatcaController extends Controller
             ZatcaInvoiceLog::withoutGlobalScopes()
                 ->select(['id', 'company_id', 'invoice_id', 'environment', 'invoice_type', 'direction', 'status', 'request_uuid', 'error_message', 'submitted_at', 'cleared_at', 'created_at'])
                 ->with(['company:id,name', 'invoice:id,invoice_number,type'])
-        )->latest('id')->paginate(20, ['*'], 'invoice_page')->withQueryString();
+        )->latest('id')->paginate($this->resolvePerPage($request, 20, 'invoice_per_page'), ['*'], 'invoice_page')->withQueryString();
 
         $creditNoteLogs = $applyFilters(
             ZatcaCreditNoteLog::withoutGlobalScopes()
                 ->select(['id', 'company_id', 'credit_note_id', 'environment', 'invoice_type', 'direction', 'status', 'request_uuid', 'error_message', 'submitted_at', 'cleared_at', 'created_at'])
                 ->with(['company:id,name', 'creditNote:id,credit_note_number'])
-        )->latest('id')->paginate(20, ['*'], 'credit_note_page')->withQueryString();
+        )->latest('id')->paginate($this->resolvePerPage($request, 20, 'credit_note_per_page'), ['*'], 'credit_note_page')->withQueryString();
 
         $debitNoteLogs = $applyFilters(
             ZatcaDebitNoteLog::withoutGlobalScopes()
                 ->select(['id', 'company_id', 'debit_note_id', 'environment', 'invoice_type', 'direction', 'status', 'request_uuid', 'error_message', 'submitted_at', 'cleared_at', 'created_at'])
                 ->with(['company:id,name', 'debitNote:id,debit_note_number'])
-        )->latest('id')->paginate(20, ['*'], 'debit_note_page')->withQueryString();
+        )->latest('id')->paginate($this->resolvePerPage($request, 20, 'debit_note_per_page'), ['*'], 'debit_note_page')->withQueryString();
 
         return view('admin.zatca.logs', compact('invoiceLogs', 'creditNoteLogs', 'debitNoteLogs', 'companies'));
     }

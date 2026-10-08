@@ -82,7 +82,7 @@
                 @endforeach
             </tbody>
         </table>
-        <div class="px-6 py-4">{{ $requests->links() }}</div>
+        <div class="px-6 py-4">@include('partials.pagination', ['paginator' => $requests])</div>
     @endif
 </div>
 @endsection

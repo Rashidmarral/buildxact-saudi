@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Translation;
@@ -22,12 +23,13 @@ use Illuminate\Support\Str;
  */
 class TranslationController extends Controller
 {
-    private const PER_PAGE = 30;
+    use ResolvesPerPage;
 
     public function index(Request $request)
     {
         $search = trim((string) $request->query('q', ''));
         $page = max(1, (int) $request->query('page', 1));
+        $perPage = $this->resolvePerPage($request, 30);
 
         $arDefaults = self::arDefaults();
         $enOverrides = self::overridesFor('en');
@@ -51,7 +53,7 @@ class TranslationController extends Controller
         }
 
         $total = count($keys);
-        $slice = array_slice($keys, (max(1, $page) - 1) * self::PER_PAGE, self::PER_PAGE);
+        $slice = array_slice($keys, (max(1, $page) - 1) * $perPage, $perPage);
 
         $rows = array_map(fn (string $key) => [
             'key' => $key,
@@ -61,7 +63,7 @@ class TranslationController extends Controller
             'ar_override' => $arOverrides[$key] ?? null,
         ], $slice);
 
-        $paginator = new LengthAwarePaginator($rows, $total, self::PER_PAGE, $page, [
+        $paginator = new LengthAwarePaginator($rows, $total, $perPage, $page, [
             'path' => $request->url(),
             'query' => $request->query(),
         ]);

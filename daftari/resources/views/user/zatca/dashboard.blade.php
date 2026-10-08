@@ -400,7 +400,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4">{{ $logs->links() }}</div>
+            <div class="mt-4">@include('partials.pagination', ['paginator' => $logs, 'perPageKey' => 'invoice_per_page'])</div>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -450,7 +450,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4">{{ $creditNoteLogs->links() }}</div>
+            <div class="mt-4">@include('partials.pagination', ['paginator' => $creditNoteLogs, 'perPageKey' => 'credit_note_per_page'])</div>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -500,7 +500,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4">{{ $debitNoteLogs->links() }}</div>
+            <div class="mt-4">@include('partials.pagination', ['paginator' => $debitNoteLogs, 'perPageKey' => 'debit_note_per_page'])</div>
         </div>
     </div>
 

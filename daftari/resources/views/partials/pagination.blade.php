@@ -1,4 +1,11 @@
 @php
+    // perPageKey lets a page with more than one independent paginator (e.g.
+    // the ZATCA compliance dashboard's invoice/credit-note/debit-note
+    // tables) give each its own ?xxx_per_page= instead of all three
+    // colliding on one ?per_page=. getPageName() likewise targets the
+    // right ?page= for a named paginator instead of always deleting the
+    // default 'page' key.
+    $__perPageKey = $perPageKey ?? 'per_page';
     $__allowedPerPage = [10, 20, 25, 50, 100];
     $__currentPerPage = $paginator->perPage();
     if (! in_array($__currentPerPage, $__allowedPerPage, true)) {
@@ -18,7 +25,7 @@
         <label class="flex items-center gap-2 text-xs text-slate-500">
             {{ __('Per page') }}
             <select
-                onchange="const u = new URL(window.location.href); u.searchParams.set('per_page', this.value); u.searchParams.delete('page'); window.location.href = u.toString();"
+                onchange="const u = new URL(window.location.href); u.searchParams.set('{{ $__perPageKey }}', this.value); u.searchParams.delete('{{ $paginator->getPageName() }}'); window.location.href = u.toString();"
                 class="rounded-lg border border-slate-200 text-xs py-1 ps-2 pe-7 focus:border-brand-500 focus:ring-brand-500"
             >
                 @foreach ($__allowedPerPage as $__option)

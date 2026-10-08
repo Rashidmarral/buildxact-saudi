@@ -55,5 +55,5 @@
         </tbody>
     </table>
 </div>
-<div class="mt-4">{{ $entries->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $entries])</div>
 @endsection

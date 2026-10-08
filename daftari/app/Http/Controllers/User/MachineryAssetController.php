@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\Attachment;
 use App\Models\AuditLog;
@@ -30,11 +31,11 @@ use Illuminate\Validation\Rule;
  */
 class MachineryAssetController extends Controller
 {
-    use EnforcesStorageQuota;
+    use EnforcesStorageQuota, ResolvesPerPage;
 
-    public function index()
+    public function index(Request $request)
     {
-        $assets = MachineryAsset::with('fixedAsset', 'operator')->orderBy('status')->orderBy('name')->paginate(20);
+        $assets = MachineryAsset::with('fixedAsset', 'operator')->orderBy('status')->orderBy('name')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.machinery.assets.index', compact('assets'));
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ResolvesReportPeriod;
 use App\Models\Company;
@@ -11,7 +12,7 @@ use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
-    use ResolvesReportPeriod;
+    use ResolvesPerPage, ResolvesReportPeriod;
 
     /**
      * A single operator company can run two revenue streams under one CR/
@@ -58,7 +59,7 @@ class ReportController extends Controller
         $invoices = $baseQuery()
             ->with('client')
             ->orderByDesc('issue_date')
-            ->paginate(25)
+            ->paginate($this->resolvePerPage($request, 25))
             ->withQueryString();
 
         return view('admin.reports.vat', [

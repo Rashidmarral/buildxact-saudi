@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Coupon;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class CouponController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $query = Coupon::withCount('redemptions')->withSum('redemptions', 'discount_amount');
@@ -32,7 +35,7 @@ class CouponController extends Controller
             };
         }
 
-        $coupons = $query->latest()->paginate(20)->withQueryString();
+        $coupons = $query->latest()->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('admin.coupons.index', compact('coupons'));
     }

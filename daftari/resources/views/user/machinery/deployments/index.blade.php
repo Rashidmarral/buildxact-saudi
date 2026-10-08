@@ -52,5 +52,5 @@
     @endif
 </div>
 
-<div class="mt-4">{{ $deployments->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $deployments])</div>
 @endsection

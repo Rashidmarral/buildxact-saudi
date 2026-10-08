@@ -44,5 +44,5 @@
     @endif
 </div>
 
-<div class="mt-4">{{ $periods->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $periods])</div>
 @endsection

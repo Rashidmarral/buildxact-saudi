@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CompanyOverride;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Auth;
  */
 class ModuleRequestController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $status = $request->query('status', 'requested');
@@ -25,7 +28,7 @@ class ModuleRequestController extends Controller
         $requests = ModuleRequest::with(['company', 'requester', 'reviewer'])
             ->when(in_array($status, ModuleRequest::STATUSES, true), fn ($q) => $q->where('status', $status))
             ->latest()
-            ->paginate(25)
+            ->paginate($this->resolvePerPage($request, 25))
             ->withQueryString();
 
         return view('admin.module-requests.index', compact('requests', 'status'));

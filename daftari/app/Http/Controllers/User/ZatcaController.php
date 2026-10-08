@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\CreditNote;
@@ -28,6 +29,8 @@ use Throwable;
 
 class ZatcaController extends Controller
 {
+    use ResolvesPerPage;
+
     public function dashboard(Request $request)
     {
         $company = Auth::user()->company;
@@ -48,17 +51,20 @@ class ZatcaController extends Controller
         $logs = ZatcaInvoiceLog::with('invoice')
             ->where('company_id', $company->id)
             ->latest('id')
-            ->paginate(15, ['*'], 'invoice_page');
+            ->paginate($this->resolvePerPage($request, 15, 'invoice_per_page'), ['*'], 'invoice_page')
+            ->withQueryString();
 
         $creditNoteLogs = ZatcaCreditNoteLog::with('creditNote')
             ->where('company_id', $company->id)
             ->latest('id')
-            ->paginate(15, ['*'], 'credit_note_page');
+            ->paginate($this->resolvePerPage($request, 15, 'credit_note_per_page'), ['*'], 'credit_note_page')
+            ->withQueryString();
 
         $debitNoteLogs = ZatcaDebitNoteLog::with('debitNote')
             ->where('company_id', $company->id)
             ->latest('id')
-            ->paginate(15, ['*'], 'debit_note_page');
+            ->paginate($this->resolvePerPage($request, 15, 'debit_note_per_page'), ['*'], 'debit_note_page')
+            ->withQueryString();
 
         $stats = [
             'cleared' => ZatcaInvoiceLog::where('company_id', $company->id)->where('status', 'cleared')->count(),

@@ -146,7 +146,7 @@
         </tbody>
     </table>
 </div>
-<div class="mt-4">{{ $companies->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $companies])</div>
 
 <div class="mt-6 bg-white rounded-xl border border-slate-100">
     <div class="px-6 py-4 border-b border-slate-100">

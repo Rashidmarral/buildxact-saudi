@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $notifications = Auth::user()->notifications()->paginate(30);
+        $notifications = Auth::user()->notifications()->paginate($this->resolvePerPage($request, 30))->withQueryString();
 
         return view('user.notifications.index', compact('notifications'));
     }

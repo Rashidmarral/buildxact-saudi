@@ -108,7 +108,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4">{{ $deliveries->links() }}</div>
+            <div class="mt-4">@include('partials.pagination', ['paginator' => $deliveries])</div>
         @endif
     </div>
 </div>

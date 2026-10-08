@@ -109,5 +109,5 @@
         </tbody>
     </table>
 </div>
-<div class="mt-4">{{ $tickets->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $tickets])</div>
 @endsection

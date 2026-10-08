@@ -48,5 +48,5 @@
     @endif
 </div>
 
-<div class="mt-4">{{ $revaluations->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $revaluations])</div>
 @endsection

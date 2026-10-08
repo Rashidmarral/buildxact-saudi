@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\Employee;
@@ -17,9 +18,11 @@ use Illuminate\Validation\Rule;
 
 class MachineryRentalContractController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $contracts = MachineryRentalContract::with('machinery', 'client')->orderByDesc('start_date')->paginate(20);
+        $contracts = MachineryRentalContract::with('machinery', 'client')->orderByDesc('start_date')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.machinery.rental-contracts.index', compact('contracts'));
     }

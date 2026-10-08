@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
@@ -25,9 +26,11 @@ use Illuminate\Validation\Rule;
  */
 class IncomeController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $incomes = Income::with('category', 'bankAccount', 'account', 'project')->orderByDesc('income_date')->paginate(20);
+        $incomes = Income::with('category', 'bankAccount', 'account', 'project')->orderByDesc('income_date')->paginate($this->resolvePerPage($request))->withQueryString();
         $categories = IncomeCategory::orderBy('name')->get();
 
         return view('user.incomes.index', compact('incomes', 'categories'));

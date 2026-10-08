@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\ZakatCalculation;
@@ -23,9 +24,11 @@ use Illuminate\Validation\Rule;
  */
 class ZakatController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $calculations = ZakatCalculation::latest('period_end_date')->latest('id')->paginate(15);
+        $calculations = ZakatCalculation::latest('period_end_date')->latest('id')->paginate($this->resolvePerPage($request, 15))->withQueryString();
 
         return view('user.zakat.index', compact('calculations'));
     }

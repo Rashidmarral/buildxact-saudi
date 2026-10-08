@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\AuditLog;
@@ -17,9 +18,11 @@ use Illuminate\Validation\Rule;
 
 class FixedAssetController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $assets = FixedAsset::orderBy('status')->orderByDesc('acquisition_date')->paginate(20);
+        $assets = FixedAsset::orderBy('status')->orderByDesc('acquisition_date')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.fixed-assets.index', compact('assets'));
     }

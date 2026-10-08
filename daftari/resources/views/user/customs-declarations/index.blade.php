@@ -74,7 +74,7 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $declarations->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $declarations])</div>
 
 <dialog id="add-declaration-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-2xl backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.customs-declarations.store') }}" class="p-6 space-y-5">

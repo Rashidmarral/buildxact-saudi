@@ -36,5 +36,5 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $transfers->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $transfers])</div>
 @endsection

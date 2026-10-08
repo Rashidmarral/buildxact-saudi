@@ -74,7 +74,7 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $adjustments->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $adjustments])</div>
 
 @if ($canAdjust)
 <dialog id="adjust-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">

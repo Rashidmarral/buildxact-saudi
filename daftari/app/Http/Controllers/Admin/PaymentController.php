@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
@@ -21,6 +22,8 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $query = Payment::withoutGlobalScopes()
@@ -59,7 +62,7 @@ class PaymentController extends Controller
             $query->whereDate('payments.created_at', '<=', $request->date_to);
         }
 
-        $payments = $query->latest('payments.created_at')->latest('payments.id')->paginate(25)->withQueryString();
+        $payments = $query->latest('payments.created_at')->latest('payments.id')->paginate($this->resolvePerPage($request, 25))->withQueryString();
 
         $pageCompanyIds = $payments->pluck('company_id')->unique();
         $owners = User::withoutGlobalScopes()

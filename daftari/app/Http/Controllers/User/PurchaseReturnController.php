@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\PurchaseReturn;
@@ -16,14 +17,17 @@ use Illuminate\Validation\Rule;
 
 class PurchaseReturnController extends Controller
 {
+    use ResolvesPerPage;
+
     private const ELIGIBLE_STATUSES = ['posted'];
 
-    public function index()
+    public function index(Request $request)
     {
         $purchaseReturns = PurchaseReturn::with('supplier', 'bill')
             ->orderByDesc('issue_date')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
 
         return view('user.purchase-returns.index', compact('purchaseReturns'));
     }

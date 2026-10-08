@@ -84,5 +84,5 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $vouchers->appends($filters)->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $vouchers])</div>
 @endsection

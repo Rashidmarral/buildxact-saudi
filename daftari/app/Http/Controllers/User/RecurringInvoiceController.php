@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Client;
@@ -20,11 +21,14 @@ use Illuminate\Validation\Rule;
 
 class RecurringInvoiceController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
         $recurringInvoices = RecurringInvoice::with('client')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
 
         return view('user.recurring-invoices.index', compact('recurringInvoices'));
     }

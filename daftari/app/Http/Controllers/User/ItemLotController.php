@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Item;
 use App\Models\ItemLot;
@@ -25,6 +26,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ItemLotController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $companyId = Auth::user()->company_id;
@@ -34,7 +37,7 @@ class ItemLotController extends Controller
             ->where('quantity', '>', 0)
             ->orderBy('expiry_date')
             ->orderByDesc('id')
-            ->paginate(20)
+            ->paginate($this->resolvePerPage($request))
             ->withQueryString();
 
         return view('user.item-lots.index', [

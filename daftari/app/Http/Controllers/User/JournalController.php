@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\JournalEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class JournalController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $company = Auth::user()->company;
@@ -20,7 +23,7 @@ class JournalController extends Controller
             ->when($request->filled('to'), fn ($q) => $q->whereDate('entry_date', '<=', $request->query('to')))
             ->orderByDesc('entry_date')
             ->orderByDesc('id')
-            ->paginate(25)
+            ->paginate($this->resolvePerPage($request, 25))
             ->withQueryString();
 
         $sourceTypes = $company->journalEntries()->distinct()->pluck('source_type');

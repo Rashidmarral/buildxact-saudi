@@ -84,7 +84,7 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $transfers->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $transfers])</div>
 
 @if ($canTransfer)
 <dialog id="transfer-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">

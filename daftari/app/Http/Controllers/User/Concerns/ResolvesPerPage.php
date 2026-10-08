@@ -16,9 +16,9 @@ trait ResolvesPerPage
 {
     private const ALLOWED_PER_PAGE = [10, 20, 25, 50, 100];
 
-    protected function resolvePerPage(Request $request, int $default = 20): int
+    protected function resolvePerPage(Request $request, int $default = 20, string $key = 'per_page'): int
     {
-        $requested = (int) $request->query('per_page', $default);
+        $requested = (int) $request->query($key, $default);
 
         return in_array($requested, self::ALLOWED_PER_PAGE, true) ? $requested : $default;
     }

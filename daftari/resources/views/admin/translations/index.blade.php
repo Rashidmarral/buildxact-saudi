@@ -54,6 +54,6 @@
 </div>
 
 <div class="mt-6">
-    {{ $rows->links() }}
+    @include('partials.pagination', ['paginator' => $rows])
 </div>
 @endsection

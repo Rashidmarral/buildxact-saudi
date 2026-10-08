@@ -47,5 +47,5 @@
         </table>
     @endif
 </div>
-<div class="mt-4">{{ $debitNotes->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $debitNotes])</div>
 @endsection

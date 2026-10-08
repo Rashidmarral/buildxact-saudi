@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\CustomsDeclaration;
 use App\Models\Supplier;
@@ -14,12 +15,15 @@ use Illuminate\Validation\Rule;
 
 class CustomsDeclarationController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
         $declarations = CustomsDeclaration::with('supplier', 'bills')
             ->orderByDesc('declaration_date')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
 
         return view('user.customs-declarations.index', [
             'declarations' => $declarations,

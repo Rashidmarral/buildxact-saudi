@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\Attachment;
 use App\Models\AuditLog;
@@ -26,6 +27,8 @@ use Illuminate\Support\Facades\DB;
 
 class CompanyController extends Controller
 {
+    use ResolvesPerPage;
+
     /**
      * "Status" filter values that aren't a literal companies.status or
      * subscriptions.status value — these read the latest-subscription
@@ -110,7 +113,7 @@ class CompanyController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $companies = $query->latest()->paginate(20)->withQueryString();
+        $companies = $query->latest()->paginate($this->resolvePerPage($request))->withQueryString();
 
         $pageIds = $companies->pluck('id');
 

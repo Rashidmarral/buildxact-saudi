@@ -65,5 +65,5 @@
     @endif
 </div>
 
-<div class="mt-4">{{ $recurringInvoices->links() }}</div>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $recurringInvoices])</div>
 @endsection

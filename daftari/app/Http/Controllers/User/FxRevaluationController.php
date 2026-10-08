@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Exceptions\PeriodLockedException;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Company;
@@ -27,9 +28,11 @@ use InvalidArgumentException;
  */
 class FxRevaluationController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $revaluations = FxRevaluation::with('journalEntry')->latest('as_of_date')->latest('id')->paginate(15);
+        $revaluations = FxRevaluation::with('journalEntry')->latest('as_of_date')->latest('id')->paginate($this->resolvePerPage($request, 15))->withQueryString();
 
         return view('user.fx-revaluations.index', compact('revaluations'));
     }

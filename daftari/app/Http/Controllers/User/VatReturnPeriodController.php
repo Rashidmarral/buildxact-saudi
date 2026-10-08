@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Expense;
@@ -26,9 +27,11 @@ use Illuminate\Support\Facades\Auth;
  */
 class VatReturnPeriodController extends Controller
 {
-    public function index()
+    use ResolvesPerPage;
+
+    public function index(Request $request)
     {
-        $periods = VatReturnPeriod::with('creator')->orderByDesc('period_end')->paginate(12);
+        $periods = VatReturnPeriod::with('creator')->orderByDesc('period_end')->paginate($this->resolvePerPage($request, 12))->withQueryString();
 
         return view('user.vat-returns.index', compact('periods'));
     }

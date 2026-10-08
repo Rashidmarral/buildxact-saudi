@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ResolvesPerPage;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Auth;
  */
 class LeadController extends Controller
 {
+    use ResolvesPerPage;
+
     public function index(Request $request)
     {
         $query = Lead::query()->with(['assignedAdmin:id,name', 'convertedCompany:id,name']);
@@ -44,7 +47,7 @@ class LeadController extends Controller
                 ->orWhere('company_name', 'like', "%{$term}%"));
         }
 
-        $leads = $query->latest('id')->paginate(20)->withQueryString();
+        $leads = $query->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         $openStages = array_diff(Lead::STAGES, ['paid', 'active', 'renewal', 'lost']);
         $stats = [
