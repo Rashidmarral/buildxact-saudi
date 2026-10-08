@@ -177,6 +177,8 @@ class CompanyAuditService
             ->each(fn (Invoice $invoice) => $missing->push([
                 'label' => __('Invoice :number', ['number' => $invoice->invoice_number]),
                 'url' => route('app.invoices.show', $invoice),
+                'source_type' => 'invoice',
+                'source_id' => $invoice->id,
             ]));
 
         Bill::where('company_id', $company->id)
@@ -187,6 +189,8 @@ class CompanyAuditService
             ->each(fn (Bill $bill) => $missing->push([
                 'label' => __('Bill :number', ['number' => $bill->bill_number]),
                 'url' => route('app.bills.show', $bill),
+                'source_type' => 'bill',
+                'source_id' => $bill->id,
             ]));
 
         Expense::where('company_id', $company->id)
@@ -197,6 +201,8 @@ class CompanyAuditService
             ->each(fn (Expense $expense) => $missing->push([
                 'label' => __('Expense: :description', ['description' => $expense->description]),
                 'url' => route('app.expenses.edit', $expense),
+                'source_type' => 'expense',
+                'source_id' => $expense->id,
             ]));
 
         CreditNote::where('company_id', $company->id)
@@ -207,6 +213,8 @@ class CompanyAuditService
             ->each(fn (CreditNote $creditNote) => $missing->push([
                 'label' => __('Credit note :number', ['number' => $creditNote->credit_note_number]),
                 'url' => route('app.credit-notes.show', $creditNote),
+                'source_type' => 'credit_note',
+                'source_id' => $creditNote->id,
             ]));
 
         DebitNote::where('company_id', $company->id)
@@ -217,6 +225,8 @@ class CompanyAuditService
             ->each(fn (DebitNote $debitNote) => $missing->push([
                 'label' => __('Debit note :number', ['number' => $debitNote->debit_note_number]),
                 'url' => route('app.debit-notes.show', $debitNote),
+                'source_type' => 'debit_note',
+                'source_id' => $debitNote->id,
             ]));
 
         return [

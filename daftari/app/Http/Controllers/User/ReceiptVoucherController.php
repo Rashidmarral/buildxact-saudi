@@ -393,7 +393,19 @@ class ReceiptVoucherController extends Controller
             'client_id' => ['nullable', 'required_if:party_type,customer', Rule::exists('clients', 'id')->where('company_id', $companyId)],
             'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
             'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
-            'invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
+            // "1 document(s) are marked posted but have no matching
+            // ledger entry" — linking a receipt voucher's payment to a
+            // still-draft invoice used to jump that invoice straight to
+            // paid/partially_paid with its revenue never posted to the
+            // GL at all (store()/update() only ever called
+            // postReceiptVoucher(), never postInvoiceIssued()). Rejecting
+            // it here is simpler and safer than silently auto-sending an
+            // invoice from inside an unrelated form.
+            'invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId), function ($attribute, $value, $fail) {
+                if ($value && Invoice::find($value)?->status === 'draft') {
+                    $fail(__('This invoice hasn\'t been sent yet — send it first, then record the payment against it.'));
+                }
+            }],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'date' => ['required', 'date'],
             'payer_name' => ['required', 'string', 'max:255'],

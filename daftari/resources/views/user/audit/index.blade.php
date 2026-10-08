@@ -61,7 +61,17 @@
                     @foreach ($section['items'] as $item)
                         <li class="py-2 flex items-center justify-between text-sm">
                             <span class="text-slate-700">{{ $item['label'] }}</span>
-                            <a href="{{ $item['url'] }}" class="text-brand-600 hover:underline font-medium">{{ __('View') }} &rarr;</a>
+                            <div class="flex items-center gap-3">
+                                @if ($section['key'] === 'ledger_posting' && isset($item['source_type'], $item['source_id']))
+                                    <form method="POST" action="{{ route('app.audit.repost') }}" onsubmit="return confirm('{{ __('Post this document to the ledger now?') }}')">
+                                        @csrf
+                                        <input type="hidden" name="source_type" value="{{ $item['source_type'] }}">
+                                        <input type="hidden" name="source_id" value="{{ $item['source_id'] }}">
+                                        <button type="submit" class="text-emerald-600 hover:underline font-medium">{{ __('Repost to ledger') }}</button>
+                                    </form>
+                                @endif
+                                <a href="{{ $item['url'] }}" class="text-brand-600 hover:underline font-medium">{{ __('View') }} &rarr;</a>
+                            </div>
                         </li>
                     @endforeach
                 </ul>

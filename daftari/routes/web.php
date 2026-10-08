@@ -398,6 +398,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:audit')->prefix('audit')->name('audit.')->group(function () {
         Route::get('/', [CompanyAuditController::class, 'index'])->name('index');
+        Route::post('repost', [CompanyAuditController::class, 'repost'])->name('repost');
     });
 
     Route::middleware('permission:accounting')->prefix('accounting')->group(function () {

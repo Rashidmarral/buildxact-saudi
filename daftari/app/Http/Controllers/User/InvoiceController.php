@@ -559,6 +559,17 @@ class InvoiceController extends Controller
             'exchange_rate' => ['nullable', 'numeric', 'min:0.000001'],
         ]);
 
+        // "1 document(s) are marked posted but have no matching ledger
+        // entry" (Company Audit's ledger-integrity check) — a draft
+        // invoice could have a payment recorded against it straight from
+        // this form, jumping its status to paid/partially_paid with its
+        // revenue never recognized in the GL at all: real cash coming in
+        // debited nothing against an AR balance that was never credited.
+        // Sending it first (a no-op if it's already past draft, per
+        // doSend()'s own guard) keeps the books consistent with the fact
+        // that money changing hands means the invoice really was issued.
+        $this->doSend($invoice, $ledger);
+
         $wasPaid = $invoice->status === 'paid';
 
         DB::transaction(function () use ($invoice, $data, $ledger) {
