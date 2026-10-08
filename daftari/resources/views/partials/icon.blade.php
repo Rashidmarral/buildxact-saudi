@@ -49,6 +49,7 @@
         'funnel' => '<path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/>',
         'machinery' => '<rect x="1.5" y="8" width="12" height="8" rx="1"/><path d="M13.5 10.5h4l3.5 3v2.5h-7.5z"/><circle cx="6" cy="18.5" r="2"/><circle cx="17" cy="18.5" r="2"/>',
         'income' => '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
+        'statement' => '<rect x="4" y="2.5" width="16" height="19" rx="1.5"/><path d="M8 7h8M8 11h8M8 15h5"/>',
     ];
     $d = $paths[$name] ?? $paths['dashboard'];
 @endphp

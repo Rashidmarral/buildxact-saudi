@@ -46,6 +46,7 @@ class Permissions
             'coffee_shop' => __('Coffee Shop'),
             'project_cash_flow' => __('Project Cash Flow'),
             'machinery_equipment' => __('Machinery & Equipment'),
+            'client_statements' => __('Client Account Statements'),
         ];
     }
 
@@ -69,7 +70,7 @@ class Permissions
             // of which can knock out live e-invoicing. A bookkeeping role
             // has no routine need to touch that, same reasoning that
             // already keeps 'settings'/'members_roles' out of this preset.
-            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'income', 'purchases', 'cash_banks', 'projects', 'project_cash_flow', 'machinery_equipment', 'reports', 'audit', 'accounting', 'approvals', 'support'],
+            'accountant' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'expenses', 'income', 'purchases', 'cash_banks', 'projects', 'project_cash_flow', 'machinery_equipment', 'client_statements', 'reports', 'audit', 'accounting', 'approvals', 'support'],
             'sales' => ['dashboard', 'clients', 'items', 'invoices', 'quotations', 'salespersons', 'projects', 'reports', 'support'],
             'member' => ['dashboard', 'reports', 'support'],
         ];

@@ -3,6 +3,7 @@
 @section('title', __('Clients'))
 
 @section('content')
+@php($canSeeStatements = app(\App\Services\Features\FeatureAccessService::class)->enabled(auth()->user()->company, 'client_statements'))
 <div class="flex items-center justify-between mb-6">
     <p class="text-sm text-slate-500">{{ __('Manage the clients you invoice.') }}</p>
     <div class="flex items-center gap-2">
@@ -60,6 +61,9 @@
                                 @endif
                             </td>
                             <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
+                                @if ($canSeeStatements)
+                                    <a href="{{ route('app.client-statements.show', $client) }}" class="text-slate-500 hover:underline">{{ __('Statement') }}</a>
+                                @endif
                                 <a href="{{ route('app.clients.edit', $client) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
                                 <form method="POST" action="{{ route('app.clients.destroy', $client) }}" class="inline" onsubmit="return confirm('{{ __('Delete this client?') }}')">
                                     @csrf @method('DELETE')

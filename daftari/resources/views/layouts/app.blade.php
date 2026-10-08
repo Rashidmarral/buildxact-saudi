@@ -126,6 +126,9 @@
 
                 @include('partials.nav-item', ['route' => 'app.incomes.index', 'label' => __('Income'), 'icon' => 'income'])
                 @include('partials.nav-item', ['route' => 'app.bank-accounts.index', 'label' => __('Cash & Banks'), 'icon' => 'bank'])
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'client_statements'))
+                    @include('partials.nav-item', ['route' => 'app.client-statements.index', 'label' => __('Client Statements'), 'icon' => 'statement'])
+                @endif
                 @include('partials.nav-item', ['route' => 'app.projects.index', 'label' => __('Projects'), 'icon' => 'projects'])
 
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'payroll'))

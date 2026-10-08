@@ -24,6 +24,7 @@
         'has_coffee_shop' => __('Coffee Shop'),
         'has_project_cash_flow' => __('Project Cash Flow'),
         'has_machinery_equipment' => __('Machinery & Equipment'),
+        'has_client_statements' => __('Client Account Statements'),
     ];
 @endphp
 <form method="POST" action="{{ $plan->exists ? route('admin.plans.update', $plan) : route('admin.plans.store') }}" class="max-w-3xl space-y-6">

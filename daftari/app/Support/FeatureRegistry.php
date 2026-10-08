@@ -59,6 +59,7 @@ class FeatureRegistry
             'coffee_shop' => ['label' => __('Coffee Shop'), 'type' => 'gated', 'column' => 'has_coffee_shop'],
             'project_cash_flow' => ['label' => __('Project Cash Flow'), 'type' => 'gated', 'column' => 'has_project_cash_flow'],
             'machinery_equipment' => ['label' => __('Machinery & Equipment'), 'type' => 'gated', 'column' => 'has_machinery_equipment'],
+            'client_statements' => ['label' => __('Client Account Statements'), 'type' => 'gated', 'column' => 'has_client_statements'],
         ];
     }
 

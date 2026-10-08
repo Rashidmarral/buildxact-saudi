@@ -61,6 +61,7 @@ use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\BudgetController;
 use App\Http\Controllers\User\ClientController;
+use App\Http\Controllers\User\ClientStatementController;
 use App\Http\Controllers\User\CompanyAuditController;
 use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\FixedAssetController;
@@ -619,6 +620,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('projects/{project}/pdf', [ProjectCashFlowController::class, 'pdf'])->middleware('throttle:pdf')->name('pdf');
         Route::get('bank-accounts/{bankAccount}', [ProjectCashFlowController::class, 'bankAccountShow'])->name('bank-account.show');
         Route::get('bank-accounts/{bankAccount}/pdf', [ProjectCashFlowController::class, 'bankAccountPdf'])->middleware('throttle:pdf')->name('bank-account.pdf');
+    });
+
+    Route::middleware(['permission:client_statements', 'module:client_statements'])->prefix('client-statements')->name('client-statements.')->group(function () {
+        Route::get('/', [ClientStatementController::class, 'index'])->name('index');
+        Route::get('{client}', [ClientStatementController::class, 'show'])->name('show');
+        Route::get('{client}/pdf', [ClientStatementController::class, 'pdf'])->middleware('throttle:pdf')->name('pdf');
     });
 
     Route::middleware(['permission:machinery_equipment', 'module:machinery_equipment'])->prefix('machinery')->name('machinery.')->group(function () {
