@@ -413,11 +413,15 @@
         $hijriDate = \App\Support\HijriDate::format($doc['date']);
         $qoSignerLabel = $isArOnly
             ? ($template->signature_label_ar ?: 'المفوض بالتوقيع')
-            : ($template->signature_label_en ?: 'Authorized Signatory');
+            : ($template->signature_label_en ?: 'Authorized Signatory').($showAr ? (' / '.($template->signature_label_ar ?: 'المفوض بالتوقيع')) : '');
         $qoNotesLines = ! empty($doc['notes'])
             ? array_values(array_filter(preg_split('/\r\n|\r|\n/', trim($doc['notes'])), fn ($l) => trim($l) !== ''))
             : [];
         $qoAlign = $isArOnly ? 'text-right' : 'text-left';
+        $qoShowGreeting = $template->show_greeting ?? true;
+        $qoCustomGreetingEn = trim((string) ($template->greeting_en ?? ''));
+        $qoCustomGreetingAr = trim((string) ($template->greeting_ar ?? ''));
+        $qoHasCustomGreeting = $qoCustomGreetingEn !== '' || $qoCustomGreetingAr !== '';
     @endphp
 
     <div class="flex items-start justify-between gap-4">
@@ -427,13 +431,17 @@
             @endif
         </div>
         <div class="w-1/2 pt-2 text-center text-lg font-bold text-slate-900">
-            {{ $isArOnly ? ($doc['type_label_ar'] ?? $doc['type_label']) : $doc['type_label'] }}
+            @if ($isArOnly)
+                {{ $doc['type_label_ar'] ?? $doc['type_label'] }}
+            @else
+                {{ $doc['type_label'] }}@if ($showAr && !empty($doc['type_label_ar'])) / {{ $doc['type_label_ar'] }}@endif
+            @endif
         </div>
         <div class="w-1/4 text-right text-xs text-slate-700 space-y-0.5">
             <div>{{ $lbl('No.') }} : {{ $doc['number'] }}</div>
             <div>{{ $lbl('Date') }} : {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
             @if ($hijriDate)<div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>@endif
-            @if (!empty($doc['date2']))<div>{{ $primary($doc['date2_label'], $doc['date2_label_ar'] ?? null) }} : {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
+            @if (!empty($doc['date2']))<div>{{ $doc['date2_label'] }}@if ($showAr && !empty($doc['date2_label_ar'])) / {{ $doc['date2_label_ar'] }}@endif : {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
             @if ($company->cr_number)<div>{{ $lbl('C.R.') }} : {{ $company->cr_number }}</div>@endif
         </div>
     </div>
@@ -444,23 +452,40 @@
             @if ($isArOnly)
                 السادة/ {{ $doc['party']->name_ar ?: $doc['party']->name }} المحترمين
             @else
-                {{ $doc['party_label'] }}: {{ $doc['party']->name }}
+                {{ $doc['party_label'] }}@if ($showAr && !empty($doc['party_label_ar'])) / {{ $doc['party_label_ar'] }}@endif: {{ $doc['party']->name }}@if ($showAr && !empty($doc['party']->name_ar)) / {{ $doc['party']->name_ar }}@endif
             @endif
         </p>
-        <p>{{ $isArOnly ? 'السلام عليكم ورحمة الله وبركاته،' : 'Dear Sirs,' }}</p>
-        <p class="font-semibold">
-            @if ($isArOnly)
-                يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:
-            @else
-                We, {{ $company->name }}, are pleased to submit the following {{ \Illuminate\Support\Str::lower($doc['type_label']) }} in accordance with the items below:
-            @endif
-        </p>
+        @if ($qoShowGreeting)
+            <p>
+                @if ($qoHasCustomGreeting)
+                    @if ($isArOnly)
+                        {{ $qoCustomGreetingAr ?: $qoCustomGreetingEn }}
+                    @else
+                        {{ $qoCustomGreetingEn ?: $qoCustomGreetingAr }}@if ($showAr && $qoCustomGreetingEn !== '' && $qoCustomGreetingAr !== '') / {{ $qoCustomGreetingAr }}@endif
+                    @endif
+                @else
+                    {{ $isArOnly ? 'السلام عليكم ورحمة الله وبركاته،' : 'Dear Sirs,' }}@if (!$isArOnly && $showAr) / السلام عليكم ورحمة الله وبركاته،@endif
+                @endif
+            </p>
+            @unless ($qoHasCustomGreeting)
+                <p class="font-semibold">
+                    @if ($isArOnly)
+                        يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:
+                    @else
+                        We, {{ $company->name }}, are pleased to submit the following {{ \Illuminate\Support\Str::lower($doc['type_label']) }} in accordance with the items below:
+                        @if ($showAr)
+                            <span class="block" dir="rtl">يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:</span>
+                        @endif
+                    @endif
+                </p>
+            @endunless
+        @endif
     </div>
 
     <table class="w-full text-sm mt-5 border border-slate-300">
         <thead>
             <tr class="text-slate-700" style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}">
-                <th class="border border-slate-300 px-2 py-1.5 w-10">{{ $isArOnly ? 'البند' : '#' }}</th>
+                <th class="border border-slate-300 px-2 py-1.5 w-10">{{ $isArOnly ? 'البند' : '#' }}@if (!$isArOnly && $showAr) / البند@endif</th>
                 <th class="border border-slate-300 px-2 py-1.5 {{ $qoAlign }}">{{ $lbl('Description') }}</th>
                 <th class="border border-slate-300 px-2 py-1.5 text-end w-20">{{ $lbl('Unit') }}</th>
                 <th class="border border-slate-300 px-2 py-1.5 text-end w-20">{{ $lbl('Qty') }}</th>
@@ -516,7 +541,7 @@
         </div>
     @endif
 
-    <p class="mt-8 text-sm {{ $qoAlign }}">{{ $isArOnly ? 'وتفضلوا بقبول فائق الاحترام،،،' : 'Yours faithfully,' }}</p>
+    <p class="mt-8 text-sm {{ $qoAlign }}">{{ $isArOnly ? 'وتفضلوا بقبول فائق الاحترام،،،' : 'Yours faithfully,' }}@if (!$isArOnly && $showAr) / وتفضلوا بقبول فائق الاحترام،،،@endif</p>
     <div class="mt-2 {{ $qoAlign }}">
         @if ($company->stamp_path)
             <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ $lbl('Company stamp') }}" class="h-24 w-24 object-contain">

@@ -142,6 +142,9 @@ class InvoiceTemplateController extends Controller
             'show_signature' => ['nullable', 'boolean'],
             'signature_label_en' => ['nullable', 'string', 'max:255'],
             'signature_label_ar' => ['nullable', 'string', 'max:255'],
+            'show_greeting' => ['nullable', 'boolean'],
+            'greeting_en' => ['nullable', 'string', 'max:1000'],
+            'greeting_ar' => ['nullable', 'string', 'max:1000'],
             'show_logo' => ['nullable', 'boolean'],
             'show_unit_labels' => ['nullable', 'boolean'],
             'show_party_vat_number' => ['nullable', 'boolean'],
@@ -161,6 +164,7 @@ class InvoiceTemplateController extends Controller
 
         $data['show_logo'] = $request->boolean('show_logo');
         $data['show_signature'] = $request->boolean('show_signature');
+        $data['show_greeting'] = $request->boolean('show_greeting');
         $data['show_unit_labels'] = $request->boolean('show_unit_labels');
         $data['show_party_vat_number'] = $request->boolean('show_party_vat_number');
         $data['show_item_description'] = $request->boolean('show_item_description');

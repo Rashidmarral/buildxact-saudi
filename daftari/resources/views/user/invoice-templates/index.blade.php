@@ -126,9 +126,6 @@
                                 <option value="custom_letterhead" @selected($selected->layout === 'custom_letterhead')>{{ __('Custom Letterhead') }}</option>
                                 <option value="quotation_offer" @selected($selected->layout === 'quotation_offer')>{{ __('Quotation Offer') }}</option>
                             </select>
-                            @if ($selected->layout === 'quotation_offer')
-                                <p class="mt-1 text-xs text-slate-400">{{ __('Set Language below to Arabic only or English only — this layout always writes fully in one language, matching the original reference document.') }}</p>
-                            @endif
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
@@ -227,6 +224,23 @@
                         @endif
                         <input type="file" name="letterhead" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <p class="mt-1 text-xs text-slate-400">{{ __('Upload a wide banner image — it replaces the logo/company-name header entirely on this layout.') }}</p>
+                    </div>
+                    <div x-show="layout === 'quotation_offer'" x-data="{ greeting: {{ $selected->show_greeting ? 'true' : 'false' }} }" x-cloak>
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" name="show_greeting" value="1" x-model="greeting" @checked($selected->show_greeting) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                            {{ __('Show the "Dear Sirs..." greeting above the item table') }}
+                        </label>
+                        <div x-show="greeting" x-cloak class="grid grid-cols-2 gap-3 mt-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500">{{ __('Custom greeting (English)') }}</label>
+                                <textarea name="greeting_en" rows="2" placeholder="{{ __('Dear Sirs, We are pleased to submit the following quotation in accordance with the items below:') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ $selected->greeting_en }}</textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500">{{ __('Custom greeting (Arabic)') }}</label>
+                                <textarea name="greeting_ar" rows="2" dir="rtl" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">{{ $selected->greeting_ar }}</textarea>
+                            </div>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-400">{{ __('Leave both blank to use the default wording. Language above still controls bilingual vs. single-language printing.') }}</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500">{{ __('Footer image') }}</label>

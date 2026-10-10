@@ -336,12 +336,19 @@
         $hijriDate = \App\Support\HijriDate::format($doc['date']);
         $qoSignerLabel = $isArOnly
             ? ($template->signature_label_ar ?: 'المفوض بالتوقيع')
-            : ($template->signature_label_en ?: 'Authorized Signatory');
+            : ($template->signature_label_en ?: 'Authorized Signatory').($showAr ? (' / '.($template->signature_label_ar ?: 'المفوض بالتوقيع')) : '');
         $qoNotesLines = ! empty($doc['notes'])
             ? array_values(array_filter(preg_split('/\r\n|\r|\n/', trim($doc['notes'])), fn ($l) => trim($l) !== ''))
             : [];
         $qoRight = $isArOnly ? 'right' : 'left';
         $qoLeft = $isArOnly ? 'left' : 'right';
+        // A company-written override for the boilerplate "Dear Sirs, We
+        // are pleased to submit..." block below — or hide it entirely.
+        // Null/blank falls back to the default wording.
+        $qoShowGreeting = $template->show_greeting ?? true;
+        $qoCustomGreetingEn = trim((string) ($template->greeting_en ?? ''));
+        $qoCustomGreetingAr = trim((string) ($template->greeting_ar ?? ''));
+        $qoHasCustomGreeting = $qoCustomGreetingEn !== '' || $qoCustomGreetingAr !== '';
     @endphp
 
     <table>
@@ -353,7 +360,11 @@
             </td>
             <td style="width: 53%; vertical-align: middle; text-align: center;">
                 <div style="font-size: 13pt; font-weight: bold; color: #0f172a;">
-                    {{ $isArOnly ? ($doc['type_label_ar'] ?? $doc['type_label']) : $doc['type_label'] }}
+                    @if ($isArOnly)
+                        {{ $doc['type_label_ar'] ?? $doc['type_label'] }}
+                    @else
+                        {{ $doc['type_label'] }}@if ($showAr && !empty($doc['type_label_ar'])) / {{ $doc['type_label_ar'] }}@endif
+                    @endif
                 </div>
             </td>
             <td style="width: 25%; vertical-align: top; text-align: right; font-size: 8.5pt; color: #334155;">
@@ -363,7 +374,7 @@
                     <div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>
                 @endif
                 @if (!empty($doc['date2']))
-                    <div>{{ $primary($doc['date2_label'], $doc['date2_label_ar'] ?? null) }} : {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>
+                    <div>{{ $doc['date2_label'] }}@if ($showAr && !empty($doc['date2_label_ar'])) / {{ $doc['date2_label_ar'] }}@endif : {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>
                 @endif
                 @if ($company->cr_number)
                     <div>{{ $lbl('C.R.') }} : {{ $company->cr_number }}</div>
@@ -378,30 +389,45 @@
                 @if ($isArOnly)
                     السادة/ {{ $doc['party']->name_ar ?: $doc['party']->name }} المحترمين
                 @else
-                    {{ $doc['party_label'] }}: {{ $doc['party']->name }}
+                    {{ $doc['party_label'] }}@if ($showAr && !empty($doc['party_label_ar'])) / {{ $doc['party_label_ar'] }}@endif: {{ $doc['party']->name }}@if ($showAr && !empty($doc['party']->name_ar)) / {{ $doc['party']->name_ar }}@endif
                 @endif
             </td>
         </tr>
-        <tr>
-            <td style="text-align: {{ $qoRight }}; padding-top: 4px; font-size: 9.5pt;">
-                {{ $isArOnly ? 'السلام عليكم ورحمة الله وبركاته،' : 'Dear Sirs,' }}
-            </td>
-        </tr>
-        <tr>
-            <td style="text-align: {{ $qoRight }}; padding-top: 4px; font-size: 9.5pt; font-weight: bold;">
-                @if ($isArOnly)
-                    يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:
-                @else
-                    We, {{ $company->name }}, are pleased to submit the following {{ \Illuminate\Support\Str::lower($doc['type_label']) }} in accordance with the items below:
-                @endif
-            </td>
-        </tr>
+        @if ($qoShowGreeting)
+            <tr>
+                <td style="text-align: {{ $qoRight }}; padding-top: 4px; font-size: 9.5pt;">
+                    @if ($qoHasCustomGreeting)
+                        @if ($isArOnly)
+                            {{ $qoCustomGreetingAr ?: $qoCustomGreetingEn }}
+                        @else
+                            {{ $qoCustomGreetingEn ?: $qoCustomGreetingAr }}@if ($showAr && $qoCustomGreetingEn !== '' && $qoCustomGreetingAr !== '') / {{ $qoCustomGreetingAr }}@endif
+                        @endif
+                    @else
+                        {{ $isArOnly ? 'السلام عليكم ورحمة الله وبركاته،' : 'Dear Sirs,' }}@if (!$isArOnly && $showAr) / السلام عليكم ورحمة الله وبركاته،@endif
+                    @endif
+                </td>
+            </tr>
+            @unless ($qoHasCustomGreeting)
+                <tr>
+                    <td style="text-align: {{ $qoRight }}; padding-top: 4px; font-size: 9.5pt; font-weight: bold;">
+                        @if ($isArOnly)
+                            يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:
+                        @else
+                            We, {{ $company->name }}, are pleased to submit the following {{ \Illuminate\Support\Str::lower($doc['type_label']) }} in accordance with the items below:
+                            @if ($showAr)
+                                <br><span class="ar">يسرنا نحن {{ $company->name_ar ?: $company->name }} أن نقدم لكم {{ $doc['type_label_ar'] ?? 'عرض السعر' }} التالي وفق البنود التالية:</span>
+                            @endif
+                        @endif
+                    </td>
+                </tr>
+            @endunless
+        @endif
     </table>
 
     <table style="margin-top: {{ $sectionGap }}px; border: 0.5pt solid #cbd5e1;">
         <thead>
             <tr style="background-color: {{ $tableHeaderColor ?: '#f8fafc' }}; font-size: 8.5pt;">
-                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 6%;">{{ $isArOnly ? 'البند' : '#' }}</th>
+                <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 6%;">{{ $isArOnly ? 'البند' : '#' }}@if (!$isArOnly && $showAr) / البند@endif</th>
                 <th style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoRight }};">{{ $lbl('Description') }}</th>
                 <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 10%; text-align: {{ $qoLeft }};">{{ $lbl('Unit') }}</th>
                 <th style="border: 0.5pt solid #cbd5e1; padding: 5px; width: 10%; text-align: {{ $qoLeft }};">{{ $lbl('Qty') }}</th>
@@ -466,7 +492,7 @@
     @endif
 
     <table style="margin-top: {{ $signatureGap }}px;">
-        <tr><td style="text-align: {{ $qoRight }}; font-size: 9.5pt;">{{ $isArOnly ? 'وتفضلوا بقبول فائق الاحترام،،،' : 'Yours faithfully,' }}</td></tr>
+        <tr><td style="text-align: {{ $qoRight }}; font-size: 9.5pt;">{{ $isArOnly ? 'وتفضلوا بقبول فائق الاحترام،،،' : 'Yours faithfully,' }}@if (!$isArOnly && $showAr) / وتفضلوا بقبول فائق الاحترام،،،@endif</td></tr>
     </table>
     <table style="margin-top: 8px;">
         <tr>
