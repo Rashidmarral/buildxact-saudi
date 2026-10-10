@@ -158,15 +158,15 @@
     <table style="margin-top: {{ $sectionGap }}px;">
         <thead>
             <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
-                <th style="padding: 4px 8px; border-right: 0.5pt solid #e2e8f0;">#</th>
+                <th style="padding: 4px 8px; width: 3%; border-right: 0.5pt solid #e2e8f0;">#</th>
                 <th style="padding: 4px 8px; border-right: 0.5pt solid #e2e8f0;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
-                <th class="text-end" style="padding: 4px 8px; border-right: 0.5pt solid #e2e8f0;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
-                <th class="text-end" style="padding: 4px 8px; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
+                <th class="text-end" style="padding: 4px 8px; width: 8%; border-right: 0.5pt solid #e2e8f0;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
+                <th class="text-end" style="padding: 4px 8px; width: 11%; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
                 @if ($showVatColumn)
-                    <th class="text-end" style="padding: 4px 8px; border-right: 0.5pt solid #e2e8f0;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
-                    <th class="text-end" style="padding: 4px 8px;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
+                    <th class="text-end" style="padding: 4px 8px; width: 17%; border-right: 0.5pt solid #e2e8f0;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
+                    <th class="text-end" style="padding: 4px 8px; width: 15%;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
                 @endif
-                <th class="text-end" style="padding: 4px 8px;">{{ __('Line amount') }}<br><span class="ar" style="font-weight: normal;">المجموع</span></th>
+                <th class="text-end" style="padding: 4px 8px; width: 15%;">{{ __('Line amount') }}<br><span class="ar" style="font-weight: normal;">المجموع</span></th>
             </tr>
         </thead>
         <tbody>
@@ -573,12 +573,12 @@
         <thead>
             <tr style="text-align: left; color: #ffffff; font-size: 9pt; background-color: {{ $tableHeaderColor ?: $accent }};">
                 <th style="padding: 6px 10px; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Description') }}</th>
-                <th class="text-end" style="padding: 6px 10px; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Qty') }}</th>
-                <th class="text-end" style="padding: 6px 10px; @if ($showVatColumn) border-right: 0.5pt solid rgba(255,255,255,0.4); @endif">{{ $lbl('Unit price') }}</th>
+                <th class="text-end" style="padding: 6px 10px; width: 10%; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Qty') }}</th>
+                <th class="text-end" style="padding: 6px 10px; width: 18%; @if ($showVatColumn) border-right: 0.5pt solid rgba(255,255,255,0.4); @endif">{{ $lbl('Unit price') }}</th>
                 @if ($showVatColumn)
-                    <th class="text-end" style="padding: 6px 10px; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('VAT') }}</th>
+                    <th class="text-end" style="padding: 6px 10px; width: 17%; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('VAT') }}</th>
                 @endif
-                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Total') }}</th>
+                <th class="text-end" style="padding: 6px 10px; width: 16%;">{{ $lbl('Total') }}</th>
             </tr>
         </thead>
         <tbody>

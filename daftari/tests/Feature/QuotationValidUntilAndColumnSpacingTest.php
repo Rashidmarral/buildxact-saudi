@@ -152,4 +152,42 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $this->assertStringContainsString(__('Valid until'), $html);
         $this->assertStringContainsString(\App\Support\PlatformFormat::date($quotation->expiry_date), $html);
     }
+
+    /**
+     * Follow-up report, with a real QTN-00007 PDF attached: a quotation
+     * with a single short line item showed a huge visual gap between the
+     * Description text and the Qty/Price/etc. values. Root cause: none of
+     * the line-items table's columns had an explicit width, so mPDF's
+     * auto table layout let Description balloon to fill the 100%-wide
+     * table while the short, right-aligned Qty/Price content hugged the
+     * far edge of their own (now very wide) columns. Every numeric
+     * column now has a fixed percentage width, in both the
+     * bilingual_classic and minimal/bordered/boxed layouts, for the
+     * downloaded PDF and the on-screen view.
+     */
+    public function test_a_single_short_line_item_does_not_balloon_the_description_column(): void
+    {
+        [$owner, $client] = $this->makeOwnerAndClient();
+        InvoiceTemplate::create([
+            'company_id' => $owner->company_id, 'name' => 'Classic', 'document_type' => 'quotation',
+            'layout' => 'bilingual_classic', 'is_default' => true,
+        ]);
+        $response = $this->actingAs($owner)->post(route('app.quotations.store'), [
+            'client_id' => $client->id, 'type' => 'quotation', 'issue_date' => now()->toDateString(),
+            'expiry_date' => now()->addDays(30)->toDateString(),
+            'items' => [['description' => 'Asphalt Supply', 'quantity' => 240, 'unit_price' => 29.16, 'vat_rate' => 15]],
+        ]);
+        $response->assertSessionDoesntHaveErrors();
+        $quotation = Quotation::latest('id')->first();
+
+        $method = new \ReflectionMethod(QuotationController::class, 'pdfData');
+        $method->setAccessible(true);
+        $data = $method->invoke(app(QuotationController::class), $quotation);
+
+        $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
+
+        $this->assertStringContainsString('width: 8%; border-right: 0.5pt solid #e2e8f0;', $html);
+        $this->assertStringContainsString('width: 11%;', $html);
+        $this->assertStringContainsString('width: 17%; border-right: 0.5pt solid #e2e8f0;', $html);
+    }
 }

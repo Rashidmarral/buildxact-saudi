@@ -126,15 +126,15 @@
     <table class="w-full text-sm mt-6">
         <thead>
             <tr class="text-left text-slate-600 border-b-2 border-slate-800" @if ($tableHeaderColor) style="background-color: {{ $tableHeaderColor }}" @endif>
-                <th class="py-2 px-3 border-e border-slate-200">#</th>
+                <th class="py-2 px-3 w-[3%] border-e border-slate-200">#</th>
                 <th class="py-2 px-3 border-e border-slate-200">{{ __('Description') }}<br><span class="font-normal text-xs" dir="rtl">الوصف</span></th>
-                <th class="py-2 px-3 text-end border-e border-slate-200">{{ __('Qty') }}<br><span class="font-normal text-xs" dir="rtl">الكمية</span></th>
-                <th class="py-2 px-3 text-end @if ($showVatColumn) border-e border-slate-200 @endif">{{ __('Price') }}<br><span class="font-normal text-xs" dir="rtl">السعر</span></th>
+                <th class="py-2 px-3 w-[8%] text-end border-e border-slate-200">{{ __('Qty') }}<br><span class="font-normal text-xs" dir="rtl">الكمية</span></th>
+                <th class="py-2 px-3 w-[11%] text-end @if ($showVatColumn) border-e border-slate-200 @endif">{{ __('Price') }}<br><span class="font-normal text-xs" dir="rtl">السعر</span></th>
                 @if ($showVatColumn)
-                    <th class="py-2 px-3 text-end border-e border-slate-200">{{ __('Taxable amount') }}<br><span class="font-normal text-xs" dir="rtl">المبلغ الخاضع للضريبة</span></th>
-                    <th class="py-2 px-3 text-end">{{ __('VAT amount') }}<br><span class="font-normal text-xs" dir="rtl">القيمة المضافة</span></th>
+                    <th class="py-2 px-3 w-[17%] text-end border-e border-slate-200">{{ __('Taxable amount') }}<br><span class="font-normal text-xs" dir="rtl">المبلغ الخاضع للضريبة</span></th>
+                    <th class="py-2 px-3 w-[15%] text-end">{{ __('VAT amount') }}<br><span class="font-normal text-xs" dir="rtl">القيمة المضافة</span></th>
                 @endif
-                <th class="py-2 px-3 text-end">{{ __('Line amount') }}<br><span class="font-normal text-xs" dir="rtl">المجموع</span></th>
+                <th class="py-2 px-3 w-[15%] text-end">{{ __('Line amount') }}<br><span class="font-normal text-xs" dir="rtl">المجموع</span></th>
             </tr>
         </thead>
         <tbody>
@@ -622,12 +622,12 @@
             <thead>
                 <tr class="text-start text-white" style="background-color: {{ $tableHeaderColor ?: $accent }}">
                     <th class="py-3 px-4 text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('Description') }}</th>
-                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('Qty') }}</th>
-                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide @if ($showVatColumn) border-e border-white/30 @endif">{{ $lbl('Unit price') }}</th>
+                    <th class="py-3 px-4 w-[10%] text-end text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('Qty') }}</th>
+                    <th class="py-3 px-4 w-[18%] text-end text-xs font-semibold uppercase tracking-wide @if ($showVatColumn) border-e border-white/30 @endif">{{ $lbl('Unit price') }}</th>
                     @if ($showVatColumn)
-                        <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('VAT') }}</th>
+                        <th class="py-3 px-4 w-[17%] text-end text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('VAT') }}</th>
                     @endif
-                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Total') }}</th>
+                    <th class="py-3 px-4 w-[16%] text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Total') }}</th>
                 </tr>
             </thead>
             <tbody>
