@@ -124,4 +124,49 @@ class ZatcaXmlGeneratorFieldsTest extends TestCase
         $this->assertNotEmpty($matches);
         $this->assertStringContainsString('<cac:PartyIdentification><cbc:ID schemeID="NAT">1012345678</cbc:ID></cac:PartyIdentification>', $matches[0]);
     }
+
+    /**
+     * Compliance report finding: a 100%-advance billing pattern (common in
+     * construction, e.g. "100% advance before start work") paid before the
+     * invoice is issued left PrepaidAmount hardcoded at 0.00 and
+     * PayableAmount at the full total regardless — ZATCA's copy of the
+     * document never reflected that nothing was actually still owed.
+     */
+    public function test_a_payment_recorded_on_or_before_the_issue_date_reduces_prepaid_and_payable_amounts(): void
+    {
+        $client = Client::create(['company_id' => $this->company->id, 'name' => 'Advance Payment Client']);
+        $invoice = $this->makeInvoiceWithLine($client, 0);
+        $invoice->invoicePayments()->create([
+            'amount' => $invoice->total, 'paid_at' => $invoice->issue_date, 'method' => 'bank_transfer',
+        ]);
+
+        $xml = (new ZatcaXmlGenerator())->generate($invoice->fresh(), '0100000', null, 'test-uuid-5', 1);
+
+        preg_match('/<cac:LegalMonetaryTotal>.*?<\/cac:LegalMonetaryTotal>/s', $xml, $matches);
+        $this->assertNotEmpty($matches);
+        $this->assertStringContainsString('<cbc:PrepaidAmount currencyID="SAR">'.number_format((float) $invoice->total, 2, '.', '').'</cbc:PrepaidAmount>', $matches[0]);
+        $this->assertStringContainsString('<cbc:PayableAmount currencyID="SAR">0.00</cbc:PayableAmount>', $matches[0]);
+    }
+
+    /**
+     * A payment logged after the invoice was already issued is an ordinary
+     * settlement, not an advance — it must not reduce what ZATCA is told
+     * is payable (that figure describes the invoice's own terms at
+     * issuance, not its current collection status).
+     */
+    public function test_a_payment_recorded_after_the_issue_date_does_not_affect_prepaid_or_payable_amounts(): void
+    {
+        $client = Client::create(['company_id' => $this->company->id, 'name' => 'Later Payment Client']);
+        $invoice = $this->makeInvoiceWithLine($client, 0);
+        $invoice->invoicePayments()->create([
+            'amount' => $invoice->total, 'paid_at' => now()->addDays(5)->toDateString(), 'method' => 'bank_transfer',
+        ]);
+
+        $xml = (new ZatcaXmlGenerator())->generate($invoice->fresh(), '0100000', null, 'test-uuid-6', 1);
+
+        preg_match('/<cac:LegalMonetaryTotal>.*?<\/cac:LegalMonetaryTotal>/s', $xml, $matches);
+        $this->assertNotEmpty($matches);
+        $this->assertStringContainsString('<cbc:PrepaidAmount currencyID="SAR">0.00</cbc:PrepaidAmount>', $matches[0]);
+        $this->assertStringContainsString('<cbc:PayableAmount currencyID="SAR">'.number_format((float) $invoice->total, 2, '.', '').'</cbc:PayableAmount>', $matches[0]);
+    }
 }

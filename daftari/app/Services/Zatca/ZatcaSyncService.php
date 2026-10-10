@@ -164,8 +164,43 @@ class ZatcaSyncService
             ->get();
     }
 
+    /**
+     * A cancelled (or still-draft) invoice must never reach ZatcaXmlGenerator
+     * — generate() has no way to represent "this invoice was cancelled" as
+     * a real ZATCA document; it was found emitting a bare InvoiceTypeCode
+     * 381 (credit note) with no BillingReference back to the original
+     * invoice, which is not a valid way to void a cleared/reported invoice
+     * under ZATCA's rules (that requires an actual credit note document).
+     * pendingInvoices() already keeps bulk/scheduled sync away from these
+     * statuses; this is the single choke point every submit() caller goes
+     * through (including the one-off "Sync now" button, which had no
+     * status check of its own), so guarding here covers all of them.
+     * Returned unsaved — rejecting here is a local validation failure, not
+     * a real attempt ZATCA ever saw, so it must not consume an ICV slot or
+     * create a ZatcaInvoiceLog row.
+     */
+    private function rejectUnsubmittable(Invoice $invoice): ?ZatcaInvoiceLog
+    {
+        if (! in_array($invoice->status, ['draft', 'cancelled'], true)) {
+            return null;
+        }
+
+        return new ZatcaInvoiceLog([
+            'company_id' => $invoice->company_id,
+            'invoice_id' => $invoice->id,
+            'status' => 'failed',
+            'error_message' => $invoice->status === 'cancelled'
+                ? __('A cancelled invoice cannot be synced to ZATCA. If it was already cleared/reported, void it with a credit note instead.')
+                : __('A draft invoice cannot be synced to ZATCA — issue it first.'),
+        ]);
+    }
+
     public function submit(Invoice $invoice): ZatcaInvoiceLog
     {
+        if ($rejected = $this->rejectUnsubmittable($invoice)) {
+            return $rejected;
+        }
+
         return $this->lockedSubmission($invoice->company_id, function (Company $company) use ($invoice) {
             $environment = $company->zatca_environment;
             $isB2b = $this->isB2b($invoice);

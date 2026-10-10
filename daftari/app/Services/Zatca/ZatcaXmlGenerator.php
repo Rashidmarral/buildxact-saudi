@@ -39,7 +39,13 @@ class ZatcaXmlGenerator
         $this->append($doc, $root, 'cbc:IssueDate', $invoice->issue_date->format('Y-m-d'));
         $this->append($doc, $root, 'cbc:IssueTime', $invoice->created_at?->format('H:i:s') ?? now('UTC')->format('H:i:s'));
 
-        $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', $invoice->status === 'cancelled' ? '381' : '388');
+        // Always 388 (tax invoice) — a cancelled invoice never reaches
+        // this generator at all (see ZatcaSyncService::rejectUnsubmittable()).
+        // 381 is a credit note's own document type and requires a
+        // BillingReference back to the original invoice, which this method
+        // has no way to produce; voiding an already-cleared/reported
+        // invoice must go through a real CreditNote instead.
+        $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', '388');
         $typeCode->setAttribute('name', $invoiceTypeName);
 
         $this->append($doc, $root, 'cbc:DocumentCurrencyCode', $invoice->currency ?: 'SAR');
@@ -94,13 +100,24 @@ class ZatcaXmlGenerator
 
         $this->appendDualTaxTotal($doc, $root, (float) $invoice->vat_total, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
 
+        // Only payments recorded on or before the invoice's own issue date
+        // count as "prepaid" in ZATCA's sense (an advance collected ahead
+        // of/at issuance, e.g. a 100% advance-payment term) — a payment
+        // recorded afterward is an ordinary settlement of the invoice
+        // already issued, not an advance, and must not reduce the amount
+        // ZATCA is told is payable.
+        $prepaidAmount = min(
+            (float) $invoice->invoicePayments()->where('paid_at', '<=', $invoice->issue_date)->sum('amount'),
+            (float) $invoice->total
+        );
+
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $invoice->total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', $invoice->discount_total, $docCurrency);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', 0.0, $docCurrency);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', $prepaidAmount, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total - $prepaidAmount, $docCurrency);
         $root->appendChild($monetaryTotal);
 
         foreach ($invoice->items as $index => $item) {

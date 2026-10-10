@@ -444,7 +444,7 @@ class ZatcaManagementTest extends TestCase
     {
         $admin = $this->makeAdmin();
         $company = $this->makeCompany(); // not onboarded — submit() will fail gracefully with a new log row
-        $invoice = $this->makeInvoice($company);
+        $invoice = $this->makeInvoice($company, ['status' => 'sent']);
         $log = $this->makeInvoiceLog($company, $invoice, ['status' => 'failed', 'error_message' => 'Connection timed out']);
 
         $this->withConfirmedPassword($admin)
