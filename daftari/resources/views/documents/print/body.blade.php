@@ -126,22 +126,22 @@
     <table class="w-full text-sm mt-6">
         <thead>
             <tr class="text-left text-slate-600 border-b-2 border-slate-800" @if ($tableHeaderColor) style="background-color: {{ $tableHeaderColor }}" @endif>
-                <th class="py-2 ps-1">#</th>
-                <th class="py-2">{{ __('Description') }}<br><span class="font-normal text-xs" dir="rtl">الوصف</span></th>
+                <th class="py-2 px-3 border-e border-slate-200">#</th>
+                <th class="py-2 px-3 border-e border-slate-200">{{ __('Description') }}<br><span class="font-normal text-xs" dir="rtl">الوصف</span></th>
                 <th class="py-2 px-3 text-end border-e border-slate-200">{{ __('Qty') }}<br><span class="font-normal text-xs" dir="rtl">الكمية</span></th>
-                <th class="py-2 px-3 text-end">{{ __('Price') }}<br><span class="font-normal text-xs" dir="rtl">السعر</span></th>
+                <th class="py-2 px-3 text-end @if ($showVatColumn) border-e border-slate-200 @endif">{{ __('Price') }}<br><span class="font-normal text-xs" dir="rtl">السعر</span></th>
                 @if ($showVatColumn)
-                    <th class="py-2 text-end">{{ __('Taxable amount') }}<br><span class="font-normal text-xs" dir="rtl">المبلغ الخاضع للضريبة</span></th>
-                    <th class="py-2 text-end">{{ __('VAT amount') }}<br><span class="font-normal text-xs" dir="rtl">القيمة المضافة</span></th>
+                    <th class="py-2 px-3 text-end border-e border-slate-200">{{ __('Taxable amount') }}<br><span class="font-normal text-xs" dir="rtl">المبلغ الخاضع للضريبة</span></th>
+                    <th class="py-2 px-3 text-end">{{ __('VAT amount') }}<br><span class="font-normal text-xs" dir="rtl">القيمة المضافة</span></th>
                 @endif
-                <th class="py-2 pe-1 text-end">{{ __('Line amount') }}<br><span class="font-normal text-xs" dir="rtl">المجموع</span></th>
+                <th class="py-2 px-3 text-end">{{ __('Line amount') }}<br><span class="font-normal text-xs" dir="rtl">المجموع</span></th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $index => $line)
                 <tr class="border-b border-slate-200 align-top">
-                    <td class="py-3 ps-1 text-slate-500">{{ $index + 1 }}</td>
-                    <td class="py-3 max-w-xs">
+                    <td class="py-3 px-3 text-slate-500 border-e border-slate-100">{{ $index + 1 }}</td>
+                    <td class="py-3 px-3 max-w-xs border-e border-slate-100">
                         <p class="font-semibold text-slate-800">{{ $primary($line->description, $line->name_ar) }}</p>
                         @if ($secondary($line->name_ar))
                             <p class="mt-1 text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</p>
@@ -151,12 +151,12 @@
                         @endif
                     </td>
                     <td class="py-3 px-3 text-end text-slate-700 border-e border-slate-100">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="py-3 px-3 text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="py-3 px-3 text-end text-slate-700 @if ($showVatColumn) border-e border-slate-100 @endif">{{ number_format($line->unit_price, 2) }}</td>
                     @if ($showVatColumn)
-                        <td class="py-3 text-end text-slate-700">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
-                        <td class="py-3 text-end text-slate-700">{{ number_format($line->vat_amount, 2) }}<br><span class="text-xs text-slate-400">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
+                        <td class="py-3 px-3 text-end text-slate-700 border-e border-slate-100">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                        <td class="py-3 px-3 text-end text-slate-700">{{ number_format($line->vat_amount, 2) }}<br><span class="text-xs text-slate-400">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
                     @endif
-                    <td class="py-3 pe-1 text-end font-medium text-slate-900">{{ number_format($line->line_total, 2) }}</td>
+                    <td class="py-3 px-3 text-end font-medium text-slate-900">{{ number_format($line->line_total, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -433,6 +433,7 @@
             <div>{{ $lbl('No.') }} : {{ $doc['number'] }}</div>
             <div>{{ $lbl('Date') }} : {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
             @if ($hijriDate)<div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>@endif
+            @if (!empty($doc['date2']))<div>{{ $primary($doc['date2_label'], $doc['date2_label_ar'] ?? null) }} : {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
             @if ($company->cr_number)<div>{{ $lbl('C.R.') }} : {{ $company->cr_number }}</div>@endif
         </div>
     </div>
@@ -595,11 +596,11 @@
         <table class="w-full text-sm">
             <thead>
                 <tr class="text-start text-white" style="background-color: {{ $tableHeaderColor ?: $accent }}">
-                    <th class="py-3 px-4 text-xs font-semibold uppercase tracking-wide">{{ $lbl('Description') }}</th>
+                    <th class="py-3 px-4 text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('Description') }}</th>
                     <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('Qty') }}</th>
-                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Unit price') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide @if ($showVatColumn) border-e border-white/30 @endif">{{ $lbl('Unit price') }}</th>
                     @if ($showVatColumn)
-                        <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('VAT') }}</th>
+                        <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('VAT') }}</th>
                     @endif
                     <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Total') }}</th>
                 </tr>
@@ -607,15 +608,15 @@
             <tbody>
                 @foreach ($doc['lines'] as $i => $line)
                     <tr class="{{ $i % 2 === 1 ? 'bg-slate-50/70' : '' }} border-b border-slate-100 last:border-0">
-                        <td class="py-3 px-4">
+                        <td class="py-3 px-4 border-e border-slate-100">
                             {{ $primary($line->description, $line->name_ar) }}
                             @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                             @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
                         </td>
                         <td class="py-3 px-4 text-end border-e border-slate-100">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                        <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
+                        <td class="py-3 px-4 text-end @if ($showVatColumn) border-e border-slate-100 @endif">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
                         @if ($showVatColumn)
-                            <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
+                            <td class="py-3 px-4 text-end border-e border-slate-100">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>
                         @endif
                         <td class="py-3 px-4 text-end font-medium text-slate-900">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->line_total, 2) }}</td>
                     </tr>

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\User\QuotationController;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\InvoiceTemplate;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,17 +13,21 @@ use Tests\TestCase;
 
 /**
  * Reported bug: a real downloaded Quotation PDF (QTN-00006) had no "Valid
- * until" line anywhere — traced to expiry_date being nullable, so a user
- * who cleared the pre-filled default (or whose form submission otherwise
- * omitted it) silently saved a quotation with no validity date at all.
- * Quotation::isExpired() also depends on expiry_date, so a null value
- * quietly broke the "Expired" lifecycle too, not just the printout.
- * expiry_date is now required, matching the create form's own 30-day
- * default. Separately, the Qty and unit Price columns in the line-items
- * table sat right next to each other with almost no gap (2px padding and
- * no divider), which the report says reads as one blurred number to a new
- * user — both the mPDF print template and its on-screen/browser-print
- * counterpart now give that pair of columns a wider gutter and a divider.
+ * until" line anywhere — two separate causes. (1) expiry_date was
+ * nullable, so a user who cleared the pre-filled default (or whose form
+ * submission otherwise omitted it) silently saved a quotation with no
+ * validity date at all — Quotation::isExpired() also depends on
+ * expiry_date, so a null value quietly broke the "Expired" lifecycle too,
+ * not just the printout. expiry_date is now required, matching the create
+ * form's own 30-day default. (2) Even with expiry_date set, the mPDF
+ * download template's 'bilingual_classic' layout never had a "Valid
+ * until" row at all in its header table — the on-screen/browser-print
+ * counterpart (documents.print.body) always showed it there, so the
+ * downloaded PDF alone was silently missing it. That row is now added to
+ * match. Follow-up report: the Qty/Price gutter added for the first round
+ * looked lopsided (one divider among otherwise-undivided columns), so
+ * every column boundary in the line-items table now carries the same thin
+ * divider, consistently, in both the mPDF template and the on-screen view.
  */
 class QuotationValidUntilAndColumnSpacingTest extends TestCase
 {
@@ -89,7 +94,7 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $this->assertStringContainsString(\App\Support\PlatformFormat::date($quotation->expiry_date), $html);
     }
 
-    public function test_the_pdf_line_items_table_gives_qty_and_price_columns_a_visible_gutter(): void
+    public function test_the_pdf_line_items_table_gives_every_column_a_matching_divider(): void
     {
         [$owner, $client] = $this->makeOwnerAndClient();
         $payload = $this->basePayload($client) + ['expiry_date' => now()->addDays(30)->toDateString()];
@@ -103,15 +108,14 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
 
         // With no InvoiceTemplate configured (a fresh company, same as
-        // this report's), $layout defaults to 'minimal'. Its Qty column
-        // now carries a wider right-hand gutter plus a divider ahead of
-        // the Unit price column, instead of identical 10px padding on
-        // both sides with nothing between them.
-        $this->assertStringContainsString('padding: 6px 16px 6px 10px; border-right: 0.5pt solid #e2e8f0;', $html);
-        $this->assertStringContainsString('padding: 6px 10px 6px 16px;', $html);
+        // this report's), $layout defaults to 'minimal'. Every column
+        // boundary now carries the same divider — not just the one
+        // between Qty and Unit price, which looked lopsided on its own.
+        $this->assertGreaterThanOrEqual(3, substr_count($html, 'border-right: 0.5pt solid rgba(255,255,255,0.4);'), 'expected a header divider after Description, Qty and Unit price');
+        $this->assertGreaterThanOrEqual(3, substr_count($html, 'border-right: 0.5pt solid #e2e8f0;'));
     }
 
-    public function test_the_on_screen_print_view_also_separates_qty_and_price_columns(): void
+    public function test_the_on_screen_print_view_gives_every_column_a_matching_divider(): void
     {
         [$owner, $client] = $this->makeOwnerAndClient();
         $payload = $this->basePayload($client) + ['expiry_date' => now()->addDays(30)->toDateString()];
@@ -121,6 +125,31 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $response = $this->actingAs($owner)->get(route('app.quotations.show', $quotation));
 
         $response->assertOk();
-        $response->assertSee('border-e border-slate-100', false);
+        // Description | Qty | Unit price headers all carry the divider
+        // (VAT is off by default for a fresh company, so Unit price is
+        // the last divided header before Total).
+        $response->assertSee('border-e border-white/30', false);
+        $this->assertGreaterThanOrEqual(3, substr_count($response->getContent(), 'border-e border-white/30'));
+    }
+
+    public function test_a_company_using_the_bilingual_classic_layout_also_shows_valid_until_in_the_downloaded_pdf(): void
+    {
+        [$owner, $client] = $this->makeOwnerAndClient();
+        InvoiceTemplate::create([
+            'company_id' => $owner->company_id, 'name' => 'Classic', 'document_type' => 'quotation',
+            'layout' => 'bilingual_classic', 'is_default' => true,
+        ]);
+        $payload = $this->basePayload($client) + ['expiry_date' => now()->addDays(30)->toDateString()];
+        $this->actingAs($owner)->post(route('app.quotations.store'), $payload);
+        $quotation = Quotation::latest('id')->first();
+
+        $method = new \ReflectionMethod(QuotationController::class, 'pdfData');
+        $method->setAccessible(true);
+        $data = $method->invoke(app(QuotationController::class), $quotation);
+
+        $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
+
+        $this->assertStringContainsString(__('Valid until'), $html);
+        $this->assertStringContainsString(\App\Support\PlatformFormat::date($quotation->expiry_date), $html);
     }
 }
