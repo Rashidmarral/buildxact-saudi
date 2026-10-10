@@ -472,6 +472,21 @@ class Company extends Model
         return $this->default_bank_account_id ? BankAccount::find($this->default_bank_account_id) : null;
     }
 
+    /**
+     * Invoices require a client_id, but a POS sale may have none (a
+     * walk-in/anonymous buyer) — standard practice for a B2C simplified
+     * tax invoice under ZATCA, which doesn't require buyer identification
+     * the way a standard invoice does. Lazily finds-or-creates one
+     * generic client per company to stand in for these.
+     */
+    public function walkInClient(): Client
+    {
+        return $this->clients()->firstOrCreate(
+            ['client_code' => 'WALK-IN'],
+            ['type' => 'individual', 'name' => 'Walk-in Customer', 'name_ar' => 'عميل نقدي', 'is_vat_registered' => false]
+        );
+    }
+
     public function poRequiresApproval(float $total): bool
     {
         return $this->po_approval_threshold !== null && $total >= (float) $this->po_approval_threshold;

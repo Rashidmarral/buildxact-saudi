@@ -169,17 +169,34 @@ class PosController extends Controller
         return view('user.pos.sales-index', compact('sales'));
     }
 
-    public function showSale(PosSale $sale)
+    /**
+     * The mirrored invoice's own qr_code — the real Phase 2 cryptographic
+     * stamp once the company is onboarded and ZATCA sync succeeds, or
+     * still its own Phase 1 QR (set the same way as any other invoice)
+     * before then — takes priority. The live-regenerated fallback only
+     * matters for a sale with no linked invoice at all (none going
+     * forward; kept for safety).
+     */
+    private function receiptQr(PosSale $sale): string
     {
-        $sale->loadMissing('items.item', 'payments', 'register', 'client', 'company');
+        if ($sale->invoice?->qr_code) {
+            return $sale->invoice->qr_code;
+        }
 
-        $qr = ZatcaQrGenerator::generate(
+        return ZatcaQrGenerator::generate(
             $sale->company->name,
             (string) ($sale->company->vat_number ?? ''),
             $sale->created_at,
             (float) $sale->total,
             (float) $sale->vat_total
         );
+    }
+
+    public function showSale(PosSale $sale)
+    {
+        $sale->loadMissing('items.item', 'payments', 'register', 'client', 'company', 'invoice');
+
+        $qr = $this->receiptQr($sale);
 
         $template = $this->resolveReceiptTemplate($sale->company);
 
@@ -191,15 +208,9 @@ class PosController extends Controller
 
     public function downloadReceiptPdf(PosSale $sale, MpdfRenderer $renderer)
     {
-        $sale->loadMissing('items.item', 'payments', 'register', 'client', 'company');
+        $sale->loadMissing('items.item', 'payments', 'register', 'client', 'company', 'invoice');
 
-        $qr = ZatcaQrGenerator::generate(
-            $sale->company->name,
-            (string) ($sale->company->vat_number ?? ''),
-            $sale->created_at,
-            (float) $sale->total,
-            (float) $sale->vat_total
-        );
+        $qr = $this->receiptQr($sale);
 
         $template = $this->resolveReceiptTemplate($sale->company);
 

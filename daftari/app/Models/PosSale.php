@@ -12,7 +12,7 @@ class PosSale extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'shift_id', 'register_id', 'warehouse_id', 'client_id', 'sale_number', 'status',
+        'company_id', 'shift_id', 'register_id', 'warehouse_id', 'client_id', 'invoice_id', 'sale_number', 'status',
         'subtotal', 'discount_total', 'vat_total', 'total', 'created_by', 'voided_at', 'void_reason',
     ];
 
@@ -40,6 +40,11 @@ class PosSale extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
     }
 
     public function creator(): BelongsTo

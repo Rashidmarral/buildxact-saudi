@@ -4680,6 +4680,7 @@
     "This request has already been reviewed.": "تمت مراجعة هذا الطلب بالفعل.",
     "This restores stock and reverses the accounting entries for this sale.": "يستعيد هذا المخزون ويعكس القيود المحاسبية لهذا البيع.",
     "This role requires a(n) :type account — the selected account is a(n) :actual account.": "يتطلب هذا الدور حساباً من نوع :type — الحساب المحدد من نوع :actual.",
+    "This sale was already cleared/reported to ZATCA and cannot simply be voided — issue a credit note against invoice :number instead.": "تمت مصادقة/الإبلاغ عن هذه العملية لدى هيئة الزكاة والضريبة والجمارك مسبقًا ولا يمكن إلغاؤها مباشرة — أصدر إشعار دائن مقابل الفاتورة :number بدلاً من ذلك.",
     "This sale was voided.": "تم إلغاء هذا البيع.",
     "This split is for internal bookkeeping only (e.g. reconciling subscription revenue) — it has no bearing on the VAT return.": "هذا التقسيم لأغراض المحاسبة الداخلية فقط (مثل مطابقة إيرادات الاشتراكات) — وليس له أي تأثير على إقرار ضريبة القيمة المضافة.",
     "This stage has already been invoiced.": "تم إصدار فاتورة لهذه المرحلة بالفعل.",
