@@ -153,8 +153,8 @@
             <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
                 <th style="padding: 4px 2px;">#</th>
                 <th style="padding: 4px 2px;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
-                <th class="text-end" style="padding: 4px 2px;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
-                <th class="text-end" style="padding: 4px 2px;">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
+                <th class="text-end" style="padding: 4px 10px 4px 2px; border-right: 0.5pt solid #e2e8f0;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
+                <th class="text-end" style="padding: 4px 2px 4px 10px;">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
                 @if ($showVatColumn)
                     <th class="text-end" style="padding: 4px 2px;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
                     <th class="text-end" style="padding: 4px 2px;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
@@ -171,8 +171,8 @@
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 4px 10px 4px 2px; vertical-align: top; border-right: 0.5pt solid #e2e8f0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 4px 2px 4px 10px; vertical-align: top;">{{ number_format($line->unit_price, 2) }}</td>
                     @if ($showVatColumn)
                         <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                         <td class="text-end" style="padding: 4px 2px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
@@ -537,8 +537,8 @@
         <thead>
             <tr style="text-align: left; color: #ffffff; font-size: 9pt; background-color: {{ $tableHeaderColor ?: $accent }};">
                 <th style="padding: 6px 10px;">{{ $lbl('Description') }}</th>
-                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Qty') }}</th>
-                <th class="text-end" style="padding: 6px 10px;">{{ $lbl('Unit price') }}</th>
+                <th class="text-end" style="padding: 6px 16px 6px 10px; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Qty') }}</th>
+                <th class="text-end" style="padding: 6px 10px 6px 16px;">{{ $lbl('Unit price') }}</th>
                 @if ($showVatColumn)
                     <th class="text-end" style="padding: 6px 10px;">{{ $lbl('VAT') }}</th>
                 @endif
@@ -553,8 +553,8 @@
                         @if ($secondary($line->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted" style="font-size: 8pt;">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 6px 10px;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="text-end" style="padding: 6px 10px;">{{ \App\Support\Money::format($line->unit_price) }}</td>
+                    <td class="text-end" style="padding: 6px 16px 6px 10px; border-right: 0.5pt solid #e2e8f0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 6px 10px 6px 16px;">{{ \App\Support\Money::format($line->unit_price) }}</td>
                     @if ($showVatColumn)
                         <td class="text-end" style="padding: 6px 10px;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
                     @endif

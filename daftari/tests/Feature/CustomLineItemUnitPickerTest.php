@@ -98,6 +98,7 @@ class CustomLineItemUnitPickerTest extends TestCase
             'client_id' => $client->id,
             'type' => 'quotation',
             'issue_date' => now()->toDateString(),
+            'expiry_date' => now()->addDays(30)->toDateString(),
             'items' => [
                 ['item_id' => '', 'unit_id' => $unit->id, 'description' => 'Freeform labour charge', 'quantity' => 2, 'unit_price' => 100, 'vat_rate' => 15],
             ],

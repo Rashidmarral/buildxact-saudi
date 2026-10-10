@@ -73,7 +73,8 @@ $company = auth()->user()->company;
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Expiry date') }}</label>
-            <input type="date" name="expiry_date" value="{{ old('expiry_date', optional($quotation->expiry_date)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="date" name="expiry_date" value="{{ old('expiry_date', optional($quotation->expiry_date)->format('Y-m-d')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <p class="mt-1 text-xs text-slate-400">{{ __('Printed as "Valid until" on the quotation — leaving this blank is not allowed, since clients need to know when the offer expires.') }}</p>
         </div>
         @if ($salespersons->isNotEmpty())
             <div>

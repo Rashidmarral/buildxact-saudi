@@ -94,6 +94,7 @@ class InvoiceQuotationApprovalTest extends TestCase
             'client_id' => $client->id,
             'type' => 'quotation',
             'issue_date' => now()->toDateString(),
+            'expiry_date' => now()->addDays(30)->toDateString(),
             'send_immediately' => '1',
             'items' => [
                 ['description' => 'Consulting', 'quantity' => 1, 'unit_price' => 1000, 'vat_rate' => 15],

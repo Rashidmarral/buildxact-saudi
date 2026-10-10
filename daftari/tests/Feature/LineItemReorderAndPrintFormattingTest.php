@@ -78,6 +78,7 @@ class LineItemReorderAndPrintFormattingTest extends TestCase
             'client_id' => $client->id,
             'type' => 'quotation',
             'issue_date' => now()->toDateString(),
+            'expiry_date' => now()->addDays(30)->toDateString(),
             'items' => [
                 1 => ['description' => 'Moved to top', 'quantity' => 1, 'unit_price' => 10, 'vat_rate' => 15],
                 0 => ['description' => 'Moved to bottom', 'quantity' => 1, 'unit_price' => 20, 'vat_rate' => 15],

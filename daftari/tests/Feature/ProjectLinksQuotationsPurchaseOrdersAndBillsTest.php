@@ -52,6 +52,7 @@ class ProjectLinksQuotationsPurchaseOrdersAndBillsTest extends TestCase
             'project_id' => $project->id,
             'type' => 'quotation',
             'issue_date' => now()->toDateString(),
+            'expiry_date' => now()->addDays(30)->toDateString(),
             'items' => [
                 ['description' => 'Subbase, Base Course & Asphalt', 'quantity' => 1, 'unit_price' => 625000, 'vat_rate' => 15],
             ],

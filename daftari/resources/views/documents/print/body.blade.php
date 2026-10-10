@@ -128,8 +128,8 @@
             <tr class="text-left text-slate-600 border-b-2 border-slate-800" @if ($tableHeaderColor) style="background-color: {{ $tableHeaderColor }}" @endif>
                 <th class="py-2 ps-1">#</th>
                 <th class="py-2">{{ __('Description') }}<br><span class="font-normal text-xs" dir="rtl">الوصف</span></th>
-                <th class="py-2 text-end">{{ __('Qty') }}<br><span class="font-normal text-xs" dir="rtl">الكمية</span></th>
-                <th class="py-2 text-end">{{ __('Price') }}<br><span class="font-normal text-xs" dir="rtl">السعر</span></th>
+                <th class="py-2 px-3 text-end border-e border-slate-200">{{ __('Qty') }}<br><span class="font-normal text-xs" dir="rtl">الكمية</span></th>
+                <th class="py-2 px-3 text-end">{{ __('Price') }}<br><span class="font-normal text-xs" dir="rtl">السعر</span></th>
                 @if ($showVatColumn)
                     <th class="py-2 text-end">{{ __('Taxable amount') }}<br><span class="font-normal text-xs" dir="rtl">المبلغ الخاضع للضريبة</span></th>
                     <th class="py-2 text-end">{{ __('VAT amount') }}<br><span class="font-normal text-xs" dir="rtl">القيمة المضافة</span></th>
@@ -150,8 +150,8 @@
                             <p class="mt-1 text-xs text-slate-500">{{ $line->item_description }}</p>
                         @endif
                     </td>
-                    <td class="py-3 text-end text-slate-700">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="py-3 text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="py-3 px-3 text-end text-slate-700 border-e border-slate-100">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="py-3 px-3 text-end text-slate-700">{{ number_format($line->unit_price, 2) }}</td>
                     @if ($showVatColumn)
                         <td class="py-3 text-end text-slate-700">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
                         <td class="py-3 text-end text-slate-700">{{ number_format($line->vat_amount, 2) }}<br><span class="text-xs text-slate-400">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
@@ -596,7 +596,7 @@
             <thead>
                 <tr class="text-start text-white" style="background-color: {{ $tableHeaderColor ?: $accent }}">
                     <th class="py-3 px-4 text-xs font-semibold uppercase tracking-wide">{{ $lbl('Description') }}</th>
-                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Qty') }}</th>
+                    <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide border-e border-white/30">{{ $lbl('Qty') }}</th>
                     <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('Unit price') }}</th>
                     @if ($showVatColumn)
                         <th class="py-3 px-4 text-end text-xs font-semibold uppercase tracking-wide">{{ $lbl('VAT') }}</th>
@@ -612,7 +612,7 @@
                             @if ($secondary($line->name_ar))<span class="block text-xs text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
                             @if ($showItemDescription && !empty($line->item_description))<span class="block mt-1 text-xs text-slate-500">{{ $line->item_description }}</span>@endif
                         </td>
-                        <td class="py-3 px-4 text-end">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                        <td class="py-3 px-4 text-end border-e border-slate-100">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="text-xs text-slate-400">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
                         <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->unit_price, 2) }}</td>
                         @if ($showVatColumn)
                             <td class="py-3 px-4 text-end">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($line->vat_amount, 2) }}</td>

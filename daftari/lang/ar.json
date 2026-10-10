@@ -3374,6 +3374,7 @@
     "Print": "طباعة",
     "Print / PDF": "طباعة / PDF",
     "Print / Save as PDF": "طباعة / حفظ بصيغة PDF",
+    "Printed as \"Valid until\" on the quotation — leaving this blank is not allowed, since clients need to know when the offer expires.": "تُطبع كـ \"صالح حتى\" في عرض السعر — لا يمكن ترك هذا الحقل فارغًا، لأن العميل يحتاج إلى معرفة تاريخ انتهاء صلاحية العرض.",
     "Printed next to \"وذلك مقابل\". Leave blank to reuse the English text.": "يُطبع بجانب \"وذلك مقابل\". اتركه فارغًا لاستخدام النص الإنجليزي نفسه.",
     "Printed on the voucher next to \"For\".": "يُطبع على السند بجانب \"وذلك مقابل\".",
     "Priority": "الأولوية",
