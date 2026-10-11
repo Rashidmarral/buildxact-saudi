@@ -20,6 +20,7 @@ use App\Models\Salesperson;
 use App\Models\Supplier;
 use App\Models\Warehouse;
 use App\Services\Accounting\VatApportionmentService;
+use App\Services\MpdfRenderer;
 use App\Services\Reports\FinancialReportService;
 use App\Support\Money;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -441,6 +442,178 @@ class ReportController extends Controller
             'lines' => $lines,
             'openingBalance' => $openingBalance,
         ]);
+    }
+
+    /**
+     * Every customer ever billed, with this period's activity (invoiced,
+     * collected, VAT) alongside their live outstanding balance — the
+     * "Customer Balance Summary" every modern accounting system offers
+     * next to a single-party statement (accountStatement() above) and
+     * the bucketed Aging report: an at-a-glance view across the whole
+     * book, with each row drilling into the detailed statement for that
+     * one customer.
+     */
+    public function customers(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+
+        $rows = $this->partyRows(
+            Invoice::with('client')->whereNotIn('status', ['draft', 'cancelled'])->get(),
+            InvoicePayment::class, 'invoice_id', 'client',
+            $period,
+        );
+
+        $rows = $this->sortAndSearchRows($rows, $request, fn ($row) => $row['party']->display_name ?? $row['party']->name);
+
+        $summary = [
+            'totalOutstanding' => $rows->sum('outstanding'),
+            'totalCollected' => $rows->sum('received'),
+            'totalInvoiced' => $rows->sum('invoiced'),
+            'partyCount' => $rows->count(),
+            'topParty' => $rows->sortByDesc('invoiced')->first(),
+        ];
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('customer-report.csv',
+                [__('Customer'), __('VAT No.'), __('Invoices this period'), __('Invoiced'), __('VAT collected'), __('Received'), __('Outstanding'), __('Last invoice')],
+                $rows->map(fn ($r) => [
+                    $r['party']->display_name ?? $r['party']->name, $r['party']->vat_number ?? '',
+                    $r['count'], number_format($r['invoiced'], 2, '.', ''), number_format($r['vat'], 2, '.', ''),
+                    number_format($r['received'], 2, '.', ''), number_format($r['outstanding'], 2, '.', ''),
+                    $r['lastDate']?->format('Y-m-d') ?? '',
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.party-report', [
+                'company' => $company, 'period' => $period, 'rows' => $rows, 'summary' => $summary,
+                'titleEn' => __('CUSTOMER REPORT'), 'titleAr' => 'تقرير العملاء',
+                'partyLabelEn' => __('Customer'), 'partyLabelAr' => 'العميل',
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="customer-report.pdf"']);
+        }
+
+        return view('user.reports.customers', ['company' => $company, 'period' => $period, 'rows' => $rows] + $summary);
+    }
+
+    /**
+     * Mirrors customers() for the payables side — every supplier ever
+     * billed, this period's purchases/payments, and their live
+     * outstanding balance.
+     */
+    public function suppliers(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+
+        $rows = $this->partyRows(
+            Bill::with('supplier')->whereNotIn('status', ['draft', 'void'])->get(),
+            BillPayment::class, 'bill_id', 'supplier',
+            $period,
+        );
+
+        $rows = $this->sortAndSearchRows($rows, $request, fn ($row) => $row['party']->display_name ?? $row['party']->name);
+
+        $summary = [
+            'totalOutstanding' => $rows->sum('outstanding'),
+            'totalCollected' => $rows->sum('received'),
+            'totalInvoiced' => $rows->sum('invoiced'),
+            'partyCount' => $rows->count(),
+            'topParty' => $rows->sortByDesc('invoiced')->first(),
+        ];
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('supplier-report.csv',
+                [__('Supplier'), __('VAT No.'), __('Bills this period'), __('Billed'), __('VAT paid'), __('Paid'), __('Outstanding'), __('Last bill')],
+                $rows->map(fn ($r) => [
+                    $r['party']->display_name ?? $r['party']->name, $r['party']->vat_number ?? '',
+                    $r['count'], number_format($r['invoiced'], 2, '.', ''), number_format($r['vat'], 2, '.', ''),
+                    number_format($r['received'], 2, '.', ''), number_format($r['outstanding'], 2, '.', ''),
+                    $r['lastDate']?->format('Y-m-d') ?? '',
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.party-report', [
+                'company' => $company, 'period' => $period, 'rows' => $rows, 'summary' => $summary,
+                'titleEn' => __('SUPPLIER REPORT'), 'titleAr' => 'تقرير الموردين',
+                'partyLabelEn' => __('Supplier'), 'partyLabelAr' => 'المورد',
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="supplier-report.pdf"']);
+        }
+
+        return view('user.reports.suppliers', ['company' => $company, 'period' => $period, 'rows' => $rows] + $summary);
+    }
+
+    /**
+     * Shared aggregation behind customers()/suppliers(): groups the
+     * given documents (Invoices or Bills, already filtered to
+     * non-draft/non-void) by their party, and for each one computes
+     * this period's activity (document count, invoiced/billed amount,
+     * VAT, and actual cash collected/paid — read from the payment
+     * model's own paid_at, not the document's cumulative amount_paid,
+     * since that isn't period-bound) alongside the party's live
+     * outstanding balance across every one of their documents, not
+     * just this period's — matching the Aging report's own "always a
+     * live snapshot" reasoning (a point-in-time balance needs every
+     * payment filtered by its own date too, which isn't worth the
+     * complexity here either).
+     *
+     * @param  class-string  $paymentModel
+     */
+    private function partyRows($documents, string $paymentModel, string $documentForeignKey, string $partyRelation, array $period)
+    {
+        $dateField = $partyRelation === 'client' ? 'issue_date' : 'bill_date';
+        $documents = $documents->filter(fn ($doc) => $doc->{$partyRelation} !== null);
+        $byParty = $documents->groupBy(fn ($doc) => $doc->{$partyRelation}->id);
+
+        $documentPartyIdMap = $documents->mapWithKeys(fn ($doc) => [$doc->id => $doc->{$partyRelation}->id]);
+        $payments = $paymentModel::whereIn($documentForeignKey, $documents->pluck('id'))
+            ->whereBetween('paid_at', [$period['from'], $period['to']])
+            ->get()
+            ->groupBy(fn ($p) => $documentPartyIdMap[$p->{$documentForeignKey}] ?? null);
+
+        return $byParty->map(function ($group) use ($payments, $period, $partyRelation, $dateField) {
+            $party = $group->first()->{$partyRelation};
+            $inPeriod = $group->filter(fn ($doc) => $doc->{$dateField}->betweenIncluded($period['from'], $period['to']));
+            $received = (float) ($payments->get($party->id)?->sum('amount') ?? 0);
+
+            return [
+                'party' => $party,
+                'invoiced' => (float) $inPeriod->sum('total'),
+                'vat' => (float) $inPeriod->sum('vat_total'),
+                'count' => $inPeriod->count(),
+                'received' => $received,
+                'outstanding' => round((float) $group->sum(fn ($doc) => $doc->balanceDue()), 2),
+                'lastDate' => $group->max($dateField),
+            ];
+        })->values();
+    }
+
+    /**
+     * Shared search (by party name) + sort (by any numeric column, or
+     * name) for the customers()/suppliers() row collections.
+     */
+    private function sortAndSearchRows($rows, Request $request, \Closure $nameAccessor)
+    {
+        if ($request->filled('search')) {
+            $search = mb_strtolower((string) $request->query('search'));
+            $rows = $rows->filter(fn ($row) => str_contains(mb_strtolower($nameAccessor($row)), $search));
+        }
+
+        $sort = $request->query('sort', 'outstanding');
+        $direction = $request->query('direction', 'desc');
+
+        return $rows->sortBy(fn ($row) => match ($sort) {
+            'name' => $nameAccessor($row),
+            'invoiced' => $row['invoiced'],
+            'received' => $row['received'],
+            'count' => $row['count'],
+            default => $row['outstanding'],
+        }, SORT_REGULAR, $direction === 'desc')->values();
     }
 
     /**
