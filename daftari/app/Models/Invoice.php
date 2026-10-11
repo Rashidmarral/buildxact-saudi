@@ -246,11 +246,20 @@ class Invoice extends Model
         $this->total = $this->subtotal - $this->discount_total + $this->vat_total;
         $this->amount_paid = $this->invoicePayments()->sum('amount');
 
+        // The QR's own timestamp (ZATCA business rule KSA-25) must match
+        // this document's IssueDate/IssueTime once it's actually submitted
+        // — ZatcaXmlGenerator pairs issue_date's calendar date with
+        // created_at's real time of day, so the QR has to encode that
+        // exact same combination, not issue_date alone (always midnight).
+        $issuedAt = $this->issue_date
+            ? \Illuminate\Support\Carbon::parse($this->issue_date->format('Y-m-d').' '.($this->created_at ?? now('UTC'))->format('H:i:s'))
+            : now();
+
         $this->qr_code = $this->company->isZatcaQrEnabled()
             ? ZatcaQrGenerator::generate(
                 $this->company->name,
                 (string) $this->company->vat_number,
-                $this->issue_date ?? now(),
+                $issuedAt,
                 (float) $this->total,
                 (float) $this->vat_total
             )

@@ -13,6 +13,7 @@ use App\Models\ZatcaInvoiceLog;
 use App\Notifications\GenericNotification;
 use App\Services\ZatcaQrGenerator;
 use App\Support\DemoMode;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -58,6 +59,21 @@ class ZatcaSyncService
             + ZatcaCreditNoteLog::where('company_id', $company->id)->count()
             + ZatcaDebitNoteLog::where('company_id', $company->id)->count()
             + 1;
+    }
+
+    /**
+     * ZATCA's business rule KSA-25 checks the QR code's own embedded
+     * timestamp against this document's cbc:IssueDate/cbc:IssueTime.
+     * ZatcaXmlGenerator::generate() builds those from $document->issue_date
+     * (the calendar date only) for IssueDate and $document->created_at
+     * (the real creation instant) for IssueTime — so the QR must encode
+     * that exact same combination, not $document->issue_date alone, which
+     * carries no time component (always midnight) and would silently
+     * mismatch IssueTime on every real submission.
+     */
+    private function issuedAtFor(Invoice|CreditNote|DebitNote $document): Carbon
+    {
+        return Carbon::parse($document->issue_date->format('Y-m-d').' '.($document->created_at ?? now('UTC'))->format('H:i:s'));
     }
 
     /**
@@ -219,7 +235,7 @@ class ZatcaSyncService
             if ($csid && $secret && $company->isZatcaOnboarded()) {
                 [$xmlString, $qrPng] = $this->buildSignedPayload(
                     $company, $unsignedXml, $invoiceHash, $csid,
-                    $invoice->issue_date, (float) $invoice->total, (float) $invoice->vat_total,
+                    $this->issuedAtFor($invoice), (float) $invoice->total, (float) $invoice->vat_total,
                 );
             }
 
@@ -321,7 +337,7 @@ class ZatcaSyncService
             if ($csid && $secret && $company->isZatcaOnboarded()) {
                 [$xmlString, $qrPng] = $this->buildSignedPayload(
                     $company, $unsignedXml, $invoiceHash, $csid,
-                    $creditNote->issue_date, (float) $creditNote->total, (float) $creditNote->vat_total,
+                    $this->issuedAtFor($creditNote), (float) $creditNote->total, (float) $creditNote->vat_total,
                 );
             }
 
@@ -418,7 +434,7 @@ class ZatcaSyncService
             if ($csid && $secret && $company->isZatcaOnboarded()) {
                 [$xmlString, $qrPng] = $this->buildSignedPayload(
                     $company, $unsignedXml, $invoiceHash, $csid,
-                    $debitNote->issue_date, (float) $debitNote->total, (float) $debitNote->vat_total,
+                    $this->issuedAtFor($debitNote), (float) $debitNote->total, (float) $debitNote->vat_total,
                 );
             }
 
