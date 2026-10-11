@@ -59,7 +59,7 @@
                                 <input type="number" step="0.01" min="0" name="items[{{ $index }}][unit_price]" value="{{ $item->unit_price }}" data-price class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                             </td>
                             <td class="py-2 pe-3">
-                                <input type="number" step="0.01" min="0" max="100" name="items[{{ $index }}][vat_rate]" value="{{ $item->vat_rate }}" data-vat class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                                <input type="number" step="0.01" min="0" max="100" name="items[{{ $index }}][vat_rate]" value="{{ $item->vat_rate }}" data-vat readonly title="{{ __('The VAT rate is fixed to what this line was originally billed at — a credit note cannot change the tax category of what it corrects.') }}" class="w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-400 text-sm">
                             </td>
                             <td class="py-2 text-end font-medium" data-line-total>{{ \App\Support\Money::format($item->line_total) }}</td>
                         </tr>

@@ -197,18 +197,34 @@ class ZatcaSyncService
      */
     private function rejectUnsubmittable(Invoice $invoice): ?ZatcaInvoiceLog
     {
-        if (! in_array($invoice->status, ['draft', 'cancelled'], true)) {
-            return null;
+        if (in_array($invoice->status, ['draft', 'cancelled'], true)) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'status' => 'failed',
+                'error_message' => $invoice->status === 'cancelled'
+                    ? __('A cancelled invoice cannot be synced to ZATCA. If it was already cleared/reported, void it with a credit note instead.')
+                    : __('A draft invoice cannot be synced to ZATCA — issue it first.'),
+            ]);
         }
 
-        return new ZatcaInvoiceLog([
-            'company_id' => $invoice->company_id,
-            'invoice_id' => $invoice->id,
-            'status' => 'failed',
-            'error_message' => $invoice->status === 'cancelled'
-                ? __('A cancelled invoice cannot be synced to ZATCA. If it was already cleared/reported, void it with a credit note instead.')
-                : __('A draft invoice cannot be synced to ZATCA — issue it first.'),
-        ]);
+        // Go-live compliance review finding: pendingInvoices() already
+        // excludes a foreign-currency invoice from bulk/scheduled sync
+        // (ZatcaXmlGenerator always renders amounts in the company's base
+        // currency, so a foreign-currency document would clear/report the
+        // wrong figures), but the single-document "Sync now" button and
+        // the admin retry action had no currency check of their own —
+        // same class of gap as the cancelled-invoice bug above.
+        if ($invoice->currency !== $invoice->company->currency) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'status' => 'failed',
+                'error_message' => __('ZATCA sync only supports invoices in your base currency (:currency).', ['currency' => $invoice->company->currency]),
+            ]);
+        }
+
+        return null;
     }
 
     /**
@@ -223,30 +239,76 @@ class ZatcaSyncService
      */
     private function rejectUnsubmittableCreditNote(CreditNote $creditNote): ?ZatcaCreditNoteLog
     {
-        if ($creditNote->status !== 'void') {
-            return null;
+        if ($creditNote->status === 'void') {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => __('A voided credit note cannot be synced to ZATCA.'),
+            ]);
         }
 
-        return new ZatcaCreditNoteLog([
-            'company_id' => $creditNote->company_id,
-            'credit_note_id' => $creditNote->id,
-            'status' => 'failed',
-            'error_message' => __('A voided credit note cannot be synced to ZATCA.'),
-        ]);
+        if ($creditNote->currency !== $creditNote->company->currency) {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => __('ZATCA sync only supports credit notes in your base currency (:currency).', ['currency' => $creditNote->company->currency]),
+            ]);
+        }
+
+        // Go-live compliance review finding: a credit/debit note's
+        // BillingReference points back to the original invoice's own
+        // cbc:ID (and, when available, the UUID ZATCA assigned it at
+        // clearance/reporting time) — see ZatcaXmlGenerator::generateFor-
+        // CreditNote(). Submitting a correction for an invoice ZATCA has
+        // no record of (never cleared/reported — still Phase 1 only, not
+        // yet synced, or excluded by a B2B/B2C/currency setting) produces
+        // a document whose BillingReference resolves to nothing on
+        // ZATCA's side. Nothing previously stopped this; it was
+        // reproducible against the existing test suite.
+        if (! $creditNote->invoice->isZatcaLocked()) {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => __('This credit note corrects an invoice that was never cleared or reported to ZATCA. Sync the original invoice first, then retry.'),
+            ]);
+        }
+
+        return null;
     }
 
     private function rejectUnsubmittableDebitNote(DebitNote $debitNote): ?ZatcaDebitNoteLog
     {
-        if ($debitNote->status !== 'void') {
-            return null;
+        if ($debitNote->status === 'void') {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => __('A voided debit note cannot be synced to ZATCA.'),
+            ]);
         }
 
-        return new ZatcaDebitNoteLog([
-            'company_id' => $debitNote->company_id,
-            'debit_note_id' => $debitNote->id,
-            'status' => 'failed',
-            'error_message' => __('A voided debit note cannot be synced to ZATCA.'),
-        ]);
+        if ($debitNote->currency !== $debitNote->company->currency) {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => __('ZATCA sync only supports debit notes in your base currency (:currency).', ['currency' => $debitNote->company->currency]),
+            ]);
+        }
+
+        if (! $debitNote->invoice->isZatcaLocked()) {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => __('This debit note corrects an invoice that was never cleared or reported to ZATCA. Sync the original invoice first, then retry.'),
+            ]);
+        }
+
+        return null;
     }
 
     public function submit(Invoice $invoice): ZatcaInvoiceLog

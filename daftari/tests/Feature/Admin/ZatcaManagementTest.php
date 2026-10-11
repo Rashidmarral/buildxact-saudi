@@ -244,6 +244,12 @@ class ZatcaManagementTest extends TestCase
         $invoice = $this->makePendingInvoice($company);
         $client = Client::find($invoice->client_id);
 
+        // Go-live compliance review finding: a credit/debit note's
+        // BillingReference points back to this invoice, so it has to be
+        // cleared/reported to ZATCA first before a correction document
+        // referencing it can be submitted.
+        $this->withConfirmedPassword($admin)->post(route('admin.zatca.invoices.sync', $invoice));
+
         $creditNote = CreditNote::create([
             'company_id' => $company->id, 'invoice_id' => $invoice->id, 'client_id' => $client->id,
             'credit_note_number' => 'CN-1', 'issue_date' => now(), 'status' => 'issued', 'currency' => $company->currency,

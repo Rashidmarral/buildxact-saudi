@@ -118,6 +118,13 @@ class ZatcaPerDocumentSyncTest extends TestCase
         $invoice = $this->makeInvoice($company);
         $client = Client::find($invoice->client_id);
 
+        // Go-live compliance review finding: a credit/debit note's
+        // BillingReference points back to this invoice, so ZATCA has to
+        // already have a record of it (cleared/reported) before a
+        // correction document referencing it can be submitted — the
+        // original invoice must be synced first.
+        $this->actingAs($owner)->post(route('app.zatca.sync.invoice', $invoice));
+
         $creditNote = CreditNote::create([
             'company_id' => $company->id, 'invoice_id' => $invoice->id, 'client_id' => $client->id,
             'credit_note_number' => 'CN-1', 'issue_date' => now(), 'status' => 'issued', 'currency' => $company->currency,
@@ -134,7 +141,7 @@ class ZatcaPerDocumentSyncTest extends TestCase
 
         $creditResponse->assertSessionHas('status');
         $debitResponse->assertSessionHas('status');
-        Http::assertSentCount(2);
+        Http::assertSentCount(3);
     }
 
     public function test_the_dashboard_lists_pending_documents_with_an_individual_sync_button_each(): void

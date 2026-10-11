@@ -117,66 +117,110 @@ class CreditNoteController extends Controller
             return back()->withErrors(['items' => __('Credit at least one line item.')])->withInput();
         }
 
-        $invoice = Invoice::findOrFail($data['invoice_id']);
+        // 404s the same way the plain findOrFail() used to if the id is
+        // bad, but re-fetched and locked *inside* the transaction below
+        // rather than here — see the race-condition comment there.
+        Invoice::findOrFail($data['invoice_id']);
 
-        $requestedTotal = array_sum(array_map(function ($row) {
-            $lineSubtotal = (float) $row['quantity'] * (float) $row['unit_price'];
+        try {
+            $creditNote = DB::transaction(function () use ($data) {
+                // Commercial audit finding: remainingCreditableTotal() was
+                // read via a plain, unlocked SELECT before this credit
+                // note was created — two concurrent "issue credit note"
+                // submissions against the same invoice (a double-click, or
+                // two users) could each read the same remaining amount,
+                // both pass the over-crediting cap check, and together
+                // over-credit the invoice beyond its total. Locking the
+                // invoice row for the duration of the check-then-act
+                // sequence closes that race, mirroring
+                // ZatcaSyncService::lockedSubmission()'s identical fix for
+                // the ICV/PIH chain (security audit finding D-1).
+                $invoice = Invoice::where('id', $data['invoice_id'])->lockForUpdate()->firstOrFail();
 
-            return $lineSubtotal + round($lineSubtotal * ((float) $row['vat_rate'] / 100), 2);
-        }, $data['items']));
+                // Deep ZATCA correction-document audit finding: a credit
+                // note's VAT% field was freely user-editable with no check
+                // against the line it corrects — a user could (even by
+                // mistake) credit a line at a different rate, or credit an
+                // exempt/zero-rated line as standard-rated, producing a
+                // correction document whose e-invoice tax category
+                // silently disagrees with the invoice it corrects. The
+                // rate (and therefore category) a line was actually billed
+                // under isn't something a credit note gets to renegotiate
+                // — it's always taken from the original invoice line,
+                // never from user input, exactly like name_ar/
+                // item_description already are a few lines below.
+                $data['items'] = array_map(function ($row) use ($invoice) {
+                    $sourceLine = ! empty($row['invoice_item_id']) ? $invoice->items()->find($row['invoice_item_id']) : null;
 
-        if ($requestedTotal - $invoice->remainingCreditableTotal() > 0.01) {
-            return back()->withErrors(['items' => __('This credit note exceeds the amount remaining on the invoice.')])->withInput();
-        }
+                    if ($sourceLine) {
+                        $row['vat_rate'] = $sourceLine->vat_rate;
+                        $row['tax_rate_id'] = $sourceLine->tax_rate_id;
+                    }
 
-        $creditNote = DB::transaction(function () use ($data, $invoice) {
-            $company = Auth::user()->company;
+                    return $row;
+                }, $data['items']);
 
-            $creditNote = CreditNote::create([
-                'invoice_id' => $invoice->id,
-                'client_id' => $invoice->client_id,
-                'branch_id' => $invoice->branch_id,
-                'created_by' => Auth::id(),
-                'credit_note_number' => $company->nextCreditNoteNumber(),
-                'issue_date' => $data['issue_date'],
-                'reason' => $data['reason'] ?? null,
-                'status' => 'issued',
-                'currency' => $invoice->currency,
-                'exchange_rate' => $invoice->exchange_rate,
-            ]);
+                $requestedTotal = array_sum(array_map(function ($row) {
+                    $lineSubtotal = (float) $row['quantity'] * (float) $row['unit_price'];
 
-            foreach ($data['items'] as $row) {
-                // Scoped through the already-validated (company-owned)
-                // $invoice rather than InvoiceItem::find() directly —
-                // invoice_items carries no company_id of its own, so an
-                // unscoped find() would happily return another company's
-                // line item for a guessed sequential id.
-                $sourceLine = ! empty($row['invoice_item_id'])
-                    ? $invoice->items()->find($row['invoice_item_id'])
-                    : null;
+                    return $lineSubtotal + round($lineSubtotal * ((float) $row['vat_rate'] / 100), 2);
+                }, $data['items']));
 
-                $item = new CreditNoteItem([
-                    'credit_note_id' => $creditNote->id,
-                    'invoice_item_id' => $row['invoice_item_id'] ?? null,
-                    'unit_id' => $sourceLine?->unit_id,
-                    'description' => $row['description'],
-                    // Carried over from the invoice line's own frozen
-                    // snapshot (see InvoiceController::syncItems) rather
-                    // than re-read from the live Item.
-                    'name_ar' => $sourceLine?->name_ar,
-                    'item_description' => $sourceLine?->item_description,
-                    'quantity' => $row['quantity'],
-                    'unit_price' => $row['unit_price'],
-                    'vat_rate' => $row['vat_rate'],
+                if ($requestedTotal - $invoice->remainingCreditableTotal() > 0.01) {
+                    throw new \RuntimeException(__('This credit note exceeds the amount remaining on the invoice.'));
+                }
+
+                $company = Auth::user()->company;
+
+                $creditNote = CreditNote::create([
+                    'invoice_id' => $invoice->id,
+                    'client_id' => $invoice->client_id,
+                    'branch_id' => $invoice->branch_id,
+                    'created_by' => Auth::id(),
+                    'credit_note_number' => $company->nextCreditNoteNumber(),
+                    'issue_date' => $data['issue_date'],
+                    'reason' => $data['reason'] ?? null,
+                    'status' => 'issued',
+                    'currency' => $invoice->currency,
+                    'exchange_rate' => $invoice->exchange_rate,
                 ]);
-                $item->recalculate();
-                $item->save();
-            }
 
-            $creditNote->recalculateTotals();
+                foreach ($data['items'] as $row) {
+                    // Scoped through the already-validated (company-owned)
+                    // $invoice rather than InvoiceItem::find() directly —
+                    // invoice_items carries no company_id of its own, so an
+                    // unscoped find() would happily return another company's
+                    // line item for a guessed sequential id.
+                    $sourceLine = ! empty($row['invoice_item_id'])
+                        ? $invoice->items()->find($row['invoice_item_id'])
+                        : null;
 
-            return $creditNote;
-        });
+                    $item = new CreditNoteItem([
+                        'credit_note_id' => $creditNote->id,
+                        'invoice_item_id' => $row['invoice_item_id'] ?? null,
+                        'unit_id' => $sourceLine?->unit_id,
+                        'description' => $row['description'],
+                        // Carried over from the invoice line's own frozen
+                        // snapshot (see InvoiceController::syncItems) rather
+                        // than re-read from the live Item.
+                        'name_ar' => $sourceLine?->name_ar,
+                        'item_description' => $sourceLine?->item_description,
+                        'quantity' => $row['quantity'],
+                        'unit_price' => $row['unit_price'],
+                        'vat_rate' => $row['vat_rate'],
+                        'tax_rate_id' => $row['tax_rate_id'] ?? null,
+                    ]);
+                    $item->recalculate();
+                    $item->save();
+                }
+
+                $creditNote->recalculateTotals();
+
+                return $creditNote;
+            });
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['items' => $e->getMessage()])->withInput();
+        }
 
         app(LedgerPostingService::class)->postCreditNote($creditNote);
 
