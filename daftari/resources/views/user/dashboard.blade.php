@@ -3,6 +3,26 @@
 @section('title', __('Dashboard'))
 
 @section('content')
+@if ($vatDue)
+    <div class="mb-6 rounded-2xl border {{ $vatDue['overdue'] ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50' }} p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            @include('partials.icon', ['name' => 'alert', 'class' => 'h-5 w-5 shrink-0 '.($vatDue['overdue'] ? 'text-red-600' : 'text-amber-600')])
+            <div>
+                <p class="text-sm font-semibold {{ $vatDue['overdue'] ? 'text-red-800' : 'text-amber-800' }}">
+                    {{ $vatDue['label_en'] }} {{ __('VAT return') }}
+                    @if ($vatDue['overdue'])
+                        {{ __('is overdue — it was due :date.', ['date' => $vatDue['due_date']->format('d M Y')]) }}
+                    @else
+                        {{ __('is due by :date.', ['date' => $vatDue['due_date']->format('d M Y')]) }}
+                    @endif
+                </p>
+                <p class="text-xs {{ $vatDue['overdue'] ? 'text-red-600' : 'text-amber-600' }} mt-0.5">{{ $vatDue['label_ar'] }}</p>
+            </div>
+        </div>
+        <a href="{{ route('app.reports.vat-returns.create', ['year' => $vatDue['start']->year, 'index' => $vatDue['index']]) }}" class="shrink-0 rounded-lg {{ $vatDue['overdue'] ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700' }} px-4 py-2 text-sm font-semibold text-white">{{ __('Record it') }}</a>
+    </div>
+@endif
+
 @php($pendingSteps = collect($checklist)->reject(fn ($step) => $step['done']))
 @if ($pendingSteps->isNotEmpty())
     <div class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-card">

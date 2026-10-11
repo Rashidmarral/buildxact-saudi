@@ -20,8 +20,10 @@ use App\Models\Quotation;
 use App\Models\RepairJob;
 use App\Models\RestaurantOrder;
 use App\Models\ZatcaInvoiceLog;
+use App\Models\VatReturnPeriod;
 use App\Services\Features\FeatureAccessService;
 use App\Services\Reports\FinancialReportService;
+use App\Support\VatPeriods;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 
@@ -130,7 +132,54 @@ class DashboardController extends Controller
             $checklist[] = ['label' => __('Complete ZATCA e-invoicing setup'), 'done' => $company->isZatcaOnboarded(), 'route' => 'app.zatca.dashboard'];
         }
 
-        return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist', 'charts'));
+        $vatDue = $this->vatDueNotice($company);
+
+        return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist', 'charts', 'vatDue'));
+    }
+
+    /**
+     * The most recently ENDED VAT period's filing status, shown as a
+     * dashboard banner once it's due soon or overdue and still unfiled
+     * — so "manage VAT easily" means the user is actually told when a
+     * return is coming due, not only shown a report they have to
+     * remember to go check.
+     *
+     * Deliberately NOT "the period containing today" — a period's
+     * filing deadline falls a month *after* it ends (ZATCA's rule), so
+     * by the time Q1 (Jan-Mar)'s 30 Apr deadline arrives, "today" is
+     * already inside Q2's own date range; the period whose deadline
+     * actually matters right now is always the *previous* one, not
+     * today's own period (which isn't due for months yet).
+     *
+     * Only ever looks at that one most-recently-ended period, not a
+     * whole back-catalog of quarters — a company adopting this tool
+     * mid-year, with no VatReturnPeriod recorded for quarters before
+     * they started, would otherwise get permanently nagged about every
+     * one of them. More than 45 days overdue is treated as exactly
+     * that kind of pre-existing gap, not something to keep surfacing.
+     */
+    private function vatDueNotice($company): ?array
+    {
+        if (! Auth::user()->hasPermission('reports') || ! $company->hasFeature('vat_return_report')) {
+            return null;
+        }
+
+        $frequency = $company->vat_filing_frequency;
+        $current = VatPeriods::periodContaining($frequency, now());
+        $period = VatPeriods::periodContaining($frequency, $current['start']->copy()->subDay());
+
+        $filed = VatReturnPeriod::where('company_id', $company->id)
+            ->whereDate('period_start', $period['start']->toDateString())
+            ->whereDate('period_end', $period['end']->toDateString())
+            ->exists();
+
+        $dueInDays = VatPeriods::dueInDays($period);
+
+        if ($filed || $dueInDays > 15 || $dueInDays < -45) {
+            return null;
+        }
+
+        return $period + ['overdue' => VatPeriods::isOverdue($period)];
     }
 
     private function receivablesAging(): array

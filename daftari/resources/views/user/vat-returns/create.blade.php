@@ -11,16 +11,57 @@
         {{ __('The actual VAT return is filed through ZATCA\'s own portal. This page only keeps your output/input tax and the carried-forward credit straight between periods.') }}
     </div>
 
-    <form method="GET" action="{{ route('app.reports.vat-returns.create') }}" class="flex items-end gap-3 mb-6">
-        <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Period start') }}</label>
-            <input type="date" name="period_start" value="{{ $periodStart->format('Y-m-d') }}" class="rounded-lg border border-slate-200 text-sm">
+    <form method="GET" action="{{ route('app.reports.vat-returns.create') }}" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 space-y-3">
+        <div class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Year') }}</label>
+                <select name="year" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm">
+                    @foreach ($selectableYears as $year)
+                        <option value="{{ $year }}" @selected($selectedPeriod && $selectedPeriod['start']->year === $year)>{{ $year }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">{{ $frequency === 'monthly' ? __('Month') : __('Quarter') }}</label>
+                <select name="index" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm">
+                    @foreach ($periodsByYear[$selectedPeriod['start']->year ?? now()->year] ?? [] as $option)
+                        <option value="{{ $option['index'] }}" @selected($selectedPeriod && $selectedPeriod['index'] === $option['index'])>{{ $option['label_en'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Load period') }}</button>
         </div>
-        <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Period end') }}</label>
-            <input type="date" name="period_end" value="{{ $periodEnd->format('Y-m-d') }}" class="rounded-lg border border-slate-200 text-sm">
-        </div>
-        <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Recalculate') }}</button>
+
+        @if ($selectedPeriod)
+            <p class="text-xs text-slate-400">
+                {{ __('Filing deadline') }}:
+                <span class="font-semibold {{ \App\Support\VatPeriods::isOverdue($selectedPeriod) ? 'text-red-600' : (\App\Support\VatPeriods::dueInDays($selectedPeriod) <= 15 ? 'text-amber-600' : 'text-slate-600') }}">
+                    {{ $selectedPeriod['due_date']->format('d M Y') }}
+                    @if (\App\Support\VatPeriods::isOverdue($selectedPeriod))
+                        — {{ __('overdue by :days days', ['days' => abs(\App\Support\VatPeriods::dueInDays($selectedPeriod))]) }}
+                    @elseif (\App\Support\VatPeriods::dueInDays($selectedPeriod) <= 15)
+                        — {{ __(':days days left', ['days' => \App\Support\VatPeriods::dueInDays($selectedPeriod)]) }}
+                    @endif
+                </span>
+            </p>
+        @endif
+
+        <details class="pt-2">
+            <summary class="text-xs font-semibold text-slate-400 cursor-pointer hover:text-slate-600">{{ __('Advanced: custom date range') }}</summary>
+            <div class="flex items-end gap-3 mt-3">
+                <input type="hidden" name="custom" value="1">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Period start') }}</label>
+                    <input type="date" name="period_start" value="{{ $periodStart->format('Y-m-d') }}" class="rounded-lg border border-slate-200 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Period end') }}</label>
+                    <input type="date" name="period_end" value="{{ $periodEnd->format('Y-m-d') }}" class="rounded-lg border border-slate-200 text-sm">
+                </div>
+                <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Recalculate') }}</button>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Use this only for an edge case the quarter/month picker above can\'t express, such as a period from the year you first registered for VAT.') }}</p>
+        </details>
     </form>
 
     <form method="POST" action="{{ route('app.reports.vat-returns.store') }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
@@ -30,7 +71,12 @@
 
         <div>
             <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Period') }}</label>
-            <p class="text-sm font-semibold text-slate-900">{{ $periodStart->format('Y-m-d') }} — {{ $periodEnd->format('Y-m-d') }}</p>
+            <p class="text-sm font-semibold text-slate-900">
+                @if ($selectedPeriod)
+                    {{ $selectedPeriod['label_en'] }} <span class="text-slate-400">({{ $selectedPeriod['label_ar'] }})</span>
+                @endif
+                <span class="text-slate-400">{{ $periodStart->format('Y-m-d') }} — {{ $periodEnd->format('Y-m-d') }}</span>
+            </p>
         </div>
 
         <div class="grid sm:grid-cols-2 gap-4">
@@ -55,7 +101,7 @@
             </div>
         </div>
 
-        <p class="text-xs text-slate-400 mt-1">{{ __('Figures above are computed from your real posted Invoices, Bills, and Expenses for this exact date range and cannot be typed over — change the dates above and recalculate instead.') }}</p>
+        <p class="text-xs text-slate-400 mt-1">{{ __('Figures above are computed from your real posted Invoices, Bills, and Expenses for this exact date range and cannot be typed over — change the period above and recalculate instead.') }}</p>
 
         <div>
             <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Credit brought forward from the prior period') }}</label>

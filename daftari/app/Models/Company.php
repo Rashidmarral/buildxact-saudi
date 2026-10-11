@@ -43,7 +43,7 @@ class Company extends Model
         'status', 'is_demo', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
-        'vat_makes_exempt_supplies', 'vat_recovery_percentage',
+        'vat_makes_exempt_supplies', 'vat_recovery_percentage', 'vat_filing_frequency',
         'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
         'invoice_approval_threshold', 'quotation_approval_threshold', 'invoice_dunning_enabled',
         'default_payment_terms_days',

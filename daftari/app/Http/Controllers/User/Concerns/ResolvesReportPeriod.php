@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User\Concerns;
 
 use App\Models\Setting;
+use App\Support\VatPeriods;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 trait ResolvesReportPeriod
 {
     /**
-     * @return array{preset: string, from: Carbon, to: Carbon}
+     * @return array{preset: string, from: Carbon, to: Carbon, quarter: ?int, year: ?int}
      */
     private function resolvePeriod(Request $request): array
     {
@@ -18,10 +19,29 @@ trait ResolvesReportPeriod
         $today = now();
         [$fyStart, $fyEnd] = $this->fiscalYearBounds($today);
 
+        $quarter = null;
+        $year = null;
+
         [$from, $to] = match ($preset) {
             'this_month' => [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()],
             'last_month' => [$today->copy()->subMonthNoOverflow()->startOfMonth(), $today->copy()->subMonthNoOverflow()->endOfMonth()],
             'this_quarter' => [$today->copy()->startOfQuarter(), $today->copy()->endOfQuarter()],
+            'last_quarter' => (function () use ($today) {
+                $period = VatPeriods::periodContaining('quarterly', $today->copy()->startOfQuarter()->subDay());
+
+                return [$period['start'], $period['end']];
+            })(),
+            // A specific calendar quarter (any year) — "the easier way
+            // to fulfil VAT by quarter" extends to every report that
+            // shares this same period selector, not just the VAT
+            // return tracker's own wizard.
+            'quarter' => (function () use ($request, $today, &$quarter, &$year) {
+                $year = (int) $request->query('year', $today->year);
+                $quarter = max(1, min(4, (int) $request->query('quarter', $today->quarter)));
+                $period = VatPeriods::periodsForYear('quarterly', $year)[$quarter - 1];
+
+                return [$period['start'], $period['end']];
+            })(),
             'last_year' => [$fyStart->copy()->subYear(), $fyEnd->copy()->subYear()],
             'custom' => [
                 $request->filled('from') ? Carbon::parse($request->query('from')) : $fyStart->copy(),
@@ -30,7 +50,7 @@ trait ResolvesReportPeriod
             default => [$fyStart, $fyEnd],
         };
 
-        return ['preset' => $preset, 'from' => $from->startOfDay(), 'to' => $to->endOfDay()];
+        return ['preset' => $preset, 'from' => $from->startOfDay(), 'to' => $to->endOfDay(), 'quarter' => $quarter, 'year' => $year];
     }
 
     /**

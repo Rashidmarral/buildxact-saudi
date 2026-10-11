@@ -383,6 +383,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::get('create', [VatReturnPeriodController::class, 'create'])->name('create');
             Route::post('/', [VatReturnPeriodController::class, 'store'])->name('store');
             Route::get('{vatReturn}', [VatReturnPeriodController::class, 'show'])->name('show');
+            Route::get('{vatReturn}/pdf', [VatReturnPeriodController::class, 'pdf'])->name('pdf');
             Route::delete('{vatReturn}', [VatReturnPeriodController::class, 'destroy'])->name('destroy');
         });
         Route::get('sales', [ReportController::class, 'sales'])->name('sales');

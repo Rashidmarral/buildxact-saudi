@@ -11,6 +11,37 @@
     <a href="{{ route('app.reports.vat-returns.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Record a period') }}</a>
 </div>
 
+<div class="bg-white rounded-xl border border-slate-100 mb-6">
+    <div class="px-6 py-3 border-b border-slate-100 flex items-center justify-between">
+        <p class="text-sm font-semibold text-slate-900">{{ __('Filing status') }}</p>
+        <p class="text-xs text-slate-400">{{ $frequency === 'monthly' ? __('Monthly filer') : __('Quarterly filer') }}</p>
+    </div>
+    <div class="divide-y divide-slate-50">
+        @foreach ($statusRows as $row)
+            @php($badge = match ($row['status']) {
+                'filed' => ['label' => __('Filed'), 'class' => 'bg-emerald-50 text-emerald-700'],
+                'overdue' => ['label' => __('Overdue'), 'class' => 'bg-red-50 text-red-700'],
+                'due_soon' => ['label' => __('Due soon'), 'class' => 'bg-amber-50 text-amber-700'],
+                default => ['label' => __('Upcoming'), 'class' => 'bg-slate-100 text-slate-500'],
+            })
+            <div class="px-6 py-3 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-900">{{ $row['label_en'] }} <span class="text-slate-400">({{ $row['label_ar'] }})</span></p>
+                    <p class="text-xs text-slate-400">{{ __('Due') }} {{ $row['due_date']->format('d M Y') }}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $badge['class'] }}">{{ $badge['label'] }}</span>
+                    @if ($row['status'] === 'filed')
+                        <a href="{{ route('app.reports.vat-returns.show', $row['recorded']) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('View') }}</a>
+                    @else
+                        <a href="{{ route('app.reports.vat-returns.create', ['year' => $row['start']->year, 'index' => $row['index']]) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Record this period') }}</a>
+                    @endif
+                </div>
+            </div>
+        @endforeach
+    </div>
+</div>
+
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($periods->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No VAT return periods recorded yet.') }}</p>

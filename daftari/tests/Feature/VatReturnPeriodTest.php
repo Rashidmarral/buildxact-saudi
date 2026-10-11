@@ -128,7 +128,7 @@ class VatReturnPeriodTest extends TestCase
             'credit_brought_forward' => 0, 'amount_payable' => 0, 'credit_carried_forward' => 1350,
         ]);
 
-        $response = $this->actingAs($owner)->get(route('app.reports.vat-returns.create', ['period_start' => '2026-04-01', 'period_end' => '2026-06-30']));
+        $response = $this->actingAs($owner)->get(route('app.reports.vat-returns.create', ['custom' => 1, 'period_start' => '2026-04-01', 'period_end' => '2026-06-30']));
 
         $response->assertOk();
         $response->assertSee('value="1350.00"', false);

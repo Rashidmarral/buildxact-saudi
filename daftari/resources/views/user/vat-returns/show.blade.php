@@ -7,10 +7,13 @@
     <a href="{{ route('app.reports.vat-returns.index') }}" class="text-sm text-slate-400 hover:text-slate-600">{{ __('← VAT Return Filings') }}</a>
     <div class="flex items-center justify-between mt-1 mb-6">
         <h1 class="text-xl font-bold text-slate-900">{{ $period->period_start->format('Y-m-d') }} — {{ $period->period_end->format('Y-m-d') }}</h1>
-        <form method="POST" action="{{ route('app.reports.vat-returns.destroy', $period) }}" onsubmit="return confirm('{{ __('Delete this period? Any later period that picked up its carried-forward credit will no longer have it auto-filled.') }}')">
-            @csrf @method('DELETE')
-            <button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Delete') }}</button>
-        </form>
+        <div class="flex items-center gap-4">
+            <a href="{{ route('app.reports.vat-returns.pdf', $period) }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Download PDF') }}</a>
+            <form method="POST" action="{{ route('app.reports.vat-returns.destroy', $period) }}" onsubmit="return confirm('{{ __('Delete this period? Any later period that picked up its carried-forward credit will no longer have it auto-filled.') }}')">
+                @csrf @method('DELETE')
+                <button type="submit" class="text-sm text-red-600 hover:underline">{{ __('Delete') }}</button>
+            </form>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">

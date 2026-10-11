@@ -116,6 +116,23 @@ class RegionalPreferencesTest extends TestCase
         $this->assertNull($company->fiscal_year_start);
     }
 
+    public function test_the_settings_page_saves_the_vat_filing_frequency(): void
+    {
+        $company = $this->makeCompany(['vat_filing_frequency' => 'quarterly']);
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $response = $this->actingAs($owner)->put(route('app.settings.update'), [
+            'name' => $company->name,
+            'invoice_prefix' => 'INV-',
+            'primary_customer_type' => 'mixed',
+            'negative_number_format' => 'minus',
+            'vat_filing_frequency' => 'monthly',
+        ]);
+
+        $response->assertRedirect()->assertSessionDoesntHaveErrors();
+        $this->assertSame('monthly', $company->fresh()->vat_filing_frequency);
+    }
+
     public function test_a_companys_own_fiscal_year_start_overrides_the_platform_default_in_reports(): void
     {
         Setting::set('general_fiscal_year_start', 1);

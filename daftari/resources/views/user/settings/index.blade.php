@@ -216,7 +216,7 @@
 
             <h3 class="font-semibold text-slate-900 pt-2">{{ __('Regional preferences') }}</h3>
             <p class="text-sm text-slate-500 -mt-2">{{ __('Overrides the platform-wide defaults for your company only. Leave on "Platform default" to follow whatever the platform is currently set to.') }}</p>
-            <div class="grid sm:grid-cols-3 gap-4">
+            <div class="grid sm:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700">{{ __('Date format') }}</label>
                     <select name="date_format" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -242,6 +242,14 @@
                             <option value="{{ $num }}" @selected((int) old('fiscal_year_start', $company->fiscal_year_start) === $num)>{{ $label }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('VAT filing frequency') }}</label>
+                    <select name="vat_filing_frequency" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <option value="quarterly" @selected(old('vat_filing_frequency', $company->vat_filing_frequency) === 'quarterly')>{{ __('Quarterly') }}</option>
+                        <option value="monthly" @selected(old('vat_filing_frequency', $company->vat_filing_frequency) === 'monthly')>{{ __('Monthly') }}</option>
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('ZATCA requires quarterly filing for most businesses; monthly only applies above the revenue threshold ZATCA sets for large taxpayers.') }}</p>
                 </div>
             </div>
 
