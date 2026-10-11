@@ -211,6 +211,44 @@ class ZatcaSyncService
         ]);
     }
 
+    /**
+     * The single-document sync button and admin retry have no status
+     * filter of their own (unlike pendingCreditNotes()/pendingDebitNotes(),
+     * which already exclude void) — same class of gap as a cancelled
+     * invoice reaching submit(). A voided credit/debit note was never
+     * meant to go to ZATCA at all; letting it through would submit a real
+     * document for something the business has marked invalid. Returned
+     * unsaved, same as rejectUnsubmittable() — a local validation failure
+     * ZATCA never saw must not consume an ICV slot or create a log row.
+     */
+    private function rejectUnsubmittableCreditNote(CreditNote $creditNote): ?ZatcaCreditNoteLog
+    {
+        if ($creditNote->status !== 'void') {
+            return null;
+        }
+
+        return new ZatcaCreditNoteLog([
+            'company_id' => $creditNote->company_id,
+            'credit_note_id' => $creditNote->id,
+            'status' => 'failed',
+            'error_message' => __('A voided credit note cannot be synced to ZATCA.'),
+        ]);
+    }
+
+    private function rejectUnsubmittableDebitNote(DebitNote $debitNote): ?ZatcaDebitNoteLog
+    {
+        if ($debitNote->status !== 'void') {
+            return null;
+        }
+
+        return new ZatcaDebitNoteLog([
+            'company_id' => $debitNote->company_id,
+            'debit_note_id' => $debitNote->id,
+            'status' => 'failed',
+            'error_message' => __('A voided debit note cannot be synced to ZATCA.'),
+        ]);
+    }
+
     public function submit(Invoice $invoice): ZatcaInvoiceLog
     {
         if ($rejected = $this->rejectUnsubmittable($invoice)) {
@@ -319,6 +357,10 @@ class ZatcaSyncService
 
     public function submitCreditNote(CreditNote $creditNote): ZatcaCreditNoteLog
     {
+        if ($rejected = $this->rejectUnsubmittableCreditNote($creditNote)) {
+            return $rejected;
+        }
+
         return $this->lockedSubmission($creditNote->company_id, function (Company $company) use ($creditNote) {
             $environment = $company->zatca_environment;
             $isB2b = $this->isB2bCreditNote($creditNote);
@@ -416,6 +458,10 @@ class ZatcaSyncService
 
     public function submitDebitNote(DebitNote $debitNote): ZatcaDebitNoteLog
     {
+        if ($rejected = $this->rejectUnsubmittableDebitNote($debitNote)) {
+            return $rejected;
+        }
+
         return $this->lockedSubmission($debitNote->company_id, function (Company $company) use ($debitNote) {
             $environment = $company->zatca_environment;
             $isB2b = $this->isB2bDebitNote($debitNote);

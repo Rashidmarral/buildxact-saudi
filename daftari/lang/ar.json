@@ -270,6 +270,8 @@
     "A summary of output VAT, input VAT, and net VAT due for any period, ready to review before filing.": "ملخص لضريبة المخرجات، وضريبة المدخلات، وصافي الضريبة المستحقة لأي فترة، جاهز للمراجعة قبل التقديم.",
     "A summary of revenue, costs, and profit or loss over a period of time.": "ملخص للإيرادات والتكاليف والربح أو الخسارة خلال فترة زمنية.",
     "A unique identifier for your solution/device. Defaults to your company name if left blank.": "معرف فريد لحلك/جهازك. يُستخدم اسم شركتك افتراضيًا إذا تُرك فارغًا.",
+    "A voided credit note cannot be synced to ZATCA.": "لا يمكن مزامنة إشعار دائن ملغى مع هيئة الزكاة والضريبة والجمارك.",
+    "A voided debit note cannot be synced to ZATCA.": "لا يمكن مزامنة إشعار مدين ملغى مع هيئة الزكاة والضريبة والجمارك.",
     "A voided voucher cannot be edited.": "لا يمكن تعديل سند تم إلغاؤه.",
     "A wide banner printed at the bottom of every document and voucher on this template — a contact-details strip, a brand pattern, whatever your company prints there.": "شعار عريض يُطبع أسفل كل مستند وسند يستخدم هذا القالب — شريط بيانات تواصل، أو نمط لعلامتك التجارية، أو أي شيء تطبعه شركتك هناك.",
     "A working 90-day plan for getting real, paying customers — weekly goals against what the pipeline is actually doing, plus ready-to-use outreach tools.": "خطة عملية لمدة 90 يومًا للحصول على عملاء حقيقيين ودافعين — أهداف أسبوعية مقابل ما يحققه مسار المبيعات فعليًا، إضافة إلى أدوات تواصل جاهزة للاستخدام.",
