@@ -9,6 +9,7 @@
         <p class="text-sm text-slate-500 mt-1">{{ __('Every outstanding invoice or bill, bucketed by how overdue it is — as of today.') }}</p>
     </div>
     <a href="{{ route('app.reports.aging', ['type' => $type, 'export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+    <a href="{{ route('app.reports.aging', ['type' => $type, 'export' => 'pdf']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
 </div>
 
 <div class="flex items-center gap-2 mb-6 text-sm border-b border-slate-100">

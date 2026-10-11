@@ -16,6 +16,7 @@
         @endif
         <a href="{{ route('app.reports.balance-sheet', ['as_of' => $asOf->toDateString(), 'export' => 'pdf']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         <a href="{{ route('app.reports.balance-sheet', ['as_of' => $asOf->toDateString(), 'export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+        <a href="{{ route('app.reports.balance-sheet', ['as_of' => $asOf->toDateString(), 'export' => 'pdf']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
     </div>
 </div>
 

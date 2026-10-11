@@ -1,45 +1,69 @@
+{{--
+    Balance Sheet PDF — rebuilt on the shared, bilingual, branded
+    report-PDF design and rendered via MpdfRenderer for correct Arabic
+    shaping.
+--}}
+@php
+    $logoData = $embed($company->logo_path ?? null);
+    $balances = $totalAssets - ($totalLiabilities + $totalEquity);
+@endphp
 <!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}" dir="{{ \App\Support\Locales::dir(app()->getLocale()) }}">
+<html>
 <head>
 <meta charset="utf-8">
 <style>
-    body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #1e293b; }
-    h1 { font-size: 18px; margin-bottom: 2px; }
-    p.sub { color: #64748b; margin-top: 0; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 5px 6px; text-align: {{ app()->getLocale() === 'ar' ? 'right' : 'left' }}; }
-    th { border-bottom: 1px solid #cbd5e1; color: #64748b; font-weight: normal; }
-    td.amount, th.amount { text-align: {{ app()->getLocale() === 'ar' ? 'left' : 'right' }}; }
-    tr.total td { border-top: 1px solid #cbd5e1; font-weight: bold; }
-    .section { font-weight: bold; margin-top: 14px; }
+@include('documents.print.partials.report.styles')
 </style>
 </head>
 <body>
-    <h1>{{ $company->name }}</h1>
-    <p class="sub">{{ __('Balance Sheet') }} — {{ __('As of') }} {{ $asOf->format('Y-m-d') }}</p>
 
-    <div class="section">{{ __('Assets') }}</div>
-    <table>
+@include('documents.print.partials.report.header', ['titleEn' => __('BALANCE SHEET'), 'titleAr' => 'قائمة المركز المالي', 'subtitleEn' => __('As of :date', ['date' => $asOf->format('d M Y')]), 'subtitleAr' => 'كما في '.$asOf->format('d M Y')])
+
+@include('documents.print.partials.report.summary-cards', ['cards' => [
+    ['label_en' => __('Total assets'), 'label_ar' => 'إجمالي الأصول', 'value' => \App\Support\Money::format($totalAssets), 'variant' => 'neutral'],
+    ['label_en' => __('Total liabilities'), 'label_ar' => 'إجمالي الخصوم', 'value' => \App\Support\Money::format($totalLiabilities), 'variant' => 'warn'],
+    ['label_en' => __('Total equity'), 'label_ar' => 'إجمالي حقوق الملكية', 'value' => \App\Support\Money::format($totalEquity), 'variant' => 'good'],
+]])
+
+@include('documents.print.partials.report.section-title', ['en' => __('ASSETS'), 'ar' => 'الأصول'])
+<table class="data-table">
+    <tbody>
         @foreach ($assets as $row)
-            <tr><td>{{ $row['account']->label() }}</td><td class="amount">{{ number_format($row['balance'], 2) }}</td></tr>
+            <tr><td>{{ $row['account']->label() }}</td><td class="num">{{ number_format($row['balance'], 2) }}</td></tr>
         @endforeach
-        <tr class="total"><td>{{ __('Total assets') }}</td><td class="amount">{{ number_format($totalAssets, 2) }}</td></tr>
-    </table>
+        <tr class="total-row"><td>{{ __('TOTAL ASSETS') }}</td><td class="num">{{ number_format($totalAssets, 2) }}</td></tr>
+    </tbody>
+</table>
 
-    <div class="section">{{ __('Liabilities') }}</div>
-    <table>
+@include('documents.print.partials.report.section-title', ['en' => __('LIABILITIES'), 'ar' => 'الخصوم'])
+<table class="data-table">
+    <tbody>
         @foreach ($liabilities as $row)
-            <tr><td>{{ $row['account']->label() }}</td><td class="amount">{{ number_format($row['balance'], 2) }}</td></tr>
+            <tr><td>{{ $row['account']->label() }}</td><td class="num">{{ number_format($row['balance'], 2) }}</td></tr>
         @endforeach
-        <tr class="total"><td>{{ __('Total liabilities') }}</td><td class="amount">{{ number_format($totalLiabilities, 2) }}</td></tr>
-    </table>
+        <tr class="total-row"><td>{{ __('TOTAL LIABILITIES') }}</td><td class="num">{{ number_format($totalLiabilities, 2) }}</td></tr>
+    </tbody>
+</table>
 
-    <div class="section">{{ __('Equity') }}</div>
-    <table>
+@include('documents.print.partials.report.section-title', ['en' => __('EQUITY'), 'ar' => 'حقوق الملكية'])
+<table class="data-table">
+    <tbody>
         @foreach ($equity as $row)
-            <tr><td>{{ $row['account']?->label() ?? $row['label'] }}</td><td class="amount">{{ number_format($row['balance'], 2) }}</td></tr>
+            <tr><td>{{ $row['account']?->label() ?? $row['label'] }}</td><td class="num">{{ number_format($row['balance'], 2) }}</td></tr>
         @endforeach
-        <tr class="total"><td>{{ __('Total equity') }}</td><td class="amount">{{ number_format($totalEquity, 2) }}</td></tr>
-    </table>
+        <tr class="total-row"><td>{{ __('TOTAL EQUITY') }}</td><td class="num">{{ number_format($totalEquity, 2) }}</td></tr>
+    </tbody>
+</table>
+
+@include('documents.print.partials.report.closing-banner', [
+    'labelEn' => __('TOTAL LIABILITIES + EQUITY'),
+    'labelAr' => 'إجمالي الخصوم وحقوق الملكية',
+    'value' => \App\Support\Money::format($totalLiabilities + $totalEquity),
+    'subEn' => abs($balances) < 0.01 ? __('Balances with total assets.') : __('Does not balance with total assets — review postings.'),
+    'variant' => abs($balances) < 0.01 ? 'good' : 'warn',
+])
+
+@include('documents.print.partials.report.footer', ['company' => $company])
+
 </body>
 </html>

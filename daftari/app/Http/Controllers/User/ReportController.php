@@ -23,10 +23,8 @@ use App\Services\Accounting\VatApportionmentService;
 use App\Services\MpdfRenderer;
 use App\Services\Reports\FinancialReportService;
 use App\Support\Money;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
@@ -93,12 +91,12 @@ class ReportController extends Controller
         }
 
         if ($request->query('export') === 'pdf') {
-            $pdf = Pdf::loadView('user.reports.pdf.vat', [
-                'company' => $company, 'period' => $period, 'tab' => $tab, 'locale' => App::getLocale(),
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.vat', [
+                'company' => $company, 'period' => $period, 'tab' => $tab,
                 'salesRows' => $salesRows, 'purchaseRows' => $purchaseRows, 'expenseRows' => $expenseRows,
             ] + $summary);
 
-            return $pdf->download('tax-report-'.$tab.'.pdf');
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="tax-report-'.$tab.'.pdf"']);
         }
 
         return view('user.reports.vat', [
@@ -159,17 +157,28 @@ class ReportController extends Controller
         $period = $this->resolvePeriod($request);
         $rows = app(FinancialReportService::class)->trialBalance($company, $period['from'], $period['to']);
 
+        $totalDebit = $rows->sum('debit');
+        $totalCredit = $rows->sum('credit');
+
         if ($request->query('export') === 'csv') {
             return $this->csvResponse('trial-balance.csv', [__('Code'), __('Account'), __('Debit'), __('Credit')],
                 $rows->map(fn ($r) => [$r['account']->code, $r['account']->name, number_format($r['debit'], 2, '.', ''), number_format($r['credit'], 2, '.', '')]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.trial-balance', [
+                'company' => $company, 'period' => $period, 'rows' => $rows, 'totalDebit' => $totalDebit, 'totalCredit' => $totalCredit,
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="trial-balance.pdf"']);
         }
 
         return view('user.reports.trial-balance', [
             'company' => $company,
             'period' => $period,
             'rows' => $rows,
-            'totalDebit' => $rows->sum('debit'),
-            'totalCredit' => $rows->sum('credit'),
+            'totalDebit' => $totalDebit,
+            'totalCredit' => $totalCredit,
         ]);
     }
 
@@ -190,9 +199,9 @@ class ReportController extends Controller
         }
 
         if ($request->query('export') === 'pdf') {
-            $pdf = Pdf::loadView('user.reports.pdf.balance-sheet', ['company' => $company, 'asOf' => $asOf] + $data);
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.balance-sheet', ['company' => $company, 'asOf' => $asOf] + $data);
 
-            return $pdf->download('balance-sheet.pdf');
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="balance-sheet.pdf"']);
         }
 
         return view('user.reports.balance-sheet', ['company' => $company, 'asOf' => $asOf] + $data);
@@ -217,6 +226,15 @@ class ReportController extends Controller
                 ->concat($expenseLines->map(fn ($r) => [__('Expenses'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]));
 
             return $this->csvResponse('income-statement.csv', [__('Section'), __('Code'), __('Account'), __('Amount')], $rows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.income-statement', [
+                'company' => $company, 'period' => $period, 'revenueLines' => $revenueLines, 'expenseLines' => $expenseLines,
+                'netSales' => $netSales, 'grossProfit' => $grossProfit, 'operatingProfit' => $operatingProfit, 'netProfit' => $netProfit,
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="income-statement.pdf"']);
         }
 
         return view('user.reports.income-statement', [
@@ -276,6 +294,23 @@ class ReportController extends Controller
                 $items->map(fn ($r) => [$r->invoice->issue_date->format('Y-m-d'), $r->invoice->invoice_number, $r->invoice->client->name ?? '', $r->line->description, number_format($r->line->line_total, 2, '.', '')]));
         }
 
+        $salesSummary = [
+            'invoiceCount' => $items->pluck('invoice.id')->unique()->count(),
+            'lineCount' => $items->count(),
+            'discountTotal' => $items->pluck('invoice')->unique('id')->sum('discount_total'),
+            'taxableSales' => $items->sum(fn ($r) => $r->line->quantity * $r->line->unit_price),
+            'taxTotal' => $items->sum('line.vat_amount'),
+            'totalSales' => $items->sum('line.line_total'),
+        ];
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.sales', [
+                'company' => $company, 'period' => $period, 'items' => $items,
+            ] + $salesSummary);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="sales-report.pdf"']);
+        }
+
         return view('user.reports.sales', [
             'company' => $company,
             'period' => $period,
@@ -283,13 +318,7 @@ class ReportController extends Controller
             'clients' => Client::orderBy('name')->get(),
             'salespersons' => Salesperson::orderBy('name')->get(),
             'products' => Item::orderBy('name')->get(),
-            'invoiceCount' => $items->pluck('invoice.id')->unique()->count(),
-            'lineCount' => $items->count(),
-            'discountTotal' => $items->pluck('invoice')->unique('id')->sum('discount_total'),
-            'taxableSales' => $items->sum(fn ($r) => $r->line->quantity * $r->line->unit_price),
-            'taxTotal' => $items->sum('line.vat_amount'),
-            'totalSales' => $items->sum('line.line_total'),
-        ]);
+        ] + $salesSummary);
     }
 
     public function expenses(Request $request)
@@ -311,13 +340,24 @@ class ReportController extends Controller
                 $expenses->map(fn ($e) => [$e->expense_date->format('Y-m-d'), $e->vendor_name, $e->category->name ?? '', $e->description, number_format($e->amount, 2, '.', ''), number_format($e->vat_amount, 2, '.', '')]));
         }
 
+        $total = $expenses->sum('amount');
+        $vatTotal = $expenses->sum('vat_amount');
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.expenses', [
+                'company' => $company, 'period' => $period, 'expenses' => $expenses, 'total' => $total, 'vatTotal' => $vatTotal,
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="expense-report.pdf"']);
+        }
+
         return view('user.reports.expenses', [
             'company' => $company,
             'period' => $period,
             'expenses' => $expenses,
             'categories' => ExpenseCategory::orderBy('name')->get(),
-            'total' => $expenses->sum('amount'),
-            'vatTotal' => $expenses->sum('vat_amount'),
+            'total' => $total,
+            'vatTotal' => $vatTotal,
         ]);
     }
 
@@ -353,11 +393,21 @@ class ReportController extends Controller
                 ]));
         }
 
+        $whtTotal = $vouchers->sum('wht_amount');
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.wht-return', [
+                'company' => $company, 'period' => $period, 'vouchers' => $vouchers, 'total' => $whtTotal,
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="withholding-tax-report.pdf"']);
+        }
+
         return view('user.reports.wht-return', [
             'company' => $company,
             'period' => $period,
             'vouchers' => $vouchers,
-            'total' => $vouchers->sum('wht_amount'),
+            'total' => $whtTotal,
         ]);
     }
 
@@ -389,6 +439,12 @@ class ReportController extends Controller
             return $this->csvResponse('cash-flow.csv', [__('Section'), __('Line'), __('Amount')], $rows);
         }
 
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.cash-flow', ['company' => $company, 'period' => $period] + $data);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="cash-flow.pdf"']);
+        }
+
         return view('user.reports.cash-flow', ['company' => $company, 'period' => $period] + $data);
     }
 
@@ -417,19 +473,21 @@ class ReportController extends Controller
             return $this->csvResponse('account-statement.csv', [__('Date'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
         }
 
-        if (in_array($request->query('export'), ['pdf-ar', 'pdf-en']) && $party) {
-            $locale = $request->query('export') === 'pdf-ar' ? 'ar' : 'en';
-            $previousLocale = App::getLocale();
-            App::setLocale($locale);
+        // A single bilingual PDF replaces the old separate pdf-ar/pdf-en
+        // exports (each monolingual, on the old plain layout) — the
+        // shared report-PDF design shows both languages side by side
+        // already, so there's no longer a reason to pick one. Both
+        // export values are still accepted so any saved/bookmarked link
+        // keeps working.
+        if (in_array($request->query('export'), ['pdf', 'pdf-ar', 'pdf-en']) && $party) {
+            $closingBalance = $lines->last()->balance ?? $openingBalance;
 
-            $pdf = Pdf::loadView('user.reports.pdf.account-statement', [
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.account-statement', [
                 'company' => $company, 'period' => $period, 'party' => $party, 'type' => $type,
-                'lines' => $lines, 'openingBalance' => $openingBalance, 'locale' => $locale,
+                'lines' => $lines, 'openingBalance' => $openingBalance, 'closingBalance' => $closingBalance,
             ]);
 
-            App::setLocale($previousLocale);
-
-            return $pdf->download('account-statement-'.$locale.'.pdf');
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="account-statement.pdf"']);
         }
 
         return view('user.reports.account-statement', [
@@ -654,6 +712,14 @@ class ReportController extends Controller
             ]);
 
             return $this->csvResponse('aged-'.$type.'.csv', $header, $csvRows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.aging', [
+                'company' => $company, 'type' => $type, 'rows' => $rows, 'totals' => $totals,
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="aged-'.$type.'.pdf"']);
         }
 
         return view('user.reports.aging', [

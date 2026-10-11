@@ -15,6 +15,7 @@
             <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 text-xs font-semibold" title="{{ __('A credit-financed transaction (e.g. an asset bought on account) can cause a legitimate small gap — this is informational, not an error.') }}">! {{ __('Reconciliation gap') }}</span>
         @endif
         <a href="{{ route('app.reports.cash-flow', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+        <a href="{{ route('app.reports.cash-flow', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
     </div>
 </div>
 

@@ -9,10 +9,8 @@
         <p class="text-sm text-slate-500 mt-1">{{ __('Invoices and payments for a single customer, with a running balance.') }}</p>
     </div>
     <div class="flex items-center gap-2">
-        <a href="{{ route('app.reports.account-statement', array_filter(['type' => $type, 'client_id' => request('client_id'), 'supplier_id' => request('supplier_id'), 'period' => $period['preset'], 'from' => $period['from']->toDateString(), 'to' => $period['to']->toDateString(), 'export' => 'pdf-ar'])) }}"
-           class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold {{ $party ? 'text-slate-600 hover:border-slate-300' : 'text-slate-300 pointer-events-none' }}">{{ __('Download Arabic') }}</a>
-        <a href="{{ route('app.reports.account-statement', array_filter(['type' => $type, 'client_id' => request('client_id'), 'supplier_id' => request('supplier_id'), 'period' => $period['preset'], 'from' => $period['from']->toDateString(), 'to' => $period['to']->toDateString(), 'export' => 'pdf-en'])) }}"
-           class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold {{ $party ? 'text-slate-600 hover:border-slate-300' : 'text-slate-300 pointer-events-none' }}">{{ __('Download English') }}</a>
+        <a href="{{ route('app.reports.account-statement', array_filter(['type' => $type, 'client_id' => request('client_id'), 'supplier_id' => request('supplier_id'), 'period' => $period['preset'], 'from' => $period['from']->toDateString(), 'to' => $period['to']->toDateString(), 'export' => 'pdf'])) }}"
+           class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold {{ $party ? 'text-slate-600 hover:border-slate-300' : 'text-slate-300 pointer-events-none' }}">{{ __('Download PDF') }}</a>
     </div>
 </div>
 
