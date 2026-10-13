@@ -129,6 +129,9 @@
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'client_statements'))
                     @include('partials.nav-item', ['route' => 'app.client-statements.index', 'label' => __('Client Statements'), 'icon' => 'statement'])
                 @endif
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'kafeel_payments'))
+                    @include('partials.nav-item', ['route' => 'app.kafeel-payments.index', 'label' => __('Kafeel Payments'), 'icon' => 'team'])
+                @endif
                 @include('partials.nav-item', ['route' => 'app.projects.index', 'label' => __('Projects'), 'icon' => 'projects'])
 
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'payroll'))

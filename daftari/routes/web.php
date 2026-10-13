@@ -63,6 +63,7 @@ use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\BudgetController;
 use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\ClientStatementController;
+use App\Http\Controllers\User\KafeelPaymentController;
 use App\Http\Controllers\User\CompanyAuditController;
 use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\FixedAssetController;
@@ -642,6 +643,19 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('/', [ClientStatementController::class, 'index'])->name('index');
         Route::get('{client}', [ClientStatementController::class, 'show'])->name('show');
         Route::get('{client}/pdf', [ClientStatementController::class, 'pdf'])->middleware('throttle:pdf')->name('pdf');
+    });
+
+    Route::middleware(['permission:kafeel_payments', 'module:kafeel_payments'])->prefix('kafeel-payments')->name('kafeel-payments.')->group(function () {
+        Route::get('/', [KafeelPaymentController::class, 'index'])->name('index');
+        Route::get('create', [KafeelPaymentController::class, 'create'])->name('create');
+        Route::post('/', [KafeelPaymentController::class, 'store'])->name('store');
+        Route::get('import', [KafeelPaymentController::class, 'importForm'])->name('import.form');
+        Route::post('import', [KafeelPaymentController::class, 'import'])->name('import');
+        Route::get('{kafeelPayment}/edit', [KafeelPaymentController::class, 'edit'])->name('edit');
+        Route::put('{kafeelPayment}', [KafeelPaymentController::class, 'update'])->name('update');
+        Route::delete('{kafeelPayment}', [KafeelPaymentController::class, 'destroy'])->name('destroy');
+        Route::post('{kafeelPayment}/attachments', [KafeelPaymentController::class, 'storeAttachment'])->name('attachments.store');
+        Route::delete('{kafeelPayment}/attachments/{attachment}', [KafeelPaymentController::class, 'destroyAttachment'])->name('attachments.destroy');
     });
 
     Route::middleware(['permission:machinery_equipment', 'module:machinery_equipment'])->prefix('machinery')->name('machinery.')->group(function () {

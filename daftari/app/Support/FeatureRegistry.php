@@ -60,6 +60,16 @@ class FeatureRegistry
             'project_cash_flow' => ['label' => __('Project Cash Flow'), 'type' => 'gated', 'column' => 'has_project_cash_flow'],
             'machinery_equipment' => ['label' => __('Machinery & Equipment'), 'type' => 'gated', 'column' => 'has_machinery_equipment'],
             'client_statements' => ['label' => __('Client Account Statements'), 'type' => 'gated', 'column' => 'has_client_statements'],
+            // Deliberately 'planned', not 'gated' — this is a private,
+            // per-company payment log (a company owner's own Kafeel/
+            // sponsor payments), not a sellable module: no plan grants
+            // it and it never appears in the self-service Modules
+            // marketplace (ModuleRequestController only lists 'gated'
+            // entries). The only way it ever turns on is a Super Admin
+            // setting a CompanyOverride for one specific company, at
+            // that company's own request to keep this hidden from
+            // every other company by default.
+            'kafeel_payments' => ['label' => __('Kafeel Payments'), 'type' => 'planned'],
         ];
     }
 
