@@ -170,6 +170,8 @@ class DebitNoteController extends Controller
             'number' => $debitNote->debit_note_number,
             'date_label' => __('Issued'),
             'date' => $debitNote->issue_date,
+            // Same instant ZatcaXmlGenerator uses for cbc:IssueTime.
+            'issue_time' => $debitNote->created_at,
             'ref_no' => $debitNote->invoice->invoice_number,
             'party_label' => __('Debit to'),
             'party_label_ar' => 'العميل',

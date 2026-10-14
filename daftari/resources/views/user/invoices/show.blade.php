@@ -117,6 +117,9 @@
         'number' => $invoice->invoice_number,
         'date_label' => __('Issued'),
         'date' => $invoice->issue_date,
+        // Same instant ZatcaXmlGenerator uses for cbc:IssueTime — see
+        // documents.print.pdf's own comment on $issuedDisplay.
+        'issue_time' => $invoice->created_at,
         'date2_label' => __('Due'),
         'date2_label_ar' => 'الاستحقاق',
         'date2' => $invoice->due_date,

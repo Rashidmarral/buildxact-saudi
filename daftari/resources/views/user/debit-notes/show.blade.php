@@ -40,6 +40,7 @@
         'number' => $debitNote->debit_note_number,
         'date_label' => __('Issued'),
         'date' => $debitNote->issue_date,
+        'issue_time' => $debitNote->created_at,
         'ref_no' => $debitNote->invoice->invoice_number,
         'party_label' => __('Debit to'),
         'party_label_ar' => 'العميل',

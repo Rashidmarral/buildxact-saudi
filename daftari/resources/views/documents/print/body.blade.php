@@ -55,6 +55,11 @@
     // has no Arabic name at all.
     $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
     $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
+    // See documents.print.pdf's own comment — ZATCA's cbc:IssueTime (and
+    // the QR built from it) already carries the real issue time, but no
+    // printed layout ever showed it to the buyer.
+    $issuedDisplay = \App\Support\PlatformFormat::date($doc['date'])
+        .(! empty($doc['issue_time']) ? ' '.\App\Support\PlatformFormat::time($doc['issue_time']) : '');
 @endphp
 
 <div dir="{{ $tableDirection }}" class="relative">
@@ -110,7 +115,7 @@
             @endif
             <tr class="border-b border-slate-300">
                 <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Number') }}</td>
-                <td class="px-3 py-2 text-center text-slate-600">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
+                <td class="px-3 py-2 text-center text-slate-600">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ $issuedDisplay }}</td>
                 <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم | التاريخ</td>
             </tr>
             @if (!empty($doc['date2']))
@@ -276,7 +281,7 @@
             </tr>
             <tr>
                 <td class="py-1 font-semibold text-slate-600">{{ $doc['date_label'] }}</td>
-                <td class="py-1 text-slate-800">{{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
+                <td class="py-1 text-slate-800">{{ $issuedDisplay }}</td>
                 @if (!empty($doc['date2']))
                     <td class="py-1 font-semibold text-slate-600">{{ $doc['date2_label'] }}</td>
                     <td class="py-1 text-slate-800">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
@@ -439,7 +444,7 @@
         </div>
         <div class="w-1/4 text-right text-xs text-slate-700 space-y-0.5">
             <div>{{ $lbl('No.') }} : {{ $doc['number'] }}</div>
-            <div>{{ $lbl('Date') }} : {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
+            <div>{{ $lbl('Date') }} : {{ $issuedDisplay }}</div>
             @if ($hijriDate)<div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>@endif
             @if (!empty($doc['date2']))<div>{{ $doc['date2_label'] }}@if ($showAr && !empty($doc['date2_label_ar'])) / {{ $doc['date2_label_ar'] }}@endif : {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
             @if ($company->cr_number)<div>{{ $lbl('C.R.') }} : {{ $company->cr_number }}</div>@endif
@@ -590,7 +595,7 @@
             </span>
             @if ($secondary($doc['type_label_ar'] ?? null))<p class="mt-1 text-xs text-slate-400" dir="rtl">{{ $doc['type_label_ar'] }}</p>@endif
             <p class="mt-2 text-sm font-semibold text-slate-700">{{ $doc['number'] }}</p>
-            <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</p>
+            <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ $issuedDisplay }}</p>
             @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</p>@endif
         </div>
     </div>

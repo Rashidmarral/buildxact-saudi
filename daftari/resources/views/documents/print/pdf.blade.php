@@ -68,6 +68,17 @@
     };
     $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
     $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
+    // ZATCA's cbc:IssueTime (and the QR code built from it) already
+    // carries the real issue time — invoices.issue_date itself is a
+    // date-only column with nothing to show — but no printed layout
+    // ever displayed it, leaving the buyer's copy silently missing the
+    // one field a ZATCA auditor can cross-check against the QR/XML.
+    // Only Invoice/CreditNote/DebitNote's own pdfData()/$doc builder
+    // sets 'issue_time' (see ZatcaXmlGenerator's own cbc:IssueTime
+    // source) — Quotations, Bills, and Purchase Returns aren't ZATCA
+    // documents and simply don't set it, so they render unchanged.
+    $issuedDisplay = \App\Support\PlatformFormat::date($doc['date'])
+        .(! empty($doc['issue_time']) ? ' '.\App\Support\PlatformFormat::time($doc['issue_time']) : '');
 @endphp
 <!DOCTYPE html>
 <html>
@@ -143,7 +154,7 @@
         @endif
         <tr @if (!empty($doc['date2'])) style="border-bottom: 0.5pt solid #cbd5e1;" @endif>
             <td style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ __('Number') }}</td>
-            <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
+            <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ $issuedDisplay }}</td>
             <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">رقم | التاريخ</td>
         </tr>
         @if (!empty($doc['date2']))
@@ -228,7 +239,7 @@
         </tr>
         <tr>
             <td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $doc['date_label'] }}</td>
-            <td style="padding: 3px 0;">{{ \App\Support\PlatformFormat::date($doc['date']) }}</td>
+            <td style="padding: 3px 0;">{{ $issuedDisplay }}</td>
             @if (!empty($doc['date2']))
                 <td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $doc['date2_label'] }}</td>
                 <td style="padding: 3px 0;">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
@@ -369,7 +380,7 @@
             </td>
             <td style="width: 25%; vertical-align: top; text-align: right; font-size: 8.5pt; color: #334155;">
                 <div>{{ $lbl('No.') }} : {{ $doc['number'] }}</div>
-                <div>{{ $lbl('Date') }} : {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
+                <div>{{ $lbl('Date') }} : {{ $issuedDisplay }}</div>
                 @if ($hijriDate)
                     <div>{{ $lbl('Date') }} : {{ $hijriDate }}</div>
                 @endif
@@ -544,7 +555,7 @@
                 <table style="margin-left: auto;"><tr><td style="background-color: {{ $accent }}; color: #ffffff; font-size: 11pt; font-weight: bold; padding: 6px 14px; border-radius: 999px;">{{ $primary($doc['type_label'], $doc['type_label_ar'] ?? null) }}</td></tr></table>
                 @if ($secondary($doc['type_label_ar'] ?? null))<div class="muted ar" style="margin-top: 4px;">{{ $doc['type_label_ar'] }}</div>@endif
                 <div style="margin-top: 6px; font-weight: bold; color: #334155;">{{ $doc['number'] }}</div>
-                <div class="muted">{{ $doc['date_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date']) }}</div>
+                <div class="muted">{{ $doc['date_label'] }}: {{ $issuedDisplay }}</div>
                 @if (!empty($doc['date2']))<div class="muted">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
             </td>
         </tr>

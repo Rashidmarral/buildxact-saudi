@@ -40,6 +40,7 @@
         'number' => $creditNote->credit_note_number,
         'date_label' => __('Issued'),
         'date' => $creditNote->issue_date,
+        'issue_time' => $creditNote->created_at,
         'ref_no' => $creditNote->invoice->invoice_number,
         'party_label' => __('Credit to'),
         'party_label_ar' => 'العميل',

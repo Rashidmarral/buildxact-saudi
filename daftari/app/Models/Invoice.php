@@ -305,6 +305,11 @@ class Invoice extends Model
             'number' => $this->invoice_number,
             'date_label' => __('Issued'),
             'date' => $this->issue_date,
+            // The same instant ZatcaXmlGenerator uses for cbc:IssueTime
+            // (and the QR code built from it) — issue_date itself is a
+            // date-only column, so this is the only real "issue time"
+            // this invoice has.
+            'issue_time' => $this->created_at,
             'date2_label' => __('Due'),
             'date2_label_ar' => 'الاستحقاق',
             'date2' => $this->due_date,
