@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Expense extends Model
@@ -14,7 +15,7 @@ class Expense extends Model
     public const TAX_CATEGORIES = ['standard_15', 'zero_rated', 'exempt'];
 
     protected $fillable = [
-        'company_id', 'expense_category_id', 'project_id', 'machinery_asset_id', 'machinery_hire_in_contract_id', 'bank_account_id', 'account_id', 'created_by',
+        'company_id', 'expense_category_id', 'project_id', 'machinery_asset_id', 'machinery_hire_in_contract_id', 'bank_account_id', 'paid_by_owner', 'account_id', 'created_by',
         'vendor_name', 'description', 'amount', 'gross_amount', 'vat_amount', 'tax_category',
         'reference', 'expense_date', 'receipt_path',
         'status', 'approved_by', 'approved_at', 'rejection_reason',
@@ -25,6 +26,7 @@ class Expense extends Model
         return [
             'expense_date' => 'date',
             'approved_at' => 'datetime',
+            'paid_by_owner' => 'boolean',
         ];
     }
 
@@ -66,6 +68,24 @@ class Expense extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function paymentVouchers(): HasMany
+    {
+        return $this->hasMany(PaymentVoucher::class);
+    }
+
+    /**
+     * True once at least one Payment Voucher has settled this accrued
+     * expense (see LedgerPostingService::postPaymentVoucher() — a
+     * voucher with expense_id set relieves Accounts Payable for it).
+     * Used to tell an owner-paid reimbursement apart from one still
+     * outstanding, without a redundant status column that could drift
+     * out of sync with the vouchers actually posted against it.
+     */
+    public function isSettled(): bool
+    {
+        return $this->paymentVouchers()->exists();
     }
 
     public static function taxRateFor(string $taxCategory): float

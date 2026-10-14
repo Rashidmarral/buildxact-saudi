@@ -38,13 +38,17 @@
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Financial account') }}</label>
-            <select name="bank_account_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <select name="bank_account_id" id="bank_account_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500" @disabled(old('paid_by_owner', $expense->paid_by_owner))>
                 <option value="" @selected(! old('bank_account_id', $expense->bank_account_id))>{{ __('Unpaid (record as payable)') }}</option>
                 @foreach ($bankAccounts as $account)
                     <option value="{{ $account->id }}" @selected(old('bank_account_id', $expense->bank_account_id) == $account->id)>{{ $account->name }}</option>
                 @endforeach
             </select>
             <p class="text-xs text-slate-400 mt-1">{{ __('Leave unpaid to settle later with a payment voucher.') }}</p>
+            <label class="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" id="paid_by_owner" name="paid_by_owner" value="1" @checked(old('paid_by_owner', $expense->paid_by_owner))>
+                {{ __('I paid this personally — the company owes me back') }}
+            </label>
         </div>
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Expense account') }}</label>
@@ -145,6 +149,15 @@
     gross.addEventListener('input', recalc);
     taxCategory.addEventListener('change', recalc);
     recalc();
+
+    const paidByOwner = document.getElementById('paid_by_owner');
+    const bankAccountSelect = document.getElementById('bank_account_id');
+    paidByOwner.addEventListener('change', () => {
+        if (paidByOwner.checked) {
+            bankAccountSelect.value = '';
+        }
+        bankAccountSelect.disabled = paidByOwner.checked;
+    });
 })();
 </script>
 @endsection

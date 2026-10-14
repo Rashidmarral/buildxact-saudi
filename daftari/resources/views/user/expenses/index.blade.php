@@ -51,7 +51,13 @@
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3">{{ $expense->expense_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $expense->account?->label() ?? $expense->category?->name ?? '—' }}</td>
-                        <td class="px-6 py-3">{{ $expense->bankAccount?->name ?? __('Unpaid (payable)') }}</td>
+                        <td class="px-6 py-3">
+                            @if ($expense->paid_by_owner)
+                                <span class="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-700">{{ __('Owed to owner') }}</span>
+                            @else
+                                {{ $expense->bankAccount?->name ?? __('Unpaid (payable)') }}
+                            @endif
+                        </td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($expense->gross_amount ?? ($expense->amount + $expense->vat_amount)) }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($expense->vat_amount) }}</td>
                         <td class="px-6 py-3">

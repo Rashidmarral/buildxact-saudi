@@ -39,6 +39,7 @@ class ExpenseController extends Controller
             'expense' => new Expense([
                 'project_id' => $request->integer('project_id') ?: null,
                 'machinery_hire_in_contract_id' => $request->integer('machinery_hire_in_contract_id') ?: null,
+                'bank_account_id' => $request->integer('bank_account_id') ?: null,
             ]),
             'categories' => ExpenseCategory::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
@@ -278,12 +279,13 @@ class ExpenseController extends Controller
     {
         $companyId = Auth::user()->company_id;
 
-        return $request->validate([
+        $data = $request->validate([
             'expense_category_id' => ['nullable', Rule::exists('expense_categories', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'machinery_asset_id' => ['nullable', Rule::exists('machinery_assets', 'id')->where('company_id', $companyId)],
             'machinery_hire_in_contract_id' => ['nullable', Rule::exists('machinery_hire_in_contracts', 'id')->where('company_id', $companyId)],
             'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
+            'paid_by_owner' => ['sometimes', 'boolean'],
             'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'vendor_name' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
@@ -292,5 +294,18 @@ class ExpenseController extends Controller
             'reference' => ['nullable', 'string', 'max:255'],
             'expense_date' => ['required', 'date'],
         ]);
+
+        // "Paid personally by the owner" always means no company account
+        // funded it (yet) — it's booked as an accrued payable to be
+        // settled later, exactly like any other unpaid expense, just
+        // tagged so it's reportable as owed to the owner specifically
+        // rather than a generic supplier payable. Force this server-side
+        // rather than trust a hidden field the client could get wrong.
+        $data['paid_by_owner'] = $request->boolean('paid_by_owner');
+        if ($data['paid_by_owner']) {
+            $data['bank_account_id'] = null;
+        }
+
+        return $data;
     }
 }

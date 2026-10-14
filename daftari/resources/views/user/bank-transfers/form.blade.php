@@ -12,7 +12,7 @@
             <select name="from_bank_account_id" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select an account') }}</option>
                 @foreach ($accounts as $account)
-                    <option value="{{ $account->id }}" @selected(old('from_bank_account_id') == $account->id)>{{ $account->name }}</option>
+                    <option value="{{ $account->id }}" @selected(old('from_bank_account_id', $prefillFrom ?? null) == $account->id)>{{ $account->name }}</option>
                 @endforeach
             </select>
         </div>
@@ -21,7 +21,7 @@
             <select name="to_bank_account_id" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <option value="">{{ __('Select an account') }}</option>
                 @foreach ($accounts as $account)
-                    <option value="{{ $account->id }}" @selected(old('to_bank_account_id') == $account->id)>{{ $account->name }}</option>
+                    <option value="{{ $account->id }}" @selected(old('to_bank_account_id', $prefillTo ?? null) == $account->id)>{{ $account->name }}</option>
                 @endforeach
             </select>
         </div>

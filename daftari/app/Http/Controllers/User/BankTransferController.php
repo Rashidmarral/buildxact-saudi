@@ -34,11 +34,17 @@ class BankTransferController extends Controller
         return view('user.bank-transfers.show', ['transfer' => $bankTransfer]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         return view('user.bank-transfers.form', [
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
+            // Prefilled from the Cash Custody page's "Give advance" /
+            // "Return cash" quick-action links, so the right custodian
+            // account is already picked instead of the user hunting for
+            // it in a long dropdown.
+            'prefillFrom' => $request->integer('from_bank_account_id') ?: null,
+            'prefillTo' => $request->integer('to_bank_account_id') ?: null,
         ]);
     }
 

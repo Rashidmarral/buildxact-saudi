@@ -53,8 +53,12 @@
         ['label' => __('Open quotations'), 'value' => $stats['open_quotations'], 'icon' => 'clipboard', 'accent' => 'from-violet-500 to-purple-500'],
         ['label' => __('Overdue invoices'), 'value' => $stats['overdue_count'], 'icon' => 'alert', 'accent' => 'from-red-500 to-rose-600'],
         ['label' => __('Profit this month'), 'value' => \App\Support\Money::format($stats['profit_this_month']), 'icon' => 'trend-up', 'accent' => $stats['profit_this_month'] >= 0 ? 'from-brand-500 to-teal-500' : 'from-slate-500 to-slate-600'],
+        ...($stats['custody_outstanding'] !== null ? [[
+            'label' => __('Cash out with custodians'), 'value' => \App\Support\Money::format($stats['custody_outstanding']),
+            'icon' => 'team', 'accent' => 'from-amber-500 to-yellow-500', 'route' => 'app.cash-custody.index',
+        ]] : []),
     ] as $card)
-        <div class="card-hover rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
+        <{{ isset($card['route']) ? 'a' : 'div' }} @if (isset($card['route'])) href="{{ route($card['route']) }}" @endif class="card-hover rounded-2xl border border-slate-100 bg-white p-5 shadow-card block">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-medium text-slate-500">{{ $card['label'] }}</span>
                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br {{ $card['accent'] }} text-white">
@@ -62,7 +66,7 @@
                 </span>
             </div>
             <div class="mt-3 text-xl font-bold text-slate-900 sm:text-2xl">{{ $card['value'] }}</div>
-        </div>
+        </{{ isset($card['route']) ? 'a' : 'div' }}>
     @endforeach
 </div>
 

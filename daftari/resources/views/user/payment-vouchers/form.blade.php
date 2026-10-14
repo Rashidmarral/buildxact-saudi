@@ -75,7 +75,7 @@
                     <select name="expense_id" id="expense_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         <option value="">{{ __('None') }}</option>
                         @foreach ($expenses as $expense)
-                            <option value="{{ $expense->id }}" data-project-id="{{ $expense->project_id }}" @selected(old('expense_id', $voucher->expense_id ?? null) == $expense->id)>{{ $expense->vendor_name }} — {{ \App\Support\Money::format($expense->amount) }} ({{ $expense->expense_date->format('Y-m-d') }})</option>
+                            <option value="{{ $expense->id }}" data-project-id="{{ $expense->project_id }}" @selected(old('expense_id', $voucher->expense_id ?? ($prefillExpense->id ?? null)) == $expense->id)>{{ $expense->vendor_name }} — {{ \App\Support\Money::format($expense->amount) }} ({{ $expense->expense_date->format('Y-m-d') }})</option>
                         @endforeach
                     </select>
                 </div>
@@ -88,7 +88,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Party name (English)') }}</label>
-                    <input type="text" name="payee_name" id="payee_name" value="{{ old('payee_name', $voucher->payee_name ?? '') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="payee_name" id="payee_name" value="{{ old('payee_name', $voucher->payee_name ?? ($prefillExpense->vendor_name ?? '')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('VAT number') }}</label>
@@ -153,7 +153,7 @@
                 @endif
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Amount') }}</label>
-                    <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount', $voucher->amount ?? '') }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount', $voucher->amount ?? ($prefillExpense ? $prefillExpense->gross_amount ?? ($prefillExpense->amount + $prefillExpense->vat_amount) : '')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Payment method') }}</label>

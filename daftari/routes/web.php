@@ -94,6 +94,7 @@ use App\Http\Controllers\User\JournalController;
 use App\Http\Controllers\User\FxRevaluationController;
 use App\Http\Controllers\User\ManualJournalEntryController;
 use App\Http\Controllers\User\NotificationController;
+use App\Http\Controllers\User\OwnerReimbursementController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCashFlowController;
@@ -366,6 +367,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
         Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
         Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+        Route::get('owner-reimbursements', [OwnerReimbursementController::class, 'index'])->name('owner-reimbursements.index');
+        Route::get('owner-reimbursements/pdf', [OwnerReimbursementController::class, 'pdf'])->middleware('throttle:pdf')->name('owner-reimbursements.pdf');
         Route::resource('recurring-expenses', RecurringExpenseController::class)->except(['show']);
         Route::post('recurring-expenses/{recurringExpense}/pause', [RecurringExpenseController::class, 'pause'])->name('recurring-expenses.pause');
         Route::post('recurring-expenses/{recurringExpense}/resume', [RecurringExpenseController::class, 'resume'])->name('recurring-expenses.resume');
@@ -471,6 +474,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
         Route::get('cash-custody', [CashCustodyController::class, 'index'])->name('cash-custody.index');
+        Route::get('cash-custody/report', [CashCustodyController::class, 'report'])->name('cash-custody.report');
+        Route::get('cash-custody/report/pdf', [CashCustodyController::class, 'pdf'])->middleware('throttle:pdf')->name('cash-custody.pdf');
         Route::get('receipt-vouchers/summary/pdf', [ReceiptVoucherController::class, 'summaryPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.summary-pdf');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');

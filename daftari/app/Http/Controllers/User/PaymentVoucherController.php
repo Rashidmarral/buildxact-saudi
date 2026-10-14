@@ -112,13 +112,25 @@ class PaymentVoucherController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $company = Auth::user()->company;
         $suppliers = Supplier::orderBy('name')->get();
         $clients = Client::orderBy('name')->get();
 
+        // Arriving from the Owner Reimbursements "Settle" link: prefill the
+        // voucher from the chosen (still-unpaid) expense, the same way
+        // selecting a bill above already fills in its amount. Deliberately
+        // NOT passed as 'voucher' — the form uses isset($voucher) to tell
+        // create and edit apart (an edit posts to .update with a real,
+        // persisted voucher's route key), so a prefill has to ride in its
+        // own variable instead.
+        $prefillExpense = $request->filled('expense_id')
+            ? Expense::whereNull('bank_account_id')->find($request->integer('expense_id'))
+            : null;
+
         return view('user.payment-vouchers.form', [
+            'prefillExpense' => $prefillExpense,
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'expenses' => Expense::whereNull('bank_account_id')->latest('expense_date')->take(100)->get(),
             'suppliers' => $suppliers,

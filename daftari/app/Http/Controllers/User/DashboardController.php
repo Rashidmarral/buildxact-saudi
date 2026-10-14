@@ -134,6 +134,14 @@ class DashboardController extends Controller
 
         $vatDue = $this->vatDueNotice($company);
 
+        // Only ever shown once a company actually has a custody account —
+        // most never will, and an always-present "0.00" tile would just be
+        // noise for them.
+        $custodyAccounts = \App\Models\BankAccount::where('is_personal', true)->get();
+        $stats['custody_outstanding'] = $custodyAccounts->isNotEmpty()
+            ? $custodyAccounts->sum(fn ($a) => $a->currentBalance())
+            : null;
+
         return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist', 'charts', 'vatDue'));
     }
 
