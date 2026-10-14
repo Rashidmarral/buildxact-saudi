@@ -254,6 +254,67 @@ class ZatcaSyncService
         return __('Client ":name" has no VAT number and no other buyer ID (national ID/Iqama/passport/GCC ID) — ZATCA requires one or the other on a standard tax invoice. Add one on the client record before syncing.', ['name' => $client->name]);
     }
 
+    /**
+     * BR-KSA-37/66: the seller's own building number and postal code, when
+     * set at all, must be exactly 4 and 5 digits respectively — company
+     * profile fields Settings never enforced a format on. Only checked
+     * once a value is actually on file: these fields stayed optional right
+     * up to this fix, so a company that simply hasn't filled one in yet
+     * isn't newly blocked from syncing — only a value that's actually
+     * present and malformed (e.g. "12" instead of "1234") is.
+     */
+    private function invalidSellerAddressFormatError(Company $company): ?string
+    {
+        if ($company->building_number && ! preg_match('/^\d{4}$/', (string) $company->building_number)) {
+            return __('Your company building number must be exactly 4 digits for ZATCA (BR-KSA-37) — it is currently ":value". Fix it in Settings → Company profile before syncing.', ['value' => $company->building_number]);
+        }
+
+        if ($company->postal_code && ! preg_match('/^\d{5}$/', (string) $company->postal_code)) {
+            return __('Your company postal code must be exactly 5 digits for ZATCA (BR-KSA-66) — it is currently ":value". Fix it in Settings → Company profile before syncing.', ['value' => $company->postal_code]);
+        }
+
+        return null;
+    }
+
+    /**
+     * BR-KSA-63/67: once a buyer carries a country code of "SA" in the
+     * XML — which ZatcaXmlGenerator::party() only ever emits alongside a
+     * cac:PostalAddress, and only builds that address at all once at
+     * least one of street/building number/district/city/postal code is
+     * set (see $hasAddress there) — every one of those five fields
+     * becomes mandatory, and the postal code must be 5 digits. A client
+     * with none of the five on file never triggers this (no address, no
+     * country code, rule doesn't fire — matches the spec's own "if the
+     * buyer country code is SA" conditional); only a client with a
+     * partial address is a genuine data gap worth blocking sync for.
+     */
+    private function incompleteBuyerAddressError(\App\Models\Client $client): ?string
+    {
+        $fields = [
+            __('street') => $client->street_name,
+            __('building number') => $client->building_number,
+            __('district') => $client->district,
+            __('city') => $client->city,
+            __('postal code') => $client->postal_code,
+        ];
+
+        if (collect($fields)->every(fn ($value) => empty($value))) {
+            return null;
+        }
+
+        $missing = collect($fields)->filter(fn ($value) => empty($value))->keys();
+
+        if ($missing->isNotEmpty()) {
+            return __('Client ":name" has a partial address — ZATCA requires street, building number, district, city and postal code together once any one of them is provided (BR-KSA-63). Missing: :fields. Complete it on the client record before syncing.', ['name' => $client->name, 'fields' => $missing->implode(', ')]);
+        }
+
+        if (! preg_match('/^\d{5}$/', (string) $client->postal_code)) {
+            return __('Client ":name" has a postal code that is not exactly 5 digits (BR-KSA-67) — it is currently ":value". Fix it on the client record before syncing.', ['name' => $client->name, 'value' => $client->postal_code]);
+        }
+
+        return null;
+    }
+
     private function rejectUnsubmittable(Invoice $invoice): ?ZatcaInvoiceLog
     {
         if (in_array($invoice->status, ['draft', 'cancelled'], true)) {
@@ -277,6 +338,24 @@ class ZatcaSyncService
         }
 
         if ($this->isB2b($invoice) && ($error = $this->missingBuyerIdentificationError($invoice->client))) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($error = $this->invalidSellerAddressFormatError($invoice->company)) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($error = $this->incompleteBuyerAddressError($invoice->client)) {
             return new ZatcaInvoiceLog([
                 'company_id' => $invoice->company_id,
                 'invoice_id' => $invoice->id,
@@ -371,6 +450,24 @@ class ZatcaSyncService
             ]);
         }
 
+        if ($error = $this->invalidSellerAddressFormatError($creditNote->company)) {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($error = $this->incompleteBuyerAddressError($creditNote->client)) {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
         return null;
     }
 
@@ -413,6 +510,24 @@ class ZatcaSyncService
         }
 
         if ($this->isB2bDebitNote($debitNote) && ($error = $this->missingBuyerIdentificationError($debitNote->client))) {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($error = $this->invalidSellerAddressFormatError($debitNote->company)) {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($error = $this->incompleteBuyerAddressError($debitNote->client)) {
             return new ZatcaDebitNoteLog([
                 'company_id' => $debitNote->company_id,
                 'debit_note_id' => $debitNote->id,
