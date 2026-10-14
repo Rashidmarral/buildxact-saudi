@@ -62,6 +62,7 @@ use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
 use App\Http\Controllers\User\BudgetController;
 use App\Http\Controllers\User\ClientController;
+use App\Http\Controllers\User\CollectionNoteController;
 use App\Http\Controllers\User\ClientStatementController;
 use App\Http\Controllers\User\KafeelPaymentController;
 use App\Http\Controllers\User\CompanyAuditController;
@@ -287,6 +288,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('clients/bulk-destroy', [ClientController::class, 'bulkDestroy'])->name('clients.bulk-destroy');
         Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
         Route::post('clients/{client}/log-contact', [ClientController::class, 'logContact'])->name('clients.log-contact');
+        Route::post('clients/{client}/collection-notes', [CollectionNoteController::class, 'store'])->name('clients.collection-notes.store');
+        Route::delete('collection-notes/{collectionNote}', [CollectionNoteController::class, 'destroy'])->name('collection-notes.destroy');
+        Route::post('clients/{client}/credit-hold', [CollectionNoteController::class, 'toggleHold'])->name('clients.credit-hold');
         Route::get('clients-import', [ClientController::class, 'showImport'])->name('clients.import');
         Route::post('clients-import', [ClientController::class, 'import'])->name('clients.import.store');
         Route::get('clients-import/template', [ClientController::class, 'importTemplate'])->name('clients.import.template');
@@ -650,6 +654,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('/', [ClientStatementController::class, 'index'])->name('index');
         Route::get('{client}', [ClientStatementController::class, 'show'])->name('show');
         Route::get('{client}/pdf', [ClientStatementController::class, 'pdf'])->middleware('throttle:pdf')->name('pdf');
+        Route::post('{client}/email', [ClientStatementController::class, 'email'])->middleware('throttle:pdf')->name('email');
     });
 
     Route::middleware(['permission:kafeel_payments', 'module:kafeel_payments'])->prefix('kafeel-payments')->name('kafeel-payments.')->group(function () {

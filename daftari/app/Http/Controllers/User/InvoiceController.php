@@ -213,6 +213,10 @@ class InvoiceController extends Controller
 
         $status = __('Invoice created.');
 
+        if ($sendImmediately && $invoice->client->credit_hold) {
+            return redirect()->route('app.invoices.show', $invoice)->withErrors(['invoice' => __('This client is on credit hold and cannot be sent new invoices (:reason). The invoice was saved as a draft — release the hold on the client record first.', ['reason' => $invoice->client->credit_hold_reason ?: __('no reason given')])]);
+        }
+
         if ($sendImmediately) {
             $this->requestSend($invoice, $ledger);
             $status = $invoice->fresh()->status === 'pending_approval'
@@ -461,11 +465,32 @@ class InvoiceController extends Controller
 
     public function send(Invoice $invoice, LedgerPostingService $ledger)
     {
+        if ($blocked = $this->blockedByCreditHold($invoice)) {
+            return $blocked;
+        }
+
         $this->requestSend($invoice, $ledger);
 
         return back()->with('status', $invoice->fresh()->status === 'pending_approval'
             ? __('Invoice submitted for approval.')
             : __('Invoice marked as sent.'));
+    }
+
+    /**
+     * "nothing stops you from issuing a new invoice to someone who's
+     * badly overdue" — a client flagged credit_hold (see
+     * CollectionNoteController::toggleHold()) can still have a draft
+     * invoice drafted for later review, but it can't actually be sent
+     * until the hold is released on the client record. Returns a
+     * response to short-circuit the caller, or null when unblocked.
+     */
+    private function blockedByCreditHold(Invoice $invoice): ?\Illuminate\Http\RedirectResponse
+    {
+        if (! $invoice->client->credit_hold) {
+            return null;
+        }
+
+        return back()->withErrors(['invoice' => __('This client is on credit hold and cannot be sent new invoices (:reason). Release the hold on the client record first.', ['reason' => $invoice->client->credit_hold_reason ?: __('no reason given')])]);
     }
 
     public function approve(Invoice $invoice, LedgerPostingService $ledger)

@@ -22,6 +22,7 @@ class Client extends Model
         'postal_code', 'notes',
         'lead_source', 'next_follow_up_date', 'last_contacted_at',
         'platform_billed_company_id',
+        'credit_hold', 'credit_hold_reason',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class Client extends Model
             'payment_terms_days' => 'integer',
             'next_follow_up_date' => 'date',
             'last_contacted_at' => 'datetime',
+            'credit_hold' => 'boolean',
         ];
     }
 
@@ -56,6 +58,11 @@ class Client extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function collectionNotes(): HasMany
+    {
+        return $this->hasMany(CollectionNote::class)->latest();
     }
 
     public function quotations(): HasMany

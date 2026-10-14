@@ -9,8 +9,24 @@
         <h2 class="text-lg font-semibold text-slate-900 mt-1">{{ $client->display_name }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Statement of Account') }} — {{ $client->client_code }}</p>
     </div>
-    <a href="{{ route('app.client-statements.pdf', array_merge(['client' => $client], request()->only('period', 'from', 'to', 'project_id', 'po_reference', 'requisition_reference'))) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Download PDF') }}</a>
+    <div class="flex items-center gap-2 shrink-0">
+        <form method="POST" action="{{ route('app.client-statements.email', array_merge(['client' => $client], request()->only('period', 'from', 'to', 'project_id', 'po_reference', 'requisition_reference'))) }}">
+            @csrf
+            <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Email to client') }}</button>
+        </form>
+        <a href="{{ route('app.client-statements.pdf', array_merge(['client' => $client], request()->only('period', 'from', 'to', 'project_id', 'po_reference', 'requisition_reference'))) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Download PDF') }}</a>
+    </div>
 </div>
+
+@if ($client->credit_hold)
+    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+        <p class="text-sm font-semibold text-red-800">{{ __('This client is on credit hold') }}</p>
+        @if ($client->credit_hold_reason)
+            <p class="text-xs text-red-600 mt-0.5">{{ $client->credit_hold_reason }}</p>
+        @endif
+        <p class="text-xs text-red-500 mt-0.5">{{ __('New invoices for this client cannot be sent until the hold is released on the client record.') }}</p>
+    </div>
+@endif
 
 <form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex flex-wrap items-end gap-3">
     <div>

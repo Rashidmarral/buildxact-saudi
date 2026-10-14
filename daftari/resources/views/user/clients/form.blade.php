@@ -204,6 +204,82 @@
     <form id="log-contact-form" method="POST" action="{{ route('app.clients.log-contact', $client) }}" class="hidden">
         @csrf
     </form>
+
+    @if ($client->credit_hold)
+        <div class="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+                <p class="text-sm font-semibold text-red-800">{{ __('This client is on credit hold') }}</p>
+                @if ($client->credit_hold_reason)
+                    <p class="text-xs text-red-600 mt-0.5">{{ $client->credit_hold_reason }}</p>
+                @endif
+                <p class="text-xs text-red-500 mt-0.5">{{ __('New invoices for this client cannot be sent until the hold is released.') }}</p>
+            </div>
+            <form method="POST" action="{{ route('app.clients.credit-hold', $client) }}">
+                @csrf
+                <input type="hidden" name="credit_hold" value="0">
+                <button type="submit" class="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">{{ __('Release hold') }}</button>
+            </form>
+        </div>
+    @else
+        <div class="mt-6 flex justify-end">
+            <button type="button" onclick="document.getElementById('credit-hold-form').classList.toggle('hidden')" class="text-xs text-slate-400 hover:text-red-600">{{ __('Put on credit hold') }}</button>
+        </div>
+        <form id="credit-hold-form" method="POST" action="{{ route('app.clients.credit-hold', $client) }}" class="hidden mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-wrap items-end gap-3">
+            @csrf
+            <input type="hidden" name="credit_hold" value="1">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reason (optional)') }}</label>
+                <input type="text" name="credit_hold_reason" placeholder="{{ __('e.g. 90+ days overdue, disputed invoice') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">{{ __('Put on credit hold') }}</button>
+        </form>
+    @endif
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mt-6">
+        <h3 class="font-semibold text-slate-900 mb-1">{{ __('Collection notes') }}</h3>
+        <p class="text-xs text-slate-500 mb-4">{{ __('A record of collection calls and follow-ups, so the next person chasing this client isn\'t starting from zero.') }}</p>
+
+        @if ($client->collectionNotes->isNotEmpty())
+            <ul class="divide-y divide-slate-50 mb-4">
+                @foreach ($client->collectionNotes as $note)
+                    <li class="py-3 text-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-slate-700">{{ $note->note }}</p>
+                                @if ($note->promise_to_pay_date)
+                                    <p class="text-xs text-amber-700 mt-1">{{ __('Promised :amount by :date', ['amount' => $note->promise_to_pay_amount ? \App\Support\Money::format($note->promise_to_pay_amount) : __('payment'), 'date' => $note->promise_to_pay_date->format('Y-m-d')]) }}</p>
+                                @endif
+                                <p class="text-xs text-slate-400 mt-1">{{ $note->creator?->name ?: '—' }} · {{ $note->created_at->format('Y-m-d H:i') }}</p>
+                            </div>
+                            <form method="POST" action="{{ route('app.collection-notes.destroy', $note) }}" onsubmit="return confirm('{{ __('Remove this note?') }}')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="text-xs text-slate-400 hover:text-red-600">{{ __('Remove') }}</button>
+                            </form>
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+
+        <form method="POST" action="{{ route('app.clients.collection-notes.store', $client) }}" class="border-t border-slate-100 pt-4 space-y-3">
+            @csrf
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Note') }}</label>
+                <textarea name="note" rows="2" required placeholder="{{ __('e.g. Called the client, they confirmed receipt and will pay next week.') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Promise to pay date (optional)') }}</label>
+                    <input type="date" name="promise_to_pay_date" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Promised amount (optional)') }}</label>
+                    <input type="number" step="0.01" min="0.01" name="promise_to_pay_amount" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                </div>
+            </div>
+            <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add note') }}</button>
+        </form>
+    </div>
 @endif
 
 <script>

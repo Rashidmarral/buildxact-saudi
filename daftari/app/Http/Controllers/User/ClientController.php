@@ -167,7 +167,7 @@ class ClientController extends Controller
 
     public function edit(Client $client)
     {
-        $client->load(['contacts', 'customFieldValues']);
+        $client->load(['contacts', 'customFieldValues', 'collectionNotes.creator']);
 
         return view('user.clients.form', [
             'client' => $client,

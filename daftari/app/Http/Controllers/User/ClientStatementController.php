@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ResolvesReportPeriod;
+use App\Mail\StatementMail;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Project;
@@ -11,6 +12,7 @@ use App\Services\MpdfRenderer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -44,6 +46,7 @@ class ClientStatementController extends Controller
 
     public function show(Client $client, Request $request)
     {
+        $client->load('collectionNotes.creator');
         $period = $this->resolvePeriod($request);
         $project = $request->filled('project_id') ? Project::find($request->integer('project_id')) : null;
 
@@ -79,6 +82,40 @@ class ClientStatementController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.Str::slug($client->name).'-statement-of-account.pdf"',
         ]);
+    }
+
+    /**
+     * "the document a company actually hands to a client chasing
+     * payment" was download-only until now — this mirrors
+     * InvoiceController::emailInvoice() exactly: same PDF, same mailable
+     * shape, same missing-email guard.
+     */
+    public function email(Client $client, Request $request, MpdfRenderer $renderer)
+    {
+        $recipient = $client->email;
+
+        if (! $recipient) {
+            return back()->withErrors(['client' => __('This client has no email address on file. Add one on the client record first.')]);
+        }
+
+        $period = $this->resolvePeriod($request);
+        $project = $request->filled('project_id') ? Project::find($request->integer('project_id')) : null;
+        $company = Auth::user()->company;
+        $data = $this->buildStatement($client, $period, $project);
+
+        $pdf = $renderer->render('documents.print.client-statement-pdf', [
+            'company' => $company,
+            'client' => $client,
+            'period' => $period,
+            'project' => $project,
+            'poReference' => $request->query('po_reference'),
+            'requisitionReference' => $request->query('requisition_reference'),
+            'template' => $company->defaultTemplateFor('client_statement'),
+        ] + $data);
+
+        Mail::to($recipient)->send(new StatementMail($client, $company, $data['closingBalance'], $pdf));
+
+        return back()->with('status', __('Statement emailed to :email.', ['email' => $recipient]));
     }
 
     /**
