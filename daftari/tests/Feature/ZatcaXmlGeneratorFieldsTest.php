@@ -126,13 +126,21 @@ class ZatcaXmlGeneratorFieldsTest extends TestCase
     }
 
     /**
-     * Compliance report finding: a 100%-advance billing pattern (common in
-     * construction, e.g. "100% advance before start work") paid before the
-     * invoice is issued left PrepaidAmount hardcoded at 0.00 and
-     * PayableAmount at the full total regardless — ZATCA's copy of the
-     * document never reflected that nothing was actually still owed.
+     * Compliance audit against ZATCA's own spec (section 9.5): PrepaidAmount
+     * (BT-113) is narrower than "the client already paid something" — it
+     * specifically means an advance settled against a formal, separate
+     * prepayment TAX INVOICE (type code 386), and whenever it's non-zero
+     * the invoice must carry an additional line with a cac:DocumentReference
+     * back to that 386 invoice (BR-KSA-73/80). An earlier version of
+     * ZatcaXmlGenerator derived a non-zero PrepaidAmount from an ordinary
+     * InvoicePayment recorded before the issue date (e.g. a construction
+     * deposit collected before invoicing) with no such reference — a real
+     * clearance-rejection risk, since Daftari has no feature to issue a
+     * 386 invoice at all. PrepaidAmount must always be 0.00 regardless of
+     * when any payment was recorded, matching CreditNote/DebitNote's own
+     * (always correct) PrepaidAmount.
      */
-    public function test_a_payment_recorded_on_or_before_the_issue_date_reduces_prepaid_and_payable_amounts(): void
+    public function test_an_early_payment_never_reduces_prepaid_or_payable_amounts(): void
     {
         $client = Client::create(['company_id' => $this->company->id, 'name' => 'Advance Payment Client']);
         $invoice = $this->makeInvoiceWithLine($client, 0);
@@ -144,17 +152,11 @@ class ZatcaXmlGeneratorFieldsTest extends TestCase
 
         preg_match('/<cac:LegalMonetaryTotal>.*?<\/cac:LegalMonetaryTotal>/s', $xml, $matches);
         $this->assertNotEmpty($matches);
-        $this->assertStringContainsString('<cbc:PrepaidAmount currencyID="SAR">'.number_format((float) $invoice->total, 2, '.', '').'</cbc:PrepaidAmount>', $matches[0]);
-        $this->assertStringContainsString('<cbc:PayableAmount currencyID="SAR">0.00</cbc:PayableAmount>', $matches[0]);
+        $this->assertStringContainsString('<cbc:PrepaidAmount currencyID="SAR">0.00</cbc:PrepaidAmount>', $matches[0]);
+        $this->assertStringContainsString('<cbc:PayableAmount currencyID="SAR">'.number_format((float) $invoice->total, 2, '.', '').'</cbc:PayableAmount>', $matches[0]);
     }
 
-    /**
-     * A payment logged after the invoice was already issued is an ordinary
-     * settlement, not an advance — it must not reduce what ZATCA is told
-     * is payable (that figure describes the invoice's own terms at
-     * issuance, not its current collection status).
-     */
-    public function test_a_payment_recorded_after_the_issue_date_does_not_affect_prepaid_or_payable_amounts(): void
+    public function test_a_later_payment_also_never_affects_prepaid_or_payable_amounts(): void
     {
         $client = Client::create(['company_id' => $this->company->id, 'name' => 'Later Payment Client']);
         $invoice = $this->makeInvoiceWithLine($client, 0);

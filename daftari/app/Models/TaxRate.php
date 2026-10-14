@@ -24,8 +24,18 @@ class TaxRate extends Model
     ];
 
     protected $fillable = [
-        'company_id', 'name', 'rate', 'type', 'is_active', 'is_default', 'effective_date',
+        'company_id', 'name', 'rate', 'type', 'exemption_reason_code', 'is_active', 'is_default', 'effective_date',
     ];
+
+    /**
+     * ZATCA requires a VATEX-SA-* exemption reason code (BR-KSA-23/24/69)
+     * on every Zero-rated or Exempt VAT category breakdown — standard-rated
+     * lines must never carry one (BR-S-10).
+     */
+    public function needsExemptionReason(): bool
+    {
+        return in_array($this->type, [self::TYPE_ZERO_RATED, self::TYPE_EXEMPT], true);
+    }
 
     protected function casts(): array
     {

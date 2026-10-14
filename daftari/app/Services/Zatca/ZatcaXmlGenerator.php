@@ -9,6 +9,7 @@ use App\Models\DebitNoteItem;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\TaxRate;
+use App\Support\Zatca\VatExemptionReason;
 use DOMDocument;
 use Illuminate\Support\Str;
 
@@ -100,24 +101,30 @@ class ZatcaXmlGenerator
 
         $this->appendDualTaxTotal($doc, $root, (float) $invoice->vat_total, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
 
-        // Only payments recorded on or before the invoice's own issue date
-        // count as "prepaid" in ZATCA's sense (an advance collected ahead
-        // of/at issuance, e.g. a 100% advance-payment term) — a payment
-        // recorded afterward is an ordinary settlement of the invoice
-        // already issued, not an advance, and must not reduce the amount
-        // ZATCA is told is payable.
-        $prepaidAmount = min(
-            (float) $invoice->invoicePayments()->where('paid_at', '<=', $invoice->issue_date)->sum('amount'),
-            (float) $invoice->total
-        );
-
+        // ZATCA's PrepaidAmount (BT-113) is narrower than "the client has
+        // already paid us something" — per the spec's own section 9.5, it
+        // specifically means an advance settled against a formal, separate
+        // prepayment TAX INVOICE (type code 386), and whenever it's
+        // non-zero the invoice MUST carry an additional zero-value line
+        // with a cac:DocumentReference back to that 386 invoice's own
+        // number/date/time (BR-KSA-73/BR-KSA-80) — Daftari has no feature
+        // to issue that kind of invoice at all. An earlier version of
+        // this method derived a non-zero PrepaidAmount from ordinary
+        // InvoicePayment rows recorded before the issue date (e.g. a
+        // deposit collected before invoicing — a normal contracting
+        // workflow), which would set BT-113 without the document
+        // reference the spec requires alongside it and risk clearance
+        // rejection. Always reporting zero here — matching CreditNote/
+        // DebitNote's own PrepaidAmount below, which were never changed
+        // from this — is correct until a real prepayment-invoice feature
+        // is built with the full DocumentReference wiring.
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $invoice->total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', $invoice->discount_total, $docCurrency);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', $prepaidAmount, $docCurrency);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total - $prepaidAmount, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', 0.0, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total, $docCurrency);
         $root->appendChild($monetaryTotal);
 
         foreach ($invoice->items as $index => $item) {
@@ -681,17 +688,22 @@ class ZatcaXmlGenerator
         $withBreakdown = $doc->createElement('cac:TaxTotal');
         $this->appendAmount($doc, $withBreakdown, 'cbc:TaxAmount', $vatTotal);
 
-        // Grouped by (tax category, rate) — not rate alone — since a
-        // zero-rated (Z) and an exempt (E) line can share the same 0%
-        // rate but are different legal categories UBL requires as
-        // separate TaxSubtotal entries.
+        // Grouped by (tax category, rate, exemption reason) — not rate
+        // alone — since a zero-rated (Z) and an exempt (E) line can share
+        // the same 0% rate but are different legal categories UBL requires
+        // as separate TaxSubtotal entries, and two Z (or two E) lines citing
+        // different VATEX-SA-* reasons (e.g. "Export of goods" vs.
+        // "Medicines and medical equipment") must not be merged into one
+        // breakdown carrying only one of their reasons.
         $groups = [];
         foreach ($items as $item) {
             $rate = number_format((float) $item->vat_rate, 2, '.', '');
             $code = $this->taxCategoryCode($item);
-            $key = $code.'|'.$rate;
+            $reasonCode = $item->taxRate?->exemption_reason_code;
+            $key = $code.'|'.$rate.'|'.$reasonCode;
             $groups[$key]['code'] = $code;
             $groups[$key]['rate'] = $rate;
+            $groups[$key]['reason_code'] = $reasonCode;
             $groups[$key]['taxable'] = ($groups[$key]['taxable'] ?? 0) + $netAmount($item);
             $groups[$key]['tax'] = ($groups[$key]['tax'] ?? 0) + (float) $item->vat_amount;
         }
@@ -704,6 +716,19 @@ class ZatcaXmlGenerator
             $category = $doc->createElement('cac:TaxCategory');
             $this->append($doc, $category, 'cbc:ID', $group['code']);
             $this->append($doc, $category, 'cbc:Percent', $group['rate']);
+
+            // BR-KSA-23/24/69: Exempt (E) and Zero-rated (Z) VAT breakdowns
+            // must carry a VATEX-SA-* reason code and text; BR-S-10
+            // forbids either element on a Standard (S) breakdown, so this
+            // only fires for E/Z and only once the rate carries one.
+            if (in_array($group['code'], ['E', 'Z'], true) && $group['reason_code']) {
+                $this->append($doc, $category, 'cbc:TaxExemptionReasonCode', $group['reason_code']);
+                $reasonText = VatExemptionReason::text($group['reason_code']);
+                if ($reasonText) {
+                    $this->append($doc, $category, 'cbc:TaxExemptionReason', $reasonText);
+                }
+            }
+
             $scheme = $doc->createElement('cac:TaxScheme');
             $this->append($doc, $scheme, 'cbc:ID', 'VAT');
             $category->appendChild($scheme);

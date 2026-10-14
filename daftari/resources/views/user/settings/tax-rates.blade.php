@@ -56,7 +56,16 @@
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3 font-medium text-slate-800">{{ $taxRate->name }}</td>
                         <td class="px-6 py-3 text-slate-700">{{ number_format((float) $taxRate->rate, 2) }}%</td>
-                        <td class="px-6 py-3 text-slate-500">{{ __($types[$taxRate->type] ?? $taxRate->type) }}</td>
+                        <td class="px-6 py-3 text-slate-500">
+                            {{ __($types[$taxRate->type] ?? $taxRate->type) }}
+                            @if ($taxRate->needsExemptionReason())
+                                @if ($taxRate->exemption_reason_code)
+                                    <span class="block text-xs text-slate-400">{{ $taxRate->exemption_reason_code }}</span>
+                                @else
+                                    <span class="block text-xs font-medium text-red-600">{{ __('Missing ZATCA exemption reason') }}</span>
+                                @endif
+                            @endif
+                        </td>
                         <td class="px-6 py-3 text-slate-500">{{ $taxRate->effective_date?->format('Y-m-d') ?? __('Always') }}</td>
                         <td class="px-6 py-3">
                             @if ($taxRate->is_default)
@@ -74,9 +83,10 @@
                                 data-name="{{ $taxRate->name }}"
                                 data-rate="{{ $taxRate->rate }}"
                                 data-type="{{ $taxRate->type }}"
-                                data-effective-date="{{ optional($taxRate->effective_date)->format('Y-m-d') }}"
+                data-effective-date="{{ optional($taxRate->effective_date)->format('Y-m-d') }}"
                                 data-is-active="{{ $taxRate->is_active ? '1' : '0' }}"
                                 data-is-default="{{ $taxRate->is_default ? '1' : '0' }}"
+                                data-exemption-reason-code="{{ $taxRate->exemption_reason_code }}"
                             >{{ __('Edit') }}</button>
                             <form method="POST" action="{{ route('app.tax-rates.destroy', $taxRate) }}" class="inline" onsubmit="return confirm('{{ __('Delete this tax rate?') }}')">
                                 @csrf @method('DELETE')
@@ -110,12 +120,19 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Type') }}</label>
-                <select name="type" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <select name="type" required data-tax-rate-type class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     @foreach ($taxRateTypes as $key => $label)
                         <option value="{{ $key }}">{{ __($label) }}</option>
                     @endforeach
                 </select>
             </div>
+        </div>
+        <div data-exemption-reason-wrap class="hidden">
+            <label class="block text-xs font-medium text-slate-500">{{ __('ZATCA exemption reason') }}</label>
+            <select name="exemption_reason_code" data-exemption-reason-select class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Select a reason') }}</option>
+            </select>
+            <p class="mt-1 text-xs text-slate-400">{{ __('Required by ZATCA for Zero-rated and Exempt VAT categories (BR-KSA-23/24/69).') }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Effective date (optional)') }}</label>
@@ -158,12 +175,19 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Type') }}</label>
-                <select name="type" id="edit-tax-rate-type" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <select name="type" id="edit-tax-rate-type" required data-tax-rate-type class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                     @foreach ($taxRateTypes as $key => $label)
                         <option value="{{ $key }}">{{ __($label) }}</option>
                     @endforeach
                 </select>
             </div>
+        </div>
+        <div data-exemption-reason-wrap class="hidden">
+            <label class="block text-xs font-medium text-slate-500">{{ __('ZATCA exemption reason') }}</label>
+            <select name="exemption_reason_code" id="edit-tax-rate-exemption-reason" data-exemption-reason-select class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Select a reason') }}</option>
+            </select>
+            <p class="mt-1 text-xs text-slate-400">{{ __('Required by ZATCA for Zero-rated and Exempt VAT categories (BR-KSA-23/24/69).') }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Effective date (optional)') }}</label>
@@ -187,6 +211,35 @@
 </dialog>
 
 <script>
+const exemptionReasonsByType = @json($exemptionReasonsByType);
+
+function refreshExemptionReasonSelect(typeSelect, selected) {
+    const wrap = typeSelect.closest('form').querySelector('[data-exemption-reason-wrap]');
+    const select = typeSelect.closest('form').querySelector('[data-exemption-reason-select]');
+    const options = exemptionReasonsByType[typeSelect.value] || null;
+
+    select.innerHTML = '<option value="">{{ __('Select a reason') }}</option>';
+
+    if (!options) {
+        wrap.classList.add('hidden');
+        return;
+    }
+
+    wrap.classList.remove('hidden');
+    Object.entries(options).forEach(([code, label]) => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = label;
+        if (code === selected) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+document.querySelectorAll('[data-tax-rate-type]').forEach(select => {
+    select.addEventListener('change', () => refreshExemptionReasonSelect(select, null));
+    refreshExemptionReasonSelect(select, null);
+});
+
 document.querySelectorAll('[data-edit-tax-rate]').forEach(btn => {
     btn.addEventListener('click', () => {
         document.getElementById('edit-tax-rate-form').action = btn.dataset.updateUrl;
@@ -196,6 +249,7 @@ document.querySelectorAll('[data-edit-tax-rate]').forEach(btn => {
         document.getElementById('edit-tax-rate-effective-date').value = btn.dataset.effectiveDate || '';
         document.getElementById('edit-tax-rate-active').checked = btn.dataset.isActive === '1';
         document.getElementById('edit-tax-rate-default').checked = btn.dataset.isDefault === '1';
+        refreshExemptionReasonSelect(document.getElementById('edit-tax-rate-type'), btn.dataset.exemptionReasonCode || null);
         document.getElementById('edit-tax-rate-modal').showModal();
     });
 });

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\TaxRate;
+use App\Support\Zatca\VatExemptionReason;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TaxRateController extends Controller
 {
@@ -15,6 +17,10 @@ class TaxRateController extends Controller
         return view('user.settings.tax-rates', [
             'taxRates' => TaxRate::orderByDesc('is_default')->orderBy('name')->get(),
             'types' => TaxRate::TYPES,
+            'exemptionReasonsByType' => [
+                TaxRate::TYPE_ZERO_RATED => VatExemptionReason::optionsFor(TaxRate::TYPE_ZERO_RATED),
+                TaxRate::TYPE_EXEMPT => VatExemptionReason::optionsFor(TaxRate::TYPE_EXEMPT),
+            ],
             'company' => Auth::user()->company,
         ]);
     }
@@ -95,10 +101,25 @@ class TaxRateController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'type' => ['required', Rule::in(array_keys(TaxRate::TYPES))],
+            'exemption_reason_code' => ['nullable', 'string', 'max:20'],
             'effective_date' => ['nullable', 'date'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
+
+        // ZATCA (BR-KSA-23/24/69) requires a VATEX-SA-* reason on every
+        // Zero-rated/Exempt rate, and (BR-S-10) forbids one on Standard.
+        $needsReason = in_array($data['type'], [TaxRate::TYPE_ZERO_RATED, TaxRate::TYPE_EXEMPT], true);
+
+        if ($needsReason && (empty($data['exemption_reason_code']) || ! VatExemptionReason::isValidFor($data['exemption_reason_code'], $data['type']))) {
+            throw ValidationException::withMessages([
+                'exemption_reason_code' => __('Select a ZATCA exemption reason for this VAT category.'),
+            ]);
+        }
+
+        if (! $needsReason) {
+            $data['exemption_reason_code'] = null;
+        }
 
         return $data;
     }

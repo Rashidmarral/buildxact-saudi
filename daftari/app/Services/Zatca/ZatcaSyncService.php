@@ -195,6 +195,29 @@ class ZatcaSyncService
      * a real attempt ZATCA ever saw, so it must not consume an ICV slot or
      * create a ZatcaInvoiceLog row.
      */
+    /**
+     * BR-KSA-23/24/69: a Zero-rated or Exempt VAT category line must carry
+     * a VATEX-SA-* exemption reason code in the document's TaxSubtotal
+     * breakdown (ZatcaXmlGenerator::appendDualTaxTotal()). TaxRate rows
+     * created before this requirement existed (including the "VAT 0%"/
+     * "Exempt" rates TaxRate::seedDefaults() auto-creates for every new
+     * company) can still have none set, which would silently produce
+     * non-compliant XML — caught here, at the single choke point every
+     * submit*() caller goes through, rather than left to a clearance
+     * rejection from ZATCA itself.
+     */
+    private function missingExemptionReasonError(iterable $items): ?string
+    {
+        foreach ($items as $item) {
+            $taxRate = $item->taxRate;
+            if ($taxRate && $taxRate->needsExemptionReason() && ! $taxRate->exemption_reason_code) {
+                return __('Tax rate ":name" is missing a required ZATCA exemption reason. Set one in Settings → Tax rates before syncing.', ['name' => $taxRate->name]);
+            }
+        }
+
+        return null;
+    }
+
     private function rejectUnsubmittable(Invoice $invoice): ?ZatcaInvoiceLog
     {
         if (in_array($invoice->status, ['draft', 'cancelled'], true)) {
@@ -205,6 +228,15 @@ class ZatcaSyncService
                 'error_message' => $invoice->status === 'cancelled'
                     ? __('A cancelled invoice cannot be synced to ZATCA. If it was already cleared/reported, void it with a credit note instead.')
                     : __('A draft invoice cannot be synced to ZATCA — issue it first.'),
+            ]);
+        }
+
+        if ($error = $this->missingExemptionReasonError($invoice->items()->with('taxRate')->get())) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'status' => 'failed',
+                'error_message' => $error,
             ]);
         }
 
@@ -276,6 +308,15 @@ class ZatcaSyncService
             ]);
         }
 
+        if ($error = $this->missingExemptionReasonError($creditNote->items()->with('taxRate')->get())) {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
         return null;
     }
 
@@ -305,6 +346,15 @@ class ZatcaSyncService
                 'debit_note_id' => $debitNote->id,
                 'status' => 'failed',
                 'error_message' => __('This debit note corrects an invoice that was never cleared or reported to ZATCA. Sync the original invoice first, then retry.'),
+            ]);
+        }
+
+        if ($error = $this->missingExemptionReasonError($debitNote->items()->with('taxRate')->get())) {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
             ]);
         }
 
