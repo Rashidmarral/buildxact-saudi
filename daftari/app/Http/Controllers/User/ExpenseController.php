@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\ApprovalChainService;
+use App\Services\ReceiptOcrService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,7 @@ class ExpenseController extends Controller
         return view('user.expenses.index', compact('expenses', 'categories'));
     }
 
-    public function create(Request $request)
+    public function create(Request $request, ReceiptOcrService $ocr)
     {
         return view('user.expenses.form', [
             'expense' => new Expense([
@@ -47,7 +48,22 @@ class ExpenseController extends Controller
             'hireInContracts' => MachineryHireInContract::where('status', 'active')->orderBy('contract_number')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
+            'ocrConfigured' => $ocr->isConfigured(),
         ]);
+    }
+
+    /**
+     * "Scan a receipt" on the expense form — an optional assist, called
+     * via fetch() before the real form submission, never required. Scoped
+     * to image files only (a photographed/scanned receipt); a PDF receipt
+     * isn't handled here — BankStatementPdfParser is a different, text-
+     * layout-based reader built for bank statements, not a vision model.
+     */
+    public function scanReceipt(Request $request, ReceiptOcrService $ocr)
+    {
+        $request->validate(['file' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240']]);
+
+        return response()->json($ocr->scan($request->file('file')));
     }
 
     public function store(Request $request, LedgerPostingService $ledger)

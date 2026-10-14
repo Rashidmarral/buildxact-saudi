@@ -22,7 +22,18 @@ trait ImportsCsv
      */
     protected function runCsvImport(UploadedFile $file, Closure $mapRow, Closure $createRow, ?int $maxRows = null): array
     {
-        $rows = CsvImporter::parse($file);
+        return $this->runRowImport(CsvImporter::parse($file), $mapRow, $createRow, $maxRows);
+    }
+
+    /**
+     * The same one-bad-row-skipped-and-reported, not-all-or-nothing loop
+     * runCsvImport() always ran, pulled out so a non-CSV source (a PDF
+     * statement's best-effort parsed rows, say) can reuse the exact same
+     * per-row validation/error-collection behavior instead of duplicating
+     * it.
+     */
+    protected function runRowImport(array $rows, Closure $mapRow, Closure $createRow, ?int $maxRows = null): array
+    {
         $imported = 0;
         $errors = [];
 

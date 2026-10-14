@@ -362,6 +362,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     });
 
     Route::middleware('permission:expenses')->group(function () {
+        Route::post('expenses/scan-receipt', [ExpenseController::class, 'scanReceipt'])->name('expenses.scan-receipt');
         Route::resource('expenses', ExpenseController::class)->except(['show']);
         Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expenses.approve');
         Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
@@ -501,6 +502,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::delete('bank-reconciliations/{bankReconciliation}', [BankReconciliationController::class, 'destroy'])->name('bank-reconciliations.destroy');
         Route::post('bank-statement-lines/{bankStatementLine}/match', [BankReconciliationController::class, 'match'])->name('bank-statement-lines.match');
         Route::post('bank-statement-lines/{bankStatementLine}/unmatch', [BankReconciliationController::class, 'unmatch'])->name('bank-statement-lines.unmatch');
+        Route::delete('bank-statement-lines/{bankStatementLine}', [BankReconciliationController::class, 'destroyLine'])->name('bank-statement-lines.destroy');
     });
 
     Route::middleware('permission:purchases')->group(function () {

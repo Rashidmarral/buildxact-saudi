@@ -15,6 +15,7 @@
         "mpdf/mpdf": "^8.2",
         "phpseclib/phpseclib": "^3.0",
         "sentry/sentry-laravel": "^4.27",
+        "smalot/pdfparser": "^2.13",
         "symfony/html-sanitizer": "^7.4"
     },
     "require-dev": {

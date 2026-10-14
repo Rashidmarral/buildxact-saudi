@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    // Powers ReceiptOcrService — a single platform-wide key (set once by
+    // the hosting operator), not a per-company credential like WhatsApp's
+    // SmsConfig/WhatsAppConfig: asking every company owner to sign up for
+    // Google Cloud themselves would defeat the point of a feature meant
+    // to make data entry faster, not slower.
+    'google_vision' => [
+        'key' => env('GOOGLE_VISION_API_KEY'),
+    ],
+
 ];

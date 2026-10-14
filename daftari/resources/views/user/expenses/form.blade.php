@@ -14,9 +14,19 @@
 
     <h2 class="text-lg font-semibold text-slate-900">{{ $expense->exists ? __('Edit Expense') : __('New Expense') }}</h2>
 
+    @if (! $expense->exists && ($ocrConfigured ?? false))
+        <input type="hidden" id="csrf-token" value="{{ csrf_token() }}">
+        <div class="rounded-lg border border-dashed border-brand-200 bg-brand-50 p-4">
+            <label class="block text-sm font-semibold text-brand-800 mb-1">{{ __('Scan a receipt') }}</label>
+            <p class="text-xs text-brand-700 mb-2">{{ __('Upload a photo of the receipt and we\'ll try to fill in the amount, date, and vendor for you — review before saving.') }}</p>
+            <input type="file" id="receipt-scan-input" accept="image/*" class="w-full text-sm">
+            <p id="receipt-scan-status" class="text-xs text-brand-700 mt-2 hidden"></p>
+        </div>
+    @endif
+
     <div>
         <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Expense date') }}</label>
-        <input type="date" name="expense_date" value="{{ old('expense_date', optional($expense->expense_date)->format('Y-m-d') ?? now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+        <input type="date" id="expense_date" name="expense_date" value="{{ old('expense_date', optional($expense->expense_date)->format('Y-m-d') ?? now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
     </div>
 
     <div class="grid sm:grid-cols-2 gap-4">
@@ -31,7 +41,7 @@
         </div>
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Vendor name') }}</label>
-            <input type="text" name="vendor_name" value="{{ old('vendor_name', $expense->vendor_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <input type="text" id="vendor_name" name="vendor_name" value="{{ old('vendor_name', $expense->vendor_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
     </div>
 
@@ -85,7 +95,7 @@
 
     <div>
         <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Description') }}</label>
-        <textarea name="description" rows="4" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('description', $expense->description) }}</textarea>
+        <textarea id="description" name="description" rows="4" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('description', $expense->description) }}</textarea>
     </div>
 
     @if ($projects->isNotEmpty())
@@ -158,6 +168,42 @@
         }
         bankAccountSelect.disabled = paidByOwner.checked;
     });
+
+    const scanInput = document.getElementById('receipt-scan-input');
+    if (scanInput) {
+        const status = document.getElementById('receipt-scan-status');
+        scanInput.addEventListener('change', async () => {
+            const file = scanInput.files[0];
+            if (! file) return;
+
+            status.classList.remove('hidden');
+            status.textContent = @json(__('Reading the receipt…'));
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(@json(route('app.expenses.scan-receipt')), {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': document.getElementById('csrf-token').value, 'Accept': 'application/json' },
+                    body: formData,
+                });
+                const result = await response.json();
+
+                if (! result.success) {
+                    status.textContent = result.error || @json(__("Couldn't read this receipt — fill in the details manually."));
+                    return;
+                }
+
+                if (result.vendor_name) document.getElementById('vendor_name').value = result.vendor_name;
+                if (result.date) document.getElementById('expense_date').value = result.date;
+                if (result.amount) { gross.value = result.amount; recalc(); }
+                status.textContent = @json(__('Filled in from the receipt — please review before saving.'));
+            } catch (e) {
+                status.textContent = @json(__("Couldn't read this receipt — fill in the details manually."));
+            }
+        });
+    }
 })();
 </script>
 @endsection

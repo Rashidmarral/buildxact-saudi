@@ -54,10 +54,11 @@
 @unless ($isDone)
     <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
         <h2 class="font-semibold text-slate-900 mb-1">{{ __('Import statement') }}</h2>
-        <p class="text-xs text-slate-500 mb-4">{{ __('CSV with columns: date, description, reference (optional), amount. Positive amounts are deposits, negative are withdrawals.') }}</p>
+        <p class="text-xs text-slate-500 mb-1">{{ __('CSV with columns: date, description, reference (optional), amount. Positive amounts are deposits, negative are withdrawals.') }}</p>
+        <p class="text-xs text-slate-500 mb-4">{{ __('PDF statements are also accepted — read on a best-effort basis since every bank lays its statement out differently. Review the imported lines below and remove anything that came out wrong.') }}</p>
         <form method="POST" action="{{ route('app.bank-reconciliations.import', $reconciliation) }}" enctype="multipart/form-data" class="flex items-center gap-3">
             @csrf
-            <input type="file" name="file" accept=".csv,.txt" required class="flex-1 text-sm">
+            <input type="file" name="file" accept=".csv,.txt,.pdf" required class="flex-1 text-sm">
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 whitespace-nowrap">{{ __('Import lines') }}</button>
         </form>
     </div>
@@ -106,6 +107,12 @@
                             @else
                                 <span class="text-xs text-slate-400">{{ __('Unmatched') }}</span>
                             @endif
+                            @unless ($isDone)
+                                <form method="POST" action="{{ route('app.bank-statement-lines.destroy', $line) }}" class="inline" onsubmit="return confirm('{{ __('Remove this imported line?') }}')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs text-slate-400 hover:text-red-600 ms-2">{{ __('Remove') }}</button>
+                                </form>
+                            @endunless
                         </td>
                     </tr>
                 @empty

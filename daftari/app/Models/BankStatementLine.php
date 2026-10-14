@@ -14,6 +14,7 @@ class BankStatementLine extends Model
         'receipt_voucher' => ReceiptVoucher::class,
         'payment_voucher' => PaymentVoucher::class,
         'bank_transfer' => BankTransfer::class,
+        'expense' => Expense::class,
     ];
 
     protected $fillable = [

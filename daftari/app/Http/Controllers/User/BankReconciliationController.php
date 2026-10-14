@@ -8,6 +8,7 @@ use App\Models\BankAccount;
 use App\Models\BankReconciliation;
 use App\Models\BankStatementLine;
 use App\Models\BankTransfer;
+use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\ReceiptVoucher;
 use Illuminate\Http\Request;
@@ -62,29 +63,45 @@ class BankReconciliationController extends Controller
     {
         abort_if($bankReconciliation->status !== 'in_progress', 422, __('This reconciliation is already completed.'));
 
-        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt', 'max:2048']]);
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt,pdf', 'max:5120']]);
 
-        $result = $this->runCsvImport(
-            $request->file('file'),
-            function (array $row) {
-                if (empty($row['date']) || empty($row['amount'])) {
-                    throw ValidationException::withMessages(['row' => __('Date and amount are required.')]);
-                }
+        $file = $request->file('file');
+        $mapRow = function (array $row) {
+            if (empty($row['date']) || empty($row['amount'])) {
+                throw ValidationException::withMessages(['row' => __('Date and amount are required.')]);
+            }
 
-                return [
-                    'date' => $row['date'],
-                    'description' => $row['description'] ?? '',
-                    'reference' => $row['reference'] ?? null,
-                    'amount' => (float) str_replace(',', '', $row['amount']),
-                ];
-            },
-            fn (array $data) => $bankReconciliation->lines()->create($data),
-        );
+            return [
+                'date' => $row['date'],
+                'description' => $row['description'] ?? '',
+                'reference' => $row['reference'] ?? null,
+                'amount' => (float) str_replace(',', '', (string) $row['amount']),
+            ];
+        };
+        $createRow = fn (array $data) => $bankReconciliation->lines()->create($data);
+
+        // A PDF statement has no standard layout to parse reliably (see
+        // BankStatementPdfParser's own docblock) — every row it produces
+        // is best-effort, so each imported line stays individually
+        // removable (destroyLine()) for the user to clean up, unlike a
+        // clean CSV's rows which are trusted as-is.
+        $result = $file->getClientOriginalExtension() === 'pdf' || $file->getMimeType() === 'application/pdf'
+            ? $this->runRowImport(\App\Support\BankStatementPdfParser::parse($file), $mapRow, $createRow)
+            : $this->runCsvImport($file, $mapRow, $createRow);
 
         $this->autoMatch($bankReconciliation);
 
         return back()->with('status', __(':imported of :total statement lines imported.', ['imported' => $result['imported'], 'total' => $result['total']]))
             ->with('import_errors', $result['errors']);
+    }
+
+    public function destroyLine(BankStatementLine $bankStatementLine)
+    {
+        abort_if($bankStatementLine->reconciliation->status !== 'in_progress', 422, __('This reconciliation is already completed.'));
+
+        $bankStatementLine->delete();
+
+        return back()->with('status', __('Statement line removed.'));
     }
 
     public function match(Request $request, BankStatementLine $bankStatementLine)
@@ -154,13 +171,20 @@ class BankReconciliationController extends Controller
     }
 
     /**
-     * Every receipt voucher, payment voucher, and bank transfer that moved
-     * through this bank account and isn't already matched to a statement
-     * line in ANY reconciliation (a voucher represents one real bank
-     * movement — it can only ever be reconciled once). Amount sign is
-     * normalized to how it would read on a statement: receipts and
-     * incoming transfers positive, payments and outgoing transfers
-     * negative.
+     * Every receipt voucher, payment voucher, bank transfer, and directly-
+     * paid expense that moved through this bank account and isn't already
+     * matched to a statement line in ANY reconciliation (each one
+     * represents one real bank movement — it can only ever be reconciled
+     * once). Amount sign is normalized to how it would read on a
+     * statement: receipts and incoming transfers positive, payments,
+     * outgoing transfers, and expenses negative.
+     *
+     * Expenses paid straight from this account (bank_account_id set, no
+     * Payment Voucher involved — e.g. an online purchase or a direct debit)
+     * never showed up here before, even though they're a real, unmatched
+     * bank movement just like a payment voucher is; an owner-paid expense
+     * (paid_by_owner) never touches a bank account at all, so it's
+     * correctly excluded by the same bank_account_id filter.
      */
     private function unmatchedBookTransactions(BankReconciliation $reconciliation)
     {
@@ -190,6 +214,12 @@ class BankReconciliationController extends Controller
             ->get()
             ->map(fn ($t) => ['type' => 'bank_transfer', 'id' => $t->id, 'date' => $t->date, 'amount' => (float) $t->amount, 'label' => __('Transfer from :account', ['account' => $t->fromAccount->name])]);
 
-        return $receipts->concat($payments)->concat($transfersOut)->concat($transfersIn)->values();
+        $expenses = Expense::where('bank_account_id', $accountId)
+            ->where('status', 'approved')
+            ->whereNotIn('id', $alreadyMatched('expense'))
+            ->get()
+            ->map(fn (Expense $e) => ['type' => 'expense', 'id' => $e->id, 'date' => $e->expense_date, 'amount' => -(float) ($e->gross_amount ?? ($e->amount + $e->vat_amount)), 'label' => __('Expense — :vendor', ['vendor' => $e->vendor_name ?: $e->description])]);
+
+        return $receipts->concat($payments)->concat($transfersOut)->concat($transfersIn)->concat($expenses)->values();
     }
 }
