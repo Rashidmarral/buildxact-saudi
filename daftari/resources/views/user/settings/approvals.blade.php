@@ -41,7 +41,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-5">
-        @foreach (['purchase_order' => __('Purchase orders'), 'expense' => __('Expenses')] as $type => $label)
+        @foreach (['purchase_order' => __('Purchase orders'), 'expense' => __('Expenses'), 'invoice' => __('Invoices (send, cancel & credit note void)')] as $type => $label)
             <div>
                 <h3 class="text-sm font-semibold text-slate-800">{{ $label }}</h3>
                 <div class="mt-2 space-y-2">

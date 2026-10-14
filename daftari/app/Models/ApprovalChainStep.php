@@ -20,7 +20,7 @@ class ApprovalChainStep extends Model
 {
     use BelongsToCompany;
 
-    public const DOCUMENT_TYPES = ['purchase_order', 'expense'];
+    public const DOCUMENT_TYPES = ['purchase_order', 'expense', 'invoice'];
 
     protected $fillable = ['company_id', 'document_type', 'step_number', 'role_id', 'min_amount'];
 

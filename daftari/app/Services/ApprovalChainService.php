@@ -83,6 +83,36 @@ class ApprovalChainService
     }
 
     /**
+     * The most senior (highest step_number) configured step for a document
+     * type, regardless of any particular document's amount — used for a
+     * one-shot "elevated authority required" gate on an action that isn't
+     * itself a sequential multi-person approval (e.g. cancelling an
+     * already-sent invoice, or voiding a credit note), rather than for
+     * applicableSteps()'s per-amount chain. Null when the company has
+     * configured no chain for this document type at all, in which case
+     * the caller falls back to its older, unchanged permission check.
+     */
+    public function highestConfiguredStep(string $documentType): ?ApprovalChainStep
+    {
+        return ApprovalChainStep::where('document_type', $documentType)
+            ->orderByDesc('step_number')
+            ->with('role')
+            ->first();
+    }
+
+    /**
+     * Same authority test as canActOn(), but against a raw ApprovalChainStep
+     * config row rather than a snapshotted ApprovalProgress — for
+     * highestConfiguredStep()'s one-shot gate, which never creates progress
+     * rows of its own.
+     */
+    public function userHoldsStepRole(ApprovalChainStep $step, User $user): bool
+    {
+        return $user->isOwner() || $user->isSuperAdmin()
+            || ($step->role_id !== null && $user->roles->contains('id', $step->role_id));
+    }
+
+    /**
      * Marks the given step approved. Returns true when it was the last
      * pending step — the caller is then responsible for flipping the
      * document itself to its terminal approved status (and any side

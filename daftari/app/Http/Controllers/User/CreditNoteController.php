@@ -10,6 +10,7 @@ use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\Invoice;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\ApprovalChainService;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -305,6 +306,21 @@ class CreditNoteController extends Controller
         // unchanged, silently disagreeing with the books.
         if ($creditNote->isZatcaSynced()) {
             return back()->withErrors(['credit_note' => __('This credit note has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be voided.')]);
+        }
+
+        // Shares InvoiceController::blockedByMissingSeniorApproval()'s
+        // design: voiding a credit note isn't a sequential approval the
+        // way submitting an invoice is, so this is a one-shot "the most
+        // senior role configured for the invoice chain must sign off"
+        // gate, reusing the same 'invoice' document type rather than a
+        // separate credit-note chain — only active once a company has
+        // actually configured one (Settings → Approvals); unchanged
+        // otherwise.
+        $chain = app(ApprovalChainService::class);
+        $seniorStep = $chain->highestConfiguredStep('invoice');
+
+        if ($seniorStep && ! $chain->userHoldsStepRole($seniorStep, Auth::user())) {
+            return back()->withErrors(['credit_note' => __('Voiding a credit note requires :role sign-off.', ['role' => $seniorStep->role?->name])]);
         }
 
         DB::transaction(function () use ($creditNote, $ledger) {

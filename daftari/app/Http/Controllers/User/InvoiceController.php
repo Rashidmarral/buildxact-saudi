@@ -28,6 +28,7 @@ use App\Models\Warehouse;
 use App\Models\Webhook;
 use App\Models\WhatsappConfig;
 use App\Notifications\GenericNotification;
+use App\Services\ApprovalChainService;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
 use App\Services\SmsService;
@@ -493,10 +494,63 @@ class InvoiceController extends Controller
         return back()->withErrors(['invoice' => __('This client is on credit hold and cannot be sent new invoices (:reason). Release the hold on the client record first.', ['reason' => $invoice->client->credit_hold_reason ?: __('no reason given')])]);
     }
 
+    /**
+     * Cancelling an already-sent invoice (or voiding the credit note that
+     * corrects one — see CreditNoteController::void()) isn't itself a
+     * sequential multi-person approval the way submitting one for review
+     * is, so this doesn't create ApprovalProgress rows — it's a one-shot
+     * "the most senior configured role must sign off" gate, only once a
+     * company has actually configured an invoice chain (Settings →
+     * Approvals). A company with no chain configured keeps today's
+     * behavior unchanged (any user with the "invoices" permission can
+     * cancel). Returns a response to short-circuit the caller, or null
+     * when unblocked.
+     */
+    private function blockedByMissingSeniorApproval(): ?\Illuminate\Http\RedirectResponse
+    {
+        $chain = app(ApprovalChainService::class);
+        $seniorStep = $chain->highestConfiguredStep('invoice');
+
+        if (! $seniorStep) {
+            return null;
+        }
+
+        if ($chain->userHoldsStepRole($seniorStep, Auth::user())) {
+            return null;
+        }
+
+        return back()->withErrors(['invoice' => __('Cancelling an invoice requires :role sign-off.', ['role' => $seniorStep->role?->name])]);
+    }
+
     public function approve(Invoice $invoice, LedgerPostingService $ledger)
     {
-        abort_unless(Auth::user()->hasPermission('approvals'), 403);
         abort_unless($invoice->status === 'pending_approval', 404);
+
+        $chain = app(ApprovalChainService::class);
+        $currentStep = $chain->currentStep($invoice);
+
+        if ($currentStep) {
+            // A company with a configured invoice chain: the current
+            // step's role (or the owner) must sign off, and a non-final
+            // step just advances the chain — mirrors
+            // PurchaseOrderController::approve().
+            abort_unless($chain->canActOn($currentStep, Auth::user()), 403);
+
+            if (! $chain->approveStep($currentStep, Auth::user())) {
+                $chain->notifyStepApprovers($chain->currentStep($invoice), fn (User $user) => $user->notify(new GenericNotification(
+                    title: __('Invoice awaiting your approval'),
+                    body: __(':amount :currency for :client', ['amount' => number_format((float) $invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->client->name]),
+                    url: route('app.invoices.show', $invoice),
+                    icon: 'invoices',
+                )));
+
+                return back()->with('status', __('Approved — waiting on the next approver.'));
+            }
+        } else {
+            // No chain configured for this company — the older flat
+            // "approvals" permission gate, unchanged.
+            abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        }
 
         $invoice->update(['status' => 'draft', 'approved_by' => Auth::id(), 'approved_at' => now()]);
         $this->doSend($invoice, $ledger);
@@ -508,10 +562,22 @@ class InvoiceController extends Controller
 
     public function reject(Request $request, Invoice $invoice)
     {
-        abort_unless(Auth::user()->hasPermission('approvals'), 403);
         abort_unless($invoice->status === 'pending_approval', 404);
 
+        $chain = app(ApprovalChainService::class);
+        $currentStep = $chain->currentStep($invoice);
+
+        if ($currentStep) {
+            abort_unless($chain->canActOn($currentStep, Auth::user()), 403);
+        } else {
+            abort_unless(Auth::user()->hasPermission('approvals'), 403);
+        }
+
         $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        if ($currentStep) {
+            $chain->rejectCurrent($invoice, Auth::user(), $data['rejection_reason'] ?? null);
+        }
 
         $invoice->update([
             'status' => 'draft',
@@ -542,6 +608,10 @@ class InvoiceController extends Controller
 
         if ($invoice->isZatcaLocked()) {
             return back()->withErrors(['invoice' => __('This invoice has been cleared/reported to ZATCA and cannot be cancelled directly — issue a credit note instead, which correctly notifies ZATCA of the adjustment.')]);
+        }
+
+        if ($blocked = $this->blockedByMissingSeniorApproval()) {
+            return $blocked;
         }
 
         DB::transaction(function () use ($invoice, $ledger) {
@@ -752,6 +822,30 @@ class InvoiceController extends Controller
     private function requestSend(Invoice $invoice, LedgerPostingService $ledger): void
     {
         if ($invoice->status !== 'draft') {
+            return;
+        }
+
+        $chain = app(ApprovalChainService::class);
+
+        if ($chain->isConfigured('invoice')) {
+            $steps = $chain->applicableSteps('invoice', (float) $invoice->total);
+
+            if ($steps->isEmpty()) {
+                $this->doSend($invoice, $ledger);
+
+                return;
+            }
+
+            $invoice->update(['status' => 'pending_approval']);
+            $chain->start($invoice, $steps);
+            $chain->notifyStepApprovers($chain->currentStep($invoice), fn (User $user) => $user->notify(new GenericNotification(
+                title: __('Invoice awaiting your approval'),
+                body: __(':amount :currency for :client', ['amount' => number_format((float) $invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->client->name]),
+                url: route('app.invoices.show', $invoice),
+                icon: 'invoices',
+            )));
+            AuditLog::record('invoice.submit_for_approval', $invoice, __('Submitted invoice :number for approval', ['number' => $invoice->invoice_number]));
+
             return;
         }
 
