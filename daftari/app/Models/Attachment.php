@@ -13,13 +13,14 @@ class Attachment extends Model
 
     protected $fillable = [
         'company_id', 'attachable_type', 'attachable_id', 'uploaded_by',
-        'original_name', 'path', 'size', 'mime_type', 'document_type', 'expiry_date',
+        'original_name', 'path', 'size', 'mime_type', 'document_type', 'expiry_date', 'expiry_reminder_sent_at',
     ];
 
     protected function casts(): array
     {
         return [
             'expiry_date' => 'date',
+            'expiry_reminder_sent_at' => 'datetime',
         ];
     }
 

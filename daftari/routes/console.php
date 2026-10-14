@@ -35,4 +35,5 @@ Schedule::command('subscriptions:run-lifecycle-rules')->dailyAt('02:30')->withou
 Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00')->withoutOverlapping();
 Schedule::command('inventory:check-low-stock')->dailyAt('07:00')->withoutOverlapping();
 Schedule::command('machinery:send-expiry-reminders')->dailyAt('07:15')->withoutOverlapping();
+Schedule::command('company-documents:send-expiry-reminders')->dailyAt('07:20')->withoutOverlapping();
 Schedule::command('backup:run')->dailyAt('03:00')->withoutOverlapping();
