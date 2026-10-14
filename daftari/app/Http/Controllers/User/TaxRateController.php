@@ -21,6 +21,7 @@ class TaxRateController extends Controller
                 TaxRate::TYPE_ZERO_RATED => VatExemptionReason::optionsFor(TaxRate::TYPE_ZERO_RATED),
                 TaxRate::TYPE_EXEMPT => VatExemptionReason::optionsFor(TaxRate::TYPE_EXEMPT),
             ],
+            'notSubjectType' => TaxRate::TYPE_NOT_SUBJECT,
             'company' => Auth::user()->company,
         ]);
     }
@@ -102,23 +103,36 @@ class TaxRateController extends Controller
             'rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'type' => ['required', Rule::in(array_keys(TaxRate::TYPES))],
             'exemption_reason_code' => ['nullable', 'string', 'max:20'],
+            'exemption_reason_text' => ['nullable', 'string', 'max:1000'],
             'effective_date' => ['nullable', 'date'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
 
-        // ZATCA (BR-KSA-23/24/69) requires a VATEX-SA-* reason on every
-        // Zero-rated/Exempt rate, and (BR-S-10) forbids one on Standard.
-        $needsReason = in_array($data['type'], [TaxRate::TYPE_ZERO_RATED, TaxRate::TYPE_EXEMPT], true);
-
-        if ($needsReason && (empty($data['exemption_reason_code']) || ! VatExemptionReason::isValidFor($data['exemption_reason_code'], $data['type']))) {
-            throw ValidationException::withMessages([
-                'exemption_reason_code' => __('Select a ZATCA exemption reason for this VAT category.'),
-            ]);
-        }
-
-        if (! $needsReason) {
+        // ZATCA (BR-KSA-23/24/69/78, BR-KSA-83) requires an exemption
+        // reason on every Zero-rated/Exempt/Not-subject-to-VAT rate, and
+        // (BR-S-10) forbids one on Standard.
+        if ($data['type'] === TaxRate::TYPE_NOT_SUBJECT) {
+            // VAT category O has no fixed reason text list — the spec
+            // itself says it's free text the taxpayer supplies per case,
+            // so the code is always the one fixed VATEX-SA-OOS value and
+            // only the text is user-entered.
+            if (empty($data['exemption_reason_text'])) {
+                throw ValidationException::withMessages([
+                    'exemption_reason_text' => __('Describe why this supply is not subject to VAT — ZATCA requires this free-text reason.'),
+                ]);
+            }
+            $data['exemption_reason_code'] = 'VATEX-SA-OOS';
+        } elseif (in_array($data['type'], [TaxRate::TYPE_ZERO_RATED, TaxRate::TYPE_EXEMPT], true)) {
+            if (empty($data['exemption_reason_code']) || ! VatExemptionReason::isValidFor($data['exemption_reason_code'], $data['type'])) {
+                throw ValidationException::withMessages([
+                    'exemption_reason_code' => __('Select a ZATCA exemption reason for this VAT category.'),
+                ]);
+            }
+            $data['exemption_reason_text'] = null;
+        } else {
             $data['exemption_reason_code'] = null;
+            $data['exemption_reason_text'] = null;
         }
 
         return $data;

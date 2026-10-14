@@ -8,14 +8,16 @@ use App\Models\TaxRate;
  * ZATCA's official VATEX-SA-* exemption/exception reason code list
  * (spec section 11.2.4, "VAT categories code" table) — the codes a
  * Zero-rated (Z) or Exempt (E) VAT category line is allowed to cite.
- * "Not subject to VAT" (category O, VATEX-SA-OOS) isn't in this list:
- * Daftari has no tax rate type for it yet (TaxRate::TYPES only covers
- * S/Z/E), so it's out of scope here — see the ZATCA compliance audit's
- * finding on VAT category O for that gap.
+ * "Not subject to VAT" (category O) uses the single fixed VATEX-SA-OOS
+ * code here, but — per the spec's own "Reason is free text, to be
+ * provided by the taxpayer on case to case basis" wording — its reason
+ * TEXT isn't one of these fixed strings; it's TaxRate::exemption_reason_text,
+ * entered per rate (see TaxRateController).
  */
 class VatExemptionReason
 {
     public const LIST = [
+        'VATEX-SA-OOS' => ['type' => TaxRate::TYPE_NOT_SUBJECT, 'en' => 'Reason is free text, to be provided by the taxpayer on a case-to-case basis.', 'ar' => 'السبب نص حر، يقدمه المكلف على أساس كل حالة على حدة.'],
         'VATEX-SA-29' => ['type' => TaxRate::TYPE_EXEMPT, 'en' => 'Financial services mentioned in Article 29 of the VAT Regulations', 'ar' => 'الخدمات المالية المعفاة'],
         'VATEX-SA-29-7' => ['type' => TaxRate::TYPE_EXEMPT, 'en' => 'Life insurance services mentioned in Article 29 of the VAT Regulations', 'ar' => 'عقد تأمين على الحياة'],
         'VATEX-SA-30' => ['type' => TaxRate::TYPE_EXEMPT, 'en' => 'Real estate transactions mentioned in Article 30 of the VAT Regulations', 'ar' => 'التوريدات العقارية المعفاة من الضريبة'],

@@ -59,7 +59,13 @@
                         <td class="px-6 py-3 text-slate-500">
                             {{ __($types[$taxRate->type] ?? $taxRate->type) }}
                             @if ($taxRate->needsExemptionReason())
-                                @if ($taxRate->exemption_reason_code)
+                                @if ($taxRate->type === $notSubjectType)
+                                    @if ($taxRate->exemption_reason_text)
+                                        <span class="block text-xs text-slate-400">{{ \Illuminate\Support\Str::limit($taxRate->exemption_reason_text, 40) }}</span>
+                                    @else
+                                        <span class="block text-xs font-medium text-red-600">{{ __('Missing ZATCA exemption reason') }}</span>
+                                    @endif
+                                @elseif ($taxRate->exemption_reason_code)
                                     <span class="block text-xs text-slate-400">{{ $taxRate->exemption_reason_code }}</span>
                                 @else
                                     <span class="block text-xs font-medium text-red-600">{{ __('Missing ZATCA exemption reason') }}</span>
@@ -87,6 +93,7 @@
                                 data-is-active="{{ $taxRate->is_active ? '1' : '0' }}"
                                 data-is-default="{{ $taxRate->is_default ? '1' : '0' }}"
                                 data-exemption-reason-code="{{ $taxRate->exemption_reason_code }}"
+                                data-exemption-reason-text="{{ $taxRate->exemption_reason_text }}"
                             >{{ __('Edit') }}</button>
                             <form method="POST" action="{{ route('app.tax-rates.destroy', $taxRate) }}" class="inline" onsubmit="return confirm('{{ __('Delete this tax rate?') }}')">
                                 @csrf @method('DELETE')
@@ -133,6 +140,11 @@
                 <option value="">{{ __('Select a reason') }}</option>
             </select>
             <p class="mt-1 text-xs text-slate-400">{{ __('Required by ZATCA for Zero-rated and Exempt VAT categories (BR-KSA-23/24/69).') }}</p>
+        </div>
+        <div data-exemption-reason-text-wrap class="hidden">
+            <label class="block text-xs font-medium text-slate-500">{{ __('Reason this supply is not subject to VAT') }}</label>
+            <textarea name="exemption_reason_text" rows="2" data-exemption-reason-text class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
+            <p class="mt-1 text-xs text-slate-400">{{ __('ZATCA requires a free-text reason for "Not subject to VAT" lines, case by case (BR-KSA-83) — there is no fixed code list for this one.') }}</p>
         </div>
         <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Effective date (optional)') }}</label>
@@ -189,6 +201,11 @@
             </select>
             <p class="mt-1 text-xs text-slate-400">{{ __('Required by ZATCA for Zero-rated and Exempt VAT categories (BR-KSA-23/24/69).') }}</p>
         </div>
+        <div data-exemption-reason-text-wrap class="hidden">
+            <label class="block text-xs font-medium text-slate-500">{{ __('Reason this supply is not subject to VAT') }}</label>
+            <textarea name="exemption_reason_text" id="edit-tax-rate-exemption-reason-text" rows="2" data-exemption-reason-text class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
+            <p class="mt-1 text-xs text-slate-400">{{ __('ZATCA requires a free-text reason for "Not subject to VAT" lines, case by case (BR-KSA-83) — there is no fixed code list for this one.') }}</p>
+        </div>
         <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Effective date (optional)') }}</label>
             <input type="date" name="effective_date" id="edit-tax-rate-effective-date" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
@@ -212,11 +229,26 @@
 
 <script>
 const exemptionReasonsByType = @json($exemptionReasonsByType);
+const notSubjectType = @json($notSubjectType);
 
-function refreshExemptionReasonSelect(typeSelect, selected) {
-    const wrap = typeSelect.closest('form').querySelector('[data-exemption-reason-wrap]');
-    const select = typeSelect.closest('form').querySelector('[data-exemption-reason-select]');
+function refreshExemptionReasonSelect(typeSelect, selected, text) {
+    const form = typeSelect.closest('form');
+    const wrap = form.querySelector('[data-exemption-reason-wrap]');
+    const select = form.querySelector('[data-exemption-reason-select]');
+    const textWrap = form.querySelector('[data-exemption-reason-text-wrap]');
+    const textArea = form.querySelector('[data-exemption-reason-text]');
     const options = exemptionReasonsByType[typeSelect.value] || null;
+
+    if (typeSelect.value === notSubjectType) {
+        wrap.classList.add('hidden');
+        textWrap.classList.remove('hidden');
+        textArea.value = text || '';
+
+        return;
+    }
+
+    textWrap.classList.add('hidden');
+    textArea.value = '';
 
     select.innerHTML = '<option value="">{{ __('Select a reason') }}</option>';
 
@@ -236,8 +268,8 @@ function refreshExemptionReasonSelect(typeSelect, selected) {
 }
 
 document.querySelectorAll('[data-tax-rate-type]').forEach(select => {
-    select.addEventListener('change', () => refreshExemptionReasonSelect(select, null));
-    refreshExemptionReasonSelect(select, null);
+    select.addEventListener('change', () => refreshExemptionReasonSelect(select, null, null));
+    refreshExemptionReasonSelect(select, null, null);
 });
 
 document.querySelectorAll('[data-edit-tax-rate]').forEach(btn => {
@@ -249,7 +281,7 @@ document.querySelectorAll('[data-edit-tax-rate]').forEach(btn => {
         document.getElementById('edit-tax-rate-effective-date').value = btn.dataset.effectiveDate || '';
         document.getElementById('edit-tax-rate-active').checked = btn.dataset.isActive === '1';
         document.getElementById('edit-tax-rate-default').checked = btn.dataset.isDefault === '1';
-        refreshExemptionReasonSelect(document.getElementById('edit-tax-rate-type'), btn.dataset.exemptionReasonCode || null);
+        refreshExemptionReasonSelect(document.getElementById('edit-tax-rate-type'), btn.dataset.exemptionReasonCode || null, btn.dataset.exemptionReasonText || null);
         document.getElementById('edit-tax-rate-modal').showModal();
     });
 });

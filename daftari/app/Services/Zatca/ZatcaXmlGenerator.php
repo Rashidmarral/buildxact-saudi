@@ -700,10 +700,16 @@ class ZatcaXmlGenerator
             $rate = number_format((float) $item->vat_rate, 2, '.', '');
             $code = $this->taxCategoryCode($item);
             $reasonCode = $item->taxRate?->exemption_reason_code;
-            $key = $code.'|'.$rate.'|'.$reasonCode;
+            // Not-subject-to-VAT (O) always uses the fixed VATEX-SA-OOS
+            // code, but its reason TEXT is free text the taxpayer sets per
+            // rate (spec 11.2.4) rather than one of VatExemptionReason's
+            // fixed strings — grouped in too, same reasoning as reasonCode.
+            $reasonText = $code === 'O' ? $item->taxRate?->exemption_reason_text : null;
+            $key = $code.'|'.$rate.'|'.$reasonCode.'|'.$reasonText;
             $groups[$key]['code'] = $code;
             $groups[$key]['rate'] = $rate;
             $groups[$key]['reason_code'] = $reasonCode;
+            $groups[$key]['reason_text'] = $reasonText;
             $groups[$key]['taxable'] = ($groups[$key]['taxable'] ?? 0) + $netAmount($item);
             $groups[$key]['tax'] = ($groups[$key]['tax'] ?? 0) + (float) $item->vat_amount;
         }
@@ -717,13 +723,14 @@ class ZatcaXmlGenerator
             $this->append($doc, $category, 'cbc:ID', $group['code']);
             $this->append($doc, $category, 'cbc:Percent', $group['rate']);
 
-            // BR-KSA-23/24/69: Exempt (E) and Zero-rated (Z) VAT breakdowns
-            // must carry a VATEX-SA-* reason code and text; BR-S-10
-            // forbids either element on a Standard (S) breakdown, so this
-            // only fires for E/Z and only once the rate carries one.
-            if (in_array($group['code'], ['E', 'Z'], true) && $group['reason_code']) {
+            // BR-KSA-23/24/69/78, BR-KSA-83: Exempt (E), Zero-rated (Z) and
+            // Not-subject-to-VAT (O) breakdowns must carry a VATEX-SA-*
+            // reason code and text; BR-S-10 forbids either element on a
+            // Standard (S) breakdown, so this only fires for E/Z/O and
+            // only once the rate carries one.
+            if (in_array($group['code'], ['E', 'Z', 'O'], true) && $group['reason_code']) {
                 $this->append($doc, $category, 'cbc:TaxExemptionReasonCode', $group['reason_code']);
-                $reasonText = VatExemptionReason::text($group['reason_code']);
+                $reasonText = $group['code'] === 'O' ? $group['reason_text'] : VatExemptionReason::text($group['reason_code']);
                 if ($reasonText) {
                     $this->append($doc, $category, 'cbc:TaxExemptionReason', $reasonText);
                 }
@@ -840,15 +847,16 @@ class ZatcaXmlGenerator
 
     /**
      * ZATCA's ClassifiedTaxCategory/ID for a sales line: S (standard-rated),
-     * Z (zero-rated — still a taxable supply, e.g. exports), or E (exempt —
-     * outside VAT entirely, e.g. residential rent). Both Z and E charge 0
-     * SAR of VAT, so they can't be told apart from vat_rate alone — this
-     * uses the line's linked TaxRate (Settings → Tax rates) when one is
-     * set, and only falls back to the old "0% ⇒ zero-rated" guess for
-     * lines created before tax rate management existed (tax_rate_id null).
-     * The compliance-check sample line (generateComplianceSample()) is a
-     * stdClass stand-in with taxRate forced to null, so it also falls
-     * through to that guess.
+     * Z (zero-rated — still a taxable supply, e.g. exports), E (exempt —
+     * a supply VAT law expressly excludes, e.g. residential rent), or O
+     * (not subject to VAT at all — outside VAT's scope entirely). All
+     * three of Z/E/O charge 0 SAR of VAT, so they can't be told apart from
+     * vat_rate alone — this uses the line's linked TaxRate (Settings → Tax
+     * rates) when one is set, and only falls back to the old "0% ⇒
+     * zero-rated" guess for lines created before tax rate management
+     * existed (tax_rate_id null). The compliance-check sample line
+     * (generateComplianceSample()) is a stdClass stand-in with taxRate
+     * forced to null, so it also falls through to that guess.
      */
     private function taxCategoryCode(InvoiceItem|CreditNoteItem|DebitNoteItem|\stdClass $item): string
     {
@@ -856,6 +864,7 @@ class ZatcaXmlGenerator
             TaxRate::TYPE_EXEMPT => 'E',
             TaxRate::TYPE_ZERO_RATED => 'Z',
             TaxRate::TYPE_STANDARD => 'S',
+            TaxRate::TYPE_NOT_SUBJECT => 'O',
             default => (float) $item->vat_rate > 0 ? 'S' : 'Z',
         };
     }

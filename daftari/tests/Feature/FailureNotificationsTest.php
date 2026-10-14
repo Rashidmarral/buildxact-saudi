@@ -48,7 +48,7 @@ class FailureNotificationsTest extends TestCase
             'zatca_integration_mode' => 'phase2',
         ]);
         $owner = $this->makeOwner($company);
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client', 'vat_number' => '300012345600003']);
         $invoice = Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),
             'type' => 'standard', 'issue_date' => now()->toDateString(), 'currency' => $company->currency,

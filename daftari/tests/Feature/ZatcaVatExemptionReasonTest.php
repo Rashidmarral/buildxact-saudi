@@ -32,7 +32,7 @@ class ZatcaVatExemptionReasonTest extends TestCase
 
     private function makeInvoiceWithRate(Company $company, TaxRate $rate): Invoice
     {
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Export Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Export Client', 'vat_number' => '300012345600003']);
         $invoice = Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),
             'type' => 'standard', 'status' => 'sent', 'issue_date' => now()->toDateString(),
@@ -182,5 +182,71 @@ class ZatcaVatExemptionReasonTest extends TestCase
 
         $response->assertSessionDoesntHaveErrors();
         $this->assertNull(TaxRate::where('company_id', $company->id)->where('name', 'VAT 15%')->value('exemption_reason_code'));
+    }
+
+    /**
+     * ZATCA's VAT category O ("Not subject to VAT", spec section 11.2.4 /
+     * BR-KSA-18/24/78/83) has no fixed reason text list the way Zero-rated
+     * (Z) and Exempt (E) do — it always uses the single fixed VATEX-SA-OOS
+     * code, but the reason TEXT is free text the taxpayer supplies "on a
+     * case to case basis" per the spec's own wording. Daftari's TaxRate
+     * model previously had no type for this category at all.
+     */
+    public function test_a_not_subject_to_vat_line_carries_the_fixed_code_and_its_own_free_text_reason(): void
+    {
+        $company = $this->makeCompany();
+        $rate = TaxRate::create([
+            'company_id' => $company->id, 'name' => 'Out of scope', 'rate' => 0, 'type' => TaxRate::TYPE_NOT_SUBJECT,
+            'exemption_reason_code' => 'VATEX-SA-OOS', 'exemption_reason_text' => 'Supply made entirely outside the Kingdom of Saudi Arabia.', 'is_active' => true,
+        ]);
+        $invoice = $this->makeInvoiceWithRate($company, $rate);
+
+        $xml = (new ZatcaXmlGenerator())->generate($invoice, '0100000', null, 'test-uuid', 1);
+
+        $this->assertStringContainsString('<cbc:ID>O</cbc:ID>', $xml);
+        $this->assertStringContainsString('<cbc:TaxExemptionReasonCode>VATEX-SA-OOS</cbc:TaxExemptionReasonCode>', $xml);
+        $this->assertStringContainsString('<cbc:TaxExemptionReason>Supply made entirely outside the Kingdom of Saudi Arabia.</cbc:TaxExemptionReason>', $xml);
+    }
+
+    public function test_sync_is_blocked_when_a_not_subject_to_vat_line_has_no_free_text_reason_set(): void
+    {
+        $company = $this->makeCompany();
+        // Simulates a row saved before this column existed, or created
+        // directly rather than through the validated controller path.
+        $rate = TaxRate::create(['company_id' => $company->id, 'name' => 'Out of scope', 'rate' => 0, 'type' => TaxRate::TYPE_NOT_SUBJECT, 'exemption_reason_code' => 'VATEX-SA-OOS', 'is_active' => true]);
+        $invoice = $this->makeInvoiceWithRate($company, $rate);
+
+        $log = app(ZatcaSyncService::class)->submit($invoice);
+
+        $this->assertSame('failed', $log->status);
+        $this->assertStringContainsString('ZATCA exemption reason', $log->error_message);
+    }
+
+    public function test_the_tax_rate_form_requires_free_text_for_a_not_subject_to_vat_type(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $response = $this->actingAs($owner)->post(route('app.tax-rates.store'), [
+            'name' => 'Out of scope', 'rate' => 0, 'type' => TaxRate::TYPE_NOT_SUBJECT,
+        ]);
+
+        $response->assertSessionHasErrors('exemption_reason_text');
+        $this->assertSame(0, TaxRate::where('company_id', $company->id)->where('name', 'Out of scope')->count());
+    }
+
+    public function test_the_tax_rate_form_accepts_a_not_subject_to_vat_type_with_free_text_and_auto_sets_the_fixed_code(): void
+    {
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $response = $this->actingAs($owner)->post(route('app.tax-rates.store'), [
+            'name' => 'Out of scope', 'rate' => 0, 'type' => TaxRate::TYPE_NOT_SUBJECT, 'exemption_reason_text' => 'Outside KSA VAT scope.',
+        ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $rate = TaxRate::where('company_id', $company->id)->where('name', 'Out of scope')->firstOrFail();
+        $this->assertSame('VATEX-SA-OOS', $rate->exemption_reason_code);
+        $this->assertSame('Outside KSA VAT scope.', $rate->exemption_reason_text);
     }
 }

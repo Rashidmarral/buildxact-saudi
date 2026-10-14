@@ -57,7 +57,7 @@ class ZatcaManagementTest extends TestCase
 
     private function makeInvoice(Company $company, array $overrides = []): Invoice
     {
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client', 'vat_number' => '300012345600003']);
 
         return Invoice::create(array_merge([
             'company_id' => $company->id,
@@ -353,7 +353,7 @@ class ZatcaManagementTest extends TestCase
         $invoice = $this->makeInvoice($company);
         $this->makeInvoiceLog($company, $invoice, ['status' => 'cleared', 'error_message' => null]);
 
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client', 'vat_number' => '300012345600003']);
         $creditNote = CreditNote::create([
             'company_id' => $company->id, 'invoice_id' => $invoice->id, 'client_id' => $client->id,
             'credit_note_number' => 'CN-'.uniqid(), 'issue_date' => now()->toDateString(), 'status' => 'issued', 'currency' => 'SAR',

@@ -196,26 +196,62 @@ class ZatcaSyncService
      * create a ZatcaInvoiceLog row.
      */
     /**
-     * BR-KSA-23/24/69: a Zero-rated or Exempt VAT category line must carry
-     * a VATEX-SA-* exemption reason code in the document's TaxSubtotal
-     * breakdown (ZatcaXmlGenerator::appendDualTaxTotal()). TaxRate rows
-     * created before this requirement existed (including the "VAT 0%"/
-     * "Exempt" rates TaxRate::seedDefaults() auto-creates for every new
-     * company) can still have none set, which would silently produce
-     * non-compliant XML — caught here, at the single choke point every
-     * submit*() caller goes through, rather than left to a clearance
-     * rejection from ZATCA itself.
+     * BR-KSA-23/24/69/78, BR-KSA-83: a Zero-rated, Exempt, or
+     * Not-subject-to-VAT category line must carry an exemption reason in
+     * the document's TaxSubtotal breakdown
+     * (ZatcaXmlGenerator::appendDualTaxTotal()) — a fixed VATEX-SA-* code
+     * for the first two, a free-text reason for the third (the spec has
+     * no fixed code list for "Not subject to VAT"). TaxRate rows created
+     * before this requirement existed (including the "VAT 0%"/"Exempt"
+     * rates TaxRate::seedDefaults() auto-creates for every new company)
+     * can still have none set, which would silently produce non-compliant
+     * XML — caught here, at the single choke point every submit*() caller
+     * goes through, rather than left to a clearance rejection from ZATCA
+     * itself.
      */
     private function missingExemptionReasonError(iterable $items): ?string
     {
         foreach ($items as $item) {
             $taxRate = $item->taxRate;
-            if ($taxRate && $taxRate->needsExemptionReason() && ! $taxRate->exemption_reason_code) {
+            if (! $taxRate || ! $taxRate->needsExemptionReason()) {
+                continue;
+            }
+
+            $missing = $taxRate->type === \App\Models\TaxRate::TYPE_NOT_SUBJECT
+                ? ! $taxRate->exemption_reason_text
+                : ! $taxRate->exemption_reason_code;
+
+            if ($missing) {
                 return __('Tax rate ":name" is missing a required ZATCA exemption reason. Set one in Settings → Tax rates before syncing.', ['name' => $taxRate->name]);
             }
         }
 
         return null;
+    }
+
+    /**
+     * BR-KSA-81: a standard (B2B) tax invoice's buyer must carry the Other
+     * Buyer ID (BT-46 — national ID/Iqama/passport/GCC ID, via
+     * Client::additional_id_type) whenever it has no VAT registration
+     * number — ZatcaXmlGenerator::party() only emits a PartyIdentification
+     * element when one of those is actually set on the client, so a
+     * standard-invoice buyer with neither would silently produce XML
+     * missing a field ZATCA requires. Simplified (B2C) invoices aren't
+     * covered by this rule, matching the spec's own "KSA-2, position 1
+     * and 2 = 01" condition — isB2b()/isB2bCreditNote()/isB2bDebitNote()
+     * already compute exactly that split for the sync endpoint choice.
+     */
+    private function missingBuyerIdentificationError(\App\Models\Client $client): ?string
+    {
+        if ($client->vat_number) {
+            return null;
+        }
+
+        if ($client->additional_id_type && $client->additional_id_number) {
+            return null;
+        }
+
+        return __('Client ":name" has no VAT number and no other buyer ID (national ID/Iqama/passport/GCC ID) — ZATCA requires one or the other on a standard tax invoice. Add one on the client record before syncing.', ['name' => $client->name]);
     }
 
     private function rejectUnsubmittable(Invoice $invoice): ?ZatcaInvoiceLog
@@ -232,6 +268,15 @@ class ZatcaSyncService
         }
 
         if ($error = $this->missingExemptionReasonError($invoice->items()->with('taxRate')->get())) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($this->isB2b($invoice) && ($error = $this->missingBuyerIdentificationError($invoice->client))) {
             return new ZatcaInvoiceLog([
                 'company_id' => $invoice->company_id,
                 'invoice_id' => $invoice->id,
@@ -317,6 +362,15 @@ class ZatcaSyncService
             ]);
         }
 
+        if ($this->isB2bCreditNote($creditNote) && ($error = $this->missingBuyerIdentificationError($creditNote->client))) {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
         return null;
     }
 
@@ -350,6 +404,15 @@ class ZatcaSyncService
         }
 
         if ($error = $this->missingExemptionReasonError($debitNote->items()->with('taxRate')->get())) {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($this->isB2bDebitNote($debitNote) && ($error = $this->missingBuyerIdentificationError($debitNote->client))) {
             return new ZatcaDebitNoteLog([
                 'company_id' => $debitNote->company_id,
                 'debit_note_id' => $debitNote->id,

@@ -69,7 +69,7 @@ class ZatcaSubmissionHashChainLockingTest extends TestCase
 
     private function makeInvoice(Company $company): Invoice
     {
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client', 'vat_number' => '300012345600003']);
 
         return Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),

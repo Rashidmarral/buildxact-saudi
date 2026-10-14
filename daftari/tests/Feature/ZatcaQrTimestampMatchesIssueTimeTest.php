@@ -35,7 +35,7 @@ class ZatcaQrTimestampMatchesIssueTimeTest extends TestCase
     public function test_a_phase_1_only_invoices_qr_uses_the_real_creation_time_not_midnight(): void
     {
         $company = Company::create(['name' => 'Test Trading Co.', 'slug' => 'test-'.uniqid(), 'vat_number' => '300012345600003']);
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client', 'vat_number' => '300012345600003']);
 
         $invoice = Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'TEST-'.uniqid(),
@@ -93,7 +93,7 @@ class ZatcaQrTimestampMatchesIssueTimeTest extends TestCase
         ]);
         Subscription::create(['company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active', 'billing_cycle' => 'monthly', 'current_period_start' => now(), 'current_period_end' => now()->addMonth()]);
         $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client', 'vat_number' => '300012345600003']);
 
         $invoice = Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'TEST-'.uniqid(),

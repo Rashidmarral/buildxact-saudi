@@ -17,24 +17,37 @@ class TaxRate extends Model
 
     public const TYPE_EXEMPT = 'exempt';
 
+    /**
+     * ZATCA's VAT category "O" (UN/CEFACT 5305) — a supply outside the
+     * scope of VAT entirely (e.g. a transaction outside Saudi Arabia with
+     * no KSA VAT nexus), distinct from Exempt (a supply VAT law expressly
+     * excludes, e.g. residential rent). Spec section 11.2.4.
+     */
+    public const TYPE_NOT_SUBJECT = 'not_subject';
+
     public const TYPES = [
         self::TYPE_STANDARD => 'Standard',
         self::TYPE_ZERO_RATED => 'Zero-rated',
         self::TYPE_EXEMPT => 'Exempt',
+        self::TYPE_NOT_SUBJECT => 'Not subject to VAT',
     ];
 
     protected $fillable = [
-        'company_id', 'name', 'rate', 'type', 'exemption_reason_code', 'is_active', 'is_default', 'effective_date',
+        'company_id', 'name', 'rate', 'type', 'exemption_reason_code', 'exemption_reason_text', 'is_active', 'is_default', 'effective_date',
     ];
 
     /**
-     * ZATCA requires a VATEX-SA-* exemption reason code (BR-KSA-23/24/69)
-     * on every Zero-rated or Exempt VAT category breakdown — standard-rated
-     * lines must never carry one (BR-S-10).
+     * ZATCA requires an exemption/exception reason (BR-KSA-23/24/69/78,
+     * BR-KSA-83) on every Zero-rated, Exempt, or Not-subject-to-VAT
+     * breakdown — standard-rated lines must never carry one (BR-S-10).
+     * Zero-rated/Exempt pick a fixed VATEX-SA-* code+text
+     * (App\Support\Zatca\VatExemptionReason); Not-subject-to-VAT always
+     * uses the fixed VATEX-SA-OOS code but a free-text reason the
+     * taxpayer supplies per spec's own "case to case basis" wording.
      */
     public function needsExemptionReason(): bool
     {
-        return in_array($this->type, [self::TYPE_ZERO_RATED, self::TYPE_EXEMPT], true);
+        return in_array($this->type, [self::TYPE_ZERO_RATED, self::TYPE_EXEMPT, self::TYPE_NOT_SUBJECT], true);
     }
 
     protected function casts(): array

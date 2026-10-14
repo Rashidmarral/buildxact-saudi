@@ -69,7 +69,7 @@ class DemoModeTest extends TestCase
     {
         $company = $this->makeCompany(['is_demo' => true]);
         $owner = $this->makeOwner($company);
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Demo Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Demo Client', 'vat_number' => '300012345600003']);
 
         $response = $this->actingAs($owner)->delete(route('app.clients.destroy', $client));
 
@@ -81,7 +81,7 @@ class DemoModeTest extends TestCase
     {
         $company = $this->makeCompany(['is_demo' => false]);
         $owner = $this->makeOwner($company);
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Real Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Real Client', 'vat_number' => '300012345600003']);
 
         $response = $this->actingAs($owner)->delete(route('app.clients.destroy', $client));
 
@@ -102,7 +102,7 @@ class DemoModeTest extends TestCase
     {
         $company = $this->makeCompany(['is_demo' => true]);
         $owner = $this->makeOwner($company);
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Demo Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Demo Client', 'vat_number' => '300012345600003']);
         $invoice = Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id,
             'invoice_number' => 'INV-'.uniqid(), 'type' => 'standard', 'status' => 'sent',
@@ -120,7 +120,7 @@ class DemoModeTest extends TestCase
     {
         $company = $this->makeCompany(['is_demo' => false]);
         $owner = $this->makeOwner($company);
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Real Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Real Client', 'vat_number' => '300012345600003']);
         $invoice = Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id,
             'invoice_number' => 'INV-'.uniqid(), 'type' => 'standard', 'status' => 'sent',
@@ -202,7 +202,7 @@ class DemoModeTest extends TestCase
 
     private function makeInvoice(Company $company): Invoice
     {
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client', 'vat_number' => '300012345600003']);
 
         return Invoice::create([
             'company_id' => $company->id,

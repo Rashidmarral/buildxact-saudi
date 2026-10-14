@@ -72,7 +72,7 @@ class ZatcaCorrectionDocumentGuardsTest extends TestCase
 
     private function makeInvoice(Company $company, array $overrides = []): Invoice
     {
-        $client = Client::create(['company_id' => $company->id, 'name' => 'Client']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client', 'vat_number' => '300012345600003']);
 
         return Invoice::create(array_merge([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),
