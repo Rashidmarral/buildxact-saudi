@@ -114,16 +114,23 @@
                     <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">العنوان</td>
                 </tr>
             @endif
-            <tr class="border-b border-slate-300">
+            <tr class="{{ (!empty($doc['date2']) || !empty($doc['payment_method'])) ? 'border-b border-slate-300' : '' }}">
                 <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Number') }}</td>
                 <td class="px-3 py-2 text-center text-slate-600">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ $issuedDisplay }}</td>
                 <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">رقم | التاريخ</td>
             </tr>
             @if (!empty($doc['date2']))
-                <tr>
+                <tr class="{{ !empty($doc['payment_method']) ? 'border-b border-slate-300' : '' }}">
                     <td class="px-3 py-2 font-semibold text-slate-700">{{ $doc['date2_label'] }}</td>
                     <td class="px-3 py-2 text-center text-slate-600">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
                     <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">{{ $doc['date2_label_ar'] ?? '' }}</td>
+                </tr>
+            @endif
+            @if (!empty($doc['payment_method']))
+                <tr>
+                    <td class="px-3 py-2 font-semibold text-slate-700">{{ __('Payment method') }}</td>
+                    <td class="px-3 py-2 text-center text-slate-600">{{ $doc['payment_method'] }}</td>
+                    <td class="px-3 py-2 text-end font-semibold text-slate-700" dir="rtl">طريقة الدفع</td>
                 </tr>
             @endif
         </tbody>
@@ -284,6 +291,12 @@
                     <td class="py-1 text-slate-800">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
                 @endif
             </tr>
+            @if (!empty($doc['payment_method']))
+                <tr>
+                    <td class="py-1 font-semibold text-slate-600">{{ $lbl('Payment method') }}</td>
+                    <td class="py-1 text-slate-800" colspan="3">{{ $doc['payment_method'] }}</td>
+                </tr>
+            @endif
             @if (!empty($doc['ref_no']))
                 <tr>
                     <td class="py-1 font-semibold text-slate-600">{{ $lbl('Ref No') }}</td>
@@ -915,6 +928,7 @@
             <p class="mt-2 text-sm font-semibold text-slate-700">{{ $doc['number'] }}</p>
             <p class="text-sm text-slate-500">{{ $doc['date_label'] }}: {{ $issuedDisplay }}</p>
             @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</p>@endif
+            @if (!empty($doc['payment_method']))<p class="text-sm text-slate-500">{{ $lbl('Payment method') }}: {{ $doc['payment_method'] }}</p>@endif
         </div>
     </div>
     @include('documents.print.payment-status-badge', ['doc' => $doc, 'primary' => $primary, 'secondary' => $secondary])

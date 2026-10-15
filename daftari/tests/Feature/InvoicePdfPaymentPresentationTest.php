@@ -181,6 +181,48 @@ class InvoicePdfPaymentPresentationTest extends TestCase
         }
     }
 
+    /**
+     * Previously only sage_classic/retail_classic printed how the money
+     * actually arrived — the other 5 layouts showed the Paid/Partially
+     * Paid badge but nothing about the payment mode itself, even though
+     * a user can now pick it right on the create form. Every invoice
+     * layout now shows it the same way the payment-status badge already
+     * did, each using its own existing field styling.
+     */
+    public function test_every_layout_shows_the_payment_method_once_a_payment_is_recorded(): void
+    {
+        [$company] = $this->makeOwner();
+        $invoice = $this->makePartiallyPaidInvoice($company);
+
+        foreach (['bilingual_classic', 'custom_letterhead', 'minimal', 'bordered', 'boxed', 'sage_classic', 'retail_classic'] as $layout) {
+            $company->invoiceTemplates()->updateOrCreate(
+                ['document_type' => 'invoice'], ['name' => 'T', 'layout' => $layout, 'is_default' => true]
+            );
+
+            $html = $this->renderPdfHtml($invoice->fresh());
+
+            $this->assertStringContainsString('Bank transfer', $html, "Layout \"{$layout}\" doesn't show the payment method.");
+        }
+    }
+
+    public function test_no_payment_method_row_appears_before_any_payment_is_recorded(): void
+    {
+        [$company] = $this->makeOwner();
+        $invoice = $this->makePartiallyPaidInvoice($company);
+        $invoice->update(['status' => 'sent', 'amount_paid' => 0]);
+        $invoice->invoicePayments()->delete();
+
+        foreach (['bilingual_classic', 'custom_letterhead', 'minimal', 'sage_classic', 'retail_classic'] as $layout) {
+            $company->invoiceTemplates()->updateOrCreate(
+                ['document_type' => 'invoice'], ['name' => 'T', 'layout' => $layout, 'is_default' => true]
+            );
+
+            $html = $this->renderPdfHtml($invoice->fresh());
+
+            $this->assertStringNotContainsString('Payment method', $html, "Layout \"{$layout}\" shows a payment method label with nothing to show.");
+        }
+    }
+
     public function test_the_company_stamp_scales_by_width_only_so_it_never_distorts(): void
     {
         [$company] = $this->makeOwner();

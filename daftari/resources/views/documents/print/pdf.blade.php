@@ -154,16 +154,23 @@
                 <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">العنوان</td>
             </tr>
         @endif
-        <tr @if (!empty($doc['date2'])) style="border-bottom: 0.5pt solid #cbd5e1;" @endif>
+        <tr @if (!empty($doc['date2']) || !empty($doc['payment_method'])) style="border-bottom: 0.5pt solid #cbd5e1;" @endif>
             <td style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ __('Number') }}</td>
             <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ $doc['number'] }} | {{ $doc['date_label'] }} {{ $issuedDisplay }}</td>
             <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">رقم | التاريخ</td>
         </tr>
         @if (!empty($doc['date2']))
-            <tr>
+            <tr @if (!empty($doc['payment_method'])) style="border-bottom: 0.5pt solid #cbd5e1;" @endif>
                 <td style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ $doc['date2_label'] }}</td>
                 <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
                 <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ $doc['date2_label_ar'] ?? '' }}</td>
+            </tr>
+        @endif
+        @if (!empty($doc['payment_method']))
+            <tr>
+                <td style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ __('Payment method') }}</td>
+                <td style="padding: 4px 6px; text-align: center; font-size: 9.5pt;">{{ $doc['payment_method'] }}</td>
+                <td class="ar" style="padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">طريقة الدفع</td>
             </tr>
         @endif
     </table>
@@ -243,6 +250,9 @@
                 <td style="padding: 3px 0;">{{ \App\Support\PlatformFormat::date($doc['date2']) }}</td>
             @endif
         </tr>
+        @if (!empty($doc['payment_method']))
+            <tr><td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $lbl('Payment method') }}</td><td style="padding: 3px 0;" colspan="3">{{ $doc['payment_method'] }}</td></tr>
+        @endif
         @if (!empty($doc['ref_no']))
             <tr><td style="padding: 3px 0; font-weight: bold; color: #475569;">{{ $lbl('Ref No') }}</td><td style="padding: 3px 0;" colspan="3">{{ $doc['ref_no'] }}</td></tr>
         @endif
@@ -870,6 +880,7 @@
                 <div style="margin-top: 6px; font-weight: bold; color: #334155;">{{ $doc['number'] }}</div>
                 <div class="muted">{{ $doc['date_label'] }}: {{ $issuedDisplay }}</div>
                 @if (!empty($doc['date2']))<div class="muted">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</div>@endif
+                @if (!empty($doc['payment_method']))<div class="muted">{{ $lbl('Payment method') }}: {{ $doc['payment_method'] }}</div>@endif
             </td>
         </tr>
     </table>
