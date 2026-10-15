@@ -176,6 +176,36 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
                     @endforeach
                 </select>
 
+                @unless ($invoice->exists)
+                    {{-- Only on create: editing an existing invoice has its
+                         own dedicated Record Payment form (and a separate,
+                         purely cosmetic payment-status override) on the
+                         invoice's own page — re-exposing a payment-status
+                         picker here would risk double-recording a payment
+                         or fighting with those. --}}
+                    <h3 class="text-xs font-semibold uppercase text-slate-500 mt-6 mb-2">{{ __('Payment') }}</h3>
+                    <label class="block text-xs font-medium text-slate-500">{{ __('Payment mode') }}</label>
+                    <select name="payment_mode" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">{{ __('Not specified') }}</option>
+                        <option value="cash" @selected(old('payment_mode') === 'cash')>{{ __('Cash') }}</option>
+                        <option value="bank_transfer" @selected(old('payment_mode') === 'bank_transfer')>{{ __('Bank transfer') }}</option>
+                        <option value="card" @selected(old('payment_mode') === 'card')>{{ __('Card') }}</option>
+                        <option value="other" @selected(old('payment_mode') === 'other')>{{ __('Other') }}</option>
+                    </select>
+
+                    <label class="block text-xs font-medium text-slate-500 mt-3">{{ __('Payment status') }}</label>
+                    <select name="payment_status" id="payment-status" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        <option value="unpaid" @selected(old('payment_status', 'unpaid') === 'unpaid')>{{ __('Unpaid') }}</option>
+                        <option value="paid" @selected(old('payment_status') === 'paid')>{{ __('Paid') }}</option>
+                        <option value="partially_paid" @selected(old('payment_status') === 'partially_paid')>{{ __('Partially paid') }}</option>
+                    </select>
+                    <div id="amount-paid-wrap" class="mt-2 {{ old('payment_status') === 'partially_paid' ? '' : 'hidden' }}">
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Amount paid') }}</label>
+                        <input type="number" step="0.01" min="0.01" name="amount_paid" id="amount-paid" value="{{ old('amount_paid') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">{{ __('Marking this Paid or Partially paid records a real payment and sends the invoice immediately.') }}</p>
+                @endunless
+
                 <h3 class="text-xs font-semibold uppercase text-slate-500 mt-6 mb-2">{{ __('Stamp') }}</h3>
                 @if ($company->stamp_path)
                     <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-16 w-16 rounded-lg object-cover border border-slate-200">
@@ -461,6 +491,13 @@ document.getElementById('add-retention-btn').addEventListener('click', () => {
 if (parseFloat(document.getElementById('retention_rate').value) > 0) {
     document.getElementById('retention-input-wrap').classList.remove('hidden');
     document.getElementById('add-retention-btn').classList.add('hidden');
+}
+
+const paymentStatusSelect = document.getElementById('payment-status');
+if (paymentStatusSelect) {
+    paymentStatusSelect.addEventListener('change', (e) => {
+        document.getElementById('amount-paid-wrap').classList.toggle('hidden', e.target.value !== 'partially_paid');
+    });
 }
 
 document.getElementById('currency').addEventListener('change', (e) => {

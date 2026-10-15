@@ -40,6 +40,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
@@ -174,8 +175,14 @@ class InvoiceController extends Controller
 
         $data = $this->validated($request);
         $sendImmediately = $request->boolean('send_immediately');
+        $paymentStatus = $data['payment_status'] ?? 'unpaid';
+        // A cash-sale-style invoice ("this was already paid when I wrote
+        // it") needs a real InvoicePayment recorded, not just a label —
+        // see Invoice::PAYMENT_STATUS_OVERRIDES for the separate, purely
+        // cosmetic post-creation override this is NOT reusing.
+        $wantsPayment = in_array($paymentStatus, ['paid', 'partially_paid'], true);
 
-        $invoice = DB::transaction(function () use ($data) {
+        $invoice = DB::transaction(function () use ($data, $paymentStatus) {
             $company = Auth::user()->company;
             $subtotal = collect($data['items'])->sum(fn ($row) => $row['quantity'] * $row['unit_price']);
             $retentionAmount = round($subtotal * (($data['retention_rate'] ?? 0) / 100), 2);
@@ -205,6 +212,22 @@ class InvoiceController extends Controller
             $this->syncItems($invoice, $data['items']);
             $invoice->recalculateTotals();
 
+            // The real total (vat_amount per line, discount, retention)
+            // only exists once items are synced and totaled above, so a
+            // "partially paid" amount can only be bounds-checked against
+            // it here — throwing rolls back the whole invoice+items
+            // insert (DB::transaction rethrows after rollback) and lands
+            // the user back on the form with this error, same as any
+            // other validation failure.
+            if ($paymentStatus === 'partially_paid') {
+                $amountPaid = (float) ($data['amount_paid'] ?? 0);
+                if ($amountPaid <= 0 || $amountPaid >= (float) $invoice->total) {
+                    throw ValidationException::withMessages([
+                        'amount_paid' => __('Amount paid must be greater than zero and less than the invoice total of :total.', ['total' => \App\Support\Money::format($invoice->total)]),
+                    ]);
+                }
+            }
+
             return $invoice;
         });
 
@@ -212,18 +235,62 @@ class InvoiceController extends Controller
 
         Webhook::trigger($invoice->company_id, 'invoice.created', $this->webhookPayload($invoice));
 
-        $status = __('Invoice created.');
-
-        if ($sendImmediately && $invoice->client->credit_hold) {
+        if (($sendImmediately || $wantsPayment) && $invoice->client->credit_hold) {
             return redirect()->route('app.invoices.show', $invoice)->withErrors(['invoice' => __('This client is on credit hold and cannot be sent new invoices (:reason). The invoice was saved as a draft — release the hold on the client record first.', ['reason' => $invoice->client->credit_hold_reason ?: __('no reason given')])]);
         }
 
-        if ($sendImmediately) {
+        // Recording a payment requires the invoice to actually be sent
+        // first — same reasoning as storePayment()'s own doSend() call:
+        // a payment against a still-draft invoice would jump straight to
+        // paid/partially_paid with its revenue never posted to the GL.
+        // requestSend() (not doSend() directly) still routes through an
+        // approval chain when the company has one configured, so a
+        // large invoice isn't silently marked paid ahead of its own
+        // approval.
+        if ($sendImmediately || $wantsPayment) {
             $this->requestSend($invoice, $ledger);
-            $status = $invoice->fresh()->status === 'pending_approval'
-                ? __('Invoice created and submitted for approval.')
-                : __('Invoice created and sent.');
+            $invoice = $invoice->fresh();
         }
+
+        if ($wantsPayment && $invoice->status === 'sent') {
+            $amount = $paymentStatus === 'paid' ? (float) $invoice->total : (float) $data['amount_paid'];
+
+            DB::transaction(function () use ($invoice, $amount, $data, $ledger) {
+                $payment = $invoice->invoicePayments()->create([
+                    'amount' => $amount,
+                    'paid_at' => $invoice->issue_date,
+                    'method' => $data['payment_mode'] ?? null,
+                    // Only attach the invoice's own "Bank details" account
+                    // when the money actually moved through a bank — a
+                    // cash/card/other payment didn't land in that account,
+                    // and wrongly crediting it would misstate that
+                    // account's own statement and Project Cash Flow.
+                    'bank_account_id' => ($data['payment_mode'] ?? null) === 'bank_transfer' ? $invoice->bank_account_id : null,
+                ]);
+                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+                $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+                $invoice->payment_status_override = null;
+                $invoice->save();
+                $ledger->postInvoicePayment($payment);
+            });
+
+            AuditLog::record('invoice.payment_record', $invoice, __('Recorded a payment of :amount :currency on invoice :number', [
+                'amount' => number_format($amount, 2), 'currency' => $invoice->currency, 'number' => $invoice->invoice_number,
+            ]));
+
+            if ($invoice->status === 'paid') {
+                Webhook::trigger($invoice->company_id, 'invoice.paid', $this->webhookPayload($invoice));
+            }
+        }
+
+        $status = match (true) {
+            $wantsPayment && $invoice->status === 'paid' => __('Invoice created, sent, and marked paid.'),
+            $wantsPayment && $invoice->status === 'partially_paid' => __('Invoice created, sent, with a partial payment recorded.'),
+            $wantsPayment && $invoice->status === 'pending_approval' => __('Invoice created and submitted for approval — record the payment once it\'s approved and sent.'),
+            $sendImmediately && $invoice->status === 'pending_approval' => __('Invoice created and submitted for approval.'),
+            $sendImmediately => __('Invoice created and sent.'),
+            default => __('Invoice created.'),
+        };
 
         return redirect()->route('app.invoices.show', $invoice)->with('status', $status);
     }
@@ -1042,6 +1109,15 @@ class InvoiceController extends Controller
             'discount_type' => ['nullable', 'in:fixed,percentage'],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'retention_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            // Only meaningful at creation (the create form is the only
+            // place these are submitted from — see store()); 'paid'/
+            // 'partially_paid' record a real InvoicePayment, not just a
+            // cosmetic label, so the upper-bound check against the
+            // invoice's real total (only known once items are totaled)
+            // happens inside store() itself, not here.
+            'payment_mode' => ['nullable', 'in:cash,bank_transfer,card,other'],
+            'payment_status' => ['nullable', 'in:unpaid,paid,partially_paid'],
+            'amount_paid' => ['nullable', 'numeric', 'min:0.01'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],
