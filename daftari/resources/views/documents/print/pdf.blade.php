@@ -106,7 +106,7 @@
        support, so forcing both width and height stretches/distorts a
        non-square stamp image. Width alone lets it scale proportionally. */
     .stamp-img { width: 130px; }
-    .notes-block { margin-top: {{ $notesGap }}px; font-size: 9pt; }
+    .notes-block { margin-top: {{ $notesGap }}px; font-size: 8.5pt; }
 </style>
 </head>
 <body>
@@ -131,7 +131,7 @@
 
     @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
 
-    <table style="margin-top: {{ $sectionGap }}px; border: 0.5pt solid #cbd5e1;">
+    <table style="margin-top: {{ $notesGap }}px; border: 0.5pt solid #cbd5e1;">
         <tr style="border-bottom: 0.5pt solid #cbd5e1;">
             <td style="width: 18%; padding: 2px 6px; font-weight: bold; font-size: 8.5pt;">{{ $doc['party_label'] }}</td>
             <td style="padding: 2px 6px; text-align: center; font-size: 8.5pt;">
@@ -175,53 +175,53 @@
         @endif
     </table>
 
-    <table style="margin-top: {{ $sectionGap }}px;">
+    <table style="margin-top: {{ $notesGap }}px;">
         <thead>
-            <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 8.5pt; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
-                <th style="padding: 3px 6px; width: 3%; border-right: 0.5pt solid #e2e8f0;">#</th>
-                <th style="padding: 3px 6px; border-right: 0.5pt solid #e2e8f0;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
-                <th class="text-end" style="padding: 3px 6px; width: 8%; border-right: 0.5pt solid #e2e8f0;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
-                <th class="text-end" style="padding: 3px 6px; width: 11%; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
+            <tr style="border-bottom: 1.5pt solid #1e293b; text-align: left; font-size: 7.5pt; line-height: 1.25; @if ($tableHeaderColor) background-color: {{ $tableHeaderColor }}; @endif">
+                <th style="padding: 2px 6px; width: 3%; border-right: 0.5pt solid #e2e8f0;">#</th>
+                <th style="padding: 2px 6px; border-right: 0.5pt solid #e2e8f0;">{{ __('Description') }}<br><span class="ar" style="font-weight: normal;">الوصف</span></th>
+                <th class="text-end" style="padding: 2px 6px; width: 8%; border-right: 0.5pt solid #e2e8f0;">{{ __('Qty') }}<br><span class="ar" style="font-weight: normal;">الكمية</span></th>
+                <th class="text-end" style="padding: 2px 6px; width: 11%; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ __('Price') }}<br><span class="ar" style="font-weight: normal;">السعر</span></th>
                 @if ($showVatColumn)
-                    <th class="text-end" style="padding: 3px 6px; width: 17%; border-right: 0.5pt solid #e2e8f0;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
-                    <th class="text-end" style="padding: 3px 6px; width: 15%;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
+                    <th class="text-end" style="padding: 2px 6px; width: 17%; border-right: 0.5pt solid #e2e8f0;">{{ __('Taxable amount') }}<br><span class="ar" style="font-weight: normal;">المبلغ الخاضع للضريبة</span></th>
+                    <th class="text-end" style="padding: 2px 6px; width: 15%;">{{ __('VAT amount') }}<br><span class="ar" style="font-weight: normal;">القيمة المضافة</span></th>
                 @endif
-                <th class="text-end" style="padding: 3px 6px; width: 15%;">{{ __('Line amount') }}<br><span class="ar" style="font-weight: normal;">المجموع</span></th>
+                <th class="text-end" style="padding: 2px 6px; width: 15%;">{{ __('Line amount') }}<br><span class="ar" style="font-weight: normal;">المجموع</span></th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $index => $line)
-                <tr style="border-bottom: 0.5pt solid #e2e8f0; font-size: 8.5pt;">
-                    <td style="padding: 3px 6px; vertical-align: top; color: #64748b; border-right: 0.5pt solid #e2e8f0;">{{ $index + 1 }}</td>
-                    <td style="padding: 3px 6px; vertical-align: top; border-right: 0.5pt solid #e2e8f0;">
+                <tr style="border-bottom: 0.5pt solid #e2e8f0; font-size: 8pt;">
+                    <td style="padding: 2px 6px; vertical-align: top; color: #64748b; border-right: 0.5pt solid #e2e8f0;">{{ $index + 1 }}</td>
+                    <td style="padding: 2px 6px; vertical-align: top; border-right: 0.5pt solid #e2e8f0;">
                         <strong>{{ $primary($line->description, $line->name_ar) }}</strong>
                         @if ($secondary($line->name_ar))<div class="ar">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 3px 6px; vertical-align: top; border-right: 0.5pt solid #e2e8f0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="text-end" style="padding: 3px 6px; vertical-align: top; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 2px 6px; vertical-align: top; border-right: 0.5pt solid #e2e8f0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 2px 6px; vertical-align: top; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ number_format($line->unit_price, 2) }}</td>
                     @if ($showVatColumn)
-                        <td class="text-end" style="padding: 3px 6px; vertical-align: top; border-right: 0.5pt solid #e2e8f0;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
-                        <td class="text-end" style="padding: 3px 6px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
+                        <td class="text-end" style="padding: 2px 6px; vertical-align: top; border-right: 0.5pt solid #e2e8f0;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                        <td class="text-end" style="padding: 2px 6px; vertical-align: top;">{{ number_format($line->vat_amount, 2) }}<br><span class="muted">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</span></td>
                     @endif
-                    <td class="text-end" style="padding: 3px 6px; vertical-align: top; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
+                    <td class="text-end" style="padding: 2px 6px; vertical-align: top; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    @include('documents.print.pdf-bank-totals', ['doc' => $doc, 'bankAccounts' => $bankAccounts])
+    @include('documents.print.pdf-bank-totals', ['doc' => $doc, 'bankAccounts' => $bankAccounts, 'sectionGap' => $notesGap])
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 70, 'qrGap' => 0])
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 40, 'qrGap' => 0])
 
     {{-- The bilingual party/info table, item table, and bank-totals block
          here all run taller per row than the other layouts (every row
          repeats its label in both languages), so this layout's own
          signature gap is trimmed a bit further than the shared default
          to keep more items fitting on one page. --}}
-    @include('documents.print.pdf-signature', ['signatureGap' => 2])
+    @include('documents.print.pdf-signature', ['signatureGap' => 0])
 
-    <table style="margin-top: {{ $footerGap + 4 }}px;"><tr><td class="footer-note">
+    <table style="margin-top: 2px;"><tr><td class="footer-note">
         {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ $doc['number'] }}
     </td></tr></table>
 
@@ -668,7 +668,7 @@
         {{ $languageMode === 'arabic_only' ? \App\Support\NumberToWords::arabicRiyals($doc['total']) : \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}
     </div>
 
-    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 50, 'hideQr' => true])
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 35, 'hideQr' => true])
 
     {{-- Bilingual labels throughout this layout's seller/buyer boxes and
          item table (each cell combines the English and Arabic text, e.g.
@@ -906,18 +906,18 @@
 
     @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
 
-    <table style="margin-top: {{ $sectionGap }}px;">
+    <table style="margin-top: {{ $notesGap }}px;">
         <tr>
-            <td style="width: 49%; vertical-align: top; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 5px 8px;">
-                <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</div>
-                <div style="margin-top: 4px; font-weight: bold; color: #1e293b;">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</div>
-                @if ($secondary($doc['party']->name_ar ?? null))<div class="muted ar">{{ $doc['party']->name_ar }}</div>@endif
-                @if ($showPartyVatNumber && $doc['party']->vat_number)<div class="muted" style="margin-top: 3px;">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</div>@endif
-                @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<div class="muted">{{ $doc['party']->fullAddress() }}</div>@endif
-                @if (!empty($doc['party']->email))<div class="muted">{{ $doc['party']->email }}</div>@endif
+            <td style="width: 49%; vertical-align: top; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 3px 6px; font-size: 8.5pt;">
+                <div style="font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #94a3b8;">{{ $primary($doc['party_label'], $doc['party_label_ar'] ?? null) }}</div>
+                <div style="margin-top: 2px; font-weight: bold; color: #1e293b;">{{ $primary($doc['party']->name, $doc['party']->name_ar ?? null) }}</div>
+                @if ($secondary($doc['party']->name_ar ?? null))<div class="ar" style="color: #64748b;">{{ $doc['party']->name_ar }}</div>@endif
+                @if ($showPartyVatNumber && $doc['party']->vat_number)<div style="margin-top: 1px; color: #64748b;">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</div>@endif
+                @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<div style="color: #64748b;">{{ $doc['party']->fullAddress() }}</div>@endif
+                @if (!empty($doc['party']->email))<div style="color: #64748b;">{{ $doc['party']->email }}</div>@endif
             </td>
             <td style="width: 2%;"></td>
-            <td style="width: 49%; vertical-align: top; text-align: right; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 5px 8px;">
+            <td style="width: 49%; vertical-align: top; text-align: right; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 3px 6px;">
                 @if (!empty($doc['zatca_status']))
                     <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div>
                 @endif
@@ -928,29 +928,29 @@
     <table style="margin-top: {{ $sectionGap }}px; border: 0.5pt solid #e2e8f0;">
         <thead>
             <tr style="text-align: left; color: #ffffff; font-size: 9pt; background-color: {{ $tableHeaderColor ?: $accent }};">
-                <th style="padding: 4px 8px; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Description') }}</th>
-                <th class="text-end" style="padding: 4px 8px; width: 10%; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Qty') }}</th>
-                <th class="text-end" style="padding: 4px 8px; width: 18%; @if ($showVatColumn) border-right: 0.5pt solid rgba(255,255,255,0.4); @endif">{{ $lbl('Unit price') }}</th>
+                <th style="padding: 2px 6px; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Description') }}</th>
+                <th class="text-end" style="padding: 2px 6px; width: 10%; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('Qty') }}</th>
+                <th class="text-end" style="padding: 2px 6px; width: 18%; @if ($showVatColumn) border-right: 0.5pt solid rgba(255,255,255,0.4); @endif">{{ $lbl('Unit price') }}</th>
                 @if ($showVatColumn)
-                    <th class="text-end" style="padding: 4px 8px; width: 17%; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('VAT') }}</th>
+                    <th class="text-end" style="padding: 2px 6px; width: 17%; border-right: 0.5pt solid rgba(255,255,255,0.4);">{{ $lbl('VAT') }}</th>
                 @endif
-                <th class="text-end" style="padding: 4px 8px; width: 16%;">{{ $lbl('Total') }}</th>
+                <th class="text-end" style="padding: 2px 6px; width: 16%;">{{ $lbl('Total') }}</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($doc['lines'] as $i => $line)
-                <tr style="border-bottom: 0.5pt solid #f1f5f9; font-size: 9pt; @if ($i % 2 === 1) background-color: #f8fafc; @endif">
-                    <td style="padding: 4px 8px; border-right: 0.5pt solid #e2e8f0;">
+                <tr style="border-bottom: 0.5pt solid #f1f5f9; font-size: 8.5pt; @if ($i % 2 === 1) background-color: #f8fafc; @endif">
+                    <td style="padding: 2px 6px; border-right: 0.5pt solid #e2e8f0;">
                         {{ $primary($line->description, $line->name_ar) }}
                         @if ($secondary($line->name_ar))<div class="ar" style="font-size: 8pt;">{{ $line->name_ar }}</div>@endif
                         @if ($showItemDescription && !empty($line->item_description))<div class="muted" style="font-size: 8pt;">{{ $line->item_description }}</div>@endif
                     </td>
-                    <td class="text-end" style="padding: 4px 8px; border-right: 0.5pt solid #e2e8f0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
-                    <td class="text-end" style="padding: 4px 8px; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ \App\Support\Money::format($line->unit_price) }}</td>
+                    <td class="text-end" style="padding: 2px 6px; border-right: 0.5pt solid #e2e8f0;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }} @if ($showUnitLabels)<span class="muted">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit }}</span>@endif</td>
+                    <td class="text-end" style="padding: 2px 6px; @if ($showVatColumn) border-right: 0.5pt solid #e2e8f0; @endif">{{ \App\Support\Money::format($line->unit_price) }}</td>
                     @if ($showVatColumn)
-                        <td class="text-end" style="padding: 4px 8px; border-right: 0.5pt solid #e2e8f0;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
+                        <td class="text-end" style="padding: 2px 6px; border-right: 0.5pt solid #e2e8f0;">{{ \App\Support\Money::format($line->vat_amount) }}</td>
                     @endif
-                    <td class="text-end" style="padding: 4px 8px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($line->line_total) }}</td>
+                    <td class="text-end" style="padding: 2px 6px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($line->line_total) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -970,7 +970,7 @@
                     @if ($boxed)
                         <tr><td style="padding: 4px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 4px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @else
-                        <tr><td colspan="2" style="padding: 4px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 4px 8px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 4px 8px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
+                        <tr><td colspan="2" style="padding: 4px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 2px 6px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 2px 6px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
                     @endif
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         @php
@@ -992,10 +992,10 @@
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
-        <table style="margin-top: {{ $sectionGap }}px;">
-            <tr><td style="background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 5px 8px; font-size: 9pt;">
-                <div style="font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px;">{{ $lbl('Payment details') }}</div>
-                <div class="muted">{{ $ba->name }}@if ($ba->bank_name) — {{ $ba->bank_name }} @endif @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }}@endif</div>
+        <table style="margin-top: {{ $notesGap }}px;">
+            <tr><td style="background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 3px 6px; font-size: 8.5pt;">
+                <div style="font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 1px;">{{ $lbl('Payment details') }}</div>
+                <div style="color: #64748b;">{{ $ba->name }}@if ($ba->bank_name) — {{ $ba->bank_name }} @endif @if ($ba->iban) — {{ $lbl('IBAN') }}: {{ $ba->iban }}@endif</div>
             </td></tr>
         </table>
     @endif

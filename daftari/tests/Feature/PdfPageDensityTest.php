@@ -160,21 +160,36 @@ class PdfPageDensityTest extends TestCase
      * closing footer note in a <table> instead; (3) bilingual_classic's
      * info/item table rows and bank-totals block had never been through
      * the same padding/font-size tightening pass sage_classic and
-     * retail_classic already got. A paid 5-item invoice (logo, stamp,
-     * signature, bank details, notes, terms, payment method — every
-     * optional block at once) now fits on one page for every layout
-     * except retail_classic (see its own dedicated, lighter test).
+     * retail_classic already got.
+     *
+     * Follow-up request: "I want more products for a single page" — the
+     * fix above only pushed capacity from 2 to 5 items, still short of
+     * what real competitor tools manage. Measured each layout's actual
+     * ceiling with this same stress fixture (logo, stamp, signature,
+     * bank details, notes, terms, payment method, all at once) and kept
+     * trimming the biggest remaining offenders: the shared notes/terms
+     * line renderer (pdf-notes-list.blade.php, used by every layout),
+     * and the shared bilingual header partial (pdf-bilingual-header.blade.php,
+     * used by bilingual_classic and custom_letterhead's no-letterhead
+     * fallback) — its 92px logo and 1.5 line-height text column turned
+     * out to be the tallest single element in both of those layouts,
+     * taller even than the party-info table beneath it. Measured
+     * ceilings after: minimal/bordered/boxed 9, custom_letterhead 8,
+     * bilingual_classic/sage_classic 7. This test asserts 7 (the
+     * current floor across every layout it covers) with headroom below
+     * each layout's real ceiling so it doesn't start failing from
+     * ordinary content-length variation in real invoices.
      */
     #[DataProvider('layouts')]
-    public function test_a_paid_five_item_invoice_with_a_payment_method_still_fits_on_one_page(string $layout): void
+    public function test_a_paid_seven_item_invoice_with_a_payment_method_still_fits_on_one_page(string $layout): void
     {
-        $invoice = $this->makeRealisticInvoice($layout, 5);
+        $invoice = $this->makeRealisticInvoice($layout, 7);
         InvoicePayment::create(['invoice_id' => $invoice->id, 'amount' => $invoice->total, 'paid_at' => now(), 'method' => 'bank_transfer']);
         $invoice->update(['status' => 'paid', 'amount_paid' => $invoice->total]);
 
         $pdf = app(MpdfRenderer::class)->render('documents.print.pdf', $invoice->fresh()->pdfData());
 
-        $this->assertSame(1, $this->countPdfPages($pdf), "Layout \"{$layout}\" spilled a paid 5-item invoice (with a payment method shown) onto a second page.");
+        $this->assertSame(1, $this->countPdfPages($pdf), "Layout \"{$layout}\" spilled a paid 7-item invoice (with a payment method shown) onto a second page.");
     }
 
     /**

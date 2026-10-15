@@ -21,15 +21,15 @@
         @foreach ($__pdfNotesLines as $__pdfNotesLine)
             <tr>
                 @if ($__pdfNotesRtl)
-                    <td style="padding: 2px 0; text-align: right; {{ $textStyle ?? 'color: #475569; font-size: 9pt;' }}">{{ $__pdfNotesLine }}</td>
-                    <td style="width: 14px; vertical-align: middle; padding: 2px 0;">
+                    <td style="padding: 1px 0; text-align: right; {{ $textStyle ?? 'color: #475569; font-size: 8.5pt;' }}">{{ $__pdfNotesLine }}</td>
+                    <td style="width: 14px; vertical-align: middle; padding: 1px 0;">
                         <div style="width: 5px; height: 5px; border-radius: 3px; background-color: {{ $accent ?? '#0f766e' }};"></div>
                     </td>
                 @else
-                    <td style="width: 14px; vertical-align: middle; padding: 2px 0;">
+                    <td style="width: 14px; vertical-align: middle; padding: 1px 0;">
                         <div style="width: 5px; height: 5px; border-radius: 3px; background-color: {{ $accent ?? '#0f766e' }};"></div>
                     </td>
-                    <td style="padding: 2px 0; {{ $textStyle ?? 'color: #475569; font-size: 9pt;' }}">{{ $__pdfNotesLine }}</td>
+                    <td style="padding: 1px 0; {{ $textStyle ?? 'color: #475569; font-size: 8.5pt;' }}">{{ $__pdfNotesLine }}</td>
                 @endif
             </tr>
         @endforeach

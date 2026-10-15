@@ -6,8 +6,8 @@
 --}}
 <table>
     <tr>
-        <td style="width: 38%; vertical-align: top; font-size: 9.5pt; line-height: 1.5;">
-            <div style="font-size: 11pt; font-weight: bold; color: #0f172a;">{{ $company->name }}</div>
+        <td style="width: 38%; vertical-align: top; font-size: 8.5pt; line-height: 1.25;">
+            <div style="font-size: 10pt; font-weight: bold; color: #0f172a;">{{ $company->name }}</div>
             @if ($company->address)<div>{{ $company->address }}</div>@endif
             @if ($company->city)<div>{{ $company->city }}</div>@endif
             <div>{{ __('Kingdom of Saudi Arabia') }}</div>
@@ -18,11 +18,11 @@
         </td>
         <td style="width: 24%; vertical-align: top; text-align: center;">
             @if (($showLogo ?? true) && $logoData)
-                <img src="{{ $logoData }}" style="width: 92px; height: 92px;" alt="">
+                <img src="{{ $logoData }}" style="width: 64px; height: 64px;" alt="">
             @endif
         </td>
-        <td class="ar" style="width: 38%; vertical-align: top; font-size: 9.5pt; line-height: 1.5;">
-            @if ($company->name_ar)<div style="font-size: 11pt; font-weight: bold; color: #0f172a;">{{ $company->name_ar }}</div>@endif
+        <td class="ar" style="width: 38%; vertical-align: top; font-size: 8.5pt; line-height: 1.25;">
+            @if ($company->name_ar)<div style="font-size: 10pt; font-weight: bold; color: #0f172a;">{{ $company->name_ar }}</div>@endif
             @if ($company->address)<div>{{ $company->address }}</div>@endif
             @if ($company->city)<div>{{ $company->city }}</div>@endif
             <div>المملكة العربية السعودية</div>
