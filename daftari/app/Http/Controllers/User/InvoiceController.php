@@ -230,7 +230,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load('items', 'client', 'invoicePayments.bankAccount', 'bankAccount', 'warehouse', 'attachments', 'installments');
+        $invoice->load('items.item', 'items.taxRate', 'client', 'invoicePayments.bankAccount', 'bankAccount', 'warehouse', 'attachments', 'installments');
         $template = $invoice->company->defaultTemplateFor('invoice');
         $whatsappEnabled = (bool) WhatsappConfig::where('is_enabled', true)->exists();
         $smsEnabled = (bool) SmsConfig::where('is_enabled', true)->exists();

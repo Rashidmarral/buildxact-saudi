@@ -96,6 +96,40 @@ class InvoiceTemplatePresets
                 'language_mode' => 'english_only',
                 'size' => 'A4',
             ],
+            // Modeled on a real Sage-generated tax invoice a user shared:
+            // logo top-left with the QR beneath it, a plain Invoice
+            // Number/Date/Payment Type/Customer Acc. box top-right, a
+            // centered bilingual title, green-accented "Seller:"/"Buyer:"
+            // key-value blocks (each carrying the full national-address
+            // breakdown — building/street/district/postal code/city), an
+            // items table with a bilingual header row, a right-aligned
+            // totals block, the total spelled out in words, and a company
+            // stamp bottom-center.
+            'sage_classic' => [
+                'name' => 'Sage Classic',
+                'name_ar' => 'سيج كلاسيكي',
+                'accent_color' => '#16a34a',
+                'layout' => 'sage_classic',
+                'size' => 'A4',
+            ],
+            // Modeled on a real retail/POS-generated tax invoice a user
+            // shared: a blue-bordered Seller box and Customer box (each
+            // with the full national-address breakdown), a compact info
+            // strip (Invoice Ser./Date/Date of Supply/Ref No/Payment
+            // Method) beside the QR, an items table that also carries a
+            // per-line ZATCA tax category code, a separate VAT Summary
+            // sub-table grouped by tax code, and a totals block ending in
+            // Total (Excluding VAT)/Discount/Other Charges/Total Taxable
+            // Amount/Total VAT/Total Amount Including VAT. The source
+            // document is itself landscape with rotated column headers;
+            // this reflows the same fields into portrait A4.
+            'retail_classic' => [
+                'name' => 'Retail Classic',
+                'name_ar' => 'تجاري كلاسيكي',
+                'accent_color' => '#1d4ed8',
+                'layout' => 'retail_classic',
+                'size' => 'A4',
+            ],
         ];
     }
 

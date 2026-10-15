@@ -23,11 +23,12 @@
     </div>
 @endif
 
-@if (!empty($doc['qr_code']) || $stampData)
+@php($showQr = ! ($hideQr ?? false) && ! empty($doc['qr_code']))
+@if ($showQr || $stampData)
     <table style="margin-top: {{ $qrGap }}px;">
         <tr>
-            <td style="width: 50%;"></td>
-            @if (!empty($doc['qr_code']))
+            <td style="width: {{ $showQr ? '50%' : '60%' }};"></td>
+            @if ($showQr)
                 <td style="width: 25%; text-align: center;">
                     @if (!empty($doc['zatca_status']))
                         <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div><br>
@@ -36,7 +37,7 @@
                 </td>
             @endif
             @if ($stampData)
-                <td style="width: 25%; text-align: center; vertical-align: bottom;">
+                <td style="width: {{ $showQr ? '25%' : '40%' }}; text-align: center; vertical-align: bottom;">
                     {{-- Width only — height omitted so a non-square stamp
                          scales proportionally instead of stretching. --}}
                     <img src="{{ $stampData }}" class="stamp-img" style="width: {{ $stampSize ?? 90 }}px;" alt="">

@@ -24,6 +24,7 @@ class InvoiceTemplateController extends Controller
 
     private const LAYOUTS = [
         'minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead', 'quotation_offer',
+        'sage_classic', 'retail_classic',
         'bilingual_side_by_side', 'bilingual_stacked',
     ];
 
@@ -341,12 +342,17 @@ class InvoiceTemplateController extends Controller
             'name' => 'Nolwa Private Limited',
             'name_ar' => 'نولوا المحدودة',
             'vat_number' => '300012345600003',
+            'cr_number' => '1010123456',
+            'building_number' => '1234',
+            'street_name' => 'King Fahd Road',
+            'district' => 'Al Olaya',
+            'postal_code' => '12345',
             'city' => 'Riyadh',
         ]);
 
         $lines = collect([
-            new InvoiceItem(['description' => 'Product One', 'quantity' => 2, 'unit_price' => 150, 'vat_rate' => 15, 'vat_amount' => 45, 'line_total' => 345]),
-            new InvoiceItem(['description' => 'Product Two', 'quantity' => 1, 'unit_price' => 500, 'vat_rate' => 15, 'vat_amount' => 75, 'line_total' => 575]),
+            (new InvoiceItem(['description' => 'Product One', 'quantity' => 2, 'unit_price' => 150, 'vat_rate' => 15, 'vat_amount' => 45, 'line_total' => 345]))->setRelation('item', new \App\Models\Item(['sku' => 'SKU-001'])),
+            (new InvoiceItem(['description' => 'Product Two', 'quantity' => 1, 'unit_price' => 500, 'vat_rate' => 15, 'vat_amount' => 75, 'line_total' => 575]))->setRelation('item', new \App\Models\Item(['sku' => 'SKU-002'])),
         ]);
 
         $qrCode = null;
@@ -371,6 +377,7 @@ class InvoiceTemplateController extends Controller
             'party_label_ar' => 'العميل',
             'party' => $client,
             'qr_code' => $qrCode,
+            'payment_method' => __('Cash'),
             'lines' => $lines,
             'currency' => 'SAR',
             'subtotal' => 800,

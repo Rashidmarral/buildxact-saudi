@@ -331,7 +331,7 @@ class Invoice extends Model
      */
     public function pdfData(): array
     {
-        $this->loadMissing('items', 'client', 'bankAccount');
+        $this->loadMissing('items.item', 'items.taxRate', 'client', 'bankAccount');
 
         $bankAccount = $this->bankAccount ?? $this->company->defaultBankAccount();
 
@@ -355,6 +355,13 @@ class Invoice extends Model
             'qr_code' => $this->qr_code,
             'zatca_status' => $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
             'payment_status' => $this->displayedPaymentStatus(),
+            // Only the sage_classic/retail_classic layouts show this — a
+            // single "Payment Type" field makes sense there the way it
+            // doesn't for a running itemized payment history (removed
+            // from every layout — see the "payment display" fix). The
+            // most recent recorded payment's method, or null once nothing
+            // has been recorded yet (those layouts simply omit the row).
+            'payment_method' => \App\Models\InvoicePayment::methodLabel($this->invoicePayments()->latest('id')->value('method')),
             'lines' => $this->items,
             'currency' => $this->currency,
             'subtotal' => $this->subtotal,

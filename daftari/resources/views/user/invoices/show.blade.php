@@ -148,6 +148,7 @@
         'qr_code' => $invoice->qr_code,
         'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
         'payment_status' => $invoice->displayedPaymentStatus(),
+        'payment_method' => \App\Models\InvoicePayment::methodLabel($invoice->invoicePayments->sortByDesc('id')->first()?->method),
         'lines' => $invoice->items,
         'currency' => $invoice->currency,
         'subtotal' => $invoice->subtotal,

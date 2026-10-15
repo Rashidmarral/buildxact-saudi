@@ -93,9 +93,24 @@ class PdfPageDensityTest extends TestCase
         return count($matches[0]);
     }
 
+    /**
+     * "retail_classic" is deliberately excluded here — see
+     * RetailClassicPdfDensityTest. It mirrors a real dense, box-grid
+     * POS-style tax invoice (seller + buyer national-address boxes
+     * *and* a dedicated VAT Summary table, on top of the usual item
+     * table and totals), so this suite's "every optional block at
+     * once" stress fixture (long notes, long terms, signature, logo,
+     * stamp) genuinely doesn't fit this one layout on a single page —
+     * the same way that much real content wouldn't fit on one page of
+     * actual paper either. Forcing it to match would mean shrinking
+     * its type past legibility or dropping fields the reference
+     * document actually shows. The other 6 layouts carry less
+     * concurrent content and this exact fixture is representative for
+     * them.
+     */
     public static function layouts(): array
     {
-        return [['minimal'], ['bordered'], ['boxed'], ['bilingual_classic'], ['custom_letterhead']];
+        return [['minimal'], ['bordered'], ['boxed'], ['bilingual_classic'], ['custom_letterhead'], ['sage_classic']];
     }
 
     #[DataProvider('layouts')]

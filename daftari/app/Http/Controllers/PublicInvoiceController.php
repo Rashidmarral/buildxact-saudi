@@ -19,7 +19,7 @@ class PublicInvoiceController extends Controller
      */
     public function show(int $id, string $token)
     {
-        $invoice = Invoice::withoutGlobalScopes()->with('items', 'client', 'bankAccount', 'company', 'installments')->findOrFail($id);
+        $invoice = Invoice::withoutGlobalScopes()->with('items.item', 'items.taxRate', 'client', 'bankAccount', 'company', 'installments')->findOrFail($id);
 
         abort_unless(hash_equals($invoice->public_token, $token), 404);
         abort_if($invoice->status === 'draft', 404);
@@ -88,7 +88,7 @@ class PublicInvoiceController extends Controller
 
     public function downloadPdf(int $id, string $token, MpdfRenderer $renderer)
     {
-        $invoice = Invoice::withoutGlobalScopes()->with('items', 'client', 'bankAccount', 'company')->findOrFail($id);
+        $invoice = Invoice::withoutGlobalScopes()->with('items.item', 'items.taxRate', 'client', 'bankAccount', 'company')->findOrFail($id);
 
         abort_unless(hash_equals($invoice->public_token, $token), 404);
         abort_if($invoice->status === 'draft', 404);
@@ -128,6 +128,7 @@ class PublicInvoiceController extends Controller
             'qr_code' => $invoice->qr_code,
             'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
             'payment_status' => $invoice->displayedPaymentStatus(),
+            'payment_method' => \App\Models\InvoicePayment::methodLabel($invoice->invoicePayments()->latest('id')->value('method')),
             'lines' => $invoice->items,
             'subtotal' => $invoice->subtotal,
             'discount_total' => $invoice->discount_total,

@@ -520,6 +520,327 @@
         </div>
     </div>
 
+@elseif ($layout === 'sage_classic')
+    {{-- mPDF counterpart of the "Sage Classic" body.blade.php branch —
+         same fields/order, table/inline-style markup throughout. --}}
+    <table>
+        <tr>
+            <td style="width: 50%; vertical-align: top;">
+                @if ($showLogo && $logoData)
+                    <img src="{{ $logoData }}" style="height: 44px;" alt="">
+                @endif
+                @if (!empty($doc['qr_code']))
+                    <table style="margin-top: 8px;"><tr><td><img src="data:image/png;base64,{{ $doc['qr_code'] }}" style="width: 130px; height: 130px;" alt=""></td></tr></table>
+                @endif
+            </td>
+            <td style="width: 50%; vertical-align: top;">
+                <table style="border: 0.75pt solid #cbd5e1;">
+                    <tr style="border-bottom: 0.5pt solid #cbd5e1;"><td style="padding: 3px 8px; font-size: 8pt; font-weight: bold; color: #475569; background-color: #f8fafc;">{{ $lbl('Invoice Number') }}</td><td class="text-end" style="padding: 3px 8px; font-size: 8pt;">{{ $doc['number'] }}</td></tr>
+                    <tr style="border-bottom: 0.5pt solid #cbd5e1;"><td style="padding: 3px 8px; font-size: 8pt; font-weight: bold; color: #475569; background-color: #f8fafc;">{{ $lbl('Invoice Date') }}</td><td class="text-end" style="padding: 3px 8px; font-size: 8pt;">{{ $issuedDisplay }}</td></tr>
+                    @if (!empty($doc['payment_method']))
+                        <tr><td style="padding: 3px 8px; font-size: 8pt; font-weight: bold; color: #475569; background-color: #f8fafc;">{{ $lbl('Payment Type') }}</td><td class="text-end" style="padding: 3px 8px; font-size: 8pt;">{{ $doc['payment_method'] }}</td></tr>
+                    @endif
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table style="margin-top: {{ $headerGap }}px; border-bottom: 1.5pt solid #1e293b; padding-bottom: 5px;">
+        <tr><td style="text-align: center; font-size: 15pt; font-weight: bold; color: #0f172a; padding-bottom: 5px;">
+            @if ($showAr){{ $doc['type_label_ar'] ?? '' }}@endif
+            @if ($showEn && $showAr) &nbsp;/&nbsp; @endif
+            @if ($showEn){{ $doc['type_label'] }}@endif
+        </td></tr>
+    </table>
+
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
+
+    @php
+        $sellerRows = [
+            ['label' => $lbl('Seller Name'), 'value' => $primary($company->name, $company->name_ar)],
+            ['label' => $lbl('Vat Number'), 'value' => $company->vat_number],
+            ['label' => $lbl('CR Number'), 'value' => $company->cr_number],
+            ['label' => $lbl('Building No'), 'value' => $company->building_number],
+            ['label' => $lbl('Street Name'), 'value' => $company->street_name],
+            ['label' => $lbl('District'), 'value' => $company->district],
+            ['label' => $lbl('Postal Code'), 'value' => $company->postal_code],
+            ['label' => $lbl('City'), 'value' => $company->city],
+        ];
+        $buyerRows = [
+            ['label' => $lbl('Customer Name'), 'value' => $primary($doc['party']->name, $doc['party']->name_ar ?? null)],
+            ['label' => $lbl('Vat Number'), 'value' => $doc['party']->vat_number ?? null],
+            ['label' => $lbl('Buyer C.R. No'), 'value' => $doc['party']->cr_number ?? null],
+            ['label' => $lbl('Building No'), 'value' => $doc['party']->building_number ?? null],
+            ['label' => $lbl('Street Name'), 'value' => $doc['party']->street_name ?? null],
+            ['label' => $lbl('District'), 'value' => $doc['party']->district ?? null],
+            ['label' => $lbl('Postal Code'), 'value' => $doc['party']->postal_code ?? null],
+            ['label' => $lbl('City'), 'value' => $doc['party']->city ?? null],
+        ];
+    @endphp
+    <table style="margin-top: {{ $sectionGap }}px;">
+        <tr>
+            <td style="width: 49%; vertical-align: top;">
+                @include('documents.print.pdf-address-block', ['title' => $lbl('Seller').':', 'headerStyle' => 'background-color: #16a34a; color: #ffffff;', 'rows' => $sellerRows])
+            </td>
+            <td style="width: 2%;"></td>
+            <td style="width: 49%; vertical-align: top;">
+                @include('documents.print.pdf-address-block', ['title' => $lbl('Buyer').':', 'headerStyle' => 'background-color: #16a34a; color: #ffffff;', 'rows' => $buyerRows])
+            </td>
+        </tr>
+    </table>
+
+    <table style="margin-top: {{ $notesGap }}px; border: 0.5pt solid #cbd5e1;">
+        <thead>
+            <tr style="background-color: #f1f5f9; color: #334155;">
+                <th style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Sno') }}</th>
+                <th style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Item Code') }}</th>
+                <th class="text-start" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Item Name') }}</th>
+                <th class="text-end" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Qty') }}</th>
+                <th class="text-end" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Price') }}</th>
+                <th class="text-end" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Amount') }}</th>
+                <th class="text-end" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Disc Amt') }}</th>
+                <th class="text-end" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Percent') }}</th>
+                <th class="text-end" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Amt') }}</th>
+                <th class="text-end" style="padding: 3px 5px; font-size: 7pt; line-height: 1.15;">{{ $lbl('Total With Tax') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr style="border-bottom: 0.5pt solid #f1f5f9;">
+                    <td class="text-center" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ $index + 1 }}</td>
+                    <td class="text-center" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ $line->item?->sku ?: '—' }}</td>
+                    <td style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ $primary($line->description, $line->name_ar) }}</td>
+                    <td class="text-end" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    <td class="text-end" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">0.00</td>
+                    <td class="text-end" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</td>
+                    <td class="text-end" style="padding: 3px 5px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($line->vat_amount, 2) }}</td>
+                    <td class="text-end" style="padding: 3px 5px; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <table style="margin-top: {{ $notesGap }}px;">
+        <tr><td style="width: 55%;"></td>
+            <td style="width: 45%;">
+                <table>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total (Excluding VAT)') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
+                    @if (($doc['discount_total'] ?? 0) > 0)
+                        <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Discount') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
+                    @endif
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total Taxable Amount (Excluding VAT)') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total VAT 15%') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                    <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Due') }}</td><td class="text-end" style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <div style="margin-top: {{ $notesGap }}px; font-size: 9pt;">
+        <span style="font-weight: bold; color: #334155;">{{ $lbl('Amount in Words') }}:</span>
+        {{ $languageMode === 'arabic_only' ? \App\Support\NumberToWords::arabicRiyals($doc['total']) : \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}
+    </div>
+
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 65, 'hideQr' => true])
+
+    {{-- Bilingual labels throughout this layout's seller/buyer boxes and
+         item table (each cell combines the English and Arabic text, e.g.
+         "Seller Name / اسم البائع") run taller than a single-language
+         layout's, so — as with retail_classic below — the shared gap
+         tuned for the other layouts is trimmed further here. --}}
+    @include('documents.print.pdf-signature', ['signatureGap' => 2])
+
+    <div class="footer-note" style="margin-top: 0;">
+        {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ $doc['number'] }}
+    </div>
+
+@elseif ($layout === 'retail_classic')
+    {{-- mPDF counterpart of the "Retail Classic" body.blade.php branch —
+         same fields/order, table/inline-style markup throughout. --}}
+    @include('documents.print.pdf-bilingual-header', ['company' => $company, 'showLogo' => $showLogo, 'logoData' => $logoData])
+
+    <table style="margin-top: {{ $headerGap }}px; border-bottom: 1.5pt solid #1e293b; padding-bottom: 5px;">
+        <tr><td style="text-align: center; font-size: 16pt; font-weight: bold; color: #0f172a; padding-bottom: 5px;">
+            <span class="ar">{{ $doc['type_label_ar'] ?? '' }}</span> &nbsp;/&nbsp; {{ $doc['type_label'] }}
+        </td></tr>
+    </table>
+
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
+
+    <table style="margin-top: {{ $sectionGap }}px;">
+        <tr>
+            <td style="width: 60%; vertical-align: top;">
+                <table style="border: 0.75pt solid #cbd5e1;">
+                    <tr style="border-bottom: 0.5pt solid #cbd5e1;"><td style="padding: 3px 8px; font-size: 8pt; font-weight: bold; color: #475569; background-color: #f8fafc;">{{ $lbl('Invoice Ser.') }}</td><td class="text-end" style="padding: 3px 8px; font-size: 8pt;">{{ $doc['number'] }}</td></tr>
+                    <tr style="border-bottom: 0.5pt solid #cbd5e1;"><td style="padding: 3px 8px; font-size: 8pt; font-weight: bold; color: #475569; background-color: #f8fafc;">{{ $lbl('Invoice Date') }}</td><td class="text-end" style="padding: 3px 8px; font-size: 8pt;">{{ $issuedDisplay }}</td></tr>
+                    <tr style="border-bottom: 0.5pt solid #cbd5e1;"><td style="padding: 3px 8px; font-size: 8pt; font-weight: bold; color: #475569; background-color: #f8fafc;">{{ $lbl('Date Of Supply') }}</td><td class="text-end" style="padding: 3px 8px; font-size: 8pt;">{{ \App\Support\PlatformFormat::date($doc['date']) }}</td></tr>
+                    @if (!empty($doc['payment_method']))
+                        <tr><td style="padding: 3px 8px; font-size: 8pt; font-weight: bold; color: #475569; background-color: #f8fafc;">{{ $lbl('Payment Mthd') }}</td><td class="text-end" style="padding: 3px 8px; font-size: 8pt;">{{ $doc['payment_method'] }}</td></tr>
+                    @endif
+                </table>
+            </td>
+            <td style="width: 40%; text-align: center; vertical-align: top;">
+                @if (!empty($doc['qr_code']))
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" style="width: 150px; height: 150px;" alt="">
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    @php
+        $retailSellerRows = [
+            ['label' => $lbl('Tax Code'), 'value' => $company->vat_number],
+            ['label' => $lbl('R.C'), 'value' => $company->cr_number],
+            ['label' => $lbl('Building'), 'value' => $company->building_number],
+            ['label' => $lbl('Street'), 'value' => $company->street_name],
+            ['label' => $lbl('Area'), 'value' => $company->district],
+            ['label' => $lbl('Add No'), 'value' => $company->additional_number ?? null],
+            ['label' => $lbl('Country'), 'value' => $primary('Kingdom of Saudi Arabia', 'المملكة العربية السعودية')],
+            ['label' => $lbl('City'), 'value' => $company->city],
+        ];
+        $retailCustomerRows = [
+            ['label' => $lbl('Customer'), 'value' => $primary($doc['party']->name, $doc['party']->name_ar ?? null)],
+            ['label' => $lbl('Tax Code'), 'value' => $doc['party']->vat_number ?? null],
+            ['label' => $lbl('R.C'), 'value' => $doc['party']->cr_number ?? null],
+            ['label' => $lbl('Building'), 'value' => $doc['party']->building_number ?? null],
+            ['label' => $lbl('Street'), 'value' => $doc['party']->street_name ?? null],
+            ['label' => $lbl('Area'), 'value' => $doc['party']->district ?? null],
+            ['label' => $lbl('Country'), 'value' => $primary('Kingdom of Saudi Arabia', 'المملكة العربية السعودية')],
+            ['label' => $lbl('City'), 'value' => $doc['party']->city ?? null],
+        ];
+        $retailTaxCode = fn ($item) => match ($item->taxRate?->type ?? null) {
+            'exempt' => 'E', 'zero_rated' => 'Z', 'not_subject' => 'O', 'standard' => 'S',
+            default => (float) $item->vat_rate > 0 ? 'S' : 'Z',
+        };
+        $vatGroups = [];
+        foreach ($doc['lines'] as $line) {
+            $rate = number_format((float) $line->vat_rate, 2);
+            $code = $retailTaxCode($line);
+            $key = $code.'|'.$rate;
+            $vatGroups[$key]['code'] = $code;
+            $vatGroups[$key]['rate'] = $rate;
+            $vatGroups[$key]['taxable'] = ($vatGroups[$key]['taxable'] ?? 0) + ($line->quantity * $line->unit_price);
+            $vatGroups[$key]['tax'] = ($vatGroups[$key]['tax'] ?? 0) + (float) $line->vat_amount;
+        }
+    @endphp
+    <table style="margin-top: {{ $notesGap }}px;">
+        <tr>
+            <td style="width: 49%; vertical-align: top;">
+                @include('documents.print.pdf-address-block', ['title' => $lbl('Seller'), 'headerStyle' => 'background-color: #1d4ed8; color: #ffffff;', 'borderStyle' => 'border-width: 1.5pt; border-color: #1d4ed8;', 'rows' => $retailSellerRows])
+            </td>
+            <td style="width: 2%;"></td>
+            <td style="width: 49%; vertical-align: top;">
+                @include('documents.print.pdf-address-block', ['title' => $lbl('Customer'), 'headerStyle' => 'background-color: #1d4ed8; color: #ffffff;', 'borderStyle' => 'border-width: 1.5pt; border-color: #1d4ed8;', 'rows' => $retailCustomerRows])
+            </td>
+        </tr>
+    </table>
+
+    <table style="margin-top: {{ $notesGap }}px; border: 0.5pt solid #cbd5e1;">
+        <thead>
+            <tr style="background-color: #f1f5f9; color: #334155;">
+                <th style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">#</th>
+                <th class="text-start" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Item Name') }}</th>
+                <th style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Item ID') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Unit') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Quantity') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Unit Price') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Disc.') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Taxable Amount') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Rate') }}</th>
+                <th style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Code') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Amount') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15;">{{ $lbl('Item Subtotal Including VAT') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr style="border-bottom: 0.5pt solid #f1f5f9;">
+                    <td class="text-center" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ $index + 1 }}</td>
+                    <td style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if (!empty($line->item_description))<div class="muted" style="font-size: 8pt;">{{ $line->item_description }}</div>@endif
+                    </td>
+                    <td class="text-center" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ $line->item?->sku ?: '—' }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit ?? '—' }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">0.00</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}%</td>
+                    <td class="text-center" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ $retailTaxCode($line) }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($line->vat_amount, 2) }}</td>
+                    <td class="text-end" style="padding: 2px 4px; font-weight: bold;">{{ number_format($line->line_total, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <div style="margin-top: {{ $notesGap }}px; font-weight: bold; font-size: 9.5pt; color: #334155;">{{ $lbl('VAT Summary') }}</div>
+    <table style="margin-top: 3px; border: 0.5pt solid #cbd5e1;">
+        <thead>
+            <tr style="background-color: #f1f5f9; color: #334155;">
+                <th style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Code') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Rate') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Taxable Amount') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15; border-right: 0.5pt solid #cbd5e1;">{{ $lbl('Tax Amount') }}</th>
+                <th class="text-end" style="padding: 2px 4px; font-size: 7pt; line-height: 1.15;">{{ $lbl('Including Tax') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($vatGroups as $group)
+                <tr style="border-bottom: 0.5pt solid #f1f5f9;">
+                    <td class="text-center" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ $group['code'] }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ $group['rate'] }}%</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($group['taxable'], 2) }}</td>
+                    <td class="text-end" style="padding: 2px 4px; border-right: 0.5pt solid #f1f5f9;">{{ number_format($group['tax'], 2) }}</td>
+                    <td class="text-end" style="padding: 2px 4px;">{{ number_format($group['taxable'] + $group['tax'], 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <table style="margin-top: {{ $notesGap }}px;">
+        <tr><td style="width: 55%;"></td>
+            <td style="width: 45%;">
+                <table>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total Excluding VAT') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Discount') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['discount_total'] ?? 0) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Other Charges') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format(0) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total Taxable Amount') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total VAT') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                    <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Including VAT') }}</td><td class="text-end" style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <div style="margin-top: {{ $notesGap }}px; font-size: 9pt;">
+        <span style="font-weight: bold; color: #334155;">{{ $lbl('Amount in Words') }}:</span>
+        {{ $languageMode === 'arabic_only' ? \App\Support\NumberToWords::arabicRiyals($doc['total']) : \App\Support\NumberToWords::sar($doc['total'], 'SAR') }}
+    </div>
+
+    @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 65, 'hideQr' => true])
+
+    {{-- This layout packs more boxes/tables (seller + buyer national
+         address blocks, a dedicated VAT Summary table on top of the
+         usual totals) than any of the other layouts, so the signature
+         gap is trimmed further here specifically — the shared
+         $signatureGap already tuned for the other 6 layouts left this
+         one's trailing footer line alone on an otherwise-blank 2nd
+         page. Passed as an include override (not a reassignment
+         one-liner): the inline-PHP shorthand directive, used without
+         its own block-closing counterpart, gets mismatched by Blade's
+         raw-PHP-block regex against the next unrelated closing tag
+         anywhere later in this (very long) file, silently swallowing
+         everything between as uncompiled text. --}}
+    @include('documents.print.pdf-signature', ['signatureGap' => 2])
+
+    <div class="footer-note" style="margin-top: 0;">
+        {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ $doc['number'] }}
+    </div>
+
 @else
     {{-- minimal / bordered / boxed — a single professional foundation
          shared by all three, differentiated only by the left accent

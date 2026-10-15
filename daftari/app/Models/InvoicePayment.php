@@ -25,4 +25,21 @@ class InvoicePayment extends Model
     {
         return $this->belongsTo(BankAccount::class);
     }
+
+    /**
+     * The same wording as the "Method" dropdown on the Record Payment
+     * form (InvoiceController::storePayment()'s view) — reused on the
+     * printed document's own "Payment Type" field (sage_classic/
+     * retail_classic layouts) so the two never drift apart.
+     */
+    public static function methodLabel(?string $method): ?string
+    {
+        return match ($method) {
+            'cash' => __('Cash'),
+            'bank_transfer' => __('Bank transfer'),
+            'card' => __('Card'),
+            'other' => __('Other'),
+            default => null,
+        };
+    }
 }

@@ -125,6 +125,8 @@
                                 <option value="bilingual_classic" @selected($selected->layout === 'bilingual_classic')>{{ __('Bilingual Classic') }}</option>
                                 <option value="custom_letterhead" @selected($selected->layout === 'custom_letterhead')>{{ __('Custom Letterhead') }}</option>
                                 <option value="quotation_offer" @selected($selected->layout === 'quotation_offer')>{{ __('Quotation Offer') }}</option>
+                                <option value="sage_classic" @selected($selected->layout === 'sage_classic')>{{ __('Sage Classic') }}</option>
+                                <option value="retail_classic" @selected($selected->layout === 'retail_classic')>{{ __('Retail Classic') }}</option>
                             </select>
                         </div>
                     </div>
