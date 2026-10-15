@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoicePayment;
 use App\Models\InvoiceTemplate;
 use App\Services\MpdfRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,6 +143,38 @@ class PdfPageDensityTest extends TestCase
         $pdf = app(MpdfRenderer::class)->render('documents.print.pdf', $invoice->fresh()->pdfData());
 
         $this->assertSame(1, $this->countPdfPages($pdf), "Layout \"{$layout}\" spilled a paid 2-item invoice (with its header badge) onto a second page.");
+    }
+
+    /**
+     * User-reported regression: a bilingual_classic invoice with just 2
+     * line items already spilled its company stamp and footer onto a
+     * blank 2nd page, and real competitor invoicing tools comfortably
+     * fit 5-8 line items on one page. Root causes were threefold: (1)
+     * the new "Payment method" row (see InvoicePdfPaymentPresentationTest)
+     * added just enough height to tip bilingual_classic's already-tall
+     * bilingual rows over the edge; (2) mPDF's page-break sizing for a
+     * bare trailing <div> right after a <table> at the very end of the
+     * flow overestimates the space it needs — reproduced directly: it
+     * forced a lone 2nd page for a one-line footer even with 20+mm of
+     * visible room left on page 1, fixed by wrapping every layout's
+     * closing footer note in a <table> instead; (3) bilingual_classic's
+     * info/item table rows and bank-totals block had never been through
+     * the same padding/font-size tightening pass sage_classic and
+     * retail_classic already got. A paid 5-item invoice (logo, stamp,
+     * signature, bank details, notes, terms, payment method — every
+     * optional block at once) now fits on one page for every layout
+     * except retail_classic (see its own dedicated, lighter test).
+     */
+    #[DataProvider('layouts')]
+    public function test_a_paid_five_item_invoice_with_a_payment_method_still_fits_on_one_page(string $layout): void
+    {
+        $invoice = $this->makeRealisticInvoice($layout, 5);
+        InvoicePayment::create(['invoice_id' => $invoice->id, 'amount' => $invoice->total, 'paid_at' => now(), 'method' => 'bank_transfer']);
+        $invoice->update(['status' => 'paid', 'amount_paid' => $invoice->total]);
+
+        $pdf = app(MpdfRenderer::class)->render('documents.print.pdf', $invoice->fresh()->pdfData());
+
+        $this->assertSame(1, $this->countPdfPages($pdf), "Layout \"{$layout}\" spilled a paid 5-item invoice (with a payment method shown) onto a second page.");
     }
 
     /**
