@@ -230,7 +230,6 @@
                         </p>
                     @endif
                     <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
-                    <p class="mt-1 text-xs text-slate-400">{{ __('Scan to verify invoice details') }}</p>
                 </div>
             @endif
             @if ($company->stamp_path)
@@ -388,7 +387,6 @@
                         </p>
                     @endif
                     <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
-                    <p class="mt-1 text-xs text-slate-400">{{ $lbl('Scan to verify invoice details') }}</p>
                 </div>
             @endif
             @if ($company->stamp_path)
@@ -612,7 +610,6 @@
                     </p>
                 @endif
                 <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="ms-auto h-32 w-32" onerror="this.style.display='none'">
-                <p class="mt-1 text-xs text-slate-400">{{ $lbl('Scan to verify invoice details') }}</p>
             @endif
         </div>
     </div>

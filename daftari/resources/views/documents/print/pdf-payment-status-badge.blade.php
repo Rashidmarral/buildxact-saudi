@@ -17,10 +17,10 @@
     };
 @endphp
 @if ($paymentBadge)
-    <table width="100%" style="margin-top: 6px;">
+    <table width="100%" style="margin-top: 2px;">
         <tr>
             <td style="text-align: center;">
-                <span style="display: inline-block; background-color: {{ $paymentBadge['bg'] }}; color: {{ $paymentBadge['color'] }}; font-size: 9pt; font-weight: bold; padding: 4px 14px; border-radius: 12px;">
+                <span style="display: inline-block; background-color: {{ $paymentBadge['bg'] }}; color: {{ $paymentBadge['color'] }}; font-size: 8pt; font-weight: bold; padding: 2px 12px; border-radius: 10px;">
                     {{ $primary($paymentBadge['en'], $paymentBadge['ar']) }}
                     @if ($secondary($paymentBadge['ar'])) — {{ $paymentBadge['ar'] }} @endif
                 </span>

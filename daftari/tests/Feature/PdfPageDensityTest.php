@@ -109,6 +109,27 @@ class PdfPageDensityTest extends TestCase
     }
 
     /**
+     * User-reported regression: a real, QR-code-and-stamp-bearing, fully
+     * paid 2-item invoice (bank details + a one-line note, no signature)
+     * spilled its QR/stamp onto an otherwise-blank second page — adding
+     * the Paid/Pending header badge (see pdf-payment-status-badge.blade.php)
+     * was, on its own, just enough extra height to tip a borderline
+     * invoice over. Fixed by trimming the badge's own padding/margin and
+     * the gaps around the QR/stamp/notes/footer block, and dropping the
+     * "Scan to verify invoice details" caption under the QR entirely.
+     */
+    #[DataProvider('layouts')]
+    public function test_a_paid_two_item_invoice_with_the_header_badge_still_fits_on_one_page(string $layout): void
+    {
+        $invoice = $this->makeRealisticInvoice($layout, 2);
+        $invoice->update(['status' => 'paid', 'amount_paid' => $invoice->total]);
+
+        $pdf = app(MpdfRenderer::class)->render('documents.print.pdf', $invoice->fresh()->pdfData());
+
+        $this->assertSame(1, $this->countPdfPages($pdf), "Layout \"{$layout}\" spilled a paid 2-item invoice (with its header badge) onto a second page.");
+    }
+
+    /**
      * Flexibility request: a "density" toggle on the template, so a
      * company that doesn't mind an extra page can opt back into more
      * generous spacing. Comparing the same invoice at both settings
@@ -123,7 +144,7 @@ class PdfPageDensityTest extends TestCase
         $compactHtml = view('documents.print.pdf', $compactInvoice->pdfData() + ['embed' => fn () => null])->render();
         $comfortableHtml = view('documents.print.pdf', $comfortableInvoice->pdfData() + ['embed' => fn () => null])->render();
 
-        $this->assertStringContainsString('.notes-block { margin-top: 8px;', $compactHtml);
+        $this->assertStringContainsString('.notes-block { margin-top: 6px;', $compactHtml);
         $this->assertStringContainsString('.notes-block { margin-top: 14px;', $comfortableHtml);
         $this->assertStringNotContainsString('.notes-block { margin-top: 14px;', $compactHtml);
     }

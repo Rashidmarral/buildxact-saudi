@@ -1,6 +1,10 @@
 {{-- Notes + template notes, then the QR and company stamp together as one
      bottom-right unit — scanning and stamping both happen at the bottom of
-     a real paper invoice, not mixed in above the line items. --}}
+     a real paper invoice, not mixed in above the line items. No caption
+     under the QR (previously "Scan to verify invoice details") — it was
+     the last few points of height standing between a short 2-line
+     invoice and fitting on one page, tipping it onto an otherwise-blank
+     second page for just the footer. --}}
 @if (!empty($doc['notes']))
     <div class="notes-block">
         <strong>{{ $lbl('Notes') }}</strong>
@@ -29,7 +33,6 @@
                         <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div><br>
                     @endif
                     <img src="data:image/png;base64,{{ $doc['qr_code'] }}" class="qr-img" alt="">
-                    <div class="muted">{{ $lbl('Scan to verify invoice details') }}</div>
                 </td>
             @endif
             @if ($stampData)

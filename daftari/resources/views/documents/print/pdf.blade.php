@@ -23,10 +23,10 @@
     $isCompact = ! $template || $template->isCompact();
     $sectionGap = $isCompact ? 10 : 18;
     $headerGap = $isCompact ? 10 : 16;
-    $qrGap = $isCompact ? 10 : 20;
+    $qrGap = $isCompact ? 4 : 20;
     $signatureGap = $isCompact ? 18 : 40;
-    $footerGap = $isCompact ? 10 : 18;
-    $notesGap = $isCompact ? 8 : 14;
+    $footerGap = $isCompact ? 4 : 18;
+    $notesGap = $isCompact ? 6 : 14;
     $showLogo = $template->show_logo ?? true;
     $tableHeaderColor = $template->table_header_color ?? null;
     $showUnitLabels = $template->show_unit_labels ?? true;
