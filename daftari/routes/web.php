@@ -318,6 +318,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
         Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
         Route::put('invoices/{invoice}/payments/{payment}', [InvoiceController::class, 'updatePayment'])->name('invoices.payments.update');
+        Route::post('invoices/{invoice}/payment-status', [InvoiceController::class, 'updatePaymentStatus'])->name('invoices.payment-status');
         Route::post('invoices/{invoice}/installments', [InvoiceController::class, 'storeInstallments'])->name('invoices.installments.store');
         Route::delete('invoices/{invoice}/installments', [InvoiceController::class, 'destroyInstallments'])->name('invoices.installments.destroy');
         Route::post('invoices/{invoice}/attachments', [InvoiceController::class, 'storeAttachment'])->name('invoices.attachments.store');

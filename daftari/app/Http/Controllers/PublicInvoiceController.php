@@ -127,6 +127,7 @@ class PublicInvoiceController extends Controller
             'party' => $invoice->client,
             'qr_code' => $invoice->qr_code,
             'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
+            'payment_status' => $invoice->displayedPaymentStatus(),
             'lines' => $invoice->items,
             'subtotal' => $invoice->subtotal,
             'discount_total' => $invoice->discount_total,

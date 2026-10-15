@@ -153,28 +153,32 @@ class InvoicePdfPaymentPresentationTest extends TestCase
         $this->assertStringNotContainsString('مدفوعة جزئيًا', $html);
     }
 
-    public function test_the_payments_received_table_shows_the_payment_method_and_amount(): void
+    /**
+     * "don't show payment details in the invoice only status shows" — the
+     * itemized payment history (date/method/reference/amount per
+     * payment) used to print on 3 of 4 layouts whenever any payment was
+     * recorded; the client/company only needs the collection status
+     * (Paid/Partially Paid/Pending/Overdue — see the badge tests below),
+     * not a breakdown of how it got there. That breakdown stays
+     * in-app-only, on the invoice's own dedicated Payments panel
+     * (InvoiceOnScreenPaymentsTableTest), which was never part of this
+     * printed document template to begin with.
+     */
+    public function test_the_payments_received_table_no_longer_prints_on_any_layout(): void
     {
         [$company] = $this->makeOwner();
         $invoice = $this->makePartiallyPaidInvoice($company);
 
-        $html = $this->renderPdfHtml($invoice);
+        foreach (['bilingual_classic', 'custom_letterhead', 'minimal', 'bordered', 'boxed'] as $layout) {
+            $company->invoiceTemplates()->updateOrCreate(
+                ['document_type' => 'invoice'], ['name' => 'T', 'layout' => $layout, 'is_default' => true]
+            );
 
-        $this->assertStringContainsString('Payments received', $html);
-        $this->assertStringContainsString('Bank transfer', $html);
-        $this->assertStringContainsString('105,007.08', $html);
-    }
+            $html = $this->renderPdfHtml($invoice->fresh());
 
-    public function test_no_payments_received_table_when_nothing_has_been_paid(): void
-    {
-        [$company] = $this->makeOwner();
-        $invoice = $this->makePartiallyPaidInvoice($company);
-        $invoice->invoicePayments()->delete();
-        $invoice->update(['amount_paid' => 0, 'status' => 'sent']);
-
-        $html = $this->renderPdfHtml($invoice->fresh());
-
-        $this->assertStringNotContainsString('Payments received', $html);
+            $this->assertStringNotContainsString('Payments received', $html, "Still printing payment details on layout: {$layout}");
+            $this->assertStringNotContainsString('REF-001', $html, "Still printing a payment reference on layout: {$layout}");
+        }
     }
 
     public function test_the_company_stamp_scales_by_width_only_so_it_never_distorts(): void

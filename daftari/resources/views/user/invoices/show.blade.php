@@ -6,7 +6,26 @@
 <div class="flex items-center justify-between mb-6 print:hidden">
     <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-slate-900">{{ $invoice->invoice_number }}</h2>
-        @include('user.invoices.partials.status-badge', ['status' => $invoice->status])
+        @include('user.invoices.partials.status-badge', ['status' => $invoice->displayedPaymentStatus()])
+        @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid'], true))
+            @php
+                $overrideLabels = [
+                    'pending' => __('Pending'),
+                    'partially_paid' => __('Partially paid'),
+                    'paid' => __('Paid'),
+                    'overdue' => __('Overdue'),
+                ];
+            @endphp
+            <form method="POST" action="{{ route('app.invoices.payment-status', $invoice) }}" onchange="this.submit()" title="{{ __('Override the Paid/Pending label shown on this invoice\'s header and printed document — display only, never affects the real balance due or ledger.') }}">
+                @csrf
+                <select name="payment_status_override" class="rounded-lg border border-slate-200 text-xs text-slate-600 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="" @selected(! $invoice->payment_status_override)>{{ __('Automatic') }}</option>
+                    @foreach (\App\Models\Invoice::PAYMENT_STATUS_OVERRIDES as $override)
+                        <option value="{{ $override }}" @selected($invoice->payment_status_override === $override)>{{ $overrideLabels[$override] }}</option>
+                    @endforeach
+                </select>
+            </form>
+        @endif
         @if ($invoice->isZatcaLocked())
             <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                 @include('partials.icon', ['name' => 'shield', 'class' => 'h-3.5 w-3.5'])
@@ -128,6 +147,7 @@
         'party' => $invoice->client,
         'qr_code' => $invoice->qr_code,
         'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
+        'payment_status' => $invoice->displayedPaymentStatus(),
         'lines' => $invoice->items,
         'currency' => $invoice->currency,
         'subtotal' => $invoice->subtotal,
@@ -148,7 +168,6 @@
             ['label' => __('Paid'), 'value' => $invoice->amount_paid],
             \App\Support\Money::balanceRow($invoice->balanceDue()),
         ])),
-        'payments' => $invoice->invoicePayments,
         'bank_account' => $invoice->bankAccount ?? $invoice->company->defaultBankAccount(),
         'salesperson' => $invoice->salesperson,
         'notes' => $invoice->notes,

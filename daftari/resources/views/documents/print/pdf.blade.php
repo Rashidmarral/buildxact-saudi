@@ -129,6 +129,8 @@
         </td></tr>
     </table>
 
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
+
     <table style="margin-top: {{ $sectionGap }}px; border: 0.5pt solid #cbd5e1;">
         <tr style="border-bottom: 0.5pt solid #cbd5e1;">
             <td style="width: 18%; padding: 4px 6px; font-weight: bold; font-size: 9.5pt;">{{ $doc['party_label'] }}</td>
@@ -203,12 +205,6 @@
 
     @include('documents.print.pdf-bank-totals', ['doc' => $doc, 'bankAccounts' => $bankAccounts])
 
-    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
-
-    @if (($doc['payments'] ?? collect())->isNotEmpty())
-        @include('documents.print.pdf-payments-received', ['payments' => $doc['payments']])
-    @endif
-
     @include('documents.print.pdf-notes-stamp', ['doc' => $doc, 'template' => $template, 'stampData' => $stampData, 'stampSize' => $stampSizeOverride ?: 160])
 
     @include('documents.print.pdf-signature')
@@ -229,6 +225,8 @@
             {{ strtoupper($doc['type_label']) }} <span class="ar" style="font-weight: normal;">/ ({{ $doc['type_label_ar'] ?? '' }})</span>
         </td></tr>
     </table>
+
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
 
     <table style="margin-top: 12px; font-size: 9.5pt;">
         <tr>
@@ -302,12 +300,6 @@
             </td>
         </tr>
     </table>
-
-    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
-
-    @if (($doc['payments'] ?? collect())->isNotEmpty())
-        @include('documents.print.pdf-payments-received', ['payments' => $doc['payments']])
-    @endif
 
     @if (!empty($doc['salesperson']))
         <div style="margin-top: 12px; font-size: 9.5pt;">
@@ -561,6 +553,8 @@
         </tr>
     </table>
 
+    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
+
     <table style="margin-top: {{ $sectionGap }}px;">
         <tr>
             <td style="width: 49%; vertical-align: top; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 7px 10px;">
@@ -644,12 +638,6 @@
             </td>
         </tr>
     </table>
-
-    @include('documents.print.pdf-payment-status-badge', ['doc' => $doc])
-
-    @if (($doc['payments'] ?? collect())->isNotEmpty())
-        @include('documents.print.pdf-payments-received', ['payments' => $doc['payments']])
-    @endif
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp

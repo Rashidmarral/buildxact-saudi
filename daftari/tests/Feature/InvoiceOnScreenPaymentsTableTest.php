@@ -7,18 +7,20 @@ use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoicePayment;
-use App\Models\InvoiceTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * The mPDF download already shows a "Payments received" table (method +
- * amount per payment) on 3 of 4 layouts — but the on-screen/browser-print
- * view (documents.print.body, a separate Tailwind template from the mPDF
- * one) had no equivalent at all, which is what "no info of payment mode
- * cash/bank account on invoice" was actually pointing at once a fresh PDF
- * confirmed the download path itself was already fine.
+ * "don't show payment details in the invoice only status shows — payment
+ * details we need to show for our use not to show in invoice": the
+ * itemized payment history (method/reference/amount per payment) used to
+ * print inside the shared documents.print.body partial — the same
+ * template the invoice show page embeds as "the invoice itself" — on
+ * every layout. That's now gone from the document; the only place that
+ * detail still lives is the dedicated, print:hidden "Payments" panel
+ * further down the show page, which this file now confirms is the sole
+ * place it survives.
  */
 class InvoiceOnScreenPaymentsTableTest extends TestCase
 {
@@ -46,45 +48,39 @@ class InvoiceOnScreenPaymentsTableTest extends TestCase
         return $invoice->fresh();
     }
 
-    public function test_the_on_screen_invoice_shows_the_payments_received_table_on_bilingual_classic(): void
+    public function test_the_embedded_document_no_longer_shows_a_payments_received_table_on_any_layout(): void
     {
         [$company, $owner] = $this->makeOwner();
-        $company->invoiceTemplates()->updateOrCreate(['document_type' => 'invoice'], ['name' => 'Bilingual', 'layout' => 'bilingual_classic', 'is_default' => true]);
+        $invoice = $this->makePaidInvoice($company);
+
+        foreach (['bilingual_classic', 'custom_letterhead', 'minimal'] as $layout) {
+            $company->invoiceTemplates()->updateOrCreate(['document_type' => 'invoice'], ['name' => 'T', 'layout' => $layout, 'is_default' => true]);
+
+            $response = $this->actingAs($owner)->get(route('app.invoices.show', $invoice));
+
+            $response->assertOk();
+            $response->assertDontSee('Payments received');
+        }
+    }
+
+    public function test_the_dedicated_payments_panel_still_shows_the_method_reference_and_amount(): void
+    {
+        [$company, $owner] = $this->makeOwner();
         $invoice = $this->makePaidInvoice($company);
 
         $response = $this->actingAs($owner)->get(route('app.invoices.show', $invoice));
 
         $response->assertOk();
-        $response->assertSee('Payments received');
+        // The standalone "Payments" panel (print:hidden, internal-use
+        // only) — a distinct heading from the removed "Payments received"
+        // document section, and still showing the real recorded detail.
+        $response->assertSee(__('Payments'));
         $response->assertSee(__('Bank transfer'));
+        $response->assertSee('REF-1');
         $response->assertSee('500.00');
     }
 
-    public function test_the_on_screen_invoice_shows_the_payments_received_table_on_custom_letterhead(): void
-    {
-        [$company, $owner] = $this->makeOwner();
-        $company->invoiceTemplates()->updateOrCreate(['document_type' => 'invoice'], ['name' => 'Letterhead', 'layout' => 'custom_letterhead', 'is_default' => true]);
-        $invoice = $this->makePaidInvoice($company);
-
-        $this->actingAs($owner)->get(route('app.invoices.show', $invoice))
-            ->assertOk()
-            ->assertSee('Payments received')
-            ->assertSee('500.00');
-    }
-
-    public function test_the_on_screen_invoice_shows_the_payments_received_table_on_minimal(): void
-    {
-        [$company, $owner] = $this->makeOwner();
-        $company->invoiceTemplates()->updateOrCreate(['document_type' => 'invoice'], ['name' => 'Minimal', 'layout' => 'minimal', 'is_default' => true]);
-        $invoice = $this->makePaidInvoice($company);
-
-        $this->actingAs($owner)->get(route('app.invoices.show', $invoice))
-            ->assertOk()
-            ->assertSee('Payments received')
-            ->assertSee('500.00');
-    }
-
-    public function test_no_payments_table_when_nothing_has_been_paid(): void
+    public function test_no_payments_panel_detail_when_nothing_has_been_paid(): void
     {
         [$company, $owner] = $this->makeOwner();
         $client = Client::create(['company_id' => $company->id, 'name' => 'Client Co.']);
@@ -97,6 +93,7 @@ class InvoiceOnScreenPaymentsTableTest extends TestCase
 
         $this->actingAs($owner)->get(route('app.invoices.show', $invoice))
             ->assertOk()
-            ->assertDontSee('Payments received');
+            ->assertDontSee('Payments received')
+            ->assertDontSee('REF-1');
     }
 }

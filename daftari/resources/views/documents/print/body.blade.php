@@ -83,6 +83,7 @@
             @if ($showAr)<span dir="rtl">{{ $doc['type_label_ar'] }}</span> &nbsp; @endif
             @if ($showEn){{ $doc['type_label'] }}@endif
         </h2>
+        @include('documents.print.payment-status-badge', ['doc' => $doc, 'primary' => $primary, 'secondary' => $secondary])
     </div>
 
     <table class="w-full text-sm mt-6 border border-slate-300">
@@ -199,10 +200,6 @@
         </div>
     </div>
 
-    @if (($doc['payments'] ?? collect())->isNotEmpty())
-        @include('documents.print.payments-received', ['payments' => $doc['payments'], 'primary' => $primary, 'secondary' => $secondary])
-    @endif
-
     @if (!empty($doc['notes']))
         <div class="mt-8 text-sm">
             <h4 class="font-semibold text-slate-800">{{ __('Notes') }} <span class="text-xs text-slate-400" dir="rtl">ملاحظات</span></h4>
@@ -267,6 +264,7 @@
         @if ($showEn){{ strtoupper($doc['type_label']) }}@endif
         @if ($showAr)<span class="font-normal">/ ({{ $doc['type_label_ar'] }})</span>@endif
     </h2>
+    @include('documents.print.payment-status-badge', ['doc' => $doc, 'primary' => $primary, 'secondary' => $secondary])
 
     <table class="w-full text-sm mt-5">
         <tbody>
@@ -343,10 +341,6 @@
             @endforeach
         </div>
     </div>
-
-    @if (($doc['payments'] ?? collect())->isNotEmpty())
-        @include('documents.print.payments-received', ['payments' => $doc['payments'], 'primary' => $primary, 'secondary' => $secondary])
-    @endif
 
     @if (!empty($doc['salesperson']))
         <div class="mt-6 text-sm">
@@ -599,6 +593,7 @@
             @if (!empty($doc['date2']))<p class="text-sm text-slate-500">{{ $doc['date2_label'] }}: {{ \App\Support\PlatformFormat::date($doc['date2']) }}</p>@endif
         </div>
     </div>
+    @include('documents.print.payment-status-badge', ['doc' => $doc, 'primary' => $primary, 'secondary' => $secondary])
 
     <div class="mt-8 grid grid-cols-2 gap-4">
         <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card">
@@ -685,14 +680,6 @@
             @endforeach
         </div>
     </div>
-
-    @if (($doc['payments'] ?? collect())->isNotEmpty())
-        <div class="flex justify-end">
-            <div class="w-full max-w-xs">
-                @include('documents.print.payments-received', ['payments' => $doc['payments'], 'primary' => $primary, 'secondary' => $secondary])
-            </div>
-        </div>
-    @endif
 
     @if ($bankAccounts->isNotEmpty())
         @php $ba = $bankAccounts->first(); @endphp
