@@ -162,6 +162,11 @@ class InvoiceController extends Controller
             'bankAccounts' => BankAccount::where('is_active', true)->where('is_personal', false)->orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
             'currencies' => Currencies::catalog(),
+            'availablePrepaymentInvoices' => \App\Models\PrepaymentInvoice::with('client')
+                ->where('status', 'issued')
+                ->whereDoesntHave('appliedToInvoice')
+                ->orderByDesc('issue_date')
+                ->get(),
             'nextNumberPreview' => $company->invoice_prefix.'-'.str_pad((string) $company->next_invoice_number, 5, '0', STR_PAD_LEFT),
             'defaultPaymentTermsDays' => $company->default_payment_terms_days ?? 30,
         ]);
@@ -194,6 +199,7 @@ class InvoiceController extends Controller
                 'branch_id' => $company->default_branch_id,
                 'salesperson_id' => $data['salesperson_id'] ?? null,
                 'project_id' => $data['project_id'] ?? null,
+                'applies_prepayment_invoice_id' => $data['applies_prepayment_invoice_id'] ?? null,
                 'created_by' => Auth::id(),
                 'invoice_number' => $company->nextInvoiceNumber(),
                 'type' => $data['type'],
@@ -1101,6 +1107,27 @@ class InvoiceController extends Controller
             'warehouse_id' => ['nullable', Rule::exists('warehouses', 'id')->where('company_id', $companyId)],
             'salesperson_id' => ['nullable', Rule::exists('salespersons', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
+            // Settles an earlier advance (ZATCA type-386 prepayment
+            // invoice) — see ZatcaXmlGenerator::generate()'s
+            // $appliedPrepayment handling. Must belong to this company,
+            // this same client, be issued (not draft/cancelled), and not
+            // already applied to a different invoice — all three are
+            // business rules a bare Rule::exists() can't express, so
+            // they're checked together in one closure for one clear
+            // error message.
+            'applies_prepayment_invoice_id' => ['nullable', Rule::exists('prepayment_invoices', 'id')->where('company_id', $companyId), function ($attribute, $value, $fail) use ($request, $companyId) {
+                if (! $value) {
+                    return;
+                }
+                $prepayment = \App\Models\PrepaymentInvoice::where('company_id', $companyId)->find($value);
+                if (! $prepayment || $prepayment->status !== 'issued') {
+                    $fail(__('This prepayment invoice is not available to apply — it must be issued (not draft/cancelled).'));
+                } elseif ((string) $prepayment->client_id !== (string) $request->input('client_id')) {
+                    $fail(__('This prepayment invoice belongs to a different customer than the one selected for this invoice.'));
+                } elseif ($prepayment->isApplied()) {
+                    $fail(__('This prepayment invoice has already been applied to another invoice.'));
+                }
+            }],
             'type' => ['required', 'in:standard,simplified'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],

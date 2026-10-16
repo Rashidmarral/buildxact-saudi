@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\DebitNote;
 use App\Models\Invoice;
+use App\Models\PrepaymentInvoice;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaDebitNoteLog;
 use App\Models\ZatcaEnvironmentCredential;
@@ -48,10 +49,23 @@ class ZatcaController extends Controller
             ]);
         }
 
+        // Prepayment (386) submissions share this same table (see the
+        // add_prepayment_support_to_zatca_invoice_logs_table migration)
+        // so the ICV counter stays correct across every document type —
+        // excluded here and given their own section below instead of
+        // being mixed into "Invoices".
         $logs = ZatcaInvoiceLog::with('invoice')
             ->where('company_id', $company->id)
+            ->whereNotNull('invoice_id')
             ->latest('id')
             ->paginate($this->resolvePerPage($request, 15, 'invoice_per_page'), ['*'], 'invoice_page')
+            ->withQueryString();
+
+        $prepaymentLogs = ZatcaInvoiceLog::with('prepaymentInvoice')
+            ->where('company_id', $company->id)
+            ->whereNotNull('prepayment_invoice_id')
+            ->latest('id')
+            ->paginate($this->resolvePerPage($request, 15, 'prepayment_per_page'), ['*'], 'prepayment_page')
             ->withQueryString();
 
         $creditNoteLogs = ZatcaCreditNoteLog::with('creditNote')
@@ -75,6 +89,7 @@ class ZatcaController extends Controller
 
         $sync = app(ZatcaSyncService::class);
         $pendingInvoicesList = $sync->pendingInvoices($company)->load('client');
+        $pendingPrepaymentInvoicesList = $sync->pendingPrepaymentInvoices($company)->load('client');
         $pendingCreditNotesList = $sync->pendingCreditNotes($company)->load('client');
         $pendingDebitNotesList = $sync->pendingDebitNotes($company)->load('client');
 
@@ -83,13 +98,16 @@ class ZatcaController extends Controller
             'mode' => $mode,
             'canUsePhase2' => true,
             'logs' => $logs,
+            'prepaymentLogs' => $prepaymentLogs,
             'creditNoteLogs' => $creditNoteLogs,
             'debitNoteLogs' => $debitNoteLogs,
             'stats' => $stats,
             'pendingInvoicesList' => $pendingInvoicesList,
+            'pendingPrepaymentInvoicesList' => $pendingPrepaymentInvoicesList,
             'pendingCreditNotesList' => $pendingCreditNotesList,
             'pendingDebitNotesList' => $pendingDebitNotesList,
             'pendingCount' => $pendingInvoicesList->count(),
+            'pendingPrepaymentCount' => $pendingPrepaymentInvoicesList->count(),
             'pendingCreditNoteCount' => $pendingCreditNotesList->count(),
             'pendingDebitNoteCount' => $pendingDebitNotesList->count(),
             'environments' => ZatcaApiClient::BASE_URLS,
@@ -517,10 +535,11 @@ class ZatcaController extends Controller
         }
 
         $invoices = $sync->pendingInvoices($company);
+        $prepaymentInvoices = $sync->pendingPrepaymentInvoices($company);
         $creditNotes = $sync->pendingCreditNotes($company);
         $debitNotes = $sync->pendingDebitNotes($company);
 
-        if ($invoices->isEmpty() && $creditNotes->isEmpty() && $debitNotes->isEmpty()) {
+        if ($invoices->isEmpty() && $prepaymentInvoices->isEmpty() && $creditNotes->isEmpty() && $debitNotes->isEmpty()) {
             return back()->with('status', __('No pending invoices, credit notes, or debit notes to sync.'));
         }
 
@@ -529,6 +548,15 @@ class ZatcaController extends Controller
 
         foreach ($invoices as $invoice) {
             $log = $sync->submit($invoice);
+            if (in_array($log->status, ['cleared', 'reported'], true)) {
+                $cleared++;
+            } else {
+                $failed++;
+            }
+        }
+
+        foreach ($prepaymentInvoices as $prepaymentInvoice) {
+            $log = $sync->submitPrepaymentInvoice($prepaymentInvoice);
             if (in_array($log->status, ['cleared', 'reported'], true)) {
                 $cleared++;
             } else {
@@ -578,6 +606,19 @@ class ZatcaController extends Controller
         $log = $sync->submit($invoice);
 
         return $this->syncResult($log->status, $invoice->invoice_number, $log->error_message);
+    }
+
+    public function syncPrepaymentInvoice(PrepaymentInvoice $prepaymentInvoice, ZatcaSyncService $sync): RedirectResponse
+    {
+        $company = Auth::user()->company;
+
+        if (! $company->isZatcaOnboarded()) {
+            return back()->with('error', __('Complete ZATCA onboarding before syncing invoices.'));
+        }
+
+        $log = $sync->submitPrepaymentInvoice($prepaymentInvoice);
+
+        return $this->syncResult($log->status, $prepaymentInvoice->prepayment_number, $log->error_message);
     }
 
     public function syncCreditNote(CreditNote $creditNote, ZatcaSyncService $sync): RedirectResponse

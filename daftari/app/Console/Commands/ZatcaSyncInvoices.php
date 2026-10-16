@@ -50,10 +50,11 @@ class ZatcaSyncInvoices extends Command
 
         foreach ($companies as $company) {
             $invoices = $sync->pendingInvoices($company);
+            $prepaymentInvoices = $sync->pendingPrepaymentInvoices($company);
             $creditNotes = $sync->pendingCreditNotes($company);
             $debitNotes = $sync->pendingDebitNotes($company);
 
-            if ($invoices->isEmpty() && $creditNotes->isEmpty() && $debitNotes->isEmpty()) {
+            if ($invoices->isEmpty() && $prepaymentInvoices->isEmpty() && $creditNotes->isEmpty() && $debitNotes->isEmpty()) {
                 continue;
             }
 
@@ -62,6 +63,11 @@ class ZatcaSyncInvoices extends Command
 
             foreach ($invoices as $invoice) {
                 $log = $sync->submit($invoice);
+                in_array($log->status, ['cleared', 'reported'], true) ? $cleared++ : $failed++;
+            }
+
+            foreach ($prepaymentInvoices as $prepaymentInvoice) {
+                $log = $sync->submitPrepaymentInvoice($prepaymentInvoice);
                 in_array($log->status, ['cleared', 'reported'], true) ? $cleared++ : $failed++;
             }
 

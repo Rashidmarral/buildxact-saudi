@@ -18,7 +18,7 @@ class Invoice extends Model
     use BelongsToCompany, ComputesDiscount, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'client_id', 'quotation_id', 'branch_id', 'salesperson_id', 'project_id', 'machinery_asset_id', 'created_by', 'invoice_number', 'type',
+        'company_id', 'client_id', 'quotation_id', 'applies_prepayment_invoice_id', 'branch_id', 'salesperson_id', 'project_id', 'machinery_asset_id', 'created_by', 'invoice_number', 'type',
         'status', 'payment_status_override', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value', 'retention_rate', 'retention_amount',
         'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes', 'qr_code', 'bank_account_id', 'warehouse_id', 'stock_deducted',
         'last_reminder_sent_at', 'last_reminder_tier', 'approved_by', 'approved_at', 'rejection_reason',
@@ -135,6 +135,17 @@ class Invoice extends Model
     public function quotation(): BelongsTo
     {
         return $this->belongsTo(Quotation::class);
+    }
+
+    /**
+     * The advance (ZATCA type-386) tax invoice this invoice settles, if
+     * any — see ZatcaXmlGenerator::generate()'s $appliedPrepayment
+     * handling and the add_applies_prepayment_invoice_id_to_invoices_table
+     * migration.
+     */
+    public function appliesPrepaymentInvoice(): BelongsTo
+    {
+        return $this->belongsTo(PrepaymentInvoice::class, 'applies_prepayment_invoice_id');
     }
 
     /** The payment-plan stage this invoice was generated for, if any. */

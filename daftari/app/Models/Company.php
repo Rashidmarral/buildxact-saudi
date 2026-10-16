@@ -358,6 +358,13 @@ class Company extends Model
         return $this->debit_note_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
+    public function nextPrepaymentNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_prepayment_number');
+
+        return $this->prepayment_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
     public function nextPurchaseReturnNumber(): string
     {
         $number = $this->nextSequenceNumber('next_purchase_return_number');

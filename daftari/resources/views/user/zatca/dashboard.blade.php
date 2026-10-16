@@ -114,7 +114,7 @@
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Pending sync') }}</p>
-        <p class="text-2xl font-bold text-slate-900 mt-1">{{ $pendingCount + $pendingCreditNoteCount + $pendingDebitNoteCount }}</p>
+        <p class="text-2xl font-bold text-slate-900 mt-1">{{ $pendingCount + $pendingPrepaymentCount + $pendingCreditNoteCount + $pendingDebitNoteCount }}</p>
     </div>
 </div>
 
@@ -271,7 +271,7 @@
         </div>
 
         @php
-            $pendingTotal = $pendingCount + $pendingCreditNoteCount + $pendingDebitNoteCount;
+            $pendingTotal = $pendingCount + $pendingPrepaymentCount + $pendingCreditNoteCount + $pendingDebitNoteCount;
         @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <div class="flex items-center justify-between mb-1">
@@ -310,6 +310,21 @@
                                     <td class="py-2 text-end">{{ \App\Support\Money::format($doc->total) }}</td>
                                     <td class="py-2 text-end">
                                         <form method="POST" action="{{ route('app.zatca.sync.invoice', $doc) }}">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-600">{{ __('Sync') }}</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                            @foreach ($pendingPrepaymentInvoicesList as $doc)
+                                <tr class="border-b border-slate-50 last:border-0">
+                                    <td class="py-2 font-medium text-slate-800">{{ $doc->prepayment_number }}</td>
+                                    <td class="py-2 text-slate-500">{{ __('Prepayment invoice') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->type === 'standard' ? __('B2B') : __('B2C') }}</td>
+                                    <td class="py-2 text-slate-500">{{ $doc->client?->name }}</td>
+                                    <td class="py-2 text-end">{{ \App\Support\Money::format($doc->total) }}</td>
+                                    <td class="py-2 text-end">
+                                        <form method="POST" action="{{ route('app.zatca.sync.prepayment-invoice', $doc) }}">
                                             @csrf
                                             <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-600">{{ __('Sync') }}</button>
                                         </form>
@@ -401,6 +416,56 @@
                 </table>
             </div>
             <div class="mt-4">@include('partials.pagination', ['paginator' => $logs, 'perPageKey' => 'invoice_per_page'])</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-100 p-6">
+            <h3 class="font-semibold text-slate-900 mb-4">{{ __('Prepayment invoice sync log') }}</h3>
+            <p class="text-xs text-slate-500 mb-4">{{ __('Advance/deposit tax invoices (InvoiceTypeCode 386) — submitted through the same clearance/reporting flow as invoices, sharing the same ICV/PIH chain.') }}</p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-slate-500 border-b border-slate-100">
+                            <th class="py-2">{{ __('Prepayment invoice') }}</th>
+                            <th class="py-2">{{ __('Type') }}</th>
+                            <th class="py-2">{{ __('Environment') }}</th>
+                            <th class="py-2">{{ __('Status') }}</th>
+                            <th class="py-2">{{ __('Submitted') }}</th>
+                            <th class="py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($prepaymentLogs as $log)
+                            <tr class="border-b border-slate-50 last:border-0">
+                                <td class="py-2">{{ $log->prepaymentInvoice?->prepayment_number }}</td>
+                                <td class="py-2">{{ $log->invoice_type === 'b2b' ? __('B2B') : __('B2C') }}</td>
+                                <td class="py-2">{{ ucfirst($log->environment) }}</td>
+                                <td class="py-2">
+                                    @php
+                                        $badge = match ($log->status) {
+                                            'cleared', 'reported' => 'bg-emerald-50 text-emerald-700',
+                                            'failed' => 'bg-red-50 text-red-700',
+                                            default => 'bg-slate-100 text-slate-600',
+                                        };
+                                    @endphp
+                                    <span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge }}">{{ ucfirst($log->status) }}</span>
+                                    @if ($log->status === 'failed' && $log->error_message)
+                                        <p class="mt-1 max-w-md text-xs text-red-600 break-words">{{ $log->error_message }}</p>
+                                    @endif
+                                </td>
+                                <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
+                                <td class="py-2 text-end">
+                                    @if (in_array($log->status, ['cleared', 'reported'], true) && $log->prepaymentInvoice)
+                                        <a href="{{ route('app.prepayment-invoices.xml', $log->prepaymentInvoice) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="py-8 text-center text-slate-400">{{ __('No sync activity yet.') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4">@include('partials.pagination', ['paginator' => $prepaymentLogs, 'perPageKey' => 'prepayment_per_page'])</div>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">

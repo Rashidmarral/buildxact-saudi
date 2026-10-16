@@ -177,6 +177,38 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
                 </select>
 
                 @unless ($invoice->exists)
+                    @if ($availablePrepaymentInvoices->isNotEmpty())
+                        <h3 class="text-xs font-semibold uppercase text-slate-500 mt-6 mb-2">{{ __('Prepayment') }}</h3>
+                        <label class="block text-xs font-medium text-slate-500">{{ __('Apply a prepayment invoice') }}</label>
+                        <select name="applies_prepayment_invoice_id" id="applies-prepayment-invoice" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                            <option value="">{{ __('None') }}</option>
+                            @foreach ($availablePrepaymentInvoices as $prepayment)
+                                <option value="{{ $prepayment->id }}" data-client-id="{{ $prepayment->client_id }}" @selected((string) old('applies_prepayment_invoice_id') === (string) $prepayment->id)>{{ $prepayment->prepayment_number }} — {{ $prepayment->client->display_name ?? $prepayment->client->name }} — {{ \App\Support\Money::format($prepayment->total) }}</option>
+                            @endforeach
+                        </select>
+                        <p class="text-[11px] text-slate-400 mt-1">{{ __('Reports the advance already taxed on that invoice as PrepaidAmount to ZATCA, reducing what this invoice still shows as payable.') }}</p>
+                        <script>
+                        (function () {
+                            var clientSelect = document.getElementById('pv-client');
+                            var prepaymentSelect = document.getElementById('applies-prepayment-invoice');
+                            if (! clientSelect || ! prepaymentSelect) { return; }
+
+                            function filterByClient() {
+                                var clientId = clientSelect.value;
+                                Array.from(prepaymentSelect.options).forEach(function (option) {
+                                    if (! option.value) { return; }
+                                    var matches = option.dataset.clientId === clientId;
+                                    option.hidden = clientId !== '' && ! matches;
+                                    if (option.hidden && option.selected) { prepaymentSelect.value = ''; }
+                                });
+                            }
+
+                            clientSelect.addEventListener('change', filterByClient);
+                            filterByClient();
+                        })();
+                        </script>
+                    @endif
+
                     {{-- Only on create: editing an existing invoice has its
                          own dedicated Record Payment form (and a separate,
                          purely cosmetic payment-status override) on the

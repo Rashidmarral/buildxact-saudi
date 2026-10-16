@@ -97,6 +97,7 @@ use App\Http\Controllers\User\ManualJournalEntryController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OwnerReimbursementController;
 use App\Http\Controllers\User\PaymentVoucherController;
+use App\Http\Controllers\User\PrepaymentInvoiceController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCashFlowController;
 use App\Http\Controllers\User\CompanyLetterController;
@@ -328,6 +329,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('invoices/{invoice}/email', [InvoiceController::class, 'emailInvoice'])->middleware('throttle:pdf')->name('invoices.email');
         Route::post('invoices/{invoice}/whatsapp', [InvoiceController::class, 'sendWhatsapp'])->name('invoices.whatsapp');
         Route::post('invoices/{invoice}/sms', [InvoiceController::class, 'sendSms'])->name('invoices.sms');
+
+        Route::resource('prepayment-invoices', PrepaymentInvoiceController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+        Route::get('prepayment-invoices/{prepaymentInvoice}/xml', [PrepaymentInvoiceController::class, 'downloadXml'])->name('prepayment-invoices.xml');
+        Route::get('prepayment-invoices/{prepaymentInvoice}/pdf', [PrepaymentInvoiceController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('prepayment-invoices.pdf');
 
         Route::get('credit-notes/eligible-invoices', [CreditNoteController::class, 'eligibleInvoices'])->name('credit-notes.eligible-invoices');
         Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);
@@ -828,6 +833,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('reset', [ZatcaController::class, 'resetOnboarding'])->name('reset');
         Route::post('sync', [ZatcaController::class, 'sync'])->name('sync');
         Route::post('sync/invoices/{invoice}', [ZatcaController::class, 'syncInvoice'])->name('sync.invoice');
+        Route::post('sync/prepayment-invoices/{prepaymentInvoice}', [ZatcaController::class, 'syncPrepaymentInvoice'])->name('sync.prepayment-invoice');
         Route::post('sync/credit-notes/{creditNote}', [ZatcaController::class, 'syncCreditNote'])->name('sync.credit-note');
         Route::post('sync/debit-notes/{debitNote}', [ZatcaController::class, 'syncDebitNote'])->name('sync.debit-note');
     });

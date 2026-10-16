@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\DebitNote;
 use App\Models\Invoice;
+use App\Models\PrepaymentInvoice;
 use App\Models\User;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaDebitNoteLog;
@@ -40,6 +41,11 @@ class ZatcaSyncService
         return $invoice->type === 'standard';
     }
 
+    public function isB2bPrepayment(PrepaymentInvoice $prepayment): bool
+    {
+        return $prepayment->type === 'standard';
+    }
+
     /**
      * KSA's mandatory Invoice Counter Value (ICV) — a company-wide,
      * ever-incrementing sequence across every document (invoice or credit
@@ -71,7 +77,7 @@ class ZatcaSyncService
      * carries no time component (always midnight) and would silently
      * mismatch IssueTime on every real submission.
      */
-    private function issuedAtFor(Invoice|CreditNote|DebitNote $document): Carbon
+    private function issuedAtFor(Invoice|CreditNote|DebitNote|PrepaymentInvoice $document): Carbon
     {
         return Carbon::parse($document->issue_date->format('Y-m-d').' '.($document->created_at ?? now('UTC'))->format('H:i:s'));
     }
@@ -119,6 +125,23 @@ class ZatcaSyncService
         return Invoice::where('company_id', $company->id)
             ->where('currency', $company->currency)
             ->whereNotIn('status', ['draft', 'cancelled'])
+            ->when(! $company->zatca_sync_b2b, fn ($q) => $q->where('type', '!=', 'standard'))
+            ->when(! $company->zatca_sync_b2c, fn ($q) => $q->where('type', '!=', 'simplified'))
+            ->whereDoesntHave('zatcaInvoiceLogs', fn ($q) => $q->whereIn('status', ['cleared', 'reported']))
+            ->get();
+    }
+
+    /**
+     * Mirrors pendingInvoices() exactly — same base-currency restriction,
+     * same B2B/B2C sync toggles, same "no successful log yet" filter —
+     * since a prepayment invoice is submitted through the identical
+     * clearance/reporting pipeline.
+     */
+    public function pendingPrepaymentInvoices(Company $company)
+    {
+        return PrepaymentInvoice::where('company_id', $company->id)
+            ->where('currency', $company->currency)
+            ->where('status', 'issued')
             ->when(! $company->zatca_sync_b2b, fn ($q) => $q->where('type', '!=', 'standard'))
             ->when(! $company->zatca_sync_b2c, fn ($q) => $q->where('type', '!=', 'simplified'))
             ->whereDoesntHave('zatcaInvoiceLogs', fn ($q) => $q->whereIn('status', ['cleared', 'reported']))
@@ -384,6 +407,74 @@ class ZatcaSyncService
     }
 
     /**
+     * Mirrors rejectUnsubmittable() for the single pseudo-line a
+     * prepayment invoice carries instead of a real item collection —
+     * same cancelled/draft, exemption-reason, buyer-identification
+     * (standard/B2B only), seller-address and buyer-address guards, same
+     * base-currency restriction.
+     */
+    private function rejectUnsubmittablePrepayment(PrepaymentInvoice $prepayment): ?ZatcaInvoiceLog
+    {
+        if (in_array($prepayment->status, ['draft', 'cancelled'], true)) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $prepayment->company_id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'status' => 'failed',
+                'error_message' => $prepayment->status === 'cancelled'
+                    ? __('A cancelled prepayment invoice cannot be synced to ZATCA.')
+                    : __('A draft prepayment invoice cannot be synced to ZATCA — issue it first.'),
+            ]);
+        }
+
+        if ($error = $this->missingExemptionReasonError([$prepayment])) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $prepayment->company_id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($this->isB2bPrepayment($prepayment) && ($error = $this->missingBuyerIdentificationError($prepayment->client))) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $prepayment->company_id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($error = $this->invalidSellerAddressFormatError($prepayment->company)) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $prepayment->company_id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($error = $this->incompleteBuyerAddressError($prepayment->client)) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $prepayment->company_id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'status' => 'failed',
+                'error_message' => $error,
+            ]);
+        }
+
+        if ($prepayment->currency !== $prepayment->company->currency) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $prepayment->company_id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'status' => 'failed',
+                'error_message' => __('ZATCA sync only supports invoices in your base currency (:currency).', ['currency' => $prepayment->company->currency]),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
      * The single-document sync button and admin retry have no status
      * filter of their own (unlike pendingCreditNotes()/pendingDebitNotes(),
      * which already exclude void) — same class of gap as a cancelled
@@ -554,7 +645,7 @@ class ZatcaSyncService
 
             $uuid = $this->xml->newUuid();
             $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-            $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company), $invoice->appliesPrepaymentInvoice);
             $invoiceHash = $this->signer->contentHash($unsignedXml);
 
             $xmlString = $unsignedXml;
@@ -639,6 +730,114 @@ class ZatcaSyncService
                     'error_message' => Str::limit($e->getMessage(), 1000),
                 ]);
                 $this->notifyZatcaFailure($company, __('Invoice'), $invoice->invoice_number, $e->getMessage());
+            }
+
+            return $log;
+        });
+    }
+
+    /**
+     * Mirrors submit() exactly for a prepayment (386) invoice — same
+     * lockedSubmission() row-lock, same ICV/PIH chain (nextIcv() already
+     * counts these rows since they share zatca_invoice_logs with regular
+     * invoices), same clearance/reporting split by type, same demo-mode
+     * and onboarding guards.
+     */
+    public function submitPrepaymentInvoice(PrepaymentInvoice $prepayment): ZatcaInvoiceLog
+    {
+        if ($rejected = $this->rejectUnsubmittablePrepayment($prepayment)) {
+            return $rejected;
+        }
+
+        return $this->lockedSubmission($prepayment->company_id, function (Company $company) use ($prepayment) {
+            $environment = $company->zatca_environment;
+            $isB2b = $this->isB2bPrepayment($prepayment);
+
+            $csid = $company->zatcaCsidFor();
+            $secret = $company->zatcaSecretFor();
+
+            $uuid = $this->xml->newUuid();
+            $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
+            $unsignedXml = $this->xml->generateForPrepayment($prepayment, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $invoiceHash = $this->signer->contentHash($unsignedXml);
+
+            $xmlString = $unsignedXml;
+            $qrPng = null;
+
+            if ($csid && $secret && $company->isZatcaOnboarded()) {
+                [$xmlString, $qrPng] = $this->buildSignedPayload(
+                    $company, $unsignedXml, $invoiceHash, $csid,
+                    $this->issuedAtFor($prepayment), (float) $prepayment->total, (float) $prepayment->vat_amount,
+                );
+            }
+
+            $log = ZatcaInvoiceLog::create([
+                'company_id' => $company->id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'environment' => $environment,
+                'invoice_type' => $isB2b ? 'b2b' : 'b2c',
+                'direction' => $isB2b ? 'clearance' : 'reporting',
+                'status' => 'queued',
+                'request_uuid' => $uuid,
+                'invoice_hash' => $invoiceHash,
+                'previous_invoice_hash' => $previousHash,
+                'xml_payload' => $xmlString,
+                'submitted_at' => now(),
+            ]);
+
+            if (! $csid || ! $secret || ! $company->isZatcaOnboarded()) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => __('Company is not onboarded with ZATCA for the :env environment yet.', ['env' => $environment]),
+                ]);
+
+                return $log;
+            }
+
+            if ($company->isDemo()) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => DemoMode::zatcaSubmissions(),
+                ]);
+
+                return $log;
+            }
+
+            if ($qrPng) {
+                $prepayment->update(['qr_code' => $qrPng]);
+            }
+
+            $xmlBase64 = base64_encode($xmlString);
+
+            try {
+                $response = $isB2b
+                    ? $this->api->clearInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid)
+                    : $this->api->reportInvoice($environment, $csid, $secret, $xmlBase64, $invoiceHash, $uuid);
+
+                if ($response->successful()) {
+                    $body = $response->json();
+                    $log->update([
+                        'status' => $isB2b ? 'cleared' : 'reported',
+                        'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
+                        'response_payload' => $response->body(),
+                        'cleared_at' => now(),
+                    ]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                } else {
+                    $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
+                    $log->update([
+                        'status' => 'failed',
+                        'response_payload' => $response->body(),
+                        'error_message' => $errorMessage,
+                    ]);
+                    $this->notifyZatcaFailure($company, __('Prepayment invoice'), $prepayment->prepayment_number, $errorMessage);
+                }
+            } catch (\Throwable $e) {
+                $log->update([
+                    'status' => 'failed',
+                    'error_message' => Str::limit($e->getMessage(), 1000),
+                ]);
+                $this->notifyZatcaFailure($company, __('Prepayment invoice'), $prepayment->prepayment_number, $e->getMessage());
             }
 
             return $log;

@@ -8,6 +8,7 @@ use App\Models\DebitNote;
 use App\Models\DebitNoteItem;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\PrepaymentInvoice;
 use App\Models\TaxRate;
 use App\Support\Zatca\VatExemptionReason;
 use DOMDocument;
@@ -21,7 +22,7 @@ use Illuminate\Support\Str;
  */
 class ZatcaXmlGenerator
 {
-    public function generate(Invoice $invoice, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1): string
+    public function generate(Invoice $invoice, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1, ?PrepaymentInvoice $appliedPrepayment = null): string
     {
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = false;
@@ -56,6 +57,14 @@ class ZatcaXmlGenerator
 
         if ($previousInvoiceHash) {
             $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
+        }
+
+        // BR-KSA-73/80: once this invoice settles a prior advance, it
+        // must reference that 386 prepayment invoice's own number/date —
+        // see the PrepaidAmount handling below and the
+        // add_applies_prepayment_invoice_id_to_invoices_table migration.
+        if ($appliedPrepayment) {
+            $root->appendChild($this->prepaymentReference($doc, $appliedPrepayment));
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
@@ -104,27 +113,25 @@ class ZatcaXmlGenerator
         // ZATCA's PrepaidAmount (BT-113) is narrower than "the client has
         // already paid us something" — per the spec's own section 9.5, it
         // specifically means an advance settled against a formal, separate
-        // prepayment TAX INVOICE (type code 386), and whenever it's
-        // non-zero the invoice MUST carry an additional zero-value line
-        // with a cac:DocumentReference back to that 386 invoice's own
-        // number/date/time (BR-KSA-73/BR-KSA-80) — Daftari has no feature
-        // to issue that kind of invoice at all. An earlier version of
-        // this method derived a non-zero PrepaidAmount from ordinary
-        // InvoicePayment rows recorded before the issue date (e.g. a
-        // deposit collected before invoicing — a normal contracting
-        // workflow), which would set BT-113 without the document
-        // reference the spec requires alongside it and risk clearance
-        // rejection. Always reporting zero here — matching CreditNote/
-        // DebitNote's own PrepaidAmount below, which were never changed
-        // from this — is correct until a real prepayment-invoice feature
-        // is built with the full DocumentReference wiring.
+        // prepayment TAX INVOICE (type code 386). It's only ever non-zero
+        // here when $appliedPrepayment is set (PrepaymentInvoice — see
+        // generateForPrepayment()), in which case it's that document's own
+        // tax-inclusive total and PayableAmount is reduced by the same, so
+        // ZATCA doesn't see the VAT on that advance counted twice. Never
+        // derived from ordinary InvoicePayment rows (e.g. a deposit
+        // collected before invoicing with no 386 invoice behind it) — that
+        // would set BT-113 without the required document reference
+        // (BR-KSA-73/BR-KSA-80) and risk clearance rejection. CreditNote/
+        // DebitNote's own PrepaidAmount stays hardcoded zero below —
+        // neither document type can settle an advance.
+        $prepaidAmount = $appliedPrepayment ? (float) $appliedPrepayment->total : 0.0;
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', $invoice->total, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', $invoice->discount_total, $docCurrency);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', 0.0, $docCurrency);
-        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', $invoice->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', $prepaidAmount, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', (float) $invoice->total - $prepaidAmount, $docCurrency);
         $root->appendChild($monetaryTotal);
 
         foreach ($invoice->items as $index => $item) {
@@ -160,6 +167,138 @@ class ZatcaXmlGenerator
 
             $root->appendChild($line);
         }
+
+        return $doc->saveXML();
+    }
+
+    /**
+     * A prepayment ("advance") tax invoice — InvoiceTypeCode 386. Same
+     * UBL Invoice-2 schema and ICV/PIH chain as a regular tax invoice,
+     * but with a single pseudo-line for the advance amount rather than
+     * a real item breakdown (see PrepaymentInvoice/the
+     * create_prepayment_invoices_table migration for why), no
+     * BillingReference (it's issued standalone, before the final
+     * invoice — the final invoice is what references THIS document,
+     * not the other way around), and PrepaidAmount/PayableAmount both
+     * equal to its own total (an advance invoice can't itself have
+     * been settled by an earlier advance).
+     */
+    public function generateForPrepayment(PrepaymentInvoice $prepayment, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1): string
+    {
+        $doc = new DOMDocument('1.0', 'UTF-8');
+        $doc->formatOutput = false;
+
+        $root = $doc->createElementNS('urn:oasis:names:specification:ubl:schema:xsd:Invoice-2', 'Invoice');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+        $doc->appendChild($root);
+
+        $company = $prepayment->company;
+        $client = $prepayment->client;
+
+        $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
+        $this->append($doc, $root, 'cbc:ID', $prepayment->prepayment_number);
+        $this->append($doc, $root, 'cbc:UUID', $uuid);
+        $this->append($doc, $root, 'cbc:IssueDate', $prepayment->issue_date->format('Y-m-d'));
+        $this->append($doc, $root, 'cbc:IssueTime', $prepayment->created_at?->format('H:i:s') ?? now('UTC')->format('H:i:s'));
+
+        $typeCode = $this->append($doc, $root, 'cbc:InvoiceTypeCode', '386');
+        $typeCode->setAttribute('name', $invoiceTypeName);
+
+        $docCurrency = $prepayment->currency ?: 'SAR';
+        $this->append($doc, $root, 'cbc:DocumentCurrencyCode', $docCurrency);
+        $this->append($doc, $root, 'cbc:TaxCurrencyCode', 'SAR');
+
+        $root->appendChild($this->icvReference($doc, $icv));
+
+        if ($previousInvoiceHash) {
+            $root->appendChild($this->pihReference($doc, $previousInvoiceHash));
+        }
+
+        $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
+            'name' => $company->name,
+            'vat_number' => $company->vat_number,
+            'id_scheme' => 'CRN',
+            'id_value' => $company->cr_number,
+            'street' => $company->street_name ?: $company->address,
+            'building_number' => $company->building_number,
+            'district' => $company->district,
+            'city' => $company->city,
+            'postal_code' => $company->postal_code,
+        ]));
+
+        $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
+            'name' => $client->name,
+            'vat_number' => $client->vat_number,
+            'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
+            'id_value' => $client->additional_id_number,
+            'street' => $client->street_name,
+            'building_number' => $client->building_number,
+            'district' => $client->district,
+            'city' => $client->city,
+            'postal_code' => $client->postal_code,
+        ]));
+
+        $paymentMeans = $doc->createElement('cac:PaymentMeans');
+        $this->append($doc, $paymentMeans, 'cbc:PaymentMeansCode', '1');
+        $root->appendChild($paymentMeans);
+
+        // One pseudo-line standing in for the advance amount — every
+        // helper below that normally walks real line-item models
+        // (InvoiceItem/CreditNoteItem/DebitNoteItem) also accepts a bare
+        // stdClass for exactly this case (see taxCategoryCode()).
+        $pseudoLine = (object) [
+            'description' => $prepayment->description ?: __('Advance payment'),
+            'quantity' => 1,
+            'unit_price' => (float) $prepayment->amount,
+            'vat_rate' => (float) $prepayment->vat_rate,
+            'vat_amount' => (float) $prepayment->vat_amount,
+            'taxRate' => $prepayment->taxRate,
+            'unit' => null,
+            'item' => null,
+        ];
+
+        $root->appendChild($this->documentAllowanceCharge($doc, 0.0, [$pseudoLine], $docCurrency));
+
+        $this->appendDualTaxTotal($doc, $root, (float) $prepayment->vat_amount, [$pseudoLine], fn ($line) => $line->quantity * $line->unit_price);
+
+        $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', (float) $prepayment->amount, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', (float) $prepayment->amount, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxInclusiveAmount', (float) $prepayment->total, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:AllowanceTotalAmount', 0.0, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PrepaidAmount', 0.0, $docCurrency);
+        $this->appendAmount($doc, $monetaryTotal, 'cbc:PayableAmount', (float) $prepayment->total, $docCurrency);
+        $root->appendChild($monetaryTotal);
+
+        $line = $doc->createElement('cac:InvoiceLine');
+        $this->append($doc, $line, 'cbc:ID', '1');
+        $qty = $this->append($doc, $line, 'cbc:InvoicedQuantity', '1.00');
+        $qty->setAttribute('unitCode', 'PCE');
+        $this->appendAmount($doc, $line, 'cbc:LineExtensionAmount', (float) $prepayment->amount, $docCurrency);
+
+        $lineTax = $doc->createElement('cac:TaxTotal');
+        $this->appendAmount($doc, $lineTax, 'cbc:TaxAmount', (float) $prepayment->vat_amount, $docCurrency);
+        $this->appendAmount($doc, $lineTax, 'cbc:RoundingAmount', (float) $prepayment->amount + (float) $prepayment->vat_amount, $docCurrency);
+        $line->appendChild($lineTax);
+
+        $itemEl = $doc->createElement('cac:Item');
+        $this->append($doc, $itemEl, 'cbc:Name', $pseudoLine->description);
+        $taxCategory = $doc->createElement('cac:ClassifiedTaxCategory');
+        $this->append($doc, $taxCategory, 'cbc:ID', $this->taxCategoryCode($pseudoLine));
+        $this->append($doc, $taxCategory, 'cbc:Percent', number_format((float) $prepayment->vat_rate, 2, '.', ''));
+        $lineTaxScheme = $doc->createElement('cac:TaxScheme');
+        $this->append($doc, $lineTaxScheme, 'cbc:ID', 'VAT');
+        $taxCategory->appendChild($lineTaxScheme);
+        $itemEl->appendChild($taxCategory);
+        $line->appendChild($itemEl);
+
+        $price = $doc->createElement('cac:Price');
+        $this->appendAmount($doc, $price, 'cbc:PriceAmount', (float) $prepayment->amount, $docCurrency);
+        $price->appendChild($this->lineAllowanceCharge($doc, $docCurrency));
+        $line->appendChild($price);
+
+        $root->appendChild($line);
 
         return $doc->saveXML();
     }
@@ -773,6 +912,24 @@ class ZatcaXmlGenerator
         $pih->appendChild($attachment);
 
         return $pih;
+    }
+
+    /**
+     * BR-KSA-73/80: a final invoice that settles an earlier advance must
+     * reference that prepayment (386) invoice's own number/date/time —
+     * same AdditionalDocumentReference family ICV/PIH already use above,
+     * just carrying the 386 document's identity instead of a chain
+     * value.
+     */
+    private function prepaymentReference(DOMDocument $doc, PrepaymentInvoice $prepayment): \DOMElement
+    {
+        $ref = $doc->createElement('cac:AdditionalDocumentReference');
+        $this->append($doc, $ref, 'cbc:ID', $prepayment->prepayment_number);
+        $this->append($doc, $ref, 'cbc:IssueDate', $prepayment->issue_date->format('Y-m-d'));
+        $this->append($doc, $ref, 'cbc:IssueTime', $prepayment->created_at?->format('H:i:s') ?? now('UTC')->format('H:i:s'));
+        $this->append($doc, $ref, 'cbc:DocumentTypeCode', '386');
+
+        return $ref;
     }
 
     /**
