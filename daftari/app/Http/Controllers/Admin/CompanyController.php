@@ -9,8 +9,12 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\CompanyOverride;
+use App\Models\CreditNote;
 use App\Models\Currency;
+use App\Models\PaymentVoucher;
 use App\Models\Plan;
+use App\Models\PurchaseReturn;
+use App\Models\ReceiptVoucher;
 use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
@@ -560,6 +564,21 @@ class CompanyController extends Controller
      * touches users, financial records, ZATCA credentials/onboarding state,
      * VAT/CR numbers, or address — those are not "settings", and resetting
      * them would be destructive far beyond what "reset settings" implies.
+     *
+     * Compliance review finding: every numbering pair below used to be
+     * force-reset unconditionally, with no check for whether the company
+     * already has documents using that number space. Resetting
+     * next_invoice_number to 1 on a company that already has an
+     * "INV-00001" — possibly already cleared/reported to ZATCA — means
+     * the very next invoice created collides with it on the
+     * (company_id, invoice_number) unique index (BR-KSA requires
+     * invoice numbers never repeat). Same risk for every other numbered
+     * document type here (quotations, bills, purchase orders, journal
+     * entries, projects, ...), not just the two ZATCA-regulated ones.
+     * Each pair is now only reset when no document of that type exists
+     * yet for this company — safe for the common "set up a fresh/demo
+     * company" use this action is actually for, and a no-op (not a
+     * crash) for a company with real history.
      */
     public function resetSettings(Company $company)
     {
@@ -581,6 +600,40 @@ class CompanyController extends Controller
             'zatca_sync_frequency' => 'manual', 'zatca_sync_b2b' => true, 'zatca_sync_b2c' => true,
         ];
 
+        // [prefix key, number key, whether any document of that type
+        // already exists] — each pair is dropped from $defaults together
+        // so a numbering series is never left with a reset counter but
+        // its old (customized) prefix, or vice versa.
+        $numberingGuards = [
+            ['invoice_prefix', 'next_invoice_number', fn () => $company->invoices()->withoutGlobalScopes()->exists()],
+            ['credit_note_prefix', 'next_credit_note_number', fn () => CreditNote::withoutGlobalScopes()->where('company_id', $company->id)->exists()],
+            ['purchase_return_prefix', 'next_purchase_return_number', fn () => PurchaseReturn::withoutGlobalScopes()->where('company_id', $company->id)->exists()],
+            ['quotation_prefix', 'next_quotation_number', fn () => $company->quotations()->withoutGlobalScopes()->where('type', 'quotation')->exists()],
+            ['proforma_prefix', 'next_proforma_number', fn () => $company->quotations()->withoutGlobalScopes()->where('type', 'proforma')->exists()],
+            ['receipt_prefix', 'next_receipt_number', fn () => ReceiptVoucher::withoutGlobalScopes()->where('company_id', $company->id)->exists()],
+            ['payment_voucher_prefix', 'next_payment_voucher_number', fn () => PaymentVoucher::withoutGlobalScopes()->where('company_id', $company->id)->exists()],
+            ['bill_prefix', 'next_bill_number', fn () => $company->bills()->withoutGlobalScopes()->exists()],
+            ['po_prefix', 'next_po_number', fn () => $company->purchaseOrders()->withoutGlobalScopes()->exists()],
+            ['journal_prefix', 'next_journal_number', fn () => $company->journalEntries()->withoutGlobalScopes()->exists()],
+            ['project_prefix', 'next_project_number', fn () => $company->projects()->withoutGlobalScopes()->exists()],
+        ];
+
+        $skippedLabels = [
+            'invoice_prefix' => __('invoices'), 'credit_note_prefix' => __('credit notes'),
+            'purchase_return_prefix' => __('purchase returns'), 'quotation_prefix' => __('quotations'),
+            'proforma_prefix' => __('proforma invoices'), 'receipt_prefix' => __('receipt vouchers'),
+            'payment_voucher_prefix' => __('payment vouchers'), 'bill_prefix' => __('bills'),
+            'po_prefix' => __('purchase orders'), 'journal_prefix' => __('journal entries'), 'project_prefix' => __('projects'),
+        ];
+        $skipped = [];
+
+        foreach ($numberingGuards as [$prefixKey, $numberKey, $hasExisting]) {
+            if ($hasExisting()) {
+                unset($defaults[$prefixKey], $defaults[$numberKey]);
+                $skipped[] = $skippedLabels[$prefixKey];
+            }
+        }
+
         $old = $company->only(array_keys($defaults));
 
         $company->forceFill($defaults)->save();
@@ -593,7 +646,12 @@ class CompanyController extends Controller
             new: $defaults
         );
 
-        return back()->with('status', __('Company settings reset to defaults.'));
+        $status = __('Company settings reset to defaults.');
+        if ($skipped) {
+            $status .= ' '.__('Numbering left unchanged for :types — this company already has documents using it.', ['types' => implode(', ', $skipped)]);
+        }
+
+        return back()->with('status', $status);
     }
 
     /**

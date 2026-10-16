@@ -519,9 +519,24 @@ class ZatcaController extends Controller
             'zatca_production_csid' => null,
             'zatca_production_secret' => null,
             'zatca_linked_at' => null,
+            // Bug found during a compliance review: this reset left the
+            // PIH hash chain pointer (zatca_last_invoice_hash) behind. A
+            // fresh CSR/CSID is a brand-new device identity as far as
+            // ZATCA is concerned — its first invoice must chain from the
+            // ZATCA-defined genesis hash (empty-string SHA-256), not from
+            // whatever a previous, now-discarded identity last submitted.
+            // Leaving the old hash in place meant the next invoice after
+            // a reset carried a PIH ZATCA had no record of, while
+            // ZatcaSyncService::nextIcv() (a bare count of this
+            // environment's zatca_invoice_logs rows) would also restart
+            // at 1 if those rows had ever been removed — an inconsistent
+            // ICV/PIH pair ZATCA's clearance/reporting validation is
+            // built specifically to reject.
+            'zatca_last_invoice_hash' => null,
+            'zatca_last_sync_at' => null,
         ]);
 
-        AuditLog::record('zatca.onboarding_reset', $company, __('Reset ZATCA onboarding progress for the :env environment — CSR, private key, and CSIDs cleared', ['env' => $environment]));
+        AuditLog::record('zatca.onboarding_reset', $company, __('Reset ZATCA onboarding progress for the :env environment — CSR, private key, CSIDs, and the invoice hash chain cleared', ['env' => $environment]));
 
         return back()->with('status', __('Onboarding reset. You can start again from CSR generation.'));
     }

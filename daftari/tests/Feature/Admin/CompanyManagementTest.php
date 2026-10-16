@@ -5,8 +5,11 @@ namespace Tests\Feature\Admin;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Models\Client;
 use App\Models\Company;
+use App\Models\Invoice;
 use App\Models\Plan;
+use App\Models\Quotation;
 use App\Models\Role;
 use App\Models\Subscription;
 use App\Models\User;
@@ -340,6 +343,58 @@ class CompanyManagementTest extends TestCase
         $log = AuditLog::where('action', 'company.reset_settings')->latest('id')->first();
         $this->assertSame('USD', $log->old_value['currency']);
         $this->assertSame('SAR', $log->new_value['currency']);
+    }
+
+    /**
+     * Compliance finding: resetting next_invoice_number to 1 while an
+     * "INV-00001" already exists for this company would make the very
+     * next invoice collide with it on the (company_id, invoice_number)
+     * unique index — a real risk if that existing invoice was already
+     * cleared/reported to ZATCA. The numbering reset must be skipped
+     * (not crash, not silently renumber) whenever documents already
+     * exist, while every other default (currency, locale, ...) still
+     * resets normally.
+     */
+    public function test_reset_settings_leaves_invoice_numbering_alone_once_an_invoice_exists(): void
+    {
+        $company = $this->makeCompany(['currency' => 'USD', 'invoice_prefix' => 'CUSTOM', 'next_invoice_number' => 42]);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Existing Client']);
+        Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'CUSTOM-00041',
+            'type' => 'standard', 'status' => 'draft', 'issue_date' => now()->toDateString(), 'currency' => 'USD',
+        ]);
+
+        $response = $this->withConfirmedPassword($this->makeAdmin())
+            ->post(route('admin.companies.reset-settings', $company));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status', fn ($status) => str_contains($status, 'invoices'));
+        $company->refresh();
+
+        $this->assertSame('CUSTOM', $company->invoice_prefix);
+        $this->assertSame(42, $company->next_invoice_number);
+        // Everything else still resets normally.
+        $this->assertSame('SAR', $company->currency);
+    }
+
+    public function test_reset_settings_leaves_quotation_and_proforma_numbering_independently(): void
+    {
+        $company = $this->makeCompany(['quotation_prefix' => 'CUSTOM-Q', 'next_quotation_number' => 9, 'proforma_prefix' => 'CUSTOM-P', 'next_proforma_number' => 9]);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Existing Client']);
+        Quotation::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'quotation_number' => 'CUSTOM-Q-00008',
+            'type' => 'quotation', 'status' => 'draft', 'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+        ]);
+
+        $this->withConfirmedPassword($this->makeAdmin())->post(route('admin.companies.reset-settings', $company));
+
+        $company->refresh();
+        // Quotations exist, so that numbering is left alone...
+        $this->assertSame('CUSTOM-Q', $company->quotation_prefix);
+        $this->assertSame(9, $company->next_quotation_number);
+        // ...but no proforma invoices exist yet, so that one still resets.
+        $this->assertSame('PRO', $company->proforma_prefix);
+        $this->assertSame(1, $company->next_proforma_number);
     }
 
     // ---------------------------------------------------------------

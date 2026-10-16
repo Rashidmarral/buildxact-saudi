@@ -51,6 +51,12 @@ class ZatcaController extends Controller
         'zatca_production_csid' => null,
         'zatca_production_secret' => null,
         'zatca_linked_at' => null,
+        // See the matching fix in the user-facing resetOnboarding() for
+        // why these two are now included — a fresh CSID is a brand-new
+        // device identity, so its first invoice must chain from the
+        // genesis hash, not a pointer left over from a discarded one.
+        'zatca_last_invoice_hash' => null,
+        'zatca_last_sync_at' => null,
     ];
 
     public function index(Request $request, ZatcaSyncService $sync)
