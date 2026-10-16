@@ -135,6 +135,13 @@ class CustomsDeclarationController extends Controller
 
     public function destroy(CustomsDeclaration $customsDeclaration, LedgerPostingService $ledger)
     {
+        // Compliance gap found while auditing ZATCA record-keeping: a
+        // customs declaration always posts to the ledger immediately on
+        // creation (no draft stage) and had no age check at all.
+        if (\App\Support\RecordRetentionPolicy::isWithinRetentionWindow($customsDeclaration->declaration_date)) {
+            return back()->withErrors(['customs_declaration' => __('This customs declaration is within the :years-year record retention period required by Saudi VAT law and cannot be deleted.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         DB::transaction(function () use ($customsDeclaration, $ledger) {
             $ledger->reverse($customsDeclaration->company, 'customs_declaration', $customsDeclaration->id, __('Customs declaration deleted'));
 

@@ -209,7 +209,14 @@ class PrepaymentInvoiceTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_an_unapplied_unsynced_prepayment_invoice_can_be_deleted(): void
+    /**
+     * Compliance finding: an issued prepayment invoice is a real
+     * VAT-relevant record of money received the moment it exists —
+     * recent ones (within the 6-year Saudi VAT retention window) must
+     * not be deletable at all, independent of whether it's ever reached
+     * ZATCA or been applied to an invoice. See RecordRetentionPolicy.
+     */
+    public function test_a_recent_unapplied_unsynced_prepayment_invoice_cannot_be_deleted(): void
     {
         [$company, $owner] = $this->makeOwner();
         $client = Client::create(['company_id' => $company->id, 'name' => 'Advance Client']);
@@ -218,6 +225,23 @@ class PrepaymentInvoiceTest extends TestCase
             'company_id' => $company->id, 'client_id' => $client->id, 'tax_rate_id' => $rate->id, 'created_by' => $owner->id,
             'prepayment_number' => 'PPI-00001', 'type' => 'standard', 'status' => 'issued',
             'issue_date' => now()->toDateString(), 'amount' => 10000, 'vat_rate' => 15, 'vat_amount' => 1500, 'total' => 11500,
+        ]);
+
+        $response = $this->actingAs($owner)->delete(route('app.prepayment-invoices.destroy', $prepayment));
+
+        $response->assertSessionHasErrors('prepayment');
+        $this->assertSame(1, PrepaymentInvoice::count());
+    }
+
+    public function test_a_prepayment_invoice_past_the_retention_window_can_be_deleted(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Advance Client']);
+        $rate = $this->standardRate($company);
+        $prepayment = PrepaymentInvoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'tax_rate_id' => $rate->id, 'created_by' => $owner->id,
+            'prepayment_number' => 'PPI-00001', 'type' => 'standard', 'status' => 'issued',
+            'issue_date' => now()->subYears(7)->toDateString(), 'amount' => 10000, 'vat_rate' => 15, 'vat_amount' => 1500, 'total' => 11500,
         ]);
 
         $response = $this->actingAs($owner)->delete(route('app.prepayment-invoices.destroy', $prepayment));

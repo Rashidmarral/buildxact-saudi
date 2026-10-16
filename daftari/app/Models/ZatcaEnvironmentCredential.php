@@ -18,7 +18,7 @@ class ZatcaEnvironmentCredential extends Model
         'organization_unit_name', 'business_category', 'csr', 'private_key',
         'compliance_request_id', 'compliance_csid', 'compliance_secret',
         'production_request_id', 'production_csid', 'production_secret',
-        'last_invoice_hash', 'linked_at', 'last_sync_at',
+        'last_invoice_hash', 'linked_at', 'last_sync_at', 'icv_counter',
     ];
 
     protected function casts(): array

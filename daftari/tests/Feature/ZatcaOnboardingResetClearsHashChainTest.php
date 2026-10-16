@@ -28,8 +28,11 @@ use Tests\TestCase;
  * Both the company-owner-facing reset (App\Http\Controllers\User\
  * ZatcaController::resetOnboarding) and the Super Admin support
  * equivalent (App\Http\Controllers\Admin\ZatcaController::resetOnboarding)
- * now also clear zatca_last_invoice_hash/zatca_last_sync_at, so a reset
- * genuinely starts the next invoice from the genesis hash.
+ * now also clear zatca_last_invoice_hash/zatca_last_sync_at AND
+ * zatca_icv_counter, so a reset genuinely starts the next invoice from
+ * ICV 1 and the genesis hash together — see
+ * ZatcaIcvScopedPerEnvironmentTest for why the counter itself had to
+ * move off a cross-environment COUNT(*) to make that possible at all.
  */
 class ZatcaOnboardingResetClearsHashChainTest extends TestCase
 {
@@ -45,7 +48,7 @@ class ZatcaOnboardingResetClearsHashChainTest extends TestCase
             'name' => 'Reset Co.', 'slug' => 'reset-co-'.uniqid(), 'status' => 'active', 'currency' => 'SAR',
             'zatca_onboarding_status' => 'onboarded', 'zatca_production_csid' => 'fake-csid',
             'zatca_last_invoice_hash' => 'hash-of-a-now-deleted-test-invoice',
-            'zatca_last_sync_at' => now(),
+            'zatca_last_sync_at' => now(), 'zatca_icv_counter' => 5,
         ]);
         Subscription::create([
             'company_id' => $company->id, 'plan_id' => $plan->id, 'status' => 'active',
@@ -66,6 +69,7 @@ class ZatcaOnboardingResetClearsHashChainTest extends TestCase
         $this->assertNull($company->zatca_last_invoice_hash);
         $this->assertNull($company->zatca_last_sync_at);
         $this->assertSame('not_started', $company->zatca_onboarding_status);
+        $this->assertSame(0, $company->zatca_icv_counter);
     }
 
     public function test_the_admin_support_reset_clears_the_hash_chain(): void
@@ -81,5 +85,6 @@ class ZatcaOnboardingResetClearsHashChainTest extends TestCase
         $company->refresh();
         $this->assertNull($company->zatca_last_invoice_hash);
         $this->assertNull($company->zatca_last_sync_at);
+        $this->assertSame(0, $company->zatca_icv_counter);
     }
 }

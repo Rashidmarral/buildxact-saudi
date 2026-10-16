@@ -31,11 +31,11 @@ class ExpenseEditDeleteAuditTest extends TestCase
         return User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
     }
 
-    private function postedExpense(User $owner): Expense
+    private function postedExpense(User $owner, ?string $expenseDate = null): Expense
     {
         return Expense::create([
             'company_id' => $owner->company_id, 'gross_amount' => 115, 'amount' => 100, 'vat_amount' => 15,
-            'tax_category' => 'standard_15', 'expense_date' => now()->toDateString(), 'status' => 'approved',
+            'tax_category' => 'standard_15', 'expense_date' => $expenseDate ?? now()->toDateString(), 'status' => 'approved',
         ]);
     }
 
@@ -62,7 +62,10 @@ class ExpenseEditDeleteAuditTest extends TestCase
     public function test_deleting_a_posted_expense_reverses_the_ledger_and_writes_an_audit_entry(): void
     {
         $owner = $this->makeOwner();
-        $expense = $this->postedExpense($owner);
+        // Past the 6-year Saudi VAT retention window (see
+        // RecordRetentionPolicyTest for the recent-expense case) — this
+        // test is about the ledger reversal and audit trail, not retention.
+        $expense = $this->postedExpense($owner, now()->subYears(7)->toDateString());
         app(\App\Services\Accounting\LedgerPostingService::class)->postExpense($expense);
         $expenseId = $expense->id;
 

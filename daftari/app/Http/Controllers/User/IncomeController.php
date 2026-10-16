@@ -110,6 +110,13 @@ class IncomeController extends Controller
 
     public function destroy(Income $income, LedgerPostingService $ledger)
     {
+        // Compliance gap found while auditing ZATCA record-keeping: every
+        // income record posts to the ledger immediately on creation (no
+        // draft/pending stage, unlike Expense) and had no age check at all.
+        if (\App\Support\RecordRetentionPolicy::isWithinRetentionWindow($income->income_date)) {
+            return back()->withErrors(['income' => __('This income record is within the :years-year record retention period required by Saudi VAT law and cannot be deleted.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         $amount = $income->gross_amount;
         $currency = $income->company->currency;
 

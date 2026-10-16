@@ -62,10 +62,13 @@ class SoftDeletesOnFinancialModelsTest extends TestCase
         $owner = $this->makeOwner($company);
         \App\Models\Account::seedSystemAccounts($company->id);
         \App\Models\AccountMapping::seedDefaults($company->id);
+        // Past the 6-year Saudi VAT retention window (see
+        // RecordRetentionPolicyTest for the recent-expense case) — this
+        // test is about soft-delete + ledger reversal, not retention.
         $expense = Expense::create([
             'company_id' => $company->id, 'vendor_name' => 'Office Supplies Co',
             'amount' => 100, 'gross_amount' => 115, 'vat_amount' => 15, 'tax_category' => 'standard_15',
-            'expense_date' => now(), 'status' => 'approved',
+            'expense_date' => now()->subYears(7), 'status' => 'approved',
         ]);
 
         $expenseAccount = \App\Models\Account::where('company_id', $company->id)->where('type', 'expense')->first();
@@ -145,8 +148,10 @@ class SoftDeletesOnFinancialModelsTest extends TestCase
         $owner = $this->makeOwner($company);
         \App\Models\Account::seedSystemAccounts($company->id);
         \App\Models\AccountMapping::seedDefaults($company->id);
+        // Past the 6-year Saudi VAT retention window — this test is
+        // about soft-delete + ledger reversal, not retention.
         $declaration = CustomsDeclaration::create([
-            'company_id' => $company->id, 'declaration_number' => 'CD-0001', 'declaration_date' => now(),
+            'company_id' => $company->id, 'declaration_number' => 'CD-0001', 'declaration_date' => now()->subYears(7),
             'customs_value' => 1000, 'customs_duty' => 50, 'vat_rate' => 15, 'vat_amount' => 157.5,
         ]);
 

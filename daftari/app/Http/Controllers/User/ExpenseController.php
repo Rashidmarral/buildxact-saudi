@@ -172,6 +172,16 @@ class ExpenseController extends Controller
     public function destroy(Expense $expense, LedgerPostingService $ledger)
     {
         $wasPosted = $expense->status === 'approved';
+
+        // Compliance gap found while auditing ZATCA record-keeping: a
+        // posted expense (real ledger impact, part of the books) had no
+        // age check at all — only drafts/pending ones (never posted,
+        // never really "in the books") stay freely deletable, matching
+        // Expense::$wasPosted's own distinction above.
+        if ($wasPosted && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($expense->expense_date)) {
+            return back()->withErrors(['expense' => __('This expense is within the :years-year record retention period required by Saudi VAT law and cannot be deleted.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         $amount = $expense->gross_amount;
         $currency = $expense->company->currency;
 

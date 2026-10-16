@@ -124,6 +124,14 @@ class PrepaymentInvoiceController extends Controller
             return back()->withErrors(['prepayment' => __('This prepayment invoice has already been applied to an invoice and cannot be deleted.')]);
         }
 
+        // Compliance gap found while auditing ZATCA record-keeping: once
+        // issued (the only status store() ever creates today — a VAT-
+        // relevant advance was received the moment this exists), it's a
+        // real financial record regardless of ZATCA sync status.
+        if ($prepaymentInvoice->status !== 'draft' && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($prepaymentInvoice->issue_date)) {
+            return back()->withErrors(['prepayment' => __('This prepayment invoice is within the :years-year record retention period required by Saudi VAT law and cannot be deleted.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         AuditLog::record('prepayment_invoice.delete', $prepaymentInvoice, __('Deleted prepayment invoice :number', ['number' => $prepaymentInvoice->prepayment_number]));
 
         $prepaymentInvoice->delete();

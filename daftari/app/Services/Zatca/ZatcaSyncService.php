@@ -47,24 +47,38 @@ class ZatcaSyncService
     }
 
     /**
-     * KSA's mandatory Invoice Counter Value (ICV) — a company-wide,
-     * ever-incrementing sequence across every document (invoice or credit
-     * note) ever submitted to ZATCA, distinct from the invoice's own
+     * KSA's mandatory Invoice Counter Value (ICV) — an ever-incrementing
+     * sequence across every document (invoice, credit note, debit note,
+     * or prepayment invoice) submitted to ZATCA under the company's
+     * currently active environment/CSID, distinct from the invoice's own
      * business-facing number and from the PIH hash chain.
      *
+     * A pure read of Company::zatca_icv_counter — deliberately NOT a
+     * COUNT(*) over the log tables the way this used to work. That
+     * pooled every environment (developer/simulation/production)
+     * together with no way to tell them apart, and never moved back to 1
+     * when onboarding was reset for a fresh CSID, even though the hash
+     * chain correctly does (see ZatcaController::resetOnboarding()) — an
+     * inconsistent ICV/PIH pair ZATCA's clearance validation is built to
+     * reject. The counter now lives and resets alongside the hash chain
+     * (same company column, same per-environment save-slot via
+     * Company::switchZatcaEnvironment(), same reset-to-0 on a fresh
+     * CSID) and only ever advances in the exact update() call that
+     * already advances zatca_last_invoice_hash on a CONFIRMED success —
+     * see submit()/submitCreditNote()/submitDebitNote()/
+     * submitPrepaymentInvoice() below — so a failed attempt never burns
+     * an ICV value the hash chain didn't also move past.
+     *
      * Must only ever be called from inside lockedSubmission()'s
-     * transaction (every submit*() method below does this) — an unlocked
-     * COUNT(*) here would let two concurrent submissions for the same
-     * company compute the same ICV, or read the same previous-invoice-hash
-     * (PIH) and build against a chain ZATCA no longer recognizes as
-     * current once the first one is accepted. Security audit finding D-1.
+     * transaction (every submit*() method below does this) — reading it
+     * unlocked would let two concurrent submissions for the same company
+     * compute the same ICV, or read the same previous-invoice-hash (PIH)
+     * and build against a chain ZATCA no longer recognizes as current
+     * once the first one is accepted. Security audit finding D-1.
      */
     public function nextIcv(Company $company): int
     {
-        return ZatcaInvoiceLog::where('company_id', $company->id)->count()
-            + ZatcaCreditNoteLog::where('company_id', $company->id)->count()
-            + ZatcaDebitNoteLog::where('company_id', $company->id)->count()
-            + 1;
+        return $company->zatca_icv_counter + 1;
     }
 
     /**
@@ -645,7 +659,8 @@ class ZatcaSyncService
 
             $uuid = $this->xml->newUuid();
             $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-            $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company), $invoice->appliesPrepaymentInvoice);
+            $icv = $this->nextIcv($company);
+            $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $icv, $invoice->appliesPrepaymentInvoice);
             $invoiceHash = $this->signer->contentHash($unsignedXml);
 
             $xmlString = $unsignedXml;
@@ -714,7 +729,7 @@ class ZatcaSyncService
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
                     ]);
-                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([
@@ -758,7 +773,8 @@ class ZatcaSyncService
 
             $uuid = $this->xml->newUuid();
             $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-            $unsignedXml = $this->xml->generateForPrepayment($prepayment, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $icv = $this->nextIcv($company);
+            $unsignedXml = $this->xml->generateForPrepayment($prepayment, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $icv);
             $invoiceHash = $this->signer->contentHash($unsignedXml);
 
             $xmlString = $unsignedXml;
@@ -822,7 +838,7 @@ class ZatcaSyncService
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
                     ]);
-                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([
@@ -859,7 +875,8 @@ class ZatcaSyncService
 
             $uuid = $this->xml->newUuid();
             $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-            $unsignedXml = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $icv = $this->nextIcv($company);
+            $unsignedXml = $this->xml->generateForCreditNote($creditNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $icv);
             $invoiceHash = $this->signer->contentHash($unsignedXml);
 
             $xmlString = $unsignedXml;
@@ -923,7 +940,7 @@ class ZatcaSyncService
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
                     ]);
-                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([
@@ -960,7 +977,8 @@ class ZatcaSyncService
 
             $uuid = $this->xml->newUuid();
             $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
-            $unsignedXml = $this->xml->generateForDebitNote($debitNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $this->nextIcv($company));
+            $icv = $this->nextIcv($company);
+            $unsignedXml = $this->xml->generateForDebitNote($debitNote, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $icv);
             $invoiceHash = $this->signer->contentHash($unsignedXml);
 
             $xmlString = $unsignedXml;
@@ -1024,7 +1042,7 @@ class ZatcaSyncService
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
                     ]);
-                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now()]);
+                    $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([

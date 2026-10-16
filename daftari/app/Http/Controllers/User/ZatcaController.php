@@ -534,6 +534,7 @@ class ZatcaController extends Controller
             // built specifically to reject.
             'zatca_last_invoice_hash' => null,
             'zatca_last_sync_at' => null,
+            'zatca_icv_counter' => 0,
         ]);
 
         AuditLog::record('zatca.onboarding_reset', $company, __('Reset ZATCA onboarding progress for the :env environment — CSR, private key, CSIDs, and the invoice hash chain cleared', ['env' => $environment]));

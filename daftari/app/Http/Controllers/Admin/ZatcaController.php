@@ -57,6 +57,7 @@ class ZatcaController extends Controller
         // genesis hash, not a pointer left over from a discarded one.
         'zatca_last_invoice_hash' => null,
         'zatca_last_sync_at' => null,
+        'zatca_icv_counter' => 0,
     ];
 
     public function index(Request $request, ZatcaSyncService $sync)

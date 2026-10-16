@@ -165,7 +165,7 @@ class LandedCostAllocationTest extends TestCase
         [$item, $bill] = $this->makeBillWithTrackedItem($owner, unitPrice: 100, quantity: 10, purchasePrice: 90);
 
         $declaration = CustomsDeclaration::create([
-            'company_id' => $owner->company_id, 'declaration_date' => now()->toDateString(),
+            'company_id' => $owner->company_id, 'declaration_date' => now()->subYears(7)->toDateString(),
             'customs_value' => 1000, 'customs_duty' => 200, 'vat_rate' => 15, 'vat_amount' => 180,
         ]);
         $declaration->bills()->sync([$bill->id]);

@@ -52,7 +52,7 @@ class Company extends Model
         'zatca_business_category', 'zatca_csr', 'zatca_private_key',
         'zatca_compliance_request_id', 'zatca_compliance_csid', 'zatca_compliance_secret',
         'zatca_production_request_id', 'zatca_production_csid', 'zatca_production_secret',
-        'zatca_last_invoice_hash', 'zatca_linked_at', 'zatca_last_sync_at',
+        'zatca_last_invoice_hash', 'zatca_linked_at', 'zatca_last_sync_at', 'zatca_icv_counter',
         'project_prefix', 'next_project_number',
         'employee_prefix', 'next_employee_number', 'payroll_run_prefix', 'next_payroll_run_number',
         'pos_sale_prefix', 'next_pos_sale_number',
@@ -850,6 +850,12 @@ class Company extends Model
             'compliance_secret' => 'zatca_compliance_secret', 'production_request_id' => 'zatca_production_request_id',
             'production_csid' => 'zatca_production_csid', 'production_secret' => 'zatca_production_secret',
             'last_invoice_hash' => 'zatca_last_invoice_hash', 'linked_at' => 'zatca_linked_at', 'last_sync_at' => 'zatca_last_sync_at',
+            // The mandatory Invoice Counter Value is scoped per
+            // environment exactly like the hash chain above — stashed
+            // and restored the same way, so switching environments can
+            // never hand the one being entered a counter left over from
+            // the one being left.
+            'icv_counter' => 'zatca_icv_counter',
         ];
 
         ZatcaEnvironmentCredential::updateOrCreate(
@@ -861,7 +867,11 @@ class Company extends Model
 
         $this->fill(
             collect($fields)->mapWithKeys(fn ($companyField, $slotField) => [
-                $companyField => $slotField === 'onboarding_status' ? ($slot?->onboarding_status ?? 'not_started') : $slot?->{$slotField},
+                $companyField => match ($slotField) {
+                    'onboarding_status' => $slot?->onboarding_status ?? 'not_started',
+                    'icv_counter' => $slot?->icv_counter ?? 0,
+                    default => $slot?->{$slotField},
+                },
             ])->all()
         );
         $this->zatca_environment = $newEnvironment;

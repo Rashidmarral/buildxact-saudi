@@ -124,8 +124,11 @@ class IncomeTest extends TestCase
     {
         $owner = $this->makeOwner();
         $account = BankAccount::create(['company_id' => $owner->company_id, 'name' => 'SNB Current Account', 'type' => 'bank', 'currency' => 'SAR', 'is_active' => true]);
+        // Past the 6-year Saudi VAT retention window (see
+        // RecordRetentionPolicyTest for the recent-income case) — this
+        // test is about the ledger reversal and audit trail, not retention.
         $this->actingAs($owner)->post(route('app.incomes.store'), [
-            'income_date' => now()->toDateString(), 'gross_amount' => 1000, 'tax_category' => 'zero_rated',
+            'income_date' => now()->subYears(7)->toDateString(), 'gross_amount' => 1000, 'tax_category' => 'zero_rated',
             'bank_account_id' => $account->id, 'payer_name' => 'Scrap buyer',
         ]);
         $income = Income::first();
