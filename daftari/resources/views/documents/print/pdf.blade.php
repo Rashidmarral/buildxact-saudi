@@ -535,15 +535,17 @@
         </tr>
     </table>
 
-    <div class="footer-note">
-        @if ($company->address || $company->city)
-            <div>{{ $company->address }}{{ $company->address && $company->city ? ' - ' : '' }}{{ $company->city }}</div>
-        @endif
-        <div>
-            Kingdom of Saudi Arabia — <span class="ar">المملكة العربية السعودية</span>
-            @if ($company->phone) &nbsp;·&nbsp; Phone: {{ $company->phone }} @endif
-        </div>
-    </div>
+    <table style="margin-top: 8px;">
+        <tr><td class="footer-note">
+            @if ($company->address || $company->city)
+                <div>{{ $company->address }}{{ $company->address && $company->city ? ' - ' : '' }}{{ $company->city }}</div>
+            @endif
+            <div>
+                Kingdom of Saudi Arabia — <span class="ar">المملكة العربية السعودية</span>
+                @if ($company->phone) &nbsp;·&nbsp; Phone: {{ $company->phone }} @endif
+            </div>
+        </td></tr>
+    </table>
 
 @elseif ($layout === 'sage_classic')
     {{-- mPDF counterpart of the "Sage Classic" body.blade.php branch —

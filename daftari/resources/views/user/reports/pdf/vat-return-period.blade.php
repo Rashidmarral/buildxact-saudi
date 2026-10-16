@@ -74,10 +74,12 @@
     <p style="font-size: 9pt; white-space: pre-line;">{{ $period->notes }}</p>
 @endif
 
-<div class="footer-note">
-    {{ __('This is a bookkeeping summary, not the filed return itself — the actual VAT return is submitted through ZATCA\'s own portal.') }}
-    {{ __('Recorded by') }} {{ $period->creator?->name ?: '—' }} {{ __('on') }} {{ $period->created_at->format('d M Y') }}.
-</div>
+<table style="margin-top: 8px;">
+    <tr><td class="footer-note">
+        {{ __('This is a bookkeeping summary, not the filed return itself — the actual VAT return is submitted through ZATCA\'s own portal.') }}
+        {{ __('Recorded by') }} {{ $period->creator?->name ?: '—' }} {{ __('on') }} {{ $period->created_at->format('d M Y') }}.
+    </td></tr>
+</table>
 
 @include('documents.print.partials.report.footer', ['company' => $company])
 

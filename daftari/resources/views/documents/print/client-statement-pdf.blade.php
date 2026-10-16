@@ -247,11 +247,13 @@
     </tr>
 </table>
 
-<div class="footer-note">
-    @if ($company->phone){{ __('Phone') }}: {{ $company->phone }}@endif
-    @if ($requisitionReference) | {{ __('Requisition') }}: {{ $requisitionReference }}@endif
-    &nbsp;&nbsp;{{ __('Statement period') }}: {{ $period['from']->format('F Y') }} {{ __('to') }} {{ $period['to']->format('F Y') }}
-</div>
+<table style="margin-top: 8px;">
+    <tr><td class="footer-note">
+        @if ($company->phone){{ __('Phone') }}: {{ $company->phone }}@endif
+        @if ($requisitionReference) | {{ __('Requisition') }}: {{ $requisitionReference }}@endif
+        &nbsp;&nbsp;{{ __('Statement period') }}: {{ $period['from']->format('F Y') }} {{ __('to') }} {{ $period['to']->format('F Y') }}
+    </td></tr>
+</table>
 
 @if ($footerData)
     <img src="{{ $footerData }}" style="width: 100%; margin-top: 16px;" alt="">

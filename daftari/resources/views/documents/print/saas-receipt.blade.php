@@ -101,7 +101,9 @@
     <p class="muted" style="margin-top: 16px;">{{ __('Reference') }}: {{ $payment->reference }}</p>
 @endif
 
-<div class="footer-note">{{ __('This receipt confirms payment for your Daftari subscription.') }}</div>
+<table style="margin-top: 8px;">
+    <tr><td class="footer-note">{{ __('This receipt confirms payment for your Daftari subscription.') }}</td></tr>
+</table>
 
 </body>
 </html>

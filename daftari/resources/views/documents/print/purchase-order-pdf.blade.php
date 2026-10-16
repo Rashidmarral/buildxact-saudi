@@ -205,9 +205,11 @@
     </tr>
 </table>
 
-<div class="footer-note">
-    {{ $company->name }} &nbsp;·&nbsp; {{ $order->po_number }}
-</div>
+<table style="margin-top: 8px;">
+    <tr><td class="footer-note">
+        {{ $company->name }} &nbsp;·&nbsp; {{ $order->po_number }}
+    </td></tr>
+</table>
 
 </body>
 </html>
