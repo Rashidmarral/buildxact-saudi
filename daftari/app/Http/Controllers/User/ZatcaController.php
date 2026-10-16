@@ -145,6 +145,21 @@ class ZatcaController extends Controller
             return back()->with('error', __('Enable at least one of Standard (B2B) or Simplified (B2C) invoicing.'));
         }
 
+        // ZATCA requires every simplified (B2C) tax invoice to be
+        // reported within 24 hours of issuance (unlike a standard
+        // invoice, which clears before it reaches the buyer). A weekly
+        // batch can sit on an invoice for up to 7 days, so it can never
+        // reliably meet that deadline — reject the combination outright
+        // rather than let a company pick a setting that's already
+        // non-compliant the moment it's saved. Daily/manual are left
+        // allowed (a daily job run close to issuance usually makes it,
+        // and a company on manual is still in control of timing) — see
+        // DashboardController::zatcaSlaWarning() for the general,
+        // frequency-agnostic safety net that catches those cases too.
+        if ($data['zatca_sync_b2c'] && $data['zatca_sync_frequency'] === 'weekly') {
+            return back()->withErrors(['zatca_sync_frequency' => __('Simplified (B2C) invoices must be reported to ZATCA within 24 hours of issuance — a weekly sync frequency cannot meet that deadline. Choose Instant, Hourly, or Daily, or turn off Simplified (B2C) invoicing.')]);
+        }
+
         $environment = $data['zatca_environment'];
         unset($data['zatca_environment']);
 

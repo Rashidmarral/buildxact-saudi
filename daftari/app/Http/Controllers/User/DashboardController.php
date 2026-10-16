@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Client;
+use App\Models\Company;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -133,6 +134,7 @@ class DashboardController extends Controller
         }
 
         $vatDue = $this->vatDueNotice($company);
+        $zatcaSlaWarning = $this->zatcaSlaWarning($company);
 
         // Only ever shown once a company actually has a custody account —
         // most never will, and an always-present "0.00" tile would just be
@@ -142,7 +144,7 @@ class DashboardController extends Controller
             ? $custodyAccounts->sum(fn ($a) => $a->currentBalance())
             : null;
 
-        return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist', 'charts', 'vatDue'));
+        return view('user.dashboard', compact('company', 'stats', 'recentInvoices', 'aging', 'checklist', 'charts', 'vatDue', 'zatcaSlaWarning'));
     }
 
     /**
@@ -188,6 +190,50 @@ class DashboardController extends Controller
         }
 
         return $period + ['overdue' => VatPeriods::isOverdue($period)];
+    }
+
+    /**
+     * ZATCA requires a simplified (B2C) tax invoice to be REPORTED
+     * within 24 hours of issuance — unlike a standard (B2B) invoice,
+     * which is cleared before it ever reaches the buyer, a simplified
+     * invoice is a real compliance deadline the company can quietly
+     * blow through if its chosen sync frequency (or a failing sync job)
+     * leaves invoices sitting unsynced. Nothing in the codebase tracked
+     * this at all before — ZatcaSyncInvoices only runs the configured
+     * cadence, with no notion of "this one is now overdue". Surfacing
+     * it here, the same way vatDueNotice() already surfaces an overdue
+     * VAT filing, gives the company an actual warning instead of
+     * silent non-compliance.
+     *
+     * created_at (not issue_date, which is date-only) is used as the
+     * issuance instant — the same convention ZatcaXmlGenerator itself
+     * already relies on for cbc:IssueTime.
+     */
+    private function zatcaSlaWarning(Company $company): ?array
+    {
+        if (! Auth::user()->hasPermission('zatca') || ! $company->zatca_sync_b2c || ! $company->isZatcaOnboarded()) {
+            return null;
+        }
+
+        $pending = Invoice::where('company_id', $company->id)
+            ->where('type', 'simplified')
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->whereDoesntHave('zatcaInvoiceLogs', fn ($q) => $q->whereIn('status', ['cleared', 'reported']))
+            ->where('created_at', '<=', now()->subHours(18))
+            ->orderBy('created_at')
+            ->get(['id', 'created_at']);
+
+        if ($pending->isEmpty()) {
+            return null;
+        }
+
+        $oldestHours = (int) now()->diffInHours($pending->first()->created_at, true);
+
+        return [
+            'count' => $pending->count(),
+            'oldest_hours' => $oldestHours,
+            'breached' => $oldestHours >= 24,
+        ];
     }
 
     private function receivablesAging(): array

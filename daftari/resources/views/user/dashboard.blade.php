@@ -23,6 +23,27 @@
     </div>
 @endif
 
+@if ($zatcaSlaWarning)
+    <div class="mb-6 rounded-2xl border {{ $zatcaSlaWarning['breached'] ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50' }} p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            @include('partials.icon', ['name' => 'alert', 'class' => 'h-5 w-5 shrink-0 '.($zatcaSlaWarning['breached'] ? 'text-red-600' : 'text-amber-600')])
+            <div>
+                <p class="text-sm font-semibold {{ $zatcaSlaWarning['breached'] ? 'text-red-800' : 'text-amber-800' }}">
+                    @if ($zatcaSlaWarning['breached'])
+                        {{ trans_choice(':count simplified (B2C) invoice|:count simplified (B2C) invoices', $zatcaSlaWarning['count'], ['count' => $zatcaSlaWarning['count']]) }}
+                        {{ __('missed ZATCA\'s 24-hour reporting window — the oldest is :hours hours old.', ['hours' => $zatcaSlaWarning['oldest_hours']]) }}
+                    @else
+                        {{ trans_choice(':count simplified (B2C) invoice|:count simplified (B2C) invoices', $zatcaSlaWarning['count'], ['count' => $zatcaSlaWarning['count']]) }}
+                        {{ __('still unreported and approaching ZATCA\'s 24-hour deadline — the oldest is :hours hours old.', ['hours' => $zatcaSlaWarning['oldest_hours']]) }}
+                    @endif
+                </p>
+                <p class="text-xs {{ $zatcaSlaWarning['breached'] ? 'text-red-600' : 'text-amber-600' }} mt-0.5">{{ __('Sync them to ZATCA now, or switch to a faster sync frequency in ZATCA settings.') }}</p>
+            </div>
+        </div>
+        <a href="{{ route('app.zatca.dashboard') }}" class="shrink-0 rounded-lg {{ $zatcaSlaWarning['breached'] ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700' }} px-4 py-2 text-sm font-semibold text-white">{{ __('Sync now') }}</a>
+    </div>
+@endif
+
 @php($pendingSteps = collect($checklist)->reject(fn ($step) => $step['done']))
 @if ($pendingSteps->isNotEmpty())
     <div class="mb-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-card">
