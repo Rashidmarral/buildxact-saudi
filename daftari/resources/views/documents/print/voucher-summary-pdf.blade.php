@@ -66,9 +66,10 @@
     .total-row td { font-weight: bold; background: #f1f5f9; border-top: 1.5pt solid {{ $accent }}; font-size: 10pt; }
     .declaration { margin-top: 26px; padding: 12px 16px; background: #f8fafc; border-radius: 6px; border-left: 3px solid {{ $accent }}; font-size: 9pt; color: #334155; line-height: 1.6; }
     .sign-grid { margin-top: 22px; }
-    .sign-grid td { width: 50%; vertical-align: top; padding-right: 24px; }
+    .sign-col { width: 50%; vertical-align: top; padding-right: 24px; }
     .sign-label { font-size: 8pt; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
-    .sign-line { border-bottom: 1pt solid #334155; height: 42px; margin-top: 6px; }
+    .sign-line-table { margin-top: 6px; width: auto; }
+    .sign-line-table td { height: 42px; width: 260px; border-bottom: 1pt solid #334155; padding: 0; }
     .sign-field { font-size: 9pt; color: #0f172a; margin-top: 10px; }
     .sign-field .fill { border-bottom: 0.75pt dotted #94a3b8; display: inline-block; min-width: 150px; }
 </style>
@@ -78,7 +79,7 @@
 <table class="header-table">
     <tr>
         <td style="width: 58%;">
-            @if ($logoData)<img src="{{ $logoData }}" style="height: 64px; margin-bottom: 8px;" alt="">@endif
+            @if ($logoData)<img src="{{ $logoData }}" style="height: 110px; max-width: 260px; margin-bottom: 10px;" alt="">@endif
             <div class="company-name">{{ $company->name }}</div>
             @if ($company->name_ar)<div class="company-name-ar">{{ $company->name_ar }}</div>@endif
             <div class="company-detail">
@@ -206,16 +207,16 @@
 
 <table class="sign-grid">
     <tr>
-        <td>
+        <td class="sign-col">
             <div class="sign-label">{{ $isPayment ? __('Received by (supplier / recipient)') : __('Acknowledged by (payer)') }}</div>
-            <div class="sign-line"></div>
+            <table class="sign-line-table"><tr><td>&nbsp;</td></tr></table>
             <div class="sign-field">{{ __('Name') }}: @if (! empty($search))<strong>{{ $search }}</strong>@else<span class="fill">&nbsp;</span>@endif</div>
             <div class="sign-field">{{ __('ID / Iqama No.') }}: <span class="fill">&nbsp;</span></div>
             <div class="sign-field">{{ __('Date') }}: <span class="fill">&nbsp;</span></div>
         </td>
-        <td>
+        <td class="sign-col">
             <div class="sign-label">{{ __('For :company', ['company' => $company->name]) }}</div>
-            <div class="sign-line"></div>
+            <table class="sign-line-table"><tr><td>&nbsp;</td></tr></table>
             <div class="sign-field">{{ __('Name') }}: <span class="fill">&nbsp;</span></div>
             <div class="sign-field">{{ __('Position') }}: <span class="fill">&nbsp;</span></div>
             <div class="sign-field">{{ __('Date') }}: <span class="fill">&nbsp;</span></div>
