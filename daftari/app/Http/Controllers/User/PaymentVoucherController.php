@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
 use App\Models\BankAccount;
@@ -23,7 +24,7 @@ use Illuminate\Validation\Rule;
 
 class PaymentVoucherController extends Controller
 {
-    use EnforcesStorageQuota, ResolvesPerPage;
+    use EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
 
     /**
      * "there is no option to get total amount paid" for a supplier across
@@ -34,11 +35,14 @@ class PaymentVoucherController extends Controller
      */
     public function index(Request $request)
     {
+        $search = trim((string) $request->query('q'));
+
         $query = PaymentVoucher::with('bankAccount', 'client', 'supplier')
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
-            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')));
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->when($search !== '', fn ($q) => $this->applyPayeeSearch($q, $search));
 
         $total = (clone $query)->where('status', 'issued')->sum('amount');
 
@@ -49,7 +53,7 @@ class PaymentVoucherController extends Controller
             'total' => $total,
             'suppliers' => Supplier::orderBy('name')->get(),
             'clients' => Client::orderBy('name')->get(),
-            'filters' => $request->only('supplier_id', 'client_id', 'from', 'to'),
+            'filters' => $request->only('supplier_id', 'client_id', 'from', 'to', 'q'),
         ]);
     }
 
@@ -67,16 +71,20 @@ class PaymentVoucherController extends Controller
         abort_unless($request->filled('supplier_id') || $request->filled('client_id'), 404);
 
         $company = Auth::user()->company;
+        $search = trim((string) $request->query('q'));
+
         $vouchers = PaymentVoucher::with('bankAccount')
             ->where('status', 'issued')
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->when($search !== '', fn ($q) => $this->applyPayeeSearch($q, $search))
             ->orderBy('date')
             ->get();
 
         $party = $request->filled('supplier_id') ? Supplier::find($request->integer('supplier_id')) : Client::find($request->integer('client_id'));
+        $groups = $this->buildVoucherGroups($request, $vouchers);
 
         $pdf = $renderer->render('documents.print.voucher-summary-pdf', [
             'type' => 'payment',
@@ -86,12 +94,16 @@ class PaymentVoucherController extends Controller
             'total' => (float) $vouchers->sum('amount'),
             'from' => $request->query('from'),
             'to' => $request->query('to'),
+            'search' => $search,
+            'groups' => $groups,
             'template' => $company->defaultTemplateFor('voucher_summary'),
         ]);
 
+        $filenameSuffix = $search !== '' ? '-'.\Illuminate\Support\Str::slug($search) : ($groups !== null ? '-grouped' : '');
+
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.\Illuminate\Support\Str::slug($party?->name ?: 'payment-summary').'-payment-summary.pdf"',
+            'Content-Disposition' => 'attachment; filename="'.\Illuminate\Support\Str::slug($party?->name ?: 'payment-summary').$filenameSuffix.'-payment-summary.pdf"',
         ]);
     }
 

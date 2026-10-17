@@ -120,4 +120,87 @@ class VoucherPartyFilterAndSummaryTest extends TestCase
         $response->assertSee('PV-NEW');
         $response->assertSee(\App\Support\Money::format(2000));
     }
+
+    /**
+     * "our main supplier is shahid but as a reference we are purchasing
+     * material from aljazeera and ashraf also and paying directly i need
+     * what we have paid to shahid, ashraf and aljazeera separately" —
+     * every voucher sits under one umbrella Supplier record, with the
+     * real recipient named only in the free-text reference. The `q`
+     * search narrows the list (and its total) down to one recipient's own
+     * vouchers.
+     */
+    public function test_free_text_search_narrows_payment_vouchers_to_one_real_payee(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $saed = Supplier::create(['company_id' => $owner->company_id, 'name' => 'SAED EST']);
+
+        PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-1', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Material advance to Shahid', 'amount' => 5000, 'method' => 'cash', 'status' => 'issued']);
+        PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-2', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Steel purchase - Ashraf Trading', 'amount' => 3000, 'method' => 'cash', 'status' => 'issued']);
+
+        $response = $this->actingAs($owner)->get(route('app.payment-vouchers.index', ['supplier_id' => $saed->id, 'q' => 'shahid']));
+
+        $response->assertOk();
+        $response->assertSee('PV-1');
+        $response->assertDontSee('PV-2');
+        $response->assertSee(\App\Support\Money::format(5000));
+    }
+
+    public function test_grouped_summary_pdf_splits_one_umbrella_supplier_into_separate_payee_sections(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $saed = Supplier::create(['company_id' => $owner->company_id, 'name' => 'SAED EST']);
+
+        PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-1', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Material advance to Shahid', 'amount' => 5000, 'method' => 'cash', 'status' => 'issued']);
+        PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-2', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Steel purchase - Ashraf Trading', 'amount' => 3000, 'method' => 'cash', 'status' => 'issued']);
+        // Matches no defined group's keywords, so it must land in "Other" rather than vanish from the grand total.
+        PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-3', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Unrelated transport cost', 'amount' => 700, 'method' => 'cash', 'status' => 'issued']);
+
+        $response = $this->actingAs($owner)->get(route('app.payment-vouchers.summary-pdf', [
+            'supplier_id' => $saed->id,
+            'group_label' => ['Shahid', 'Ashraf'],
+            'group_terms' => ['shahid', 'ashraf'],
+        ]));
+
+        $response->assertOk();
+        $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
+        // The grand total must still cover every voucher, including the unmatched one swept into "Other".
+        $this->assertStringContainsString('grouped', $response->headers->get('Content-Disposition'));
+    }
+
+    public function test_free_text_search_narrows_receipt_vouchers_by_payer_name_column(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $client = Client::create(['company_id' => $owner->company_id, 'name' => 'Sada Al Jeul Construction']);
+
+        ReceiptVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'customer', 'client_id' => $client->id, 'voucher_number' => 'RV-1', 'date' => now()->toDateString(), 'payer_name' => 'Sada Al Jeul Construction', 'reference' => 'Progress payment - Shahid works', 'amount' => 20000, 'method' => 'bank_transfer', 'status' => 'issued']);
+        ReceiptVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'customer', 'client_id' => $client->id, 'voucher_number' => 'RV-2', 'date' => now()->toDateString(), 'payer_name' => 'Sada Al Jeul Construction', 'reference' => 'Final settlement', 'amount' => 15000, 'method' => 'bank_transfer', 'status' => 'issued']);
+
+        $response = $this->actingAs($owner)->get(route('app.receipt-vouchers.index', ['client_id' => $client->id, 'q' => 'shahid']));
+
+        $response->assertOk();
+        $response->assertSee('RV-1');
+        $response->assertDontSee('RV-2');
+    }
+
+    public function test_grouped_summary_pdf_renders_for_receipt_vouchers_without_a_payee_name_column_error(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $client = Client::create(['company_id' => $owner->company_id, 'name' => 'Sada Al Jeul Construction']);
+
+        ReceiptVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'customer', 'client_id' => $client->id, 'voucher_number' => 'RV-1', 'date' => now()->toDateString(), 'payer_name' => 'Sada Al Jeul Construction', 'reference' => 'Progress payment - Shahid works', 'amount' => 20000, 'method' => 'bank_transfer', 'status' => 'issued']);
+
+        $response = $this->actingAs($owner)->get(route('app.receipt-vouchers.summary-pdf', [
+            'client_id' => $client->id,
+            'group_label' => ['Shahid'],
+            'group_terms' => ['shahid'],
+        ]));
+
+        $response->assertOk();
+        $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
+    }
 }

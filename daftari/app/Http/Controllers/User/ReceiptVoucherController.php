@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
 use App\Models\BankAccount;
@@ -22,7 +23,7 @@ use Illuminate\Validation\Rule;
 
 class ReceiptVoucherController extends Controller
 {
-    use EnforcesStorageQuota, ResolvesPerPage;
+    use EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
 
     public function downloadPdf(ReceiptVoucher $receiptVoucher, MpdfRenderer $renderer)
     {
@@ -48,11 +49,14 @@ class ReceiptVoucherController extends Controller
      */
     public function index(Request $request)
     {
+        $search = trim((string) $request->query('q'));
+
         $query = ReceiptVoucher::with('bankAccount', 'client', 'supplier')
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
-            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')));
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->when($search !== '', fn ($q) => $this->applyPayeeSearch($q, $search, 'payer_name'));
 
         $total = (clone $query)->where('status', 'issued')->sum('amount');
 
@@ -63,7 +67,7 @@ class ReceiptVoucherController extends Controller
             'total' => $total,
             'clients' => Client::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
-            'filters' => $request->only('client_id', 'supplier_id', 'from', 'to'),
+            'filters' => $request->only('client_id', 'supplier_id', 'from', 'to', 'q'),
         ]);
     }
 
@@ -77,16 +81,20 @@ class ReceiptVoucherController extends Controller
         abort_unless($request->filled('client_id') || $request->filled('supplier_id'), 404);
 
         $company = Auth::user()->company;
+        $search = trim((string) $request->query('q'));
+
         $vouchers = ReceiptVoucher::with('bankAccount')
             ->where('status', 'issued')
             ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
             ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->when($search !== '', fn ($q) => $this->applyPayeeSearch($q, $search, 'payer_name'))
             ->orderBy('date')
             ->get();
 
         $party = $request->filled('client_id') ? Client::find($request->integer('client_id')) : Supplier::find($request->integer('supplier_id'));
+        $groups = $this->buildVoucherGroups($request, $vouchers, 'payer_name');
 
         $pdf = $renderer->render('documents.print.voucher-summary-pdf', [
             'type' => 'receipt',
@@ -96,12 +104,16 @@ class ReceiptVoucherController extends Controller
             'total' => (float) $vouchers->sum('amount'),
             'from' => $request->query('from'),
             'to' => $request->query('to'),
+            'search' => $search,
+            'groups' => $groups,
             'template' => $company->defaultTemplateFor('voucher_summary'),
         ]);
 
+        $filenameSuffix = $search !== '' ? '-'.\Illuminate\Support\Str::slug($search) : ($groups !== null ? '-grouped' : '');
+
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.\Illuminate\Support\Str::slug($party?->name ?: 'receipt-summary').'-receipt-summary.pdf"',
+            'Content-Disposition' => 'attachment; filename="'.\Illuminate\Support\Str::slug($party?->name ?: 'receipt-summary').$filenameSuffix.'-receipt-summary.pdf"',
         ]);
     }
 

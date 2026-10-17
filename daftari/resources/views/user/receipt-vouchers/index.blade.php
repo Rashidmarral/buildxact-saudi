@@ -37,11 +37,34 @@
         <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('To') }}</label>
         <input type="date" name="to" value="{{ $filters['to'] ?? '' }}" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
     </div>
+    <div>
+        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Search (payer / reference)') }}</label>
+        <input type="text" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('e.g. a name mentioned in the reference') }}" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[14rem]">
+    </div>
     <button type="submit" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Apply') }}</button>
     @if (($filters['client_id'] ?? null) || ($filters['supplier_id'] ?? null))
         <a href="{{ route('app.receipt-vouchers.summary-pdf', $filters) }}" class="ms-auto rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download combined PDF') }}</a>
     @endif
 </form>
+
+@if (($filters['client_id'] ?? null) || ($filters['supplier_id'] ?? null))
+    @php
+        $baseFilters = collect($filters)->except('q')->filter()->all();
+        // Same convenience as the payment-vouchers index — starting points
+        // for the search box, not a fixed list.
+        $quickPayees = [__('Shahid') => 'shahid', __('Ashraf') => 'ashraf', __('Al Jazeera') => 'gazaierih'];
+    @endphp
+    <div class="flex flex-wrap items-center gap-2 mb-6 px-1">
+        <span class="text-xs font-semibold uppercase text-slate-400">{{ __('Quick filter') }}:</span>
+        @foreach ($quickPayees as $payeeLabel => $term)
+            <a href="{{ route('app.receipt-vouchers.index', $baseFilters + ['q' => $term]) }}" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700 {{ ($filters['q'] ?? '') === $term ? 'border-brand-400 bg-brand-50 text-brand-700' : '' }}">{{ $payeeLabel }}</a>
+        @endforeach
+        @if (($filters['q'] ?? '') !== '')
+            <a href="{{ route('app.receipt-vouchers.index', $baseFilters) }}" class="text-xs text-slate-400 hover:text-slate-600">{{ __('Clear search') }}</a>
+        @endif
+        <a href="{{ route('app.receipt-vouchers.summary-pdf', $baseFilters + ['group_label' => array_keys($quickPayees), 'group_terms' => array_values($quickPayees)]) }}" class="ms-auto rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">{{ __('Download one PDF, split by payer') }}</a>
+    </div>
+@endif
 
 <div class="flex items-center justify-between mb-4 px-1">
     <p class="text-sm text-slate-500">{{ __('Total received (filtered)') }}</p>
