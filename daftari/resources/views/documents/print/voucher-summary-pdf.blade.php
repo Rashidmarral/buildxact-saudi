@@ -17,6 +17,14 @@
     instead of one flat table, with anything matching none of them
     collected into a final "Other" section — so nothing paid out is
     ever silently left off the combined total.
+
+    "shahid will sign the document as he received this all payments ...
+    add sign area at the end that claims the supplier have approved
+    that he have received these payment as proof" — a declaration
+    sentence plus a two-column signature block (recipient / company
+    representative), with the recipient's printed name pre-filled from
+    $search when a single-payee PDF was downloaded (the quick-filter
+    label), otherwise left blank for manual completion.
 --}}
 @php
     $logoData = $embed($company->logo_path ?? null);
@@ -56,6 +64,13 @@
     .num { text-align: right; }
     .subtotal-row td { font-weight: bold; background: #fafbfc; border-top: 0.75pt solid #cbd5e1; color: #475569; }
     .total-row td { font-weight: bold; background: #f1f5f9; border-top: 1.5pt solid {{ $accent }}; font-size: 10pt; }
+    .declaration { margin-top: 26px; padding: 12px 16px; background: #f8fafc; border-radius: 6px; border-left: 3px solid {{ $accent }}; font-size: 9pt; color: #334155; line-height: 1.6; }
+    .sign-grid { margin-top: 22px; }
+    .sign-grid td { width: 50%; vertical-align: top; padding-right: 24px; }
+    .sign-label { font-size: 8pt; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+    .sign-line { border-bottom: 1pt solid #334155; height: 42px; margin-top: 6px; }
+    .sign-field { font-size: 9pt; color: #0f172a; margin-top: 10px; }
+    .sign-field .fill { border-bottom: 0.75pt dotted #94a3b8; display: inline-block; min-width: 150px; }
 </style>
 </head>
 <body>
@@ -180,6 +195,33 @@
         </tbody>
     </table>
 @endif
+
+<div class="declaration">
+    @if ($isPayment)
+        {{ __('I, the undersigned, acknowledge receipt of the total amount of :amount from :company, as full settlement for the payment voucher(s) detailed above.', ['amount' => \App\Support\Money::format($total), 'company' => $company->name]) }}
+    @else
+        {{ __('I, the undersigned, confirm that the total amount of :amount detailed above has been received by :company.', ['amount' => \App\Support\Money::format($total), 'company' => $company->name]) }}
+    @endif
+</div>
+
+<table class="sign-grid">
+    <tr>
+        <td>
+            <div class="sign-label">{{ $isPayment ? __('Received by (supplier / recipient)') : __('Acknowledged by (payer)') }}</div>
+            <div class="sign-line"></div>
+            <div class="sign-field">{{ __('Name') }}: @if (! empty($search))<strong>{{ $search }}</strong>@else<span class="fill">&nbsp;</span>@endif</div>
+            <div class="sign-field">{{ __('ID / Iqama No.') }}: <span class="fill">&nbsp;</span></div>
+            <div class="sign-field">{{ __('Date') }}: <span class="fill">&nbsp;</span></div>
+        </td>
+        <td>
+            <div class="sign-label">{{ __('For :company', ['company' => $company->name]) }}</div>
+            <div class="sign-line"></div>
+            <div class="sign-field">{{ __('Name') }}: <span class="fill">&nbsp;</span></div>
+            <div class="sign-field">{{ __('Position') }}: <span class="fill">&nbsp;</span></div>
+            <div class="sign-field">{{ __('Date') }}: <span class="fill">&nbsp;</span></div>
+        </td>
+    </tr>
+</table>
 
 @if ($footerData)
     <img src="{{ $footerData }}" style="width: 100%; margin-top: 20px;" alt="">

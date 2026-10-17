@@ -252,4 +252,66 @@ class VoucherPartyFilterAndSummaryTest extends TestCase
         $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
         $this->assertStringContainsString('ashraf', $response->headers->get('Content-Disposition'));
     }
+
+    /**
+     * "shahid will sign the document as he received this all payments ...
+     * add sign area at the end that claims the supplier have approve
+     * that he have received these payment as proof" — renders the
+     * underlying Blade view directly (same pattern as
+     * InvoicePdfPaymentPresentationTest) rather than through mPDF, since
+     * the declaration/signature text needs to be asserted against real
+     * HTML rather than compiled PDF bytes.
+     */
+    public function test_payment_summary_pdf_view_includes_a_signature_declaration_and_signing_fields(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $saed = Supplier::create(['company_id' => $owner->company_id, 'name' => 'SAED EST']);
+        $voucher = PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-1', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Material advance to Shahid', 'amount' => 5000, 'method' => 'cash', 'status' => 'issued']);
+
+        $html = view('documents.print.voucher-summary-pdf', [
+            'type' => 'payment',
+            'company' => $owner->company,
+            'party' => $saed,
+            'vouchers' => collect([$voucher]),
+            'total' => 5000.0,
+            'from' => null,
+            'to' => null,
+            'search' => 'Shahid',
+            'groups' => null,
+            'template' => $owner->company->defaultTemplateFor('voucher_summary'),
+            'embed' => fn () => null,
+        ])->render();
+
+        $this->assertStringContainsString(__('I, the undersigned, acknowledge receipt of the total amount of :amount from :company, as full settlement for the payment voucher(s) detailed above.', ['amount' => \App\Support\Money::format(5000), 'company' => $owner->company->name]), $html);
+        $this->assertStringContainsString(__('Received by (supplier / recipient)'), $html);
+        $this->assertStringContainsString(__('ID / Iqama No.'), $html);
+        // The real recipient's name (from the quick-filter label) is pre-filled rather than left for manual entry.
+        $this->assertStringContainsString('Shahid', $html);
+    }
+
+    public function test_receipt_summary_pdf_view_includes_the_receipt_side_signature_declaration(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $client = Client::create(['company_id' => $owner->company_id, 'name' => 'Sada Al Jeul Construction']);
+        $voucher = ReceiptVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'customer', 'client_id' => $client->id, 'voucher_number' => 'RV-1', 'date' => now()->toDateString(), 'payer_name' => 'Sada Al Jeul Construction', 'amount' => 20000, 'method' => 'bank_transfer', 'status' => 'issued']);
+
+        $html = view('documents.print.voucher-summary-pdf', [
+            'type' => 'receipt',
+            'company' => $owner->company,
+            'party' => $client,
+            'vouchers' => collect([$voucher]),
+            'total' => 20000.0,
+            'from' => null,
+            'to' => null,
+            'search' => '',
+            'groups' => null,
+            'template' => $owner->company->defaultTemplateFor('voucher_summary'),
+            'embed' => fn () => null,
+        ])->render();
+
+        $this->assertStringContainsString(__('I, the undersigned, confirm that the total amount of :amount detailed above has been received by :company.', ['amount' => \App\Support\Money::format(20000), 'company' => $owner->company->name]), $html);
+        $this->assertStringContainsString(__('Acknowledged by (payer)'), $html);
+    }
 }
