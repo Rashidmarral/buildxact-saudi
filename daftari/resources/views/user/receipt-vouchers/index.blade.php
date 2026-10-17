@@ -57,7 +57,10 @@
     <div class="flex flex-wrap items-center gap-2 mb-6 px-1">
         <span class="text-xs font-semibold uppercase text-slate-400">{{ __('Quick filter') }}:</span>
         @foreach ($quickPayees as $payeeLabel => $term)
-            <a href="{{ route('app.receipt-vouchers.index', $baseFilters + ['q' => $term]) }}" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700 {{ ($filters['q'] ?? '') === $term ? 'border-brand-400 bg-brand-50 text-brand-700' : '' }}">{{ $payeeLabel }}</a>
+            <span class="inline-flex items-center overflow-hidden rounded-full border bg-white {{ ($filters['q'] ?? '') === $term ? 'border-brand-400' : 'border-slate-200' }}">
+                <a href="{{ route('app.receipt-vouchers.index', $baseFilters + ['q' => $term]) }}" class="px-3 py-1 text-xs font-semibold hover:text-brand-700 {{ ($filters['q'] ?? '') === $term ? 'bg-brand-50 text-brand-700' : 'text-slate-600' }}">{{ $payeeLabel }}</a>
+                <a href="{{ route('app.receipt-vouchers.summary-pdf', $baseFilters + ['q' => $term, 'label' => $payeeLabel]) }}" title="{{ __('Download :name PDF', ['name' => $payeeLabel]) }}" class="border-l border-slate-200 px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-50 hover:text-brand-700">{{ __('PDF') }}</a>
+            </span>
         @endforeach
         @if (($filters['q'] ?? '') !== '')
             <a href="{{ route('app.receipt-vouchers.index', $baseFilters) }}" class="text-xs text-slate-400 hover:text-slate-600">{{ __('Clear search') }}</a>

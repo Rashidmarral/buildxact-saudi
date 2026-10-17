@@ -1608,6 +1608,7 @@
     "Done-for-you setup packages shown on the public /setup-packages page. Leave price blank for \"contact us for pricing\".": "باقات الإعداد الجاهزة المعروضة في صفحة /setup-packages العامة. اترك السعر فارغًا لعرض \"تواصل معنا للتسعير\".",
     "Downgrade": "خفض الباقة",
     "Downgraded": "تم خفض الباقة",
+    "Download :name PDF": "تحميل ملف PDF لـ :name",
     "Download Arabic": "تنزيل بالعربية",
     "Download CSV": "تنزيل CSV",
     "Download CSV template": "تنزيل نموذج CSV",

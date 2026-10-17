@@ -72,6 +72,7 @@ class PaymentVoucherController extends Controller
 
         $company = Auth::user()->company;
         $search = trim((string) $request->query('q'));
+        $searchLabel = trim((string) $request->query('label')) ?: $search;
 
         $vouchers = PaymentVoucher::with('bankAccount')
             ->where('status', 'issued')
@@ -94,12 +95,12 @@ class PaymentVoucherController extends Controller
             'total' => (float) $vouchers->sum('amount'),
             'from' => $request->query('from'),
             'to' => $request->query('to'),
-            'search' => $search,
+            'search' => $searchLabel,
             'groups' => $groups,
             'template' => $company->defaultTemplateFor('voucher_summary'),
         ]);
 
-        $filenameSuffix = $search !== '' ? '-'.\Illuminate\Support\Str::slug($search) : ($groups !== null ? '-grouped' : '');
+        $filenameSuffix = $search !== '' ? '-'.\Illuminate\Support\Str::slug($searchLabel) : ($groups !== null ? '-grouped' : '');
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',

@@ -203,4 +203,53 @@ class VoucherPartyFilterAndSummaryTest extends TestCase
         $response->assertOk();
         $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
     }
+
+    /**
+     * "add an option to download separate pdf like one for shahid, one
+     * for ashraf and same for algazaierih" — each quick-filter chip gets
+     * its own standalone "PDF" link (q=<keyword>&label=<display name>):
+     * one real payee's own document, not the grouped combined file. The
+     * optional `label` keeps the filename and in-PDF note readable (e.g.
+     * "Al Jazeera") instead of showing the raw matching keyword.
+     */
+    public function test_a_single_quick_filter_payee_can_be_downloaded_as_its_own_pdf(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $saed = Supplier::create(['company_id' => $owner->company_id, 'name' => 'SAED EST']);
+
+        PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-1', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Material advance to Shahid', 'amount' => 5000, 'method' => 'cash', 'status' => 'issued']);
+        PaymentVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'supplier', 'supplier_id' => $saed->id, 'voucher_number' => 'PV-2', 'date' => now()->toDateString(), 'payee_name' => 'SAED EST', 'reference' => 'Steel purchase - Ashraf Trading', 'amount' => 3000, 'method' => 'cash', 'status' => 'issued']);
+
+        $response = $this->actingAs($owner)->get(route('app.payment-vouchers.summary-pdf', [
+            'supplier_id' => $saed->id,
+            'q' => 'gazaierih',
+            'label' => 'Al Jazeera',
+        ]));
+
+        $response->assertOk();
+        $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
+        // The friendly label drives the filename, not the raw matching keyword.
+        $this->assertStringContainsString('al-jazeera', $response->headers->get('Content-Disposition'));
+        $this->assertStringNotContainsString('gazaierih', $response->headers->get('Content-Disposition'));
+    }
+
+    public function test_a_single_quick_filter_payee_can_be_downloaded_as_its_own_pdf_for_receipt_vouchers(): void
+    {
+        $owner = $this->makeOwner();
+        $account = $this->makeAccount($owner);
+        $client = Client::create(['company_id' => $owner->company_id, 'name' => 'Sada Al Jeul Construction']);
+
+        ReceiptVoucher::create(['company_id' => $owner->company_id, 'bank_account_id' => $account->id, 'party_type' => 'customer', 'client_id' => $client->id, 'voucher_number' => 'RV-1', 'date' => now()->toDateString(), 'payer_name' => 'Sada Al Jeul Construction', 'reference' => 'Progress payment - Ashraf works', 'amount' => 20000, 'method' => 'bank_transfer', 'status' => 'issued']);
+
+        $response = $this->actingAs($owner)->get(route('app.receipt-vouchers.summary-pdf', [
+            'client_id' => $client->id,
+            'q' => 'ashraf',
+            'label' => 'Ashraf',
+        ]));
+
+        $response->assertOk();
+        $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('ashraf', $response->headers->get('Content-Disposition'));
+    }
 }
