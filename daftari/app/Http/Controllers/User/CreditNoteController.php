@@ -1,0 +1,333 @@
+<?php
+
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
+use App\Jobs\SyncCreditNoteToZatca;
+use App\Models\AuditLog;
+use App\Models\CreditNote;
+use App\Models\CreditNoteItem;
+use App\Models\Invoice;
+use App\Services\Accounting\LedgerPostingService;
+use App\Services\ApprovalChainService;
+use App\Services\MpdfRenderer;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+
+class CreditNoteController extends Controller
+{
+    use ResolvesPerPage;
+
+    private const ELIGIBLE_STATUSES = ['sent', 'partially_paid', 'paid', 'overdue'];
+
+    public function index(Request $request)
+    {
+        $creditNotes = CreditNote::with('client', 'invoice')
+            ->orderByDesc('issue_date')
+            ->orderByDesc('id')
+            ->paginate($this->resolvePerPage($request))
+            ->withQueryString();
+
+        return view('user.credit-notes.index', compact('creditNotes'));
+    }
+
+    public function eligibleInvoices(Request $request)
+    {
+        $search = trim((string) $request->query('q'));
+
+        $invoices = Invoice::with('client')
+            ->whereIn('status', self::ELIGIBLE_STATUSES)
+            ->when($search !== '', fn ($q) => $q->where(fn ($q2) => $q2
+                ->where('invoice_number', 'like', "%{$search}%")
+                ->orWhereHas('client', fn ($q3) => $q3->where('name', 'like', "%{$search}%"))))
+            ->latest('issue_date')
+            ->take(20)
+            ->get()
+            ->filter(fn ($invoice) => $invoice->remainingCreditableTotal() > 0.01)
+            ->map(fn ($invoice) => [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'client_name' => $invoice->client->name,
+                'issue_date' => $invoice->issue_date->format('Y-m-d'),
+                'total' => number_format($invoice->total, 2),
+                'creditable' => number_format($invoice->remainingCreditableTotal(), 2),
+            ])
+            ->values();
+
+        return response()->json($invoices);
+    }
+
+    public function create(Request $request)
+    {
+        $invoiceId = $request->query('invoice_id');
+
+        if (! $invoiceId) {
+            return view('user.credit-notes.select-invoice');
+        }
+
+        $invoice = Invoice::with('items.item')->findOrFail($invoiceId);
+
+        if (! in_array($invoice->status, self::ELIGIBLE_STATUSES, true) || $invoice->remainingCreditableTotal() <= 0.01) {
+            return redirect()->route('app.credit-notes.create')->withErrors(['invoice' => __('This invoice is no longer eligible for a credit note.')]);
+        }
+
+        $company = Auth::user()->company;
+
+        return view('user.credit-notes.form', [
+            'invoice' => $invoice,
+            'nextNumberPreview' => $company->credit_note_prefix.'-'.str_pad((string) $company->next_credit_note_number, 5, '0', STR_PAD_LEFT),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $companyId = Auth::user()->company_id;
+
+        // Security audit finding M-23: bare, unscoped exists rules —
+        // "safe" today only because both are re-fetched through a
+        // company-scoped path afterward (Invoice::findOrFail() below
+        // 404s instead of failing validation cleanly; invoice_item_id is
+        // re-looked-up via $invoice->items(), so a cross-company id just
+        // silently resolves to null). Scoping them here matches the
+        // pattern used everywhere else and turns both into a clean
+        // validation error instead.
+        $data = $request->validate([
+            'invoice_id' => ['required', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
+            'issue_date' => ['required', 'date'],
+            'reason' => ['nullable', 'string', 'max:255'],
+            'items' => ['required', 'array', 'min:1'],
+            // invoice_item_id deliberately stays unscoped here — see
+            // CrossTenantLineItemTest / "commercial audit finding A6":
+            // the source line is re-looked-up through $invoice->items()
+            // below, which already can't cross a tenant boundary, and a
+            // foreign id is meant to resolve to null there rather than
+            // reject the whole credit note.
+            'items.*.invoice_item_id' => ['nullable', Rule::exists('invoice_items', 'id')],
+            'items.*.description' => ['required', 'string', 'max:255'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $data['items'] = array_values(array_filter($data['items'], fn ($row) => (float) $row['quantity'] > 0));
+
+        if (empty($data['items'])) {
+            return back()->withErrors(['items' => __('Credit at least one line item.')])->withInput();
+        }
+
+        // 404s the same way the plain findOrFail() used to if the id is
+        // bad, but re-fetched and locked *inside* the transaction below
+        // rather than here — see the race-condition comment there.
+        Invoice::findOrFail($data['invoice_id']);
+
+        try {
+            $creditNote = DB::transaction(function () use ($data) {
+                // Commercial audit finding: remainingCreditableTotal() was
+                // read via a plain, unlocked SELECT before this credit
+                // note was created — two concurrent "issue credit note"
+                // submissions against the same invoice (a double-click, or
+                // two users) could each read the same remaining amount,
+                // both pass the over-crediting cap check, and together
+                // over-credit the invoice beyond its total. Locking the
+                // invoice row for the duration of the check-then-act
+                // sequence closes that race, mirroring
+                // ZatcaSyncService::lockedSubmission()'s identical fix for
+                // the ICV/PIH chain (security audit finding D-1).
+                $invoice = Invoice::where('id', $data['invoice_id'])->lockForUpdate()->firstOrFail();
+
+                // Deep ZATCA correction-document audit finding: a credit
+                // note's VAT% field was freely user-editable with no check
+                // against the line it corrects — a user could (even by
+                // mistake) credit a line at a different rate, or credit an
+                // exempt/zero-rated line as standard-rated, producing a
+                // correction document whose e-invoice tax category
+                // silently disagrees with the invoice it corrects. The
+                // rate (and therefore category) a line was actually billed
+                // under isn't something a credit note gets to renegotiate
+                // — it's always taken from the original invoice line,
+                // never from user input, exactly like name_ar/
+                // item_description already are a few lines below.
+                $data['items'] = array_map(function ($row) use ($invoice) {
+                    $sourceLine = ! empty($row['invoice_item_id']) ? $invoice->items()->find($row['invoice_item_id']) : null;
+
+                    if ($sourceLine) {
+                        $row['vat_rate'] = $sourceLine->vat_rate;
+                        $row['tax_rate_id'] = $sourceLine->tax_rate_id;
+                    }
+
+                    return $row;
+                }, $data['items']);
+
+                $requestedTotal = array_sum(array_map(function ($row) {
+                    $lineSubtotal = (float) $row['quantity'] * (float) $row['unit_price'];
+
+                    return $lineSubtotal + round($lineSubtotal * ((float) $row['vat_rate'] / 100), 2);
+                }, $data['items']));
+
+                if ($requestedTotal - $invoice->remainingCreditableTotal() > 0.01) {
+                    throw new \RuntimeException(__('This credit note exceeds the amount remaining on the invoice.'));
+                }
+
+                $company = Auth::user()->company;
+
+                $creditNote = CreditNote::create([
+                    'invoice_id' => $invoice->id,
+                    'client_id' => $invoice->client_id,
+                    'branch_id' => $invoice->branch_id,
+                    'created_by' => Auth::id(),
+                    'credit_note_number' => $company->nextCreditNoteNumber(),
+                    'issue_date' => $data['issue_date'],
+                    'reason' => $data['reason'] ?? null,
+                    'status' => 'issued',
+                    'currency' => $invoice->currency,
+                    'exchange_rate' => $invoice->exchange_rate,
+                ]);
+
+                foreach ($data['items'] as $row) {
+                    // Scoped through the already-validated (company-owned)
+                    // $invoice rather than InvoiceItem::find() directly —
+                    // invoice_items carries no company_id of its own, so an
+                    // unscoped find() would happily return another company's
+                    // line item for a guessed sequential id.
+                    $sourceLine = ! empty($row['invoice_item_id'])
+                        ? $invoice->items()->find($row['invoice_item_id'])
+                        : null;
+
+                    $item = new CreditNoteItem([
+                        'credit_note_id' => $creditNote->id,
+                        'invoice_item_id' => $row['invoice_item_id'] ?? null,
+                        'unit_id' => $sourceLine?->unit_id,
+                        'description' => $row['description'],
+                        // Carried over from the invoice line's own frozen
+                        // snapshot (see InvoiceController::syncItems) rather
+                        // than re-read from the live Item.
+                        'name_ar' => $sourceLine?->name_ar,
+                        'item_description' => $sourceLine?->item_description,
+                        'quantity' => $row['quantity'],
+                        'unit_price' => $row['unit_price'],
+                        'vat_rate' => $row['vat_rate'],
+                        'tax_rate_id' => $row['tax_rate_id'] ?? null,
+                    ]);
+                    $item->recalculate();
+                    $item->save();
+                }
+
+                $creditNote->recalculateTotals();
+
+                return $creditNote;
+            });
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['items' => $e->getMessage()])->withInput();
+        }
+
+        app(LedgerPostingService::class)->postCreditNote($creditNote);
+
+        AuditLog::record('credit_note.create', $creditNote, __('Issued credit note :number', ['number' => $creditNote->credit_note_number]));
+
+        if ($creditNote->company->zatca_sync_frequency === 'instant') {
+            SyncCreditNoteToZatca::dispatch($creditNote->id);
+        }
+
+        return redirect()->route('app.credit-notes.show', $creditNote)->with('status', __('Credit note issued.'));
+    }
+
+    public function show(CreditNote $creditNote)
+    {
+        $creditNote->load('items', 'client', 'invoice');
+        $template = $creditNote->company->defaultTemplateFor('invoice');
+
+        return view('user.credit-notes.show', compact('creditNote', 'template'));
+    }
+
+    public function downloadPdf(CreditNote $creditNote, MpdfRenderer $renderer)
+    {
+        $creditNote->load('items', 'client', 'invoice');
+
+        $doc = [
+            'type_label' => __('Credit Note'),
+            'type_label_ar' => 'إشعار دائن',
+            'number' => $creditNote->credit_note_number,
+            'date_label' => __('Issued'),
+            'date' => $creditNote->issue_date,
+            // Same instant ZatcaXmlGenerator uses for cbc:IssueTime.
+            'issue_time' => $creditNote->created_at,
+            'ref_no' => $creditNote->invoice->invoice_number,
+            'party_label' => __('Credit to'),
+            'party_label_ar' => 'العميل',
+            'party' => $creditNote->client,
+            'qr_code' => $creditNote->qr_code,
+            'zatca_status' => $creditNote->zatcaCreditNoteLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
+            'lines' => $creditNote->items,
+            'subtotal' => $creditNote->subtotal,
+            'vat_total' => $creditNote->vat_total,
+            'total' => $creditNote->total,
+            'notes' => $creditNote->reason,
+        ];
+
+        $pdf = $renderer->render('documents.print.pdf', [
+            'doc' => $doc,
+            'company' => $creditNote->company,
+            'template' => $creditNote->company->defaultTemplateFor('invoice'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$creditNote->credit_note_number.'.pdf"',
+        ]);
+    }
+
+    public function downloadXml(CreditNote $creditNote)
+    {
+        $log = $creditNote->zatcaCreditNoteLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->first();
+
+        if (! $log || ! $log->xml_payload) {
+            return back()->withErrors(['credit_note' => __('This credit note has not been cleared or reported to ZATCA yet — there is no signed XML to download.')]);
+        }
+
+        return response($log->xml_payload, 200, [
+            'Content-Type' => 'application/xml',
+            'Content-Disposition' => 'attachment; filename="'.$creditNote->credit_note_number.'.xml"',
+        ]);
+    }
+
+    public function void(CreditNote $creditNote, LedgerPostingService $ledger)
+    {
+        if ($creditNote->status === 'void') {
+            return back();
+        }
+
+        // Commercial audit finding A7: unlike Invoice::cancel(), void() had
+        // no ZATCA-lock guard — a credit note already cleared/reported to
+        // ZATCA (an immutable tax record) could still be voided in-app,
+        // reversing its GL entry while ZATCA's own record of it stays
+        // unchanged, silently disagreeing with the books.
+        if ($creditNote->isZatcaSynced()) {
+            return back()->withErrors(['credit_note' => __('This credit note has been cleared/reported to ZATCA and is now part of an immutable tax record — it can no longer be voided.')]);
+        }
+
+        // Shares InvoiceController::blockedByMissingSeniorApproval()'s
+        // design: voiding a credit note isn't a sequential approval the
+        // way submitting an invoice is, so this is a one-shot "the most
+        // senior role configured for the invoice chain must sign off"
+        // gate, reusing the same 'invoice' document type rather than a
+        // separate credit-note chain — only active once a company has
+        // actually configured one (Settings → Approvals); unchanged
+        // otherwise.
+        $chain = app(ApprovalChainService::class);
+        $seniorStep = $chain->highestConfiguredStep('invoice');
+
+        if ($seniorStep && ! $chain->userHoldsStepRole($seniorStep, Auth::user())) {
+            return back()->withErrors(['credit_note' => __('Voiding a credit note requires :role sign-off.', ['role' => $seniorStep->role?->name])]);
+        }
+
+        DB::transaction(function () use ($creditNote, $ledger) {
+            $ledger->reverse($creditNote->company, 'credit_note', $creditNote->id, __('Credit note :number voided', ['number' => $creditNote->credit_note_number]));
+            $creditNote->update(['status' => 'void']);
+        });
+
+        return back()->with('status', __('Credit note voided.'));
+    }
+}
