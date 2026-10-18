@@ -39,6 +39,17 @@
     $safe = fn (?string $text) => str_replace('→', '->', (string) $text);
     $partyBDetails = $letter->partyBDetails();
     $nl2br = fn (?string $text) => nl2br(e($safe($text)));
+    // Saudi-style agreements commonly number every clause inline within
+    // one run of text ("1.1 ... 1.2 ... 1.3 ..." all typed as a single
+    // paragraph, not split into separate blocks) — without this, that
+    // reads as one undifferentiated paragraph with no visual break
+    // between points. A sentence-ending period immediately followed by
+    // a new "N.N " clause number is specific enough to break onto its
+    // own line without false-triggering on an ordinary decimal (a price
+    // like "2,944.00" has no preceding ". " to match, and mid-sentence
+    // figures like "SAR 7,000" have no decimal point at all).
+    $splitPoints = fn (?string $text) => preg_replace('/(?<=\.)\s(?=\d{1,2}\.\d{1,2}\s)/u', "\n", (string) $text);
+    $withPointBreaks = fn (?string $text) => nl2br(e($safe($splitPoints($text))));
     $arabicOnly = $letter->language_mode === 'arabic_only';
     // A static two-language caption (never the letter's own free-typed
     // content, so always safe to hardcode the Arabic side like every
@@ -150,8 +161,8 @@
     @foreach ($letter->content as $block)
         @if ($bilingual && ! $stacked)
             <tr>
-                <td class="{{ $block['is_heading'] ? 'heading' : '' }}" style="width: 50%; vertical-align: top; padding: 8px; border-bottom: 0.5pt solid #e2e8f0;">{{ $safe($block['text_en']) }}</td>
-                <td class="ar {{ $block['is_heading'] ? 'heading' : '' }}" style="width: 50%; vertical-align: top; padding: 8px; border-bottom: 0.5pt solid #e2e8f0;">{{ $safe($block['text_ar']) }}</td>
+                <td class="{{ $block['is_heading'] ? 'heading' : '' }}" style="width: 50%; vertical-align: top; padding: 8px; border-bottom: 0.5pt solid #e2e8f0;">{!! $withPointBreaks($block['text_en']) !!}</td>
+                <td class="ar {{ $block['is_heading'] ? 'heading' : '' }}" style="width: 50%; vertical-align: top; padding: 8px; border-bottom: 0.5pt solid #e2e8f0;">{!! $withPointBreaks($block['text_ar']) !!}</td>
             </tr>
         @endif
     @endforeach
@@ -160,15 +171,15 @@
 @if ($bilingual && $stacked)
     <div class="section-heading">{{ __('English') }}</div>
     @foreach ($letter->content as $block)
-        <p class="{{ $block['is_heading'] ? 'heading' : '' }}" style="{{ $block['is_heading'] ? 'font-weight:bold;color:#0f172a;' : '' }}">{{ $safe($block['text_en']) }}</p>
+        <p class="{{ $block['is_heading'] ? 'heading' : '' }}" style="{{ $block['is_heading'] ? 'font-weight:bold;color:#0f172a;' : '' }}">{!! $withPointBreaks($block['text_en']) !!}</p>
     @endforeach
     <div class="section-heading ar">النص العربي</div>
     @foreach ($letter->content as $block)
-        <p class="ar {{ $block['is_heading'] ? 'heading' : '' }}" style="{{ $block['is_heading'] ? 'font-weight:bold;color:#0f172a;' : '' }}">{{ $safe($block['text_ar']) }}</p>
+        <p class="ar {{ $block['is_heading'] ? 'heading' : '' }}" style="{{ $block['is_heading'] ? 'font-weight:bold;color:#0f172a;' : '' }}">{!! $withPointBreaks($block['text_ar']) !!}</p>
     @endforeach
 @elseif (! $bilingual)
     @foreach ($letter->content as $block)
-        <p class="{{ $showAr ? 'ar' : '' }} {{ $block['is_heading'] ? 'heading' : '' }}" style="{{ $block['is_heading'] ? 'font-weight:bold;color:#0f172a;' : '' }}">{{ $showAr ? $safe($block['text_ar']) : $safe($block['text_en']) }}</p>
+        <p class="{{ $showAr ? 'ar' : '' }} {{ $block['is_heading'] ? 'heading' : '' }}" style="{{ $block['is_heading'] ? 'font-weight:bold;color:#0f172a;' : '' }}">{!! $showAr ? $withPointBreaks($block['text_ar']) : $withPointBreaks($block['text_en']) !!}</p>
     @endforeach
 @endif
 

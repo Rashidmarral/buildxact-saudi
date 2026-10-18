@@ -635,6 +635,58 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
     }
 
     /**
+     * "paragraph points also coming in complete paragraph instead of
+     * points" — a Saudi-style agreement commonly numbers every clause
+     * inline within one run of text ("1.1 ... 1.2 ... 1.3 ..." all typed
+     * as a single block, not split into separate ones), which otherwise
+     * reads as one undifferentiated paragraph with no break between
+     * points. A sentence-ending period immediately followed by a new
+     * "N.N " clause number now breaks onto its own line.
+     */
+    public function test_inline_numbered_clauses_within_one_block_break_onto_separate_lines(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'content' => [
+                ['text_en' => '1.1 First clause text. 1.2 Second clause text. 1.3 Third clause text.', 'text_ar' => '1.1 نص البند الأول. 1.2 نص البند الثاني.', 'is_heading' => false],
+            ],
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('1.1 First clause text.<br', $html);
+        $this->assertStringContainsString('1.2 Second clause text.<br', $html);
+        $this->assertStringContainsString('1.3 Third clause text.', $html);
+        $this->assertStringContainsString('1.1 نص البند الأول.<br', $html);
+        $this->assertStringContainsString('1.2 نص البند الثاني.', $html);
+    }
+
+    /**
+     * A decimal that isn't a clause number (a price, a quantity) must
+     * never be mistaken for one and split mid-sentence — only a literal
+     * ". N.N " sequence (a finished sentence immediately followed by a
+     * new numbered clause) triggers a break.
+     */
+    public function test_an_ordinary_decimal_number_is_not_mistaken_for_a_clause_break(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'content' => [
+                ['text_en' => 'The total due is SAR 2,944.00 for the additional work, payable within 15 days.', 'text_ar' => 'الشروط.', 'is_heading' => false],
+            ],
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('The total due is SAR 2,944.00 for the additional work, payable within 15 days.', $html);
+        $this->assertStringNotContainsString('2,944.00 for the additional work, payable within 15 days.<br', $html);
+    }
+
+    /**
      * "these details vat number already given on creating client as i
      * have issue some invoices to this client" — a letter linked to a
      * client shouldn't need its VAT/CR/address retyped: when
