@@ -54,6 +54,7 @@ use App\Http\Controllers\User\AccountingHealthController;
 use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
 use App\Http\Controllers\User\ApiTokenController;
 use App\Http\Controllers\User\BankAccountController;
+use App\Http\Controllers\User\BankAccountReportController;
 use App\Http\Controllers\User\CashCustodyController;
 use App\Http\Controllers\User\BankReconciliationController;
 use App\Http\Controllers\User\BankTransferController;
@@ -319,7 +320,6 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
         Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'storePayment'])->name('invoices.payments.store');
         Route::put('invoices/{invoice}/payments/{payment}', [InvoiceController::class, 'updatePayment'])->name('invoices.payments.update');
-        Route::post('invoices/{invoice}/payment-status', [InvoiceController::class, 'updatePaymentStatus'])->name('invoices.payment-status');
         Route::post('invoices/{invoice}/installments', [InvoiceController::class, 'storeInstallments'])->name('invoices.installments.store');
         Route::delete('invoices/{invoice}/installments', [InvoiceController::class, 'destroyInstallments'])->name('invoices.installments.destroy');
         Route::post('invoices/{invoice}/attachments', [InvoiceController::class, 'storeAttachment'])->name('invoices.attachments.store');
@@ -487,6 +487,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('cash-custody', [CashCustodyController::class, 'index'])->name('cash-custody.index');
         Route::get('cash-custody/report', [CashCustodyController::class, 'report'])->name('cash-custody.report');
         Route::get('cash-custody/report/pdf', [CashCustodyController::class, 'pdf'])->middleware('throttle:pdf')->name('cash-custody.pdf');
+        Route::get('account-reports', [BankAccountReportController::class, 'index'])->name('account-reports.index');
+        Route::get('account-reports/{bankAccount}', [BankAccountReportController::class, 'show'])->name('account-reports.show');
+        Route::get('account-reports/{bankAccount}/pdf', [BankAccountReportController::class, 'pdf'])->middleware('throttle:pdf')->name('account-reports.pdf');
         Route::get('receipt-vouchers/summary/pdf', [ReceiptVoucherController::class, 'summaryPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.summary-pdf');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');

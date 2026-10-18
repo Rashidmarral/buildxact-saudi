@@ -20,10 +20,9 @@ use Tests\TestCase;
  * when writing the invoice — a cash-sale flow where the money already
  * changed hands and the user shouldn't have to save, then separately open
  * the invoice and use Record Payment. Paid/Partially paid record a real
- * InvoicePayment (not the separate, purely cosmetic payment_status_override
- * a user can already set after creation), which requires the invoice to
- * actually be sent first — same invariant storePayment() already enforces,
- * so revenue is never recognized without a matching GL posting.
+ * InvoicePayment, which requires the invoice to actually be sent first —
+ * same invariant storePayment() already enforces, so revenue is never
+ * recognized without a matching GL posting.
  */
 class InvoiceCreateTimePaymentStatusTest extends TestCase
 {
@@ -81,9 +80,8 @@ class InvoiceCreateTimePaymentStatusTest extends TestCase
         $this->assertEquals(1150.0, (float) $payment->amount);
         $this->assertSame('cash', $payment->method);
         $this->assertNull($payment->bank_account_id);
-        $this->assertNull($invoice->payment_status_override);
 
-        // A real GL posting exists — this is not the cosmetic override.
+        // A real GL posting exists.
         $this->assertTrue(JournalEntry::where('company_id', $company->id)->where('source_type', 'invoice_payment')->where('source_id', $payment->id)->exists());
     }
 

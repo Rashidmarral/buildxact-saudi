@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\BankTransfer;
 use App\Models\Expense;
-use App\Services\Features\FeatureAccessService;
 use App\Services\MpdfRenderer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
@@ -17,10 +16,10 @@ use Illuminate\Support\Carbon;
  * local errands) already has everything needed: flag their float as its
  * own BankAccount (type cash or bank) with is_personal + personal_owner_name
  * set (BankAccount::$fillable), and its own running-balance statement
- * (Project Cash Flow > that account) already shows the advance in, every
- * spend out, and what's still unaccounted with them. This page just
- * collects every such account into one glance instead of opening each
- * custodian's statement one at a time.
+ * (Account Reports > that account — see BankAccountReportController)
+ * already shows the advance in, every spend out, and what's still
+ * unaccounted with them. This page just collects every such account into
+ * one glance instead of opening each custodian's statement one at a time.
  *
  * "please suggest me ... how can i get custody account reports" —
  * report()/pdf() add a cross-custodian summary (advanced/spent/returned/
@@ -33,7 +32,7 @@ class CashCustodyController extends Controller
 {
     private const IDLE_ALERT_DAYS = 30;
 
-    public function index(FeatureAccessService $featureAccess)
+    public function index()
     {
         $accounts = BankAccount::where('is_personal', true)
             ->orderBy('personal_owner_name')
@@ -48,11 +47,6 @@ class CashCustodyController extends Controller
             'totalOutstanding' => $accounts->sum(fn (BankAccount $account) => $account->currentBalance()),
             'idleDays' => $accounts->mapWithKeys(fn (BankAccount $a) => [$a->id => $this->idleDays($a)]),
             'idleAlertThreshold' => self::IDLE_ALERT_DAYS,
-            // The per-account running-balance statement lives in the
-            // separately-gated Project Cash Flow module — link to it only
-            // when this company actually has access, rather than send a
-            // company without that module into a 403.
-            'hasProjectCashFlow' => $featureAccess->enabled(Auth::user()->company, 'project_cash_flow'),
         ]);
     }
 

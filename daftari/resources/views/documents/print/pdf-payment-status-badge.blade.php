@@ -2,10 +2,7 @@
     A small colored pill in the document header — the same visual
     language as .zatca-badge, but for payment collection state. Only
     rendered for statuses worth calling out on a printed document;
-    draft/cancelled/pending_approval show nothing here. "pending" only
-    ever comes from a manual payment_status_override — a plain "sent"
-    invoice with nothing recorded and no override shows no badge, same
-    as before this existed.
+    draft/sent/cancelled/pending_approval show nothing here.
 --}}
 @php
     $paymentBadge = match ($doc['payment_status'] ?? null) {

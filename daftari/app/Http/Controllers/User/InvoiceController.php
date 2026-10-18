@@ -182,9 +182,7 @@ class InvoiceController extends Controller
         $sendImmediately = $request->boolean('send_immediately');
         $paymentStatus = $data['payment_status'] ?? 'unpaid';
         // A cash-sale-style invoice ("this was already paid when I wrote
-        // it") needs a real InvoicePayment recorded, not just a label —
-        // see Invoice::PAYMENT_STATUS_OVERRIDES for the separate, purely
-        // cosmetic post-creation override this is NOT reusing.
+        // it") needs a real InvoicePayment recorded, not just a label.
         $wantsPayment = in_array($paymentStatus, ['paid', 'partially_paid'], true);
 
         $invoice = DB::transaction(function () use ($data, $paymentStatus) {
@@ -275,7 +273,6 @@ class InvoiceController extends Controller
                 ]);
                 $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
                 $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
-                $invoice->payment_status_override = null;
                 $invoice->save();
                 $ledger->postInvoicePayment($payment);
             });
@@ -744,11 +741,6 @@ class InvoiceController extends Controller
             $payment = $invoice->invoicePayments()->create($data);
             $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
             $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
-            // A real payment just landed — it always wins over a manual
-            // display-only override (see Invoice::displayedPaymentStatus()),
-            // so the invoice doesn't keep showing a stale hand-picked label
-            // once real data says otherwise.
-            $invoice->payment_status_override = null;
             $invoice->save();
             $ledger->postInvoicePayment($payment);
         });
@@ -795,7 +787,6 @@ class InvoiceController extends Controller
             $payment->update($data);
             $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
             $invoice->status = $invoice->isFullyPaid() ? 'paid' : ($invoice->amount_paid > 0 ? 'partially_paid' : 'sent');
-            $invoice->payment_status_override = null;
             $invoice->save();
             $ledger->postInvoicePayment($payment->fresh());
         });
@@ -805,34 +796,6 @@ class InvoiceController extends Controller
         ]));
 
         return back()->with('status', __('Payment updated.'));
-    }
-
-    /**
-     * A purely cosmetic override for the Paid/Pending/Partially paid/
-     * Overdue badge shown on the invoice header and the printed/client-
-     * facing document — see Invoice::displayedPaymentStatus(). Never
-     * touches amount_paid, the real status, or any ledger/credit-note/
-     * ZATCA logic; only meaningful once the invoice has actually been
-     * sent (a draft/cancelled/pending-approval invoice has no payment
-     * status to speak of), and gets silently cleared the next time a
-     * real payment is recorded or edited so real data always wins.
-     */
-    public function updatePaymentStatus(Request $request, Invoice $invoice)
-    {
-        abort_unless(in_array($invoice->status, ['sent', 'partially_paid', 'paid'], true), 404);
-
-        $data = $request->validate([
-            'payment_status_override' => ['nullable', Rule::in(Invoice::PAYMENT_STATUS_OVERRIDES)],
-        ]);
-
-        $invoice->update(['payment_status_override' => $data['payment_status_override'] ?? null]);
-
-        AuditLog::record('invoice.payment_status_override', $invoice, __('Set the displayed payment status for invoice :number to :status', [
-            'number' => $invoice->invoice_number,
-            'status' => $data['payment_status_override'] ?? __('Automatic'),
-        ]));
-
-        return back()->with('status', __('Payment status updated.'));
     }
 
     /**

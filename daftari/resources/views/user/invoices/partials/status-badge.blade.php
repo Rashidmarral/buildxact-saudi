@@ -12,8 +12,6 @@
     $labels = [
         'draft' => __('Draft'),
         'sent' => __('Sent'),
-        // Only ever reached via a manual payment_status_override — the
-        // real "sent" status (no override) keeps showing "Sent" above.
         'pending' => __('Pending'),
         'paid' => __('Paid'),
         'partially_paid' => __('Partially paid'),

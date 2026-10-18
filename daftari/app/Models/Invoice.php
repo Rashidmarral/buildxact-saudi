@@ -19,46 +19,10 @@ class Invoice extends Model
 
     protected $fillable = [
         'company_id', 'client_id', 'quotation_id', 'applies_prepayment_invoice_id', 'branch_id', 'salesperson_id', 'project_id', 'machinery_asset_id', 'created_by', 'invoice_number', 'type',
-        'status', 'payment_status_override', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value', 'retention_rate', 'retention_amount',
+        'status', 'issue_date', 'due_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value', 'retention_rate', 'retention_amount',
         'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes', 'qr_code', 'bank_account_id', 'warehouse_id', 'stock_deducted',
         'last_reminder_sent_at', 'last_reminder_tier', 'approved_by', 'approved_at', 'rejection_reason',
     ];
-
-    /**
-     * The values Settings → an invoice's own page let a user pick for
-     * payment_status_override — a purely cosmetic label shown on the
-     * invoice header and the printed/client-facing document, never read
-     * by balanceDue(), ledger postings, credit/debit note eligibility, or
-     * ZATCA sync guards (all of those keep using the real status/
-     * amount_paid). "pending" is distinct wording from the real "sent"
-     * status specifically for this label, per the user's own request to
-     * show "Paid" or "Pending" on the invoice.
-     */
-    public const PAYMENT_STATUS_OVERRIDES = ['pending', 'partially_paid', 'paid', 'overdue'];
-
-    /**
-     * Real lifecycle states a payment-status label is meaningful for at
-     * all — a draft, cancelled, pending-approval, or rejected invoice
-     * isn't "awaiting payment" in any sense an override should speak to,
-     * so one set outside this set is simply ignored rather than
-     * contradicting the real lifecycle badge.
-     */
-    private const OVERRIDABLE_STATUSES = ['sent', 'partially_paid', 'paid'];
-
-    /**
-     * What the Paid/Pending/Partially paid/Overdue badge should actually
-     * show — the manual override when one is set and still meaningful for
-     * this invoice's current real status, otherwise the real status
-     * itself (unchanged from before this override existed).
-     */
-    public function displayedPaymentStatus(): string
-    {
-        if ($this->payment_status_override && in_array($this->status, self::OVERRIDABLE_STATUSES, true)) {
-            return $this->payment_status_override;
-        }
-
-        return $this->status;
-    }
 
     protected function casts(): array
     {
@@ -365,7 +329,7 @@ class Invoice extends Model
             'party' => $this->client,
             'qr_code' => $this->qr_code,
             'zatca_status' => $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
-            'payment_status' => $this->displayedPaymentStatus(),
+            'payment_status' => $this->status,
             // Only the sage_classic/retail_classic layouts show this — a
             // single "Payment Type" field makes sense there the way it
             // doesn't for a running itemized payment history (removed

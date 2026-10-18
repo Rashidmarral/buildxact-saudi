@@ -55,11 +55,9 @@
                             <span class="text-slate-300 mx-1">&middot;</span>
                             <a href="{{ route('app.bank-transfers.create', ['from_bank_account_id' => $account->id]) }}" class="text-brand-700 hover:underline">{{ __('Return cash') }}</a>
                             <span class="text-slate-300 mx-1">&middot;</span>
-                            @if ($hasProjectCashFlow)
-                                <a href="{{ route('app.project-cash-flow.bank-account.show', $account) }}" class="text-slate-500 hover:underline">{{ __('Statement') }}</a>
-                            @else
-                                <a href="{{ route('app.bank-accounts.edit', $account) }}" class="text-slate-500 hover:underline">{{ __('Edit') }}</a>
-                            @endif
+                            <a href="{{ route('app.account-reports.show', $account) }}" class="text-slate-500 hover:underline">{{ __('Statement') }}</a>
+                            <span class="text-slate-300 mx-1">&middot;</span>
+                            <a href="{{ route('app.bank-accounts.edit', $account) }}" class="text-slate-500 hover:underline">{{ __('Edit') }}</a>
                         </td>
                     </tr>
                 @endforeach
