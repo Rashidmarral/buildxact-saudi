@@ -25,6 +25,7 @@
             @endif
             <div>
                 <h1 class="text-xl font-bold text-slate-900">{{ $company->name }}</h1>
+                @if ($company->name_ar)<p class="text-base font-semibold text-slate-700" dir="rtl">{{ $company->name_ar }}</p>@endif
                 @if ($company->vat_number)<p class="text-sm text-slate-500">{{ __('VAT') }}: {{ $company->vat_number }}</p>@endif
             </div>
         </div>

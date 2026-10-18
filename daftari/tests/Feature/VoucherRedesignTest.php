@@ -292,4 +292,95 @@ class VoucherRedesignTest extends TestCase
         ]);
         $response->assertJsonFragment(['description' => 'Office chairs', 'quantity' => '3']);
     }
+
+    /**
+     * "my company arabic name not coming ... remove account details like
+     * operating snb account ... company stamp not coming on pdf as well"
+     * — renders the Blade view directly (same pattern as
+     * InvoicePdfPaymentPresentationTest) rather than through mPDF, since
+     * these need to be asserted against real HTML rather than compiled
+     * PDF bytes.
+     */
+    public function test_the_voucher_pdf_shows_the_arabic_company_name_and_stamp_but_not_the_bank_account_name(): void
+    {
+        $company = $this->makeCompany();
+        $company->update([
+            'name_ar' => 'شركة تصميم السندات',
+            'stamp_path' => 'stamps/fake-stamp.png',
+        ]);
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company, 'Saudi National Bank');
+        $account->update(['name' => 'SNB — Operating Account']);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'PDF Test Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 250, 'method' => 'bank_transfer',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $voucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount');
+
+        $html = view('documents.print.voucher-pdf', [
+            'voucher' => $voucher,
+            'type' => 'payment',
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('payment_voucher'),
+            'embed' => fn ($path) => $path ? 'data:image/png;base64,fake' : null,
+        ])->render();
+
+        $this->assertStringContainsString('شركة تصميم السندات', $html);
+        $this->assertStringContainsString('data:image/png;base64,fake', $html);
+        $this->assertStringNotContainsString('SNB — Operating Account', $html);
+    }
+
+    public function test_the_on_screen_voucher_show_page_has_the_same_arabic_name_and_no_account_name_fix(): void
+    {
+        $company = $this->makeCompany();
+        $company->update(['name_ar' => 'شركة تصميم السندات']);
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company, 'Saudi National Bank');
+        $account->update(['name' => 'SNB — Operating Account']);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'Show Page Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 100, 'method' => 'bank_transfer',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+
+        $response = $this->actingAs($owner)->get(route('app.payment-vouchers.show', $voucher));
+
+        $response->assertOk();
+        $response->assertSee('شركة تصميم السندات');
+        $response->assertDontSee('SNB — Operating Account');
+    }
+
+    public function test_a_cheque_voucher_still_shows_its_clearing_bank_name(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company, 'Saudi National Bank');
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'Cheque Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 500, 'method' => 'cheque', 'reference' => 'CHQ-1001',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $voucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount');
+
+        $html = view('documents.print.voucher-pdf', [
+            'voucher' => $voucher,
+            'type' => 'payment',
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('payment_voucher'),
+            'embed' => fn () => null,
+        ])->render();
+
+        $this->assertStringContainsString('Saudi National Bank', $html);
+        $this->assertStringContainsString('CHQ-1001', $html);
+    }
 }

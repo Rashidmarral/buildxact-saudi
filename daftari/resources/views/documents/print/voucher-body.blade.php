@@ -92,8 +92,6 @@
             @if ($isCheque)
                 <span>{{ __('No.') }}: <span class="font-semibold text-slate-800">{{ $voucher->reference ?: '—' }}</span></span>
                 <span>{{ __('Bank') }}: <span class="font-semibold text-slate-800">{{ $voucher->bankAccount->bank_name ?: $voucher->bankAccount->name }}</span></span>
-            @else
-                <span>{{ __('Account') }}: <span class="font-semibold text-slate-800">{{ $voucher->bankAccount->name }}</span></span>
             @endif
         </div>
 

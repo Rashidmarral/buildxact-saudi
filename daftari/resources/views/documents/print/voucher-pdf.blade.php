@@ -2,11 +2,26 @@
     mPDF-compatible voucher PDF, table-based to mirror voucher-body.blade.php
     (mPDF's HTML renderer doesn't support flex/grid — see pdf.blade.php's
     header comment for the same reasoning applied to full documents).
+
+    "my company arabic name not coming ... remove account details like
+    operating snb account ... company stamp not coming on pdf as well"
+    — three real bugs/gaps fixed together: $company->name_ar was never
+    rendered at all (only the English name); the bank account's own name
+    (e.g. "SNB — Operating Account") was printed next to the payment
+    method checkboxes, an internal detail with nothing to do with the
+    counterparty signing this voucher; and $company->stamp_path — already
+    supported on every other printed document (see pdf.blade.php,
+    purchase-order-pdf.blade.php) — was simply missing from this one.
+    Visual language upgraded to match the redesigned voucher-summary-pdf.blade.php
+    from this same session: a real logo, a full company info block, and
+    the company's accent color, instead of the older plain header.
 --}}
 @php
     $isReceipt = $type === 'receipt';
     $logoData = $embed($company->logo_path ?? null);
+    $stampData = $embed($company->stamp_path ?? null);
     $footerData = $embed($template->footer_path ?? null);
+    $accent = $template->accent_color ?? '#0f766e';
     $partyNameEn = $isReceipt ? $voucher->payer_name : $voucher->payee_name;
     $partyNameAr = $voucher->party_name_ar;
     $isCheque = $voucher->method === 'cheque';
@@ -26,10 +41,14 @@
     table { border-collapse: collapse; width: 100%; }
     .header-table td { vertical-align: top; }
     .company-name { font-size: 15pt; font-weight: bold; color: #0f172a; }
-    .doc-title { font-size: 15pt; font-weight: bold; color: #0f766e; text-align: right; }
+    .company-name-ar { font-size: 11pt; font-weight: bold; color: #334155; margin-top: 1px; }
+    .company-detail { color: #64748b; font-size: 8.5pt; line-height: 1.5; margin-top: 3px; }
+    .doc-title { font-size: 16pt; font-weight: bold; color: {{ $accent }}; text-align: right; }
     .muted { color: #64748b; font-size: 9pt; }
-    .box { border: 1.5pt solid #1e293b; border-radius: 8px; padding: 16px; margin-top: 16px; }
-    .row-table td { padding: 6px 0; border-bottom: 0.5pt dashed #e2e8f0; font-size: 10pt; vertical-align: top; }
+    .accent-rule { height: 3px; background: {{ $accent }}; margin-top: 10px; margin-bottom: 16px; }
+    .box { border: 1pt solid #e2e8f0; border-radius: 10px; padding: 18px; }
+    .amount-strip { background: #f8fafc; border-radius: 8px; padding: 10px 14px; margin-top: 2px; }
+    .row-table td { padding: 7px 0; border-bottom: 0.5pt dashed #e2e8f0; font-size: 10pt; vertical-align: top; }
     .k { color: #94a3b8; font-size: 8.5pt; }
     .v { font-weight: bold; color: #0f172a; }
     .sign-table td { text-align: center; font-size: 9pt; color: #94a3b8; padding-top: 40px; border-top: 0.5pt solid #cbd5e1; }
@@ -38,36 +57,42 @@
 </head>
 <body>
 
-<table class="header-table" style="border-bottom: 1pt solid #0f172a; padding-bottom: 10px;">
+<table class="header-table">
     <tr>
-        <td style="width: 65%;">
-            @if ($logoData)<img src="{{ $logoData }}" style="height: 36px; margin-bottom: 6px;" alt="">@endif
+        <td style="width: 60%;">
+            @if ($logoData)<img src="{{ $logoData }}" style="height: 56px; margin-bottom: 8px;" alt="">@endif
             <div class="company-name">{{ $company->name }}</div>
-            @if ($company->vat_number)<div class="muted">{{ __('VAT') }}: {{ $company->vat_number }}</div>@endif
+            @if ($company->name_ar)<div class="company-name-ar">{{ $company->name_ar }}</div>@endif
+            <div class="company-detail">
+                @if ($company->address || $company->city)<div>{{ $company->address }}{{ $company->address && $company->city ? ', ' : '' }}{{ $company->city }}</div>@endif
+                @if ($company->phone || $company->email)<div>{{ $company->phone }}{{ $company->phone && $company->email ? '  ·  ' : '' }}{{ $company->email }}</div>@endif
+                @if ($company->vat_number)<div>{{ __('VAT') }}: {{ $company->vat_number }}@if ($company->cr_number)&nbsp;&nbsp;·&nbsp;&nbsp;{{ __('CR') }}: {{ $company->cr_number }}@endif</div>@endif
+            </div>
         </td>
-        <td style="width: 35%;">
+        <td style="width: 40%;">
             <div class="doc-title">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
-            <div class="muted text-end" style="text-align: right;">{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
-            <div class="muted text-end" style="text-align: right;">{{ __('Date') }}: {{ \App\Support\PlatformFormat::date($voucher->date) }}</div>
+            <div class="muted" style="text-align: right;">{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
+            <div class="muted" style="text-align: right;">{{ __('Date') }}: {{ \App\Support\PlatformFormat::date($voucher->date) }}</div>
         </td>
     </tr>
 </table>
+<div class="accent-rule"></div>
 
 <div class="box">
-    <table>
+    <table class="amount-strip">
         <tr>
-            <td style="width: 33%;" class="muted">{{ __('No.') }}: <span class="v">{{ $voucher->voucher_number }}</span></td>
-            <td style="width: 34%; text-align: center;">
-                <div style="font-size: 13pt; font-weight: bold;">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
+            <td style="width: 34%;">
+                <div style="font-size: 13pt; font-weight: bold; color: #0f172a;">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
                 <div style="font-size: 10pt; color: #64748b;">{{ $isReceipt ? 'سند قبض' : 'سند صرف' }}</div>
             </td>
+            <td style="width: 33%; text-align: center;" class="muted">{{ __('No.') }}: <span class="v">{{ $voucher->voucher_number }}</span></td>
             <td style="width: 33%; text-align: right;">
-                <div style="font-size: 13pt; font-weight: bold;">{{ \App\Support\Money::format($voucher->amount) }}</div>
+                <div style="font-size: 15pt; font-weight: bold; color: {{ $accent }};">{{ \App\Support\Money::format($voucher->amount) }}</div>
             </td>
         </tr>
     </table>
 
-    <table class="row-table" style="margin-top: 10px;">
+    <table class="row-table" style="margin-top: 14px;">
         <tr>
             <td style="width: 50%;"><span class="k">{{ $isReceipt ? __('Received from') : __('Payment To') }}</span><br><span class="v">{{ $partyNameEn }}</span></td>
             <td style="width: 50%; text-align: right;"><span class="k">{{ $isReceipt ? 'استلمنا من' : 'أصرفوا للمكرم' }}</span><br><span class="v">{{ $partyNameAr ?: $partyNameEn }}</span></td>
@@ -94,8 +119,6 @@
                 @if ($isCheque)
                     &nbsp;&nbsp; {{ __('No.') }}: <span class="v">{{ $voucher->reference ?: '—' }}</span>
                     &nbsp;&nbsp; {{ __('Bank') }}: <span class="v">{{ $voucher->bankAccount->bank_name ?: $voucher->bankAccount->name }}</span>
-                @else
-                    &nbsp;&nbsp; {{ __('Account') }}: <span class="v">{{ $voucher->bankAccount->name }}</span>
                 @endif
             </td>
         </tr>
@@ -116,7 +139,18 @@
         @endif
     </table>
 
-    <table class="sign-table" style="margin-top: 50px;">
+    @if ($stampData)
+        <table style="margin-top: 20px;">
+            <tr>
+                <td style="width: 70%;"></td>
+                <td style="width: 30%; text-align: center;">
+                    <img src="{{ $stampData }}" style="width: {{ $company->stamp_size ?: 90 }}px;" alt="">
+                </td>
+            </tr>
+        </table>
+    @endif
+
+    <table class="sign-table" style="margin-top: {{ $stampData ? 10 : 50 }}px;">
         <tr>
             <td style="width: 50%;">{{ __('Accountant') }} / المحاسب</td>
             <td style="width: 50%;">{{ __('Receiver') }} / توقيع المستلم</td>
