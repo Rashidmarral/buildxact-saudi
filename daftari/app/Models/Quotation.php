@@ -149,4 +149,48 @@ class Quotation extends Model
     {
         return $this->expiry_date && $this->expiry_date->isPast() && ! in_array($this->status, ['converted', 'accepted']);
     }
+
+    /**
+     * The view data documents.print.pdf needs to render this quotation —
+     * moved here (from a private QuotationController method) so anything
+     * that needs this quotation's own rendered PDF, such as
+     * CompanyLetterController merging a referenced quotation into a
+     * letter's combined download, can build it without reaching into the
+     * controller. Mirrors Invoice::pdfData()'s existing pattern.
+     */
+    public function pdfData(): array
+    {
+        $this->loadMissing('items', 'client', 'bankAccount');
+
+        $bankAccount = $this->bankAccount ?? $this->company->defaultBankAccount();
+
+        $doc = [
+            'type_label' => $this->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
+            'type_label_ar' => $this->type === 'proforma' ? 'فاتورة أولية' : 'عرض سعر',
+            'number' => $this->quotation_number,
+            'date_label' => __('Issued'),
+            'date' => $this->issue_date,
+            'date2_label' => __('Valid until'),
+            'date2_label_ar' => 'صالح حتى',
+            'date2' => $this->expiry_date,
+            'party_label' => __('To'),
+            'party_label_ar' => 'العميل',
+            'party' => $this->client,
+            'lines' => $this->items,
+            'subtotal' => $this->subtotal,
+            'discount_total' => $this->discount_total,
+            'discount_percent' => $this->discount_type === 'percentage' ? $this->discount_value : null,
+            'vat_total' => $this->vat_total,
+            'total' => $this->total,
+            'bank_account' => $bankAccount,
+            'salesperson' => $this->salesperson,
+            'notes' => $this->notes,
+        ];
+
+        return [
+            'doc' => $doc,
+            'company' => $this->company,
+            'template' => $this->company->defaultTemplateFor($this->type),
+        ];
+    }
 }

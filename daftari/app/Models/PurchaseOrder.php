@@ -95,4 +95,29 @@ class PurchaseOrder extends Model
 
         $this->save();
     }
+
+    /**
+     * The view data documents.print.purchase-order-pdf needs to render
+     * this order — moved here (from inline code in
+     * PurchaseOrderController::downloadPdf()) so anything that needs
+     * this PO's own rendered PDF, such as CompanyLetterController
+     * merging a referenced purchase order into a letter's combined
+     * download, can build it without reaching into the controller.
+     * Mirrors Quotation::pdfData()'s equivalent extraction.
+     */
+    public function pdfData(): array
+    {
+        $this->loadMissing('items', 'supplier', 'project');
+
+        return [
+            'doc' => [
+                'lines' => $this->items,
+                'subtotal' => $this->subtotal,
+                'discount_total' => $this->discount_total,
+                'vat_total' => $this->vat_total,
+                'total' => $this->total,
+            ],
+            'order' => $this,
+        ];
+    }
 }

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\User\QuotationController;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\InvoiceTemplate;
@@ -84,9 +83,7 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $quotation = Quotation::latest('id')->first();
         $this->assertNotNull($quotation->expiry_date);
 
-        $method = new \ReflectionMethod(QuotationController::class, 'pdfData');
-        $method->setAccessible(true);
-        $data = $method->invoke(app(QuotationController::class), $quotation);
+        $data = $quotation->pdfData();
 
         $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
 
@@ -101,9 +98,7 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $this->actingAs($owner)->post(route('app.quotations.store'), $payload);
         $quotation = Quotation::latest('id')->first();
 
-        $method = new \ReflectionMethod(QuotationController::class, 'pdfData');
-        $method->setAccessible(true);
-        $data = $method->invoke(app(QuotationController::class), $quotation);
+        $data = $quotation->pdfData();
 
         $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
 
@@ -143,9 +138,7 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $this->actingAs($owner)->post(route('app.quotations.store'), $payload);
         $quotation = Quotation::latest('id')->first();
 
-        $method = new \ReflectionMethod(QuotationController::class, 'pdfData');
-        $method->setAccessible(true);
-        $data = $method->invoke(app(QuotationController::class), $quotation);
+        $data = $quotation->pdfData();
 
         $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
 
@@ -180,9 +173,7 @@ class QuotationValidUntilAndColumnSpacingTest extends TestCase
         $response->assertSessionDoesntHaveErrors();
         $quotation = Quotation::latest('id')->first();
 
-        $method = new \ReflectionMethod(QuotationController::class, 'pdfData');
-        $method->setAccessible(true);
-        $data = $method->invoke(app(QuotationController::class), $quotation);
+        $data = $quotation->pdfData();
 
         $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
 

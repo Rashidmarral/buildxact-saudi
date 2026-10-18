@@ -120,6 +120,33 @@
             </div>
         </div>
 
+        <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+            <div>
+                <h3 class="font-semibold text-slate-900">{{ __('Reference documents') }}</h3>
+                <p class="text-xs text-slate-500 mt-1">{{ __('Each one picked here is folded into the "Download PDF" as its own full document, right after this letter — so sending the agreement, a referenced PO, and its quotations is one file, one click.') }}</p>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Quotations') }}</label>
+                    <select name="linked_quotations[]" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        @foreach ($quotations as $quotation)
+                            <option value="{{ $quotation->id }}" @selected(in_array($quotation->id, old('linked_quotations', $linkedQuotationIds)))>{{ $quotation->quotation_number }} — {{ $quotation->client?->name }} — {{ \App\Support\Money::format($quotation->total) }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('Hold Ctrl/Cmd to pick more than one.') }}</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Purchase orders') }}</label>
+                    <select name="linked_purchase_orders[]" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        @foreach ($purchaseOrders as $order)
+                            <option value="{{ $order->id }}" @selected(in_array($order->id, old('linked_purchase_orders', $linkedPurchaseOrderIds)))>{{ $order->po_number }} — {{ $order->supplier?->name }} — {{ \App\Support\Money::format($order->total) }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('Hold Ctrl/Cmd to pick more than one.') }}</p>
+                </div>
+            </div>
+        </div>
+
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <div class="flex items-center justify-between mb-3">
                 <h3 class="font-semibold text-slate-900">{{ __('Content') }}</h3>

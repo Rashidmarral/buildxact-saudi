@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
@@ -73,6 +74,17 @@ class CompanyLetter extends Model
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    /**
+     * Existing Quotations/Purchase Orders referenced by this letter —
+     * see CompanyLetterLink and the company_letter_links migration.
+     * Ordered so the combined PDF download always folds them in the
+     * same order the user arranged them in.
+     */
+    public function links(): HasMany
+    {
+        return $this->hasMany(CompanyLetterLink::class)->orderBy('sort_order');
     }
 
     public function partyAName(): string

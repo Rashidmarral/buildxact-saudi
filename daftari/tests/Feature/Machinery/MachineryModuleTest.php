@@ -73,7 +73,22 @@ class MachineryModuleTest extends \Tests\TestCase
         $this->actingAs($owner)->get(route('app.machinery.assets.index'))->assertRedirect(route('app.dashboard'));
         $this->actingAs($owner)->get(route('app.machinery.rental-contracts.index'))->assertRedirect(route('app.dashboard'));
         $this->actingAs($owner)->get(route('app.machinery.deployments.index'))->assertRedirect(route('app.dashboard'));
-        $this->actingAs($owner)->get(route('app.machinery.letters.index'))->assertRedirect(route('app.dashboard'));
+    }
+
+    /**
+     * Letters & Agreements is a general-purpose bilingual letter/
+     * agreement generator with nothing machinery-specific about it
+     * (machinery_asset_id etc. are all nullable) — un-gated from the
+     * Machinery & Equipment module into its own 'letters' permission
+     * (see routes/web.php), so it stays reachable even for a company
+     * with no machinery module at all.
+     */
+    public function test_letters_remain_accessible_without_the_machinery_module(): void
+    {
+        $company = $this->makeCompany(withModule: false);
+        $owner = $this->makeOwner($company);
+
+        $this->actingAs($owner)->get(route('app.machinery.letters.index'))->assertOk();
     }
 
     public function test_a_company_whose_plan_includes_the_module_can_access_it(): void
@@ -449,7 +464,7 @@ class MachineryModuleTest extends \Tests\TestCase
     // the app-wide search, unlike every other record type.
     // ------------------------------------------------------------------
 
-    public function test_global_search_finds_machinery_and_letters_only_when_the_module_is_enabled(): void
+    public function test_global_search_finds_machinery_only_with_the_module_but_letters_regardless(): void
     {
         $withModule = $this->makeCompany(withModule: true);
         $ownerWith = $this->makeOwner($withModule);
@@ -470,11 +485,18 @@ class MachineryModuleTest extends \Tests\TestCase
         $withoutModule = $this->makeCompany(withModule: false);
         $ownerWithout = $this->makeOwner($withoutModule);
         MachineryAsset::create(['company_id' => $withoutModule->id, 'asset_code' => 'EQ-SEARCH2', 'name' => 'Findable Grader', 'status' => 'available']);
+        CompanyLetter::create([
+            'company_id' => $withoutModule->id, 'document_type' => 'custom', 'reference_number' => 'LTR-SEARCH2',
+            'title' => 'Findable Letter No Module', 'letter_date' => now()->toDateString(), 'party_a_role' => 'Company',
+            'party_b_role' => 'Client', 'party_b_name' => 'Someone', 'language_mode' => 'bilingual',
+            'content' => [['text_en' => 'Body.', 'text_ar' => 'نص.', 'is_heading' => false]],
+        ]);
 
         $response = $this->actingAs($ownerWithout)->get(route('app.search', ['q' => 'Findable']));
         $response->assertOk();
         $labels = collect($response->json('groups'))->pluck('label');
         $this->assertFalse($labels->contains(__('Machinery & Equipment')));
+        $this->assertTrue($labels->contains(__('Letters & Agreements')));
     }
 
     // ------------------------------------------------------------------

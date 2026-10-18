@@ -693,15 +693,25 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('deployments', MachineryProjectDeploymentController::class)->parameters(['deployments' => 'deployment'])->only(['index', 'create', 'store']);
         Route::post('deployments/{deployment}/end', [MachineryProjectDeploymentController::class, 'end'])->name('deployments.end');
 
-        Route::resource('letters', CompanyLetterController::class)->parameters(['letters' => 'letter']);
-        Route::get('letters/{letter}/pdf', [CompanyLetterController::class, 'pdf'])->middleware('throttle:pdf')->name('letters.pdf');
-        Route::post('letters/{letter}/attachments', [CompanyLetterController::class, 'storeAttachment'])->name('letters.attachments.store');
-        Route::delete('letters/{letter}/attachments/{attachment}', [CompanyLetterController::class, 'destroyAttachment'])->name('letters.attachments.destroy');
-
         Route::resource('operators', MachineryOperatorController::class)->parameters(['operators' => 'employee'])->only(['index', 'create', 'store']);
 
         Route::resource('hire-in-contracts', MachineryHireInContractController::class)->parameters(['hire-in-contracts' => 'hireInContract'])->only(['index', 'create', 'store', 'show']);
         Route::post('hire-in-contracts/{hireInContract}/end', [MachineryHireInContractController::class, 'end'])->name('hire-in-contracts.end');
+    });
+
+    // Letters & Agreements used to live entirely inside the Machinery &
+    // Equipment module/permission group above, so a company without that
+    // paid add-on had no access to it at all — not even the nav link
+    // showed, despite this being a general-purpose bilingual letter/
+    // agreement generator with nothing machinery-specific about it
+    // (machinery_asset_id etc. are all nullable). Un-gated into its own
+    // ordinary permission; URL/route names kept under "machinery/letters"
+    // unchanged so no existing bookmark or emailed link breaks.
+    Route::middleware('permission:letters')->prefix('machinery')->name('machinery.')->group(function () {
+        Route::resource('letters', CompanyLetterController::class)->parameters(['letters' => 'letter']);
+        Route::get('letters/{letter}/pdf', [CompanyLetterController::class, 'pdf'])->middleware('throttle:pdf')->name('letters.pdf');
+        Route::post('letters/{letter}/attachments', [CompanyLetterController::class, 'storeAttachment'])->name('letters.attachments.store');
+        Route::delete('letters/{letter}/attachments/{attachment}', [CompanyLetterController::class, 'destroyAttachment'])->name('letters.attachments.destroy');
     });
 
     Route::middleware(['permission:repair_shop', 'module:repair_shop'])->group(function () {

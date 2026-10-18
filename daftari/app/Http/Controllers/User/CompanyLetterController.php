@@ -9,10 +9,13 @@ use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\CompanyLetter;
+use App\Models\CompanyLetterLink;
 use App\Models\MachineryAsset;
 use App\Models\MachineryHireInContract;
 use App\Models\MachineryRentalContract;
 use App\Models\Project;
+use App\Models\PurchaseOrder;
+use App\Models\Quotation;
 use App\Models\Supplier;
 use App\Services\MpdfRenderer;
 use App\Support\LetterPresets;
@@ -99,6 +102,10 @@ class CompanyLetterController extends Controller
             'clients' => Client::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
+            'quotations' => Quotation::with('client')->latest('issue_date')->get(),
+            'purchaseOrders' => PurchaseOrder::with('supplier')->latest('order_date')->get(),
+            'linkedQuotationIds' => [],
+            'linkedPurchaseOrderIds' => [],
         ]);
     }
 
@@ -111,11 +118,17 @@ class CompanyLetterController extends Controller
         // ordinary validation, which already ran above) rolls back the
         // reference number with it, rather than permanently burning it —
         // matches MachineryAssetController::store()/MachineryRentalContractController::store().
-        $letter = DB::transaction(fn () => CompanyLetter::create($data + [
-            'company_id' => $company->id,
-            'reference_number' => $company->nextLetterNumber(),
-            'created_by' => Auth::id(),
-        ]));
+        $letter = DB::transaction(function () use ($data, $company, $request) {
+            $letter = CompanyLetter::create($data + [
+                'company_id' => $company->id,
+                'reference_number' => $company->nextLetterNumber(),
+                'created_by' => Auth::id(),
+            ]);
+
+            $this->syncLinks($letter, $request);
+
+            return $letter;
+        });
 
         AuditLog::record('letter.create', $letter, __('Generated letter :number', ['number' => $letter->reference_number]));
 
@@ -124,13 +137,15 @@ class CompanyLetterController extends Controller
 
     public function show(CompanyLetter $letter)
     {
-        $letter->load('machinery', 'rentalContract', 'hireInContract', 'project', 'client', 'supplier', 'attachments');
+        $letter->load('machinery', 'rentalContract', 'hireInContract', 'project', 'client', 'supplier', 'attachments', 'links.linkable');
 
         return view('user.machinery.letters.show', compact('letter'));
     }
 
     public function edit(CompanyLetter $letter)
     {
+        $letter->load('links');
+
         return view('user.machinery.letters.form', [
             'letter' => $letter,
             'kinds' => LetterPresets::KINDS,
@@ -138,16 +153,45 @@ class CompanyLetterController extends Controller
             'clients' => Client::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
+            'quotations' => Quotation::with('client')->latest('issue_date')->get(),
+            'purchaseOrders' => PurchaseOrder::with('supplier')->latest('order_date')->get(),
+            'linkedQuotationIds' => $letter->links->where('linkable_type', Quotation::class)->pluck('linkable_id')->all(),
+            'linkedPurchaseOrderIds' => $letter->links->where('linkable_type', PurchaseOrder::class)->pluck('linkable_id')->all(),
         ]);
     }
 
     public function update(Request $request, CompanyLetter $letter)
     {
         $letter->update($this->validated($request));
+        $this->syncLinks($letter, $request);
 
         AuditLog::record('letter.update', $letter, __('Updated letter :number', ['number' => $letter->reference_number]));
 
         return redirect()->route('app.machinery.letters.show', $letter)->with('status', __('Letter updated.'));
+    }
+
+    /**
+     * Replaces this letter's referenced Quotations/Purchase Orders with
+     * exactly what was submitted, in the submitted order. Tenant
+     * isolation comes for free: Quotation/PurchaseOrder both use
+     * BelongsToCompany's global scope, so whereIn() here silently drops
+     * any id belonging to another company (or that doesn't exist at
+     * all) rather than failing the whole save over it.
+     */
+    private function syncLinks(CompanyLetter $letter, Request $request): void
+    {
+        $quotationIds = Quotation::whereIn('id', $request->input('linked_quotations', []))->pluck('id');
+        $purchaseOrderIds = PurchaseOrder::whereIn('id', $request->input('linked_purchase_orders', []))->pluck('id');
+
+        $letter->links()->delete();
+
+        $sortOrder = 0;
+        foreach ($quotationIds as $id) {
+            $letter->links()->create(['linkable_type' => Quotation::class, 'linkable_id' => $id, 'sort_order' => $sortOrder++]);
+        }
+        foreach ($purchaseOrderIds as $id) {
+            $letter->links()->create(['linkable_type' => PurchaseOrder::class, 'linkable_id' => $id, 'sort_order' => $sortOrder++]);
+        }
     }
 
     public function destroy(CompanyLetter $letter)
@@ -196,17 +240,44 @@ class CompanyLetterController extends Controller
         return back()->with('status', __('Attachment removed.'));
     }
 
+    /**
+     * "i need to send my client a document with attach agreement p/o
+     * order and quotations in a single pdf document" — the letter's own
+     * PDF, followed by each referenced Quotation/Purchase Order's own
+     * live-rendered PDF (not a stale upload — always current against
+     * that document's real data), in the order the letter arranged
+     * them. Deliberately does NOT also fold in file attachments() —
+     * those are the scanned, physically-signed copy added back after
+     * the fact (see that relation's docblock), which has no business
+     * being inside the very document still going out for signature.
+     */
     public function pdf(CompanyLetter $letter, MpdfRenderer $renderer)
     {
-        $letter->load('machinery', 'project', 'client', 'supplier');
+        $letter->load('machinery', 'project', 'client', 'supplier', 'links.linkable');
 
-        $pdf = $renderer->render('documents.print.letter-pdf', [
+        $basePdf = $renderer->render('documents.print.letter-pdf', [
             'title' => $letter->title,
             'subject' => $letter->reference_number,
             'company' => $letter->company,
             'template' => $letter->company->defaultTemplateFor('letter'),
             'letter' => $letter,
         ]);
+
+        $linkedPdfs = $letter->links->map(function (CompanyLetterLink $link) use ($renderer) {
+            $document = $link->linkable;
+
+            if (! $document) {
+                return null;
+            }
+
+            return match (get_class($document)) {
+                Quotation::class => $renderer->render('documents.print.pdf', $document->pdfData()),
+                PurchaseOrder::class => $renderer->render('documents.print.purchase-order-pdf', $document->pdfData()),
+                default => null,
+            };
+        })->filter()->values()->all();
+
+        $pdf = $renderer->mergePdfs([$basePdf, ...$linkedPdfs]);
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -239,6 +310,10 @@ class CompanyLetterController extends Controller
             'content.*.text_en' => ['nullable', 'string', 'max:5000'],
             'content.*.text_ar' => ['nullable', 'string', 'max:5000'],
             'content.*.is_heading' => ['nullable', 'boolean'],
+            'linked_quotations' => ['nullable', 'array'],
+            'linked_quotations.*' => [Rule::exists('quotations', 'id')->where('company_id', $companyId)],
+            'linked_purchase_orders' => ['nullable', 'array'],
+            'linked_purchase_orders.*' => [Rule::exists('purchase_orders', 'id')->where('company_id', $companyId)],
         ]);
 
         // array_values() re-sequences the surviving blocks into a clean

@@ -197,20 +197,9 @@ class PurchaseOrderController extends Controller
 
     public function downloadPdf(PurchaseOrder $purchaseOrder, MpdfRenderer $renderer)
     {
-        $purchaseOrder->loadMissing('items', 'supplier', 'project', 'attachments');
+        $purchaseOrder->loadMissing('attachments');
 
-        $doc = [
-            'lines' => $purchaseOrder->items,
-            'subtotal' => $purchaseOrder->subtotal,
-            'discount_total' => $purchaseOrder->discount_total,
-            'vat_total' => $purchaseOrder->vat_total,
-            'total' => $purchaseOrder->total,
-        ];
-
-        $basePdf = $renderer->render('documents.print.purchase-order-pdf', [
-            'doc' => $doc,
-            'order' => $purchaseOrder,
-        ]);
+        $basePdf = $renderer->render('documents.print.purchase-order-pdf', $purchaseOrder->pdfData());
 
         // Fold in every PDF attachment (a sub-vendor's own quotation,
         // required approval documents, ...) as trailing pages, so

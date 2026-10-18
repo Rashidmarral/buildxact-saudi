@@ -2,17 +2,24 @@
     mPDF-compatible bilingual letter/agreement PDF. Reuses the template's
     cosmetic fields (logo, footer, page size) exactly like voucher-pdf/
     project-cash-flow-pdf — it does not branch on $template->layout for
-    those. It DOES branch on layout for the bilingual arrangement:
-    'bilingual_stacked' renders the full English section then the full
-    Arabic section; anything else (including the default
-    'bilingual_side_by_side') renders each paragraph as an EN|AR table
-    row, the same two-column technique as pdf-bilingual-header.blade.php.
-    $letter->language_mode overrides both when set to a single language.
+    those, except for one: 'custom_letterhead' swaps the auto-generated
+    bilingual header for the company's own uploaded letterhead image
+    (same optional-letterhead mechanism pdf.blade.php already offers
+    invoices — every company can upload its own, or leave this layout
+    unset and keep the auto-generated header). It DOES also branch on
+    layout for the bilingual arrangement: 'bilingual_stacked' renders
+    the full English section then the full Arabic section; anything
+    else (including the default 'bilingual_side_by_side') renders each
+    paragraph as an EN|AR table row, the same two-column technique as
+    pdf-bilingual-header.blade.php. $letter->language_mode overrides
+    both when set to a single language.
 --}}
 @php
     $logoData = $embed($company->logo_path ?? null);
     $footerData = $embed($template->footer_path ?? null);
-    $stacked = ($template->layout ?? null) === 'bilingual_stacked';
+    $letterheadData = $embed($template->letterhead_path ?? null);
+    $layout = $template->layout ?? null;
+    $stacked = $layout === 'bilingual_stacked';
     $showEn = $letter->language_mode !== 'arabic_only';
     $showAr = $letter->language_mode !== 'english_only';
     $bilingual = $showEn && $showAr;
@@ -44,7 +51,11 @@
 </head>
 <body>
 
-@include('documents.print.pdf-bilingual-header', ['company' => $company, 'logoData' => $logoData, 'showLogo' => true])
+@if ($layout === 'custom_letterhead' && $letterheadData)
+    <img src="{{ $letterheadData }}" style="width: 100%;" alt="">
+@else
+    @include('documents.print.pdf-bilingual-header', ['company' => $company, 'logoData' => $logoData, 'showLogo' => true])
+@endif
 
 {{--
     The primary column always renders — English labels/values normally,

@@ -148,7 +148,7 @@ class QuotationController extends Controller
 
     public function downloadPdf(Quotation $quotation, MpdfRenderer $renderer)
     {
-        $pdf = $renderer->render('documents.print.pdf', $this->pdfData($quotation));
+        $pdf = $renderer->render('documents.print.pdf', $quotation->pdfData());
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -164,47 +164,11 @@ class QuotationController extends Controller
             return back()->withErrors(['quotation' => __('This client has no email address on file. Add one on the client record first.')]);
         }
 
-        $pdfBinary = $renderer->render('documents.print.pdf', $this->pdfData($quotation));
+        $pdfBinary = $renderer->render('documents.print.pdf', $quotation->pdfData());
 
         Mail::to($recipient)->send(new QuotationMail($quotation, $pdfBinary));
 
         return back()->with('status', __('Quotation emailed to :email.', ['email' => $recipient]));
-    }
-
-    private function pdfData(Quotation $quotation): array
-    {
-        $quotation->loadMissing('items', 'client', 'bankAccount');
-
-        $bankAccount = $quotation->bankAccount ?? $quotation->company->defaultBankAccount();
-
-        $doc = [
-            'type_label' => $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
-            'type_label_ar' => $quotation->type === 'proforma' ? 'فاتورة أولية' : 'عرض سعر',
-            'number' => $quotation->quotation_number,
-            'date_label' => __('Issued'),
-            'date' => $quotation->issue_date,
-            'date2_label' => __('Valid until'),
-            'date2_label_ar' => 'صالح حتى',
-            'date2' => $quotation->expiry_date,
-            'party_label' => __('To'),
-            'party_label_ar' => 'العميل',
-            'party' => $quotation->client,
-            'lines' => $quotation->items,
-            'subtotal' => $quotation->subtotal,
-            'discount_total' => $quotation->discount_total,
-            'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
-            'vat_total' => $quotation->vat_total,
-            'total' => $quotation->total,
-            'bank_account' => $bankAccount,
-            'salesperson' => $quotation->salesperson,
-            'notes' => $quotation->notes,
-        ];
-
-        return [
-            'doc' => $doc,
-            'company' => $quotation->company,
-            'template' => $quotation->company->defaultTemplateFor($quotation->type),
-        ];
     }
 
     public function edit(Quotation $quotation)

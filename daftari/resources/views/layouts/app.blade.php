@@ -127,6 +127,7 @@
 
                 @include('partials.nav-item', ['route' => 'app.incomes.index', 'label' => __('Income'), 'icon' => 'income'])
                 @include('partials.nav-item', ['route' => 'app.bank-accounts.index', 'label' => __('Cash & Banks'), 'icon' => 'bank'])
+                @include('partials.nav-item', ['route' => 'app.machinery.letters.index', 'label' => __('Letters & Agreements'), 'icon' => 'legal'])
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'client_statements'))
                     @include('partials.nav-item', ['route' => 'app.client-statements.index', 'label' => __('Client Statements'), 'icon' => 'statement'])
                 @endif
@@ -217,7 +218,6 @@
                             @include('partials.nav-subitem', ['route' => 'app.machinery.rental-contracts.index', 'label' => __('Rental Contracts')])
                             @include('partials.nav-subitem', ['route' => 'app.machinery.hire-in-contracts.index', 'label' => __('Hired-in Equipment')])
                             @include('partials.nav-subitem', ['route' => 'app.machinery.operators.index', 'label' => __('Operators')])
-                            @include('partials.nav-subitem', ['route' => 'app.machinery.letters.index', 'label' => __('Letters & Agreements')])
                         </div>
                     </details>
                 @endif

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\User\QuotationController;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\InvoiceTemplate;
@@ -99,9 +98,7 @@ class QuotationOfferBilingualGreetingTest extends TestCase
     {
         [, $quotation] = $this->makeQuotation();
 
-        $method = new \ReflectionMethod(QuotationController::class, 'pdfData');
-        $method->setAccessible(true);
-        $data = $method->invoke(app(QuotationController::class), $quotation);
+        $data = $quotation->pdfData();
 
         $html = view('documents.print.pdf', $data + ['embed' => fn () => null])->render();
 

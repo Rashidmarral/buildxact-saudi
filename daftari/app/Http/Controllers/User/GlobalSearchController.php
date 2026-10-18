@@ -171,7 +171,12 @@ class GlobalSearchController extends Controller
                     ]),
                 ];
             }
+        }
 
+        // Letters & Agreements is a general-purpose document generator
+        // (nothing machinery-specific about it), un-gated from the
+        // Machinery & Equipment module — see routes/web.php.
+        if ($user->hasPermission('letters')) {
             $letters = CompanyLetter::where(fn ($q) => $q->where('title', 'like', $like)
                 ->orWhere('title_ar', 'like', $like)
                 ->orWhere('reference_number', 'like', $like))

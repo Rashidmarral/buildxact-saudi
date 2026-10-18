@@ -13,7 +13,7 @@
         <p class="text-sm text-slate-500 mt-1">{{ $letter->reference_number }} — {{ $letter->letter_date->format('Y-m-d') }}</p>
     </div>
     <div class="flex items-center gap-2">
-        <a href="{{ route('app.machinery.letters.pdf', $letter) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Download PDF') }}</a>
+        <a href="{{ route('app.machinery.letters.pdf', $letter) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700" @if($letter->links->isNotEmpty()) title="{{ trans_choice('Includes :count linked reference document as a trailing page.|Includes :count linked reference documents as trailing pages.', $letter->links->count(), ['count' => $letter->links->count()]) }}" @endif>{{ __('Download PDF') }}</a>
         <a href="{{ route('app.machinery.letters.edit', $letter) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
     </div>
 </div>
@@ -54,6 +54,29 @@
         </div>
     @endforeach
 </div>
+
+@if ($letter->links->isNotEmpty())
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-1">{{ __('Reference documents') }}</h3>
+        <p class="text-xs text-slate-500 mb-3">{{ __('Each one below is folded into "Download PDF" as its own full document, right after this letter.') }}</p>
+        <div class="divide-y divide-slate-50">
+            @foreach ($letter->links as $link)
+                @continue (! $link->linkable)
+                @php
+                    $isQuotation = $link->linkable_type === \App\Models\Quotation::class;
+                @endphp
+                <div class="flex items-center justify-between py-2.5">
+                    <div>
+                        <span class="inline-block rounded-full bg-slate-100 text-slate-500 text-xs font-medium px-2 py-0.5 me-2">{{ $isQuotation ? __('Quotation') : __('Purchase order') }}</span>
+                        <a href="{{ $isQuotation ? route('app.quotations.show', $link->linkable) : route('app.purchase-orders.show', $link->linkable) }}" class="text-sm text-brand-700 hover:underline">{{ $isQuotation ? $link->linkable->quotation_number : $link->linkable->po_number }}</a>
+                        <span class="text-sm text-slate-400">— {{ $isQuotation ? $link->linkable->client?->name : $link->linkable->supplier?->name }}</span>
+                    </div>
+                    <span class="text-sm font-semibold text-slate-700">{{ \App\Support\Money::format($link->linkable->total) }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endif
 
 <div class="bg-white rounded-xl border border-slate-100 p-6">
     <h3 class="font-semibold text-slate-900 mb-3">{{ __('Attachments') }}</h3>
