@@ -275,6 +275,66 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
     }
 
     /**
+     * Regression test for the old signature block: four stacked
+     * <div class="sig-line"> each carrying its own border-top with only
+     * 22px between them rendered as if the party name and every caption
+     * ("Name and title", "Signature", "Date") had a strikethrough line
+     * drawn right across it, with no actual blank space to sign in. The
+     * new layout is one reliable <table> per party: a full-width blank
+     * line (border-bottom) to physically sign on, a "Signature" caption
+     * underneath it, then "Name and title"/"Date" as their own
+     * label+blank-underline rows.
+     */
+    public function test_the_signature_block_has_a_real_blank_signing_line_and_bilingual_captions(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload());
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('class="sig-top-blank"', $html);
+        $this->assertStringContainsString('Signature / التوقيع', $html);
+        $this->assertStringContainsString('Name and title / الاسم والصفة', $html);
+        $this->assertStringContainsString('Date / التاريخ', $html);
+        $this->assertStringNotContainsString('sig-line', $html);
+    }
+
+    public function test_the_signature_block_captions_mirror_to_rtl_in_arabic_only_mode(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'language_mode' => 'arabic_only',
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('class="sig-fields ar" dir="rtl"', $html);
+        $this->assertStringContainsString('>التوقيع<', $html);
+        $this->assertStringContainsString('>الاسم والصفة<', $html);
+        $this->assertStringNotContainsString('Signature / التوقيع', $html);
+    }
+
+    public function test_the_signature_block_captions_stay_english_in_english_only_mode(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'language_mode' => 'english_only',
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('>Signature<', $html);
+        $this->assertStringContainsString('>Name and title<', $html);
+        $this->assertStringNotContainsString('dir="rtl"', $html);
+    }
+
+    /**
      * Integration check that mPDF actually accepts the
      * htmlpageheader/sethtmlpageheader syntax (not just that the right
      * HTML is emitted) — a genuinely multi-page letter, with both a

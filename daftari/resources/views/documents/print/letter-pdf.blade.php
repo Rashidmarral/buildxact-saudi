@@ -39,6 +39,12 @@
     $safe = fn (?string $text) => str_replace('→', '->', (string) $text);
     $partyBDetails = $letter->partyBDetails();
     $nl2br = fn (?string $text) => nl2br(e($safe($text)));
+    $arabicOnly = $letter->language_mode === 'arabic_only';
+    // A static two-language caption (never the letter's own free-typed
+    // content, so always safe to hardcode the Arabic side like every
+    // other fixed label in this file): both languages in bilingual
+    // mode, just the one language otherwise.
+    $bilabel = fn (string $en, string $ar) => $bilingual ? $en.' / '.$ar : ($showEn ? $en : $ar);
 @endphp
 <!DOCTYPE html>
 <html>
@@ -48,7 +54,6 @@
     body { font-family: cairo, sans-serif; color: #1e293b; font-size: 9.5pt; line-height: 1.5; }
     table { border-collapse: collapse; width: 100%; }
     .ar { direction: rtl; text-align: right; }
-    .muted { color: #64748b; font-size: 8.5pt; }
     .info-table td { padding: 5px 8px; border: 0.5pt solid #e2e8f0; }
     .info-table .k { color: #64748b; font-size: 8pt; }
     .title-bar { background: #0f172a; color: #fff; padding: 8px 10px; font-size: 11pt; font-weight: bold; margin-top: 14px; }
@@ -56,9 +61,18 @@
     .body-table td { vertical-align: top; padding: 8px; border-bottom: 0.5pt solid #e2e8f0; }
     .body-table td.heading { font-weight: bold; color: #0f172a; }
     .section-heading { font-weight: bold; color: #0f172a; margin-top: 12px; }
-    .sig-table td { width: 50%; vertical-align: top; padding: 10px; border: 0.5pt solid #e2e8f0; }
-    .sig-table .sig-header { background: #f1f5f9; font-weight: bold; padding: 6px 8px; }
-    .sig-line { margin-top: 22px; border-top: 0.5pt solid #94a3b8; padding-top: 3px; font-size: 8.5pt; color: #64748b; }
+    .sig-table { margin-top: 24px; }
+    .sig-table td { width: 50%; vertical-align: top; padding: 0; border: 0.75pt solid #cbd5e1; }
+    .sig-table .sig-header { background: #0f172a; color: #fff; font-weight: bold; font-size: 9pt; letter-spacing: 0.4pt; text-transform: uppercase; padding: 7px 14px; }
+    .sig-body { padding: 16px 14px 14px; }
+    .sig-party-name { font-weight: bold; font-size: 10.5pt; color: #0f172a; }
+    .sig-fields { margin-top: 10px; }
+    .sig-fields td { border: none; padding: 5px 0; }
+    .sig-fields .sig-top-blank { border-bottom: 0.75pt solid #475569; padding-top: 24px; }
+    .sig-fields .sig-caption-cell { font-size: 7.5pt; color: #94a3b8; letter-spacing: 0.3pt; text-transform: uppercase; padding-top: 3px; padding-bottom: 12px; }
+    .sig-fields .sig-label { width: 78px; color: #64748b; font-size: 8.5pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 4px; }
+    .sig-fields.ar .sig-label { width: 68px; }
+    .sig-fields .sig-blank { width: 100%; border-bottom: 0.75pt solid #cbd5e1; }
 </style>
 </head>
 <body>
@@ -158,24 +172,42 @@
     @endforeach
 @endif
 
-<table class="sig-table" style="margin-top: 24px;">
+@php
+    $signers = [
+        ['role' => $letter->party_a_role, 'name' => $letter->partyAName()],
+        ['role' => $letter->party_b_role, 'name' => $letter->party_b_name],
+    ];
+@endphp
+<table class="sig-table">
     <tr>
-        <td class="sig-header" colspan="1">{{ $letter->party_a_role }}{{ $bilingual ? ' / '.$letter->party_a_role : '' }}</td>
-        <td class="sig-header">{{ $letter->party_b_role }}{{ $bilingual ? ' / '.$letter->party_b_role : '' }}</td>
+        @foreach ($signers as $signer)
+            <td class="sig-header">{{ $signer['role'] }}{{ $bilingual ? ' / '.$signer['role'] : '' }}</td>
+        @endforeach
     </tr>
     <tr>
-        <td>
-            <div>{{ $letter->partyAName() }}</div>
-            <div class="sig-line">{{ __('Name and title') }}</div>
-            <div class="sig-line">{{ __('Signature') }}</div>
-            <div class="sig-line">{{ __('Date') }}</div>
-        </td>
-        <td>
-            <div>{{ $letter->party_b_name }}</div>
-            <div class="sig-line">{{ __('Name and title') }}</div>
-            <div class="sig-line">{{ __('Signature') }}</div>
-            <div class="sig-line">{{ __('Date') }}</div>
-        </td>
+        @foreach ($signers as $signer)
+            <td>
+                <div class="sig-body">
+                    <div class="sig-party-name">{{ $signer['name'] }}</div>
+                    <table class="sig-fields {{ $arabicOnly ? 'ar' : '' }}" {!! $arabicOnly ? 'dir="rtl"' : '' !!}>
+                        <tr>
+                            <td colspan="2" class="sig-top-blank">&nbsp;</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" class="sig-caption-cell">{{ $bilabel(__('Signature'), 'التوقيع') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="sig-label">{{ $bilabel(__('Name and title'), 'الاسم والصفة') }}</td>
+                            <td class="sig-blank">&nbsp;</td>
+                        </tr>
+                        <tr>
+                            <td class="sig-label">{{ $bilabel(__('Date'), 'التاريخ') }}</td>
+                            <td class="sig-blank">&nbsp;</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        @endforeach
     </tr>
 </table>
 
