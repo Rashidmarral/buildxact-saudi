@@ -21,7 +21,7 @@
     <div class="flex items-center justify-between pb-4 border-b {{ $layout === 'bordered' ? 'border-2' : 'border-slate-100' }}" @if ($layout === 'bordered') style="border-color: {{ $accent }}" @endif>
         <div class="flex items-center gap-3">
             @if ($showLogo && $company->logo_path)
-                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-12 w-12 rounded-lg object-cover border border-slate-100">
+                <img src="{{ Storage::url($company->logo_path) }}" alt="{{ $company->name }}" class="h-12 w-auto max-w-[180px] object-contain">
             @endif
             <div>
                 <h1 class="text-xl font-bold text-slate-900">{{ $company->name }}</h1>

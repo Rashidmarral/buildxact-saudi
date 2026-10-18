@@ -383,4 +383,64 @@ class VoucherRedesignTest extends TestCase
         $this->assertStringContainsString('Saudi National Bank', $html);
         $this->assertStringContainsString('CHQ-1001', $html);
     }
+
+    /**
+     * "reciept voucher heading should be in center same as print body
+     * in print body logo is cutting and in download pdf check boxes
+     * for bank transfer cash is not coming good" — three fixes:
+     * the PDF's "Receipt/Payment Voucher" heading inside the box is
+     * centered again (it was accidentally left-aligned by an earlier
+     * redesign, unlike voucher-body.blade.php's on-screen layout which
+     * has always centered it); chrome-header.blade.php's logo no
+     * longer uses a fixed h-12 w-12 object-cover square (which crops
+     * any non-square logo to fit) — it now scales proportionally with
+     * object-contain, same as every other logo in the app; and the
+     * payment-method selector in the PDF is a clear filled/outlined
+     * pill per method rather than a checkbox mPDF rendered with no
+     * visible border when empty (the same empty-inline-element quirk
+     * fixed earlier for the signature line in
+     * voucher-summary-pdf.blade.php).
+     */
+    public function test_the_pdf_heading_is_centered_and_the_selected_method_is_a_clear_pill(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'Centered Heading Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 300, 'method' => 'bank_transfer',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $voucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount');
+
+        $html = view('documents.print.voucher-pdf', [
+            'voucher' => $voucher,
+            'type' => 'payment',
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('payment_voucher'),
+            'embed' => fn () => null,
+        ])->render();
+
+        $this->assertStringContainsString('text-align: center', $html);
+        $this->assertMatchesRegularExpression('/method-pill selected">Bank transfer/', $html);
+        $this->assertDoesNotMatchRegularExpression('/method-pill selected">Cash/', $html);
+    }
+
+    public function test_the_on_screen_logo_scales_proportionally_instead_of_being_cropped_to_a_square(): void
+    {
+        $company = $this->makeCompany();
+        $company->update(['logo_path' => 'logos/wide-logo.png']);
+
+        $html = view('documents.print.chrome-header', [
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('payment_voucher'),
+        ])->render();
+
+        $this->assertStringContainsString('object-contain', $html);
+        $this->assertStringNotContainsString('object-cover', $html);
+        $this->assertStringNotContainsString('w-12', $html);
+    }
 }

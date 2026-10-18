@@ -52,7 +52,8 @@
     .k { color: #94a3b8; font-size: 8.5pt; }
     .v { font-weight: bold; color: #0f172a; }
     .sign-table td { text-align: center; font-size: 9pt; color: #94a3b8; padding-top: 40px; border-top: 0.5pt solid #cbd5e1; }
-    .checkbox { display: inline-block; width: 10px; height: 10px; border: 1pt solid #1e293b; text-align: center; font-size: 8pt; line-height: 10px; }
+    .method-pill { display: inline-block; padding: 3px 11px; margin-right: 8px; border: 1pt solid #cbd5e1; border-radius: 11px; font-size: 9pt; color: #64748b; }
+    .method-pill.selected { background: {{ $accent }}; border-color: {{ $accent }}; color: #fff; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -81,11 +82,11 @@
 <div class="box">
     <table class="amount-strip">
         <tr>
-            <td style="width: 34%;">
+            <td style="width: 33%;" class="muted">{{ __('No.') }}: <span class="v">{{ $voucher->voucher_number }}</span></td>
+            <td style="width: 34%; text-align: center;">
                 <div style="font-size: 13pt; font-weight: bold; color: #0f172a;">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
                 <div style="font-size: 10pt; color: #64748b;">{{ $isReceipt ? 'سند قبض' : 'سند صرف' }}</div>
             </td>
-            <td style="width: 33%; text-align: center;" class="muted">{{ __('No.') }}: <span class="v">{{ $voucher->voucher_number }}</span></td>
             <td style="width: 33%; text-align: right;">
                 <div style="font-size: 15pt; font-weight: bold; color: {{ $accent }};">{{ \App\Support\Money::format($voucher->amount) }}</div>
             </td>
@@ -109,16 +110,13 @@
         </tr>
         <tr>
             <td colspan="2">
-                <span class="checkbox">{{ $voucher->method === 'cash' ? 'X' : '' }}</span> {{ __('Cash') }} / نقداً
-                &nbsp;&nbsp;
-                <span class="checkbox">{{ $voucher->method === 'bank_transfer' ? 'X' : '' }}</span> {{ __('Bank transfer') }} / حوالة بنكية
-                &nbsp;&nbsp;
-                <span class="checkbox">{{ $voucher->method === 'card' ? 'X' : '' }}</span> {{ __('Card') }} / بطاقة
-                &nbsp;&nbsp;
-                <span class="checkbox">{{ $isCheque ? 'X' : '' }}</span> {{ __('Cheque') }} / بشيك
+                <span class="method-pill{{ $voucher->method === 'cash' ? ' selected' : '' }}">{{ __('Cash') }} / نقداً</span>
+                <span class="method-pill{{ $voucher->method === 'bank_transfer' ? ' selected' : '' }}">{{ __('Bank transfer') }} / حوالة بنكية</span>
+                <span class="method-pill{{ $voucher->method === 'card' ? ' selected' : '' }}">{{ __('Card') }} / بطاقة</span>
+                <span class="method-pill{{ $isCheque ? ' selected' : '' }}">{{ __('Cheque') }} / بشيك</span>
                 @if ($isCheque)
-                    &nbsp;&nbsp; {{ __('No.') }}: <span class="v">{{ $voucher->reference ?: '—' }}</span>
-                    &nbsp;&nbsp; {{ __('Bank') }}: <span class="v">{{ $voucher->bankAccount->bank_name ?: $voucher->bankAccount->name }}</span>
+                    &nbsp;&nbsp;{{ __('No.') }}: <span class="v">{{ $voucher->reference ?: '—' }}</span>
+                    &nbsp;&nbsp;{{ __('Bank') }}: <span class="v">{{ $voucher->bankAccount->bank_name ?: $voucher->bankAccount->name }}</span>
                 @endif
             </td>
         </tr>
