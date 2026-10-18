@@ -154,14 +154,27 @@ class MpdfRenderer
             return $defaults;
         }
 
+        // A sensible floor for a configured letterhead/footer whose real
+        // height couldn't be measured at all (seen in practice: an SVG
+        // upload with no explicit width/height/viewBox on its root
+        // element, which getimagesizefromstring() can't read either —
+        // it has no standard raster header to parse). This is strictly
+        // better than silently falling back to the plain-text $defaults
+        // above, which is exactly what reproduced the overlap this is
+        // fixing: a real image is known to be there, so erring generous
+        // beats erring tiny.
+        $unmeasuredFallback = ['top' => 40.0, 'bottom' => 35.0];
+
         $printableWidthMm = $this->pageWidthMm($pageSize) - 12 - 12;
 
-        if ($template->letterhead_path && $headerHeight = $this->imageHeightMm($template->letterhead_path, $printableWidthMm)) {
-            $defaults['top'] = max($defaults['top'], $headerHeight + 6);
+        if ($template->letterhead_path) {
+            $headerHeight = $this->imageHeightMm($template->letterhead_path, $printableWidthMm);
+            $defaults['top'] = $headerHeight > 0 ? max($defaults['top'], $headerHeight + 6) : $unmeasuredFallback['top'];
         }
 
-        if ($template->footer_path && $footerHeight = $this->imageHeightMm($template->footer_path, $printableWidthMm)) {
-            $defaults['bottom'] = max($defaults['bottom'], $footerHeight + 6);
+        if ($template->footer_path) {
+            $footerHeight = $this->imageHeightMm($template->footer_path, $printableWidthMm);
+            $defaults['bottom'] = $footerHeight > 0 ? max($defaults['bottom'], $footerHeight + 6) : $unmeasuredFallback['bottom'];
         }
 
         return $defaults;
@@ -182,13 +195,54 @@ class MpdfRenderer
             return 0.0;
         }
 
-        $size = @getimagesizefromstring(Storage::disk('public')->get($path));
+        $bytes = Storage::disk('public')->get($path);
+        $size = @getimagesizefromstring($bytes);
 
-        if (! $size || $size[0] <= 0 || $size[1] <= 0) {
-            return 0.0;
+        if ($size && $size[0] > 0 && $size[1] > 0) {
+            return ($size[1] / $size[0]) * $printableWidthMm;
         }
 
-        return ($size[1] / $size[0]) * $printableWidthMm;
+        if (str_ends_with(strtolower($path), '.svg') || str_contains(substr($bytes, 0, 500), '<svg')) {
+            return $this->svgHeightMm($bytes, $printableWidthMm);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * getimagesizefromstring() doesn't reliably read SVG dimensions (no
+     * standard raster header) — read them straight out of the root
+     * <svg> element's width/height attributes instead, falling back to
+     * viewBox (the two most common ways a real-world SVG export states
+     * its own aspect ratio).
+     */
+    private function svgHeightMm(string $svg, float $printableWidthMm): float
+    {
+        preg_match('/<svg\b[^>]*>/i', $svg, $tagMatch);
+        $tag = $tagMatch[0] ?? '';
+
+        $width = $this->svgAttrValue($tag, 'width');
+        $height = $this->svgAttrValue($tag, 'height');
+
+        if ($width > 0 && $height > 0) {
+            return ($height / $width) * $printableWidthMm;
+        }
+
+        if (preg_match('/viewBox\s*=\s*"\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)\s*"/i', $tag, $viewBox)) {
+            $viewBoxWidth = (float) $viewBox[1];
+            $viewBoxHeight = (float) $viewBox[2];
+
+            if ($viewBoxWidth > 0 && $viewBoxHeight > 0) {
+                return ($viewBoxHeight / $viewBoxWidth) * $printableWidthMm;
+            }
+        }
+
+        return 0.0;
+    }
+
+    private function svgAttrValue(string $tag, string $attribute): float
+    {
+        return preg_match('/\b'.$attribute.'\s*=\s*"([\d.]+)/i', $tag, $match) ? (float) $match[1] : 0.0;
     }
 
     private function makeMpdf(string|array $pageSize = 'A4', array $margins = ['top' => 12.0, 'bottom' => 15.0]): Mpdf

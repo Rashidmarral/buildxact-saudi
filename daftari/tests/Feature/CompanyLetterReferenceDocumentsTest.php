@@ -221,17 +221,6 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
     }
 
     /**
-     * "letter head is applied content come on 2 page 1st page show
-     * header and 2nd page shows footer in center every page show
-     * footer header as fixed not by this way" — a plain inline <img>
-     * for the letterhead/footer just flowed once wherever the content
-     * happened to land, so a letter long enough to reach a second page
-     * lost its header entirely and the footer image landed mid-page
-     * instead of at the bottom. Fixed by registering them as mPDF's own
-     * repeating <htmlpageheader>/<htmlpagefooter>, pinned to every
-     * page via <sethtmlpageheader>/<sethtmlpagefooter page="ALL">.
-     */
-    /**
      * Regression test for a real page-1-only overlap: mPDF's auto-margin
      * recalculation (setAutoTopMargin: 'stretch', triggered mid-stream by
      * <sethtmlpageheader>) only grows the margin for pages created AFTER
@@ -281,6 +270,73 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
         $this->assertSame(15.0, $margins['bottom']);
     }
 
+    /**
+     * A real-world reproduction of the overlap persisting even after the
+     * fix above: getimagesizefromstring() doesn't reliably read SVG
+     * dimensions (no standard raster header to parse), so a letterhead
+     * uploaded as an SVG silently measured as 0 height and fell straight
+     * back to the plain 12mm default — reproducing the exact page-1
+     * overlap the margin fix exists to prevent. svgHeightMm() now reads
+     * the <svg> root element's own width/height directly.
+     */
+    public function test_letterhead_margins_are_measured_from_an_svgs_own_width_and_height(): void
+    {
+        [$company] = $this->makeOwner();
+        Storage::fake('public');
+        $path = 'letterheads/'.uniqid().'.svg';
+        Storage::disk('public')->put($path, '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400"><rect width="1600" height="400" fill="#000"/></svg>');
+
+        $template = InvoiceTemplate::create([
+            'company_id' => $company->id, 'document_type' => 'letter', 'name' => 'SVG Letterhead',
+            'layout' => 'custom_letterhead', 'is_default' => true, 'letterhead_path' => $path,
+        ]);
+
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method->setAccessible(true);
+        $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
+
+        // 400/1600 * 186mm printable width = 46.5mm + 6mm clearance.
+        $this->assertEqualsWithDelta(52.5, $margins['top'], 0.01);
+    }
+
+    /**
+     * A letterhead/footer whose dimensions can't be measured at all
+     * (an SVG with no width/height/viewBox on its root element, say)
+     * must still get a generous margin — not the plain 12mm/15mm
+     * default, which is exactly what reproduced the overlap in the
+     * first place: a real image is known to be configured there.
+     */
+    public function test_letterhead_margins_fall_back_generously_when_the_image_cant_be_measured_at_all(): void
+    {
+        [$company] = $this->makeOwner();
+        Storage::fake('public');
+        $path = 'letterheads/'.uniqid().'.svg';
+        Storage::disk('public')->put($path, '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="#000"/></svg>');
+
+        $template = InvoiceTemplate::create([
+            'company_id' => $company->id, 'document_type' => 'letter', 'name' => 'Unmeasurable Letterhead',
+            'layout' => 'custom_letterhead', 'is_default' => true, 'letterhead_path' => $path,
+        ]);
+
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method->setAccessible(true);
+        $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
+
+        $this->assertSame(40.0, $margins['top']);
+        $this->assertGreaterThan(12.0, $margins['top']);
+    }
+
+    /**
+     * "letter head is applied content come on 2 page 1st page show
+     * header and 2nd page shows footer in center every page show
+     * footer header as fixed not by this way" — a plain inline <img>
+     * for the letterhead/footer just flowed once wherever the content
+     * happened to land, so a letter long enough to reach a second page
+     * lost its header entirely and the footer image landed mid-page
+     * instead of at the bottom. Fixed by registering them as mPDF's own
+     * repeating <htmlpageheader>/<htmlpagefooter>, pinned to every
+     * page via <sethtmlpageheader>/<sethtmlpagefooter page="ALL">.
+     */
     public function test_the_custom_letterhead_and_footer_are_registered_as_repeating_page_header_and_footer(): void
     {
         Storage::fake('public');

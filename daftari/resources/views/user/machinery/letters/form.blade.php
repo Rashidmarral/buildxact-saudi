@@ -165,9 +165,12 @@
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <div class="flex items-center justify-between mb-1">
                 <h3 class="font-semibold text-slate-900">{{ __('Content') }}</h3>
-                <button type="button" id="add-block" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('+ Add paragraph') }}</button>
+                <div class="flex items-center gap-3">
+                    <button type="button" id="add-heading" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('+ Add section heading') }}</button>
+                    <button type="button" id="add-block" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('+ Add paragraph') }}</button>
+                </div>
             </div>
-            <p class="text-xs text-slate-500 mb-3">{{ __('Check "Section heading" on a block to use it as a bold section title (e.g. "1 Documentation") instead of a numbered paragraph.') }}</p>
+            <p class="text-xs text-slate-500 mb-3">{{ __('A section heading (e.g. "1 Documentation") is always its own block — add one with "+ Add section heading" rather than typing it at the start of a paragraph, or it won\'t render bold/separated from the text around it.') }}</p>
             <div id="blocks" class="space-y-4"></div>
         </div>
 
@@ -223,6 +226,7 @@
 
     initial.forEach(addBlock);
     document.getElementById('add-block').addEventListener('click', () => addBlock());
+    document.getElementById('add-heading').addEventListener('click', () => addBlock({ text_en: '', text_ar: '', is_heading: true }));
 })();
 </script>
 @endsection
