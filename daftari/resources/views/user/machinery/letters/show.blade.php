@@ -25,8 +25,8 @@
             <div class="flex justify-between"><dt class="text-slate-500">{{ $letter->party_a_role }}</dt><dd>{{ $letter->partyAName() }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-500">{{ $letter->party_b_role }}</dt><dd>{{ $letter->party_b_name }}</dd></div>
         </dl>
-        @if ($letter->party_b_details)
-            <p class="text-xs text-slate-400 mt-3">{{ $letter->party_b_details }}</p>
+        @if ($letter->partyBDetails())
+            <p class="text-xs text-slate-400 mt-3 whitespace-pre-line">{{ $letter->partyBDetails() }}</p>
         @endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-6">
@@ -42,6 +42,9 @@
                 <p class="text-sm text-slate-400">{{ __('Not linked to a specific machine or project.') }}</p>
             @endif
         </dl>
+        @if ($letter->reference_details)
+            <p class="text-xs text-slate-400 mt-3 whitespace-pre-line">{{ $letter->reference_details }}</p>
+        @endif
     </div>
 </div>
 

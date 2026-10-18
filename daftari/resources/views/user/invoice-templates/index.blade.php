@@ -226,6 +226,9 @@
                         @endif
                         <input type="file" name="letterhead" accept="image/*" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <p class="mt-1 text-xs text-slate-400">{{ __('Upload a wide banner image — it replaces the logo/company-name header entirely on this layout.') }}</p>
+                        @unless ($selected->is_default)
+                            <p class="mt-1 text-xs font-semibold text-amber-600">{{ __('Uploading alone doesn\'t activate this template — click "Set as default" above too, or it keeps using whichever template already is the default for this document type.') }}</p>
+                        @endunless
                     </div>
                     <div x-show="layout === 'quotation_offer'" x-data="{ greeting: {{ $selected->show_greeting ? 'true' : 'false' }} }" x-cloak>
                         <label class="flex items-center gap-2 text-sm text-slate-700">

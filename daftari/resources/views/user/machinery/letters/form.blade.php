@@ -68,6 +68,11 @@
                     </select>
                 </div>
             </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reference details (optional)') }}</label>
+                <textarea name="reference_details" rows="2" placeholder="{{ __('e.g. PO document reference: SJC-IMS-QF-01-04 / Purchase order date: 22 Sept 2026 / Referenced quotation: QTN-00003 / Location: Al Jumum') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('reference_details', $letter->reference_details) }}</textarea>
+                <p class="text-xs text-slate-400 mt-1">{{ __('Shown as its own row under Project in the PDF — a client PO number/date, a referenced quotation, a site location, or anything else this letter should cite.') }}</p>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
@@ -117,6 +122,7 @@
             <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Their address / CR / VAT details (optional)') }}</label>
                 <textarea name="party_b_details" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('party_b_details', $letter->party_b_details) }}</textarea>
+                <p class="text-xs text-slate-400 mt-1">{{ __('Leave blank to show the VAT number, CR number, and address already on file for the customer/supplier linked above. Fill this in only to override that.') }}</p>
             </div>
         </div>
 
@@ -157,10 +163,11 @@
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between mb-1">
                 <h3 class="font-semibold text-slate-900">{{ __('Content') }}</h3>
                 <button type="button" id="add-block" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('+ Add paragraph') }}</button>
             </div>
+            <p class="text-xs text-slate-500 mb-3">{{ __('Check "Section heading" on a block to use it as a bold section title (e.g. "1 Documentation") instead of a numbered paragraph.') }}</p>
             <div id="blocks" class="space-y-4"></div>
         </div>
 
@@ -193,7 +200,7 @@
             <div class="flex items-center justify-between mb-2">
                 <label class="flex items-center gap-2 text-xs text-slate-500">
                     <input type="checkbox" name="content[${index}][is_heading]" value="1" ${block.is_heading ? 'checked' : ''}>
-                    ${@json(__('Bold heading'))}
+                    ${@json(__('Section heading'))}
                 </label>
                 <button type="button" class="remove-block text-xs text-red-600 hover:underline">${@json(__('Remove'))}</button>
             </div>

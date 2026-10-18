@@ -328,4 +328,117 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
         $response = $this->actingAs($owner)->get(route('app.machinery.letters.pdf', $letter));
         $response->assertOk();
     }
+
+    private function renderLetterHtml(CompanyLetter $letter): string
+    {
+        $letter->load('project', 'client', 'supplier');
+
+        return view('documents.print.letter-pdf', [
+            'title' => $letter->title,
+            'subject' => $letter->reference_number,
+            'company' => $letter->company,
+            'template' => $letter->company->defaultTemplateFor('letter'),
+            'letter' => $letter,
+            'embed' => fn () => null,
+        ])->render();
+    }
+
+    /**
+     * Regression test: the "Section heading" checkbox on a content block
+     * (App\Models\CompanyLetter content[].is_heading) was always captured
+     * and saved correctly, but in the default bilingual side-by-side
+     * layout the CSS rule that bolds it (.body-table td.heading) could
+     * never match because the surrounding <table> never carried the
+     * body-table class — so a heading looked identical to an ordinary
+     * paragraph in the actual PDF, even though the feature "existed".
+     */
+    public function test_a_section_heading_block_renders_bold_in_the_default_bilingual_layout(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'content' => [
+                ['text_en' => '1 Documentation', 'text_ar' => '1 المستندات', 'is_heading' => true],
+                ['text_en' => '1.1 Some term.', 'text_ar' => '1.1 بند ما.', 'is_heading' => false],
+            ],
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('<table class="body-table"', $html);
+        $this->assertMatchesRegularExpression('/<td class="heading"[^>]*>1 Documentation</', $html);
+        $this->assertMatchesRegularExpression('/<td class="ar heading"[^>]*>1 المستندات</', $html);
+        $this->assertDoesNotMatchRegularExpression('/<td class="heading"[^>]*>1\.1 Some term\./', $html);
+    }
+
+    /**
+     * "these details vat number already given on creating client as i
+     * have issue some invoices to this client" — a letter linked to a
+     * client shouldn't need its VAT/CR/address retyped: when
+     * party_b_details is left blank, the PDF pulls it from the client's
+     * own record instead of silently showing nothing.
+     */
+    public function test_party_b_details_auto_fills_from_the_linked_clients_vat_and_cr_number_when_left_blank(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $client = Client::create([
+            'company_id' => $company->id, 'name' => 'Sada Al Jeul Construction Est.',
+            'vat_number' => '310046779800003', 'cr_number' => '4030123456',
+            'city' => 'Jeddah', 'country' => 'Saudi Arabia',
+        ]);
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'client_id' => $client->id,
+            'party_b_details' => '',
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('310046779800003', $html);
+        $this->assertStringContainsString('4030123456', $html);
+        $this->assertStringContainsString('Jeddah', $html);
+    }
+
+    public function test_explicit_party_b_details_overrides_the_auto_filled_client_info(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $client = Client::create([
+            'company_id' => $company->id, 'name' => 'Sada Al Jeul Construction Est.',
+            'vat_number' => '310046779800003',
+        ]);
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'client_id' => $client->id,
+            'party_b_details' => 'Hand-typed override text.',
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('Hand-typed override text.', $html);
+        $this->assertStringNotContainsString('310046779800003', $html);
+    }
+
+    /**
+     * "project details not coming like po number" — a free-text field
+     * for exactly this kind of overflow (a client's own PO reference and
+     * date, a referenced quotation, a site location) that the Project
+     * dropdown alone can't capture.
+     */
+    public function test_reference_details_renders_as_its_own_row_when_present(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'reference_details' => "PO document reference: SJC-IMS-QF-01-04\nReferenced quotation: QTN-00003",
+        ]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringContainsString('SJC-IMS-QF-01-04', $html);
+        $this->assertStringContainsString('QTN-00003', $html);
+    }
 }

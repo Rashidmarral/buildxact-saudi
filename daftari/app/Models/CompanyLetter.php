@@ -23,7 +23,7 @@ class CompanyLetter extends Model
 
     protected $fillable = [
         'company_id', 'machinery_asset_id', 'machinery_rental_contract_id', 'machinery_hire_in_contract_id', 'project_id',
-        'document_type', 'reference_number', 'title', 'title_ar', 'letter_date',
+        'document_type', 'reference_number', 'title', 'title_ar', 'letter_date', 'reference_details',
         'party_a_role', 'party_a_name', 'party_b_role', 'party_b_name', 'party_b_details',
         'client_id', 'supplier_id', 'language_mode', 'content', 'created_by',
     ];
@@ -95,5 +95,34 @@ class CompanyLetter extends Model
     public function titleAr(): string
     {
         return $this->title_ar ?: $this->title;
+    }
+
+    /**
+     * What the PDF shows under Party B's name. Free-typed party_b_details
+     * always wins when set; otherwise it's built from whichever record
+     * (client or supplier) this letter is linked to — their VAT number,
+     * CR number, and address are already on file (entered once when the
+     * client/supplier was created), so a letter linked to one shouldn't
+     * need that typed out again by hand.
+     */
+    public function partyBDetails(): ?string
+    {
+        if (trim((string) $this->party_b_details) !== '') {
+            return $this->party_b_details;
+        }
+
+        $party = $this->client ?? $this->supplier;
+
+        if (! $party) {
+            return null;
+        }
+
+        $lines = collect([
+            $party->vat_number ? __('VAT number: :number', ['number' => $party->vat_number]) : null,
+            $party->cr_number ? __('CR Number: :number', ['number' => $party->cr_number]) : null,
+            $party->fullAddress() ?: null,
+        ])->filter();
+
+        return $lines->isNotEmpty() ? $lines->implode("\n") : null;
     }
 }

@@ -27,6 +27,8 @@
     // punctuation marks seen in free-typed content (matches the guard
     // already used by project-cash-flow-pdf.blade.php for '→').
     $safe = fn (?string $text) => str_replace('→', '->', (string) $text);
+    $partyBDetails = $letter->partyBDetails();
+    $nl2br = fn (?string $text) => nl2br(e($safe($text)));
 @endphp
 <!DOCTYPE html>
 <html>
@@ -84,10 +86,22 @@
         <td class="{{ $showEn ? '' : 'ar' }}"><div class="k">{{ $showEn ? __('Subject') : 'الموضوع' }}</div>{{ $showEn ? $letter->title : $letter->titleAr() }}</td>
         @if ($bilingual)<td class="ar"><div class="k">الموضوع</div>{{ $letter->titleAr() }}</td>@endif
     </tr>
+    @if ($partyBDetails)
+        <tr>
+            <td colspan="{{ $bilingual ? 2 : 1 }}" class="{{ $showEn ? '' : 'ar' }}"><div class="k">{{ $showEn ? __('Their details') : 'بيانات الطرف الثاني' }}</div>{!! $nl2br($partyBDetails) !!}</td>
+            @if ($bilingual)<td colspan="2" class="ar"><div class="k">بيانات الطرف الثاني</div>{!! $nl2br($partyBDetails) !!}</td>@endif
+        </tr>
+    @endif
     @if ($letter->project)
         <tr>
             <td colspan="{{ $bilingual ? 2 : 1 }}" class="{{ $showEn ? '' : 'ar' }}"><div class="k">{{ $showEn ? __('Project') : 'المشروع' }}</div>{{ $letter->project->name }}</td>
             @if ($bilingual)<td colspan="2" class="ar"><div class="k">المشروع</div>{{ $letter->project->name }}</td>@endif
+        </tr>
+    @endif
+    @if ($letter->reference_details)
+        <tr>
+            <td colspan="{{ $bilingual ? 2 : 1 }}" class="{{ $showEn ? '' : 'ar' }}"><div class="k">{{ $showEn ? __('Reference details') : 'تفاصيل مرجعية' }}</div>{!! $nl2br($letter->reference_details) !!}</td>
+            @if ($bilingual)<td colspan="2" class="ar"><div class="k">تفاصيل مرجعية</div>{!! $nl2br($letter->reference_details) !!}</td>@endif
         </tr>
     @endif
 </table>
@@ -98,7 +112,7 @@
     <div class="title-bar {{ $showAr ? 'ar' : '' }}">{{ $showEn ? $letter->title : $letter->titleAr() }}</div>
 @endif
 
-<table style="margin-top: 10px;">
+<table class="body-table" style="margin-top: 10px;">
     @foreach ($letter->content as $block)
         @if ($bilingual && ! $stacked)
             <tr>

@@ -314,6 +314,7 @@ class CompanyLetterController extends Controller
             'machinery_rental_contract_id' => ['nullable', Rule::exists('machinery_rental_contracts', 'id')->where('company_id', $companyId)],
             'machinery_hire_in_contract_id' => ['nullable', Rule::exists('machinery_hire_in_contracts', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
+            'reference_details' => ['nullable', 'string', 'max:2000'],
             'document_type' => ['required', 'string', 'max:40'],
             'title' => ['required', 'string', 'max:255'],
             'title_ar' => ['nullable', 'string', 'max:255'],
