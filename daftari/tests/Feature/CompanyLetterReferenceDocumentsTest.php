@@ -218,6 +218,100 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
         $this->assertStringContainsString('fake-letterhead-data', $html);
     }
 
+    /**
+     * "letter head is applied content come on 2 page 1st page show
+     * header and 2nd page shows footer in center every page show
+     * footer header as fixed not by this way" — a plain inline <img>
+     * for the letterhead/footer just flowed once wherever the content
+     * happened to land, so a letter long enough to reach a second page
+     * lost its header entirely and the footer image landed mid-page
+     * instead of at the bottom. Fixed by registering them as mPDF's own
+     * repeating <htmlpageheader>/<htmlpagefooter>, pinned to every
+     * page via <sethtmlpageheader>/<sethtmlpagefooter page="ALL">.
+     */
+    public function test_the_custom_letterhead_and_footer_are_registered_as_repeating_page_header_and_footer(): void
+    {
+        Storage::fake('public');
+        [$company, $owner] = $this->makeOwner();
+        $letterheadPath = Storage::disk('public')->putFile('letterheads', UploadedFile::fake()->image('letterhead.png', 1000, 300));
+        $footerPath = Storage::disk('public')->putFile('footers', UploadedFile::fake()->image('footer.png', 1000, 200));
+
+        InvoiceTemplate::create([
+            'company_id' => $company->id, 'document_type' => 'letter', 'name' => 'Our Letterhead',
+            'layout' => 'custom_letterhead', 'is_default' => true,
+            'letterhead_path' => $letterheadPath, 'footer_path' => $footerPath,
+        ]);
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload());
+        $letter = CompanyLetter::latest('id')->first();
+        $letter->load('machinery', 'project', 'client', 'supplier');
+
+        $html = view('documents.print.letter-pdf', [
+            'title' => $letter->title,
+            'subject' => $letter->reference_number,
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('letter'),
+            'letter' => $letter,
+            'embed' => fn ($path) => $path ? 'data:image/png;base64,fake' : null,
+        ])->render();
+
+        $this->assertStringContainsString('<htmlpageheader name="letterhead">', $html);
+        $this->assertStringContainsString('<sethtmlpageheader name="letterhead" page="ALL"', $html);
+        $this->assertStringContainsString('<htmlpagefooter name="letterfooter">', $html);
+        $this->assertStringContainsString('<sethtmlpagefooter name="letterfooter" page="ALL"', $html);
+    }
+
+    /** The "generated from a starting template" disclaimer line was removed per request. */
+    public function test_the_generated_from_a_starting_template_disclaimer_is_no_longer_shown(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload());
+        $letter = CompanyLetter::latest('id')->first();
+
+        $html = $this->renderLetterHtml($letter);
+
+        $this->assertStringNotContainsString('generated from a starting template', $html);
+    }
+
+    /**
+     * Integration check that mPDF actually accepts the
+     * htmlpageheader/sethtmlpageheader syntax (not just that the right
+     * HTML is emitted) — a genuinely multi-page letter, with both a
+     * letterhead and footer image configured, must still render without
+     * error and land its content on more than one real PDF page.
+     */
+    public function test_a_long_letter_with_a_custom_letterhead_and_footer_spans_multiple_pdf_pages_without_error(): void
+    {
+        Storage::fake('public');
+        [$company, $owner] = $this->makeOwner();
+        $letterheadPath = Storage::disk('public')->putFile('letterheads', UploadedFile::fake()->image('letterhead.png', 1000, 250));
+        $footerPath = Storage::disk('public')->putFile('footers', UploadedFile::fake()->image('footer.png', 1000, 150));
+
+        InvoiceTemplate::create([
+            'company_id' => $company->id, 'document_type' => 'letter', 'name' => 'Our Letterhead',
+            'layout' => 'custom_letterhead', 'is_default' => true,
+            'letterhead_path' => $letterheadPath, 'footer_path' => $footerPath,
+        ]);
+
+        $content = [];
+        for ($i = 1; $i <= 10; $i++) {
+            $content[] = [
+                'text_en' => "Clause $i. ".str_repeat('Lorem ipsum dolor sit amet consectetur adipiscing elit. ', 6),
+                'text_ar' => "البند $i. ".str_repeat('نص عربي طويل لملء الصفحة بشكل كافٍ. ', 6),
+                'is_heading' => false,
+            ];
+        }
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload(['content' => $content]));
+        $letter = CompanyLetter::latest('id')->first();
+
+        $response = $this->actingAs($owner)->get(route('app.machinery.letters.pdf', $letter));
+
+        $response->assertOk();
+        $this->assertGreaterThan(1, $this->pdfPageCount($response->getContent()));
+    }
+
     public function test_without_a_custom_letterhead_the_auto_generated_bilingual_header_is_used(): void
     {
         [$company, $owner] = $this->makeOwner();

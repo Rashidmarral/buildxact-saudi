@@ -153,6 +153,16 @@ class MpdfRenderer
             'margin_right' => 12,
             'margin_top' => 12,
             'margin_bottom' => 15,
+            // Only takes effect for a document that actually defines a
+            // repeating HTML header/footer via mPDF's own
+            // <htmlpageheader>/<sethtmlpageheader> tags (currently just
+            // letter-pdf.blade.php's custom letterhead) — it auto-grows
+            // the page's top/bottom margin to fit whatever that header/
+            // footer's real rendered height turns out to be, so body
+            // content never overlaps it. A no-op for every other
+            // document, which never sets an HTML header/footer at all.
+            'setAutoTopMargin' => 'stretch',
+            'setAutoBottomMargin' => 'stretch',
             'default_font' => 'cairo',
             'fontDir' => array_merge($fontDirs, [resource_path('fonts')]),
             'fontdata' => $fontData + [

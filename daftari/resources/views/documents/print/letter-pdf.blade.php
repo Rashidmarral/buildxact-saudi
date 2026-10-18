@@ -13,6 +13,16 @@
     paragraph as an EN|AR table row, the same two-column technique as
     pdf-bilingual-header.blade.php. $letter->language_mode overrides
     both when set to a single language.
+
+    The letterhead image and footer image are registered as mPDF's own
+    repeating <htmlpageheader>/<htmlpagefooter> (not a plain inline
+    <img>) so they're pinned to the top/bottom of EVERY page a letter
+    spans, instead of just flowing once wherever the content happens to
+    end — which, for any letter long enough to reach a second page,
+    used to land the footer mid-page instead of at the bottom. mPDF's
+    setAutoTopMargin/setAutoBottomMargin (see MpdfRenderer::makeMpdf())
+    grow the page margins to match, so body content never runs under
+    either image.
 --}}
 @php
     $logoData = $embed($company->logo_path ?? null);
@@ -54,9 +64,19 @@
 <body>
 
 @if ($layout === 'custom_letterhead' && $letterheadData)
-    <img src="{{ $letterheadData }}" style="width: 100%;" alt="">
+    <htmlpageheader name="letterhead">
+        <img src="{{ $letterheadData }}" style="width: 100%;" alt="">
+    </htmlpageheader>
+    <sethtmlpageheader name="letterhead" page="ALL" show-this-page="1" />
 @else
     @include('documents.print.pdf-bilingual-header', ['company' => $company, 'logoData' => $logoData, 'showLogo' => true])
+@endif
+
+@if ($footerData)
+    <htmlpagefooter name="letterfooter">
+        <img src="{{ $footerData }}" style="width: 100%;" alt="">
+    </htmlpagefooter>
+    <sethtmlpagefooter name="letterfooter" page="ALL" />
 @endif
 
 {{--
@@ -158,12 +178,6 @@
         </td>
     </tr>
 </table>
-
-<p class="muted" style="margin-top: 16px;">{{ __('This letter was generated from a starting template and should be reviewed against your own agreement before relying on it.') }}</p>
-
-@if ($footerData)
-    <img src="{{ $footerData }}" style="width: 100%; margin-top: 20px;" alt="">
-@endif
 
 </body>
 </html>
