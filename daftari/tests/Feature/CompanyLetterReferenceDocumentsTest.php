@@ -14,9 +14,11 @@ use App\Models\PurchaseOrder;
 use App\Models\Quotation;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\MpdfRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -229,6 +231,56 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
      * repeating <htmlpageheader>/<htmlpagefooter>, pinned to every
      * page via <sethtmlpageheader>/<sethtmlpagefooter page="ALL">.
      */
+    /**
+     * Regression test for a real page-1-only overlap: mPDF's auto-margin
+     * recalculation (setAutoTopMargin: 'stretch', triggered mid-stream by
+     * <sethtmlpageheader>) only grows the margin for pages created AFTER
+     * that point — page 1 had already started with the default 12mm top
+     * margin, so a letterhead image taller than that overlapped the
+     * info-table directly below it (confirmed visually: page 2+ always
+     * had the correct, larger margin). Fixed by measuring the real
+     * uploaded image and pre-sizing margin_top/margin_bottom before the
+     * Mpdf object — and therefore page 1 — is even created.
+     */
+    public function test_letterhead_margins_are_sized_to_fit_the_real_uploaded_image_height(): void
+    {
+        Storage::fake('public');
+        [$company] = $this->makeOwner();
+
+        // 1600x500px at full page width on A4 (210mm - 24mm margins =
+        // 186mm printable) scales to 500/1600*186 = 58.125mm tall — well
+        // past the 12mm default that used to cause the page-1 overlap.
+        $letterheadPath = Storage::disk('public')->putFile('letterheads', UploadedFile::fake()->image('letterhead.png', 1600, 500));
+
+        $template = InvoiceTemplate::create([
+            'company_id' => $company->id, 'document_type' => 'letter', 'name' => 'Our Letterhead',
+            'layout' => 'custom_letterhead', 'is_default' => true, 'letterhead_path' => $letterheadPath,
+        ]);
+
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method->setAccessible(true);
+        $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
+
+        $this->assertEqualsWithDelta(64.125, $margins['top'], 0.01);
+        $this->assertSame(15.0, $margins['bottom']);
+    }
+
+    /** A template without a custom letterhead must keep the ordinary default margins. */
+    public function test_letterhead_margins_stay_at_the_default_without_a_custom_letterhead(): void
+    {
+        [$company] = $this->makeOwner();
+        $template = InvoiceTemplate::create([
+            'company_id' => $company->id, 'document_type' => 'letter', 'name' => 'Plain', 'layout' => 'minimal', 'is_default' => true,
+        ]);
+
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method->setAccessible(true);
+        $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
+
+        $this->assertSame(12.0, $margins['top']);
+        $this->assertSame(15.0, $margins['bottom']);
+    }
+
     public function test_the_custom_letterhead_and_footer_are_registered_as_repeating_page_header_and_footer(): void
     {
         Storage::fake('public');

@@ -27,7 +27,7 @@ class MpdfRenderer
             $template = $data['template'] ?? null;
             $pageSize = $this->resolvePageSize($template);
 
-            $mpdf = $this->makeMpdf($pageSize);
+            $mpdf = $this->makeMpdf($pageSize, $this->resolveLetterheadMargins($template, $pageSize));
             $embed = $this->embedHelper();
 
             // A template's background watermark is an mPDF page feature
@@ -131,7 +131,67 @@ class MpdfRenderer
         return ($template instanceof \App\Models\InvoiceTemplate && $template->page_size === 'letter') ? 'Letter' : 'A4';
     }
 
-    private function makeMpdf(string|array $pageSize = 'A4'): Mpdf
+    /**
+     * mPDF's own auto-margin recalculation (setAutoTopMargin/
+     * setAutoBottomMargin: 'stretch', triggered by letter-pdf.blade.php's
+     * <sethtmlpageheader>/<sethtmlpagefooter>) only grows the page margin
+     * from the point in the HTML stream where it's processed onward — by
+     * the time that tag runs, page 1 has already started with whatever
+     * margin the Mpdf constructor set, so a letterhead/footer image
+     * taller than the default margin overlapped the body content on page
+     * 1 specifically (confirmed: page 2+ always had the correct, larger
+     * margin, since AddPage() for those happens after the recalculation).
+     * Measuring the real image dimensions and sizing margin_top/
+     * margin_bottom to fit BEFORE the Mpdf object (and therefore page 1)
+     * is ever created fixes this at the source; 'stretch' stays on as a
+     * safety net for a measurement that somehow still comes up short.
+     */
+    private function resolveLetterheadMargins(mixed $template, string|array $pageSize): array
+    {
+        $defaults = ['top' => 12.0, 'bottom' => 15.0];
+
+        if (! $template instanceof \App\Models\InvoiceTemplate || $template->layout !== 'custom_letterhead') {
+            return $defaults;
+        }
+
+        $printableWidthMm = $this->pageWidthMm($pageSize) - 12 - 12;
+
+        if ($template->letterhead_path && $headerHeight = $this->imageHeightMm($template->letterhead_path, $printableWidthMm)) {
+            $defaults['top'] = max($defaults['top'], $headerHeight + 6);
+        }
+
+        if ($template->footer_path && $footerHeight = $this->imageHeightMm($template->footer_path, $printableWidthMm)) {
+            $defaults['bottom'] = max($defaults['bottom'], $footerHeight + 6);
+        }
+
+        return $defaults;
+    }
+
+    private function pageWidthMm(string|array $pageSize): float
+    {
+        if (is_array($pageSize)) {
+            return (float) $pageSize[0];
+        }
+
+        return $pageSize === 'Letter' ? 215.9 : 210.0;
+    }
+
+    private function imageHeightMm(string $path, float $printableWidthMm): float
+    {
+        if (! Storage::disk('public')->exists($path)) {
+            return 0.0;
+        }
+
+        $size = @getimagesizefromstring(Storage::disk('public')->get($path));
+
+        if (! $size || $size[0] <= 0 || $size[1] <= 0) {
+            return 0.0;
+        }
+
+        return ($size[1] / $size[0]) * $printableWidthMm;
+    }
+
+    private function makeMpdf(string|array $pageSize = 'A4', array $margins = ['top' => 12.0, 'bottom' => 15.0]): Mpdf
     {
         $defaultConfig = (new \Mpdf\Config\ConfigVariables())->getDefaults();
         $fontDirs = $defaultConfig['fontDir'];
@@ -151,8 +211,8 @@ class MpdfRenderer
             'format' => $pageSize,
             'margin_left' => 12,
             'margin_right' => 12,
-            'margin_top' => 12,
-            'margin_bottom' => 15,
+            'margin_top' => $margins['top'],
+            'margin_bottom' => $margins['bottom'],
             // Only takes effect for a document that actually defines a
             // repeating HTML header/footer via mPDF's own
             // <htmlpageheader>/<sethtmlpageheader> tags (currently just
@@ -161,6 +221,9 @@ class MpdfRenderer
             // footer's real rendered height turns out to be, so body
             // content never overlaps it. A no-op for every other
             // document, which never sets an HTML header/footer at all.
+            // Acts only as a safety net now that margin_top/margin_bottom
+            // above are already pre-sized for a custom letterhead (see
+            // resolveLetterheadMargins()) — that's what fixes page 1.
             'setAutoTopMargin' => 'stretch',
             'setAutoBottomMargin' => 'stretch',
             'default_font' => 'cairo',
