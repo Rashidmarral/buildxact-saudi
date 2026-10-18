@@ -443,4 +443,74 @@ class VoucherRedesignTest extends TestCase
         $this->assertStringNotContainsString('object-cover', $html);
         $this->assertStringNotContainsString('w-12', $html);
     }
+
+    /**
+     * "can we add something in footer like address email etc that look
+     * professional" — a contact footer band (address, phone, email,
+     * separated by middots) below the signature area, on both the PDF
+     * and the matching on-screen voucher page.
+     */
+    public function test_the_pdf_and_on_screen_voucher_show_a_professional_contact_footer(): void
+    {
+        $company = $this->makeCompany();
+        $company->update([
+            'address' => 'Building 8562, Al Buhayrat Dist.', 'city' => 'Makkah',
+            'phone' => '+966 12 123 4567', 'email' => 'info@zubaidi.sa',
+        ]);
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'Footer Test Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 150, 'method' => 'cash',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $voucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount');
+
+        $pdfHtml = view('documents.print.voucher-pdf', [
+            'voucher' => $voucher,
+            'type' => 'payment',
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('payment_voucher'),
+            'embed' => fn () => null,
+        ])->render();
+
+        $this->assertStringContainsString('Building 8562, Al Buhayrat Dist., Makkah', $pdfHtml);
+        $this->assertStringContainsString('+966 12 123 4567', $pdfHtml);
+        $this->assertStringContainsString('info@zubaidi.sa', $pdfHtml);
+
+        $showResponse = $this->actingAs($owner)->get(route('app.payment-vouchers.show', $voucher));
+        $showResponse->assertOk();
+        $showResponse->assertSee('Building 8562, Al Buhayrat Dist., Makkah');
+        $showResponse->assertSee('+966 12 123 4567');
+        $showResponse->assertSee('info@zubaidi.sa');
+    }
+
+    public function test_the_footer_is_omitted_entirely_when_the_company_has_no_contact_details(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'No Footer Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 150, 'method' => 'cash',
+        ]);
+
+        $voucher = PaymentVoucher::first();
+        $voucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount');
+
+        $html = view('documents.print.voucher-pdf', [
+            'voucher' => $voucher,
+            'type' => 'payment',
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('payment_voucher'),
+            'embed' => fn () => null,
+        ])->render();
+
+        $this->assertStringNotContainsString('<table class="footer-contact-table">', $html);
+    }
 }

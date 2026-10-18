@@ -123,5 +123,20 @@
             <p class="mt-2 text-xs text-slate-500">{{ __('Receiver') }} <span dir="rtl">توقيع المستلم</span></p>
         </div>
     </div>
+
+    @php($company = $voucher->company)
+    @if ($company->address || $company->city || $company->phone || $company->email)
+        <p class="mt-6 pt-3 border-t border-slate-100 text-center text-xs text-slate-400">
+            @if ($company->address || $company->city)
+                <span>{{ $company->address }}{{ $company->address && $company->city ? ', ' : '' }}{{ $company->city }}</span>
+            @endif
+            @if ($company->phone)
+                <span>@if ($company->address || $company->city)&nbsp;&nbsp;·&nbsp;&nbsp;@endif{{ $company->phone }}</span>
+            @endif
+            @if ($company->email)
+                <span>@if ($company->address || $company->city || $company->phone)&nbsp;&nbsp;·&nbsp;&nbsp;@endif{{ $company->email }}</span>
+            @endif
+        </p>
+    @endif
     </div>
 </div>

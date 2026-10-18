@@ -54,6 +54,8 @@
     .sign-table td { text-align: center; font-size: 9pt; color: #94a3b8; padding-top: 40px; border-top: 0.5pt solid #cbd5e1; }
     .method-pill { display: inline-block; padding: 3px 11px; margin-right: 8px; border: 1pt solid #cbd5e1; border-radius: 11px; font-size: 9pt; color: #64748b; }
     .method-pill.selected { background: {{ $accent }}; border-color: {{ $accent }}; color: #fff; font-weight: bold; }
+    .footer-contact-table { margin-top: 22px; }
+    .footer-contact { border-top: 0.75pt solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 8pt; color: #94a3b8; }
 </style>
 </head>
 <body>
@@ -155,6 +157,22 @@
         </tr>
     </table>
 </div>
+
+@if ($company->address || $company->city || $company->phone || $company->email)
+    <table class="footer-contact-table">
+        <tr><td class="footer-contact">
+            @if ($company->address || $company->city)
+                <span>{{ $company->address }}{{ $company->address && $company->city ? ', ' : '' }}{{ $company->city }}</span>
+            @endif
+            @if ($company->phone)
+                <span>@if ($company->address || $company->city)&nbsp;&nbsp;·&nbsp;&nbsp;@endif{{ $company->phone }}</span>
+            @endif
+            @if ($company->email)
+                <span>@if ($company->address || $company->city || $company->phone)&nbsp;&nbsp;·&nbsp;&nbsp;@endif{{ $company->email }}</span>
+            @endif
+        </td></tr>
+    </table>
+@endif
 
 @if ($footerData)
     <img src="{{ $footerData }}" style="width: 100%; margin-top: 20px;" alt="">
