@@ -7,6 +7,8 @@ use App\Models\AccountMapping;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\CompanyLetter;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\InvoiceTemplate;
 use App\Models\PurchaseOrder;
 use App\Models\Quotation;
@@ -20,18 +22,38 @@ use Tests\TestCase;
 /**
  * "i need to send my client a document with attach agreement p/o order
  * and quotations in a single pdf document" — a letter can reference
- * existing Quotations/Purchase Orders (CompanyLetterLink), and
+ * existing Quotations/Purchase Orders/Invoices (CompanyLetterLink), and
  * "Download PDF" folds each one's own live-rendered PDF in behind the
  * letter itself via MpdfRenderer::mergePdfs(), the same mechanism
  * PurchaseOrderController::downloadPdf() already uses for its own PDF
  * attachments. Also covers the optional custom letterhead
- * ("letter pad should be optional to attach") and that Letters &
+ * ("letter pad should be optional to attach"), that Letters &
  * Agreements is no longer gated behind the Machinery & Equipment module
- * ("other companies can also upload for there documents").
+ * ("other companies can also upload for there documents"), and — "i
+ * will attach my client p/o not my issued p/o" — that a client's own
+ * PO (never a Daftari PurchaseOrder record, which is always this
+ * company's own issued order to its supplier) goes through the
+ * ordinary file attachments() upload instead, and that upload is ALSO
+ * merged into "Download PDF".
  */
 class CompanyLetterReferenceDocumentsTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * A hand-built, minimal-but-valid single-page PDF — small enough to
+     * embed as a literal and reliably parseable by mPDF's bundled FPDI
+     * parser (same fixture used in PurchaseOrderPdfLayoutAndAttachmentMergeTest),
+     * used to simulate a real PDF attachment such as a client's own PO.
+     */
+    private const MINIMAL_PDF = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n164\n%%EOF";
+
+    private function pdfPageCount(string $bytes): int
+    {
+        preg_match_all('/\/Type\s*\/Page(?!s)\b/', $bytes, $matches);
+
+        return count($matches[0]);
+    }
 
     private function makeOwner(): array
     {
@@ -217,5 +239,93 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
         // "Kingdom of Saudi Arabia" line — never present when a real
         // letterhead image took over instead.
         $this->assertStringContainsString('Kingdom of Saudi Arabia', $html);
+    }
+
+    public function test_a_letter_can_link_an_invoice_and_it_is_merged_into_the_download(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Al Jeul Construction']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-0001',
+            'status' => 'sent', 'issue_date' => now(), 'due_date' => now()->addDays(30),
+            'subtotal' => 1000, 'vat_total' => 150, 'total' => 1150, 'currency' => 'SAR',
+        ]);
+        InvoiceItem::create(['invoice_id' => $invoice->id, 'description' => 'Work', 'quantity' => 1, 'unit_price' => 1000, 'vat_rate' => 15, 'vat_amount' => 150, 'line_total' => 1150]);
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'linked_invoices' => [$invoice->id],
+        ]))->assertSessionDoesntHaveErrors();
+
+        $letter = CompanyLetter::latest('id')->first();
+        $this->assertCount(1, $letter->links);
+        $this->assertSame(Invoice::class, $letter->links->first()->linkable_type);
+
+        $response = $this->actingAs($owner)->get(route('app.machinery.letters.pdf', $letter));
+        $response->assertOk();
+    }
+
+    public function test_a_company_cannot_link_another_companys_invoice(): void
+    {
+        [$companyA, $ownerA] = $this->makeOwner();
+        [$companyB] = $this->makeOwner();
+        $clientB = Client::create(['company_id' => $companyB->id, 'name' => 'Other Co Client']);
+        $foreignInvoice = Invoice::create([
+            'company_id' => $companyB->id, 'client_id' => $clientB->id, 'invoice_number' => 'INV-FOREIGN',
+            'status' => 'sent', 'issue_date' => now(), 'due_date' => now()->addDays(30),
+            'subtotal' => 1000, 'vat_total' => 150, 'total' => 1150, 'currency' => 'SAR',
+        ]);
+
+        $response = $this->actingAs($ownerA)->post(route('app.machinery.letters.store'), $this->basePayload([
+            'linked_invoices' => [$foreignInvoice->id],
+        ]));
+
+        $response->assertSessionHasErrors('linked_invoices.0');
+        $this->assertSame(0, CompanyLetter::count());
+    }
+
+    /**
+     * "i will attach my client p/o not my issued p/o" — a client's own
+     * PO is an external document (never a Daftari PurchaseOrder record,
+     * which is always this company's own issued order to a supplier),
+     * so it's uploaded as an ordinary file attachment. That attachment
+     * must itself be folded into "Download PDF" too, not left as a
+     * separate download.
+     */
+    public function test_an_uploaded_pdf_attachment_such_as_a_clients_own_po_is_merged_into_the_download(): void
+    {
+        Storage::fake('public');
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload());
+        $letter = CompanyLetter::latest('id')->first();
+
+        $withoutAttachment = $this->actingAs($owner)->get(route('app.machinery.letters.pdf', $letter));
+        $withoutAttachment->assertOk();
+        $pagesBefore = $this->pdfPageCount($withoutAttachment->getContent());
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.attachments.store', $letter), [
+            'file' => UploadedFile::fake()->createWithContent('client-po.pdf', self::MINIMAL_PDF),
+        ])->assertSessionDoesntHaveErrors();
+
+        $withAttachment = $this->actingAs($owner)->get(route('app.machinery.letters.pdf', $letter));
+        $withAttachment->assertOk();
+
+        $this->assertSame($pagesBefore + 1, $this->pdfPageCount($withAttachment->getContent()));
+    }
+
+    public function test_a_non_pdf_attachment_is_not_merged_but_still_downloads_fine(): void
+    {
+        Storage::fake('public');
+        [$company, $owner] = $this->makeOwner();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.store'), $this->basePayload());
+        $letter = CompanyLetter::latest('id')->first();
+
+        $this->actingAs($owner)->post(route('app.machinery.letters.attachments.store', $letter), [
+            'file' => UploadedFile::fake()->image('signed-copy.jpg'),
+        ])->assertSessionDoesntHaveErrors();
+
+        $response = $this->actingAs($owner)->get(route('app.machinery.letters.pdf', $letter));
+        $response->assertOk();
     }
 }

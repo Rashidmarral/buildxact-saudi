@@ -63,13 +63,17 @@
             @foreach ($letter->links as $link)
                 @continue (! $link->linkable)
                 @php
-                    $isQuotation = $link->linkable_type === \App\Models\Quotation::class;
+                    [$badge, $url, $number, $party] = match ($link->linkable_type) {
+                        \App\Models\Quotation::class => [__('Quotation'), route('app.quotations.show', $link->linkable), $link->linkable->quotation_number, $link->linkable->client?->name],
+                        \App\Models\PurchaseOrder::class => [__('Purchase order'), route('app.purchase-orders.show', $link->linkable), $link->linkable->po_number, $link->linkable->supplier?->name],
+                        \App\Models\Invoice::class => [__('Invoice'), route('app.invoices.show', $link->linkable), $link->linkable->invoice_number, $link->linkable->client?->name],
+                    };
                 @endphp
                 <div class="flex items-center justify-between py-2.5">
                     <div>
-                        <span class="inline-block rounded-full bg-slate-100 text-slate-500 text-xs font-medium px-2 py-0.5 me-2">{{ $isQuotation ? __('Quotation') : __('Purchase order') }}</span>
-                        <a href="{{ $isQuotation ? route('app.quotations.show', $link->linkable) : route('app.purchase-orders.show', $link->linkable) }}" class="text-sm text-brand-700 hover:underline">{{ $isQuotation ? $link->linkable->quotation_number : $link->linkable->po_number }}</a>
-                        <span class="text-sm text-slate-400">— {{ $isQuotation ? $link->linkable->client?->name : $link->linkable->supplier?->name }}</span>
+                        <span class="inline-block rounded-full bg-slate-100 text-slate-500 text-xs font-medium px-2 py-0.5 me-2">{{ $badge }}</span>
+                        <a href="{{ $url }}" class="text-sm text-brand-700 hover:underline">{{ $number }}</a>
+                        <span class="text-sm text-slate-400">— {{ $party }}</span>
                     </div>
                     <span class="text-sm font-semibold text-slate-700">{{ \App\Support\Money::format($link->linkable->total) }}</span>
                 </div>
@@ -85,7 +89,7 @@
         <input type="file" name="file" required class="text-sm">
         <button type="submit" class="ms-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Upload') }}</button>
     </form>
-    <p class="text-xs text-slate-400 mb-3">{{ __('Once this letter is printed and signed, attach the scanned copy here as the record of what was actually agreed.') }}</p>
+    <p class="text-xs text-slate-400 mb-3">{{ __('A PDF here is also folded into "Download PDF" as a trailing page — e.g. a PO your client sent you (not a record in this system), or the scanned copy once this letter is printed and signed.') }}</p>
     @forelse ($letter->attachments as $attachment)
         <div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
             <a href="{{ Storage::url($attachment->path) }}" target="_blank" class="text-sm text-brand-700 hover:underline">{{ $attachment->original_name }}</a>

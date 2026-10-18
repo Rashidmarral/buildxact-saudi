@@ -123,9 +123,9 @@
         <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
             <div>
                 <h3 class="font-semibold text-slate-900">{{ __('Reference documents') }}</h3>
-                <p class="text-xs text-slate-500 mt-1">{{ __('Each one picked here is folded into the "Download PDF" as its own full document, right after this letter — so sending the agreement, a referenced PO, and its quotations is one file, one click.') }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ __('Each one picked here is folded into the "Download PDF" as its own full document, right after this letter — so sending the agreement with its referenced quotations, invoices, and your own purchase orders is one file, one click.') }}</p>
             </div>
-            <div class="grid sm:grid-cols-2 gap-4">
+            <div class="grid sm:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Quotations') }}</label>
                     <select name="linked_quotations[]" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -136,13 +136,22 @@
                     <p class="text-xs text-slate-400 mt-1">{{ __('Hold Ctrl/Cmd to pick more than one.') }}</p>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Purchase orders') }}</label>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Invoices') }}</label>
+                    <select name="linked_invoices[]" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        @foreach ($invoices as $invoice)
+                            <option value="{{ $invoice->id }}" @selected(in_array($invoice->id, old('linked_invoices', $linkedInvoiceIds)))>{{ $invoice->invoice_number }} — {{ $invoice->client?->name }} — {{ \App\Support\Money::format($invoice->total) }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('Hold Ctrl/Cmd to pick more than one.') }}</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Your purchase orders') }}</label>
                     <select name="linked_purchase_orders[]" multiple size="6" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         @foreach ($purchaseOrders as $order)
                             <option value="{{ $order->id }}" @selected(in_array($order->id, old('linked_purchase_orders', $linkedPurchaseOrderIds)))>{{ $order->po_number }} — {{ $order->supplier?->name }} — {{ \App\Support\Money::format($order->total) }}</option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-slate-400 mt-1">{{ __('Hold Ctrl/Cmd to pick more than one.') }}</p>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('Orders you issued to your own suppliers. For a PO your client sent you, upload it as an attachment after saving instead — it isn\'t a record in this system.') }}</p>
                 </div>
             </div>
         </div>

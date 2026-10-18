@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\CompanyLetter;
 use App\Models\CompanyLetterLink;
+use App\Models\Invoice;
 use App\Models\MachineryAsset;
 use App\Models\MachineryHireInContract;
 use App\Models\MachineryRentalContract;
@@ -104,8 +105,10 @@ class CompanyLetterController extends Controller
             'projects' => Project::orderBy('name')->get(),
             'quotations' => Quotation::with('client')->latest('issue_date')->get(),
             'purchaseOrders' => PurchaseOrder::with('supplier')->latest('order_date')->get(),
+            'invoices' => Invoice::with('client')->latest('issue_date')->get(),
             'linkedQuotationIds' => [],
             'linkedPurchaseOrderIds' => [],
+            'linkedInvoiceIds' => [],
         ]);
     }
 
@@ -155,8 +158,10 @@ class CompanyLetterController extends Controller
             'projects' => Project::orderBy('name')->get(),
             'quotations' => Quotation::with('client')->latest('issue_date')->get(),
             'purchaseOrders' => PurchaseOrder::with('supplier')->latest('order_date')->get(),
+            'invoices' => Invoice::with('client')->latest('issue_date')->get(),
             'linkedQuotationIds' => $letter->links->where('linkable_type', Quotation::class)->pluck('linkable_id')->all(),
             'linkedPurchaseOrderIds' => $letter->links->where('linkable_type', PurchaseOrder::class)->pluck('linkable_id')->all(),
+            'linkedInvoiceIds' => $letter->links->where('linkable_type', Invoice::class)->pluck('linkable_id')->all(),
         ]);
     }
 
@@ -182,6 +187,7 @@ class CompanyLetterController extends Controller
     {
         $quotationIds = Quotation::whereIn('id', $request->input('linked_quotations', []))->pluck('id');
         $purchaseOrderIds = PurchaseOrder::whereIn('id', $request->input('linked_purchase_orders', []))->pluck('id');
+        $invoiceIds = Invoice::whereIn('id', $request->input('linked_invoices', []))->pluck('id');
 
         $letter->links()->delete();
 
@@ -191,6 +197,9 @@ class CompanyLetterController extends Controller
         }
         foreach ($purchaseOrderIds as $id) {
             $letter->links()->create(['linkable_type' => PurchaseOrder::class, 'linkable_id' => $id, 'sort_order' => $sortOrder++]);
+        }
+        foreach ($invoiceIds as $id) {
+            $letter->links()->create(['linkable_type' => Invoice::class, 'linkable_id' => $id, 'sort_order' => $sortOrder++]);
         }
     }
 
@@ -243,17 +252,20 @@ class CompanyLetterController extends Controller
     /**
      * "i need to send my client a document with attach agreement p/o
      * order and quotations in a single pdf document" — the letter's own
-     * PDF, followed by each referenced Quotation/Purchase Order's own
-     * live-rendered PDF (not a stale upload — always current against
-     * that document's real data), in the order the letter arranged
-     * them. Deliberately does NOT also fold in file attachments() —
-     * those are the scanned, physically-signed copy added back after
-     * the fact (see that relation's docblock), which has no business
-     * being inside the very document still going out for signature.
+     * PDF, followed by each referenced Quotation/Purchase Order/Invoice's
+     * own live-rendered PDF (not a stale upload — always current against
+     * that document's real data), followed by every PDF file attachment
+     * (same merge mechanism, same order, as PurchaseOrderController::
+     * downloadPdf()). That last part matters because a client's own PO
+     * is never a Daftari PurchaseOrder record — that model is always
+     * this company's own issued order to ITS supplier — so the only way
+     * to fold a client-issued PO (or any other outside document) into
+     * the combined download is as an upload via attachments(), not a
+     * linked system record.
      */
     public function pdf(CompanyLetter $letter, MpdfRenderer $renderer)
     {
-        $letter->load('machinery', 'project', 'client', 'supplier', 'links.linkable');
+        $letter->load('machinery', 'project', 'client', 'supplier', 'links.linkable', 'attachments');
 
         $basePdf = $renderer->render('documents.print.letter-pdf', [
             'title' => $letter->title,
@@ -273,11 +285,19 @@ class CompanyLetterController extends Controller
             return match (get_class($document)) {
                 Quotation::class => $renderer->render('documents.print.pdf', $document->pdfData()),
                 PurchaseOrder::class => $renderer->render('documents.print.purchase-order-pdf', $document->pdfData()),
+                Invoice::class => $renderer->render('documents.print.pdf', $document->pdfData()),
                 default => null,
             };
         })->filter()->values()->all();
 
-        $pdf = $renderer->mergePdfs([$basePdf, ...$linkedPdfs]);
+        $attachmentPdfs = $letter->attachments
+            ->where('mime_type', 'application/pdf')
+            ->map(fn ($attachment) => Storage::disk('public')->exists($attachment->path) ? Storage::disk('public')->get($attachment->path) : null)
+            ->filter()
+            ->values()
+            ->all();
+
+        $pdf = $renderer->mergePdfs([$basePdf, ...$linkedPdfs, ...$attachmentPdfs]);
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -314,6 +334,8 @@ class CompanyLetterController extends Controller
             'linked_quotations.*' => [Rule::exists('quotations', 'id')->where('company_id', $companyId)],
             'linked_purchase_orders' => ['nullable', 'array'],
             'linked_purchase_orders.*' => [Rule::exists('purchase_orders', 'id')->where('company_id', $companyId)],
+            'linked_invoices' => ['nullable', 'array'],
+            'linked_invoices.*' => [Rule::exists('invoices', 'id')->where('company_id', $companyId)],
         ]);
 
         // array_values() re-sequences the surviving blocks into a clean

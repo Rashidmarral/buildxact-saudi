@@ -7,11 +7,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
- * One existing document (a Quotation or a Purchase Order, so far —
- * $linkableTypes below is the whole whitelist) referenced by a
+ * One existing document (a Quotation, Purchase Order, or Invoice, so
+ * far — $linkableTypes below is the whole whitelist) referenced by a
  * CompanyLetter, in the order it should appear when CompanyLetterController::pdf()
  * merges each one's own rendered PDF behind the letter itself. See the
- * company_letter_links migration for the full reasoning.
+ * company_letter_links migration for the full reasoning. Note
+ * PurchaseOrder here is always this company's own issued order to one
+ * of ITS suppliers — a client's own PO (an external document this
+ * company never generated) isn't a linkable system record at all; that
+ * goes through CompanyLetter::attachments() as an uploaded file
+ * instead, which CompanyLetterController::pdf() also merges in.
  */
 class CompanyLetterLink extends Model
 {
@@ -26,6 +31,7 @@ class CompanyLetterLink extends Model
     public const LINKABLE_TYPES = [
         'quotation' => Quotation::class,
         'purchase_order' => PurchaseOrder::class,
+        'invoice' => Invoice::class,
     ];
 
     public function letter(): BelongsTo
