@@ -174,6 +174,80 @@ class LeaveRequestModuleTest extends TestCase
         $this->actingAs($owner)->get(route('app.leave-requests.index'))->assertOk()->assertSee('21.00');
     }
 
+    public function test_a_pending_request_can_be_cancelled(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $employee = $this->makeEmployee($company, now()->subYear()->toDateString());
+
+        $this->actingAs($owner)->post(route('app.leave-requests.store'), [
+            'employee_id' => $employee->id, 'type' => 'annual',
+            'start_date' => now()->addWeek()->toDateString(), 'end_date' => now()->addWeek()->addDays(2)->toDateString(),
+        ]);
+        $leaveRequest = LeaveRequest::first();
+
+        $this->actingAs($owner)->post(route('app.leave-requests.cancel', $leaveRequest))->assertRedirect();
+        $this->assertSame('cancelled', $leaveRequest->fresh()->status);
+        $this->assertNull($leaveRequest->fresh()->approved_by);
+
+        // A cancelled request's days don't count against the balance either.
+        $this->actingAs($owner)->get(route('app.leave-requests.index'))->assertOk()->assertSee('21.00');
+    }
+
+    public function test_an_already_approved_request_cannot_be_cancelled(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $employee = $this->makeEmployee($company, now()->subYear()->toDateString());
+
+        $this->actingAs($owner)->post(route('app.leave-requests.store'), [
+            'employee_id' => $employee->id, 'type' => 'annual',
+            'start_date' => now()->addWeek()->toDateString(), 'end_date' => now()->addWeek()->addDays(2)->toDateString(),
+        ]);
+        $leaveRequest = LeaveRequest::first();
+        $this->actingAs($owner)->post(route('app.leave-requests.approve', $leaveRequest));
+
+        $response = $this->actingAs($owner)->post(route('app.leave-requests.cancel', $leaveRequest->fresh()));
+        $response->assertSessionHasErrors('leave');
+        $this->assertSame('approved', $leaveRequest->fresh()->status);
+    }
+
+    public function test_an_already_rejected_request_cannot_be_cancelled(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $employee = $this->makeEmployee($company, now()->subYear()->toDateString());
+
+        $this->actingAs($owner)->post(route('app.leave-requests.store'), [
+            'employee_id' => $employee->id, 'type' => 'annual',
+            'start_date' => now()->addWeek()->toDateString(), 'end_date' => now()->addWeek()->addDays(2)->toDateString(),
+        ]);
+        $leaveRequest = LeaveRequest::first();
+        $this->actingAs($owner)->post(route('app.leave-requests.reject', $leaveRequest));
+
+        $response = $this->actingAs($owner)->post(route('app.leave-requests.cancel', $leaveRequest->fresh()));
+        $response->assertSessionHasErrors('leave');
+        $this->assertSame('rejected', $leaveRequest->fresh()->status);
+    }
+
+    public function test_the_cancel_button_only_renders_for_pending_requests(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $employee = $this->makeEmployee($company, now()->subYear()->toDateString());
+
+        $this->actingAs($owner)->post(route('app.leave-requests.store'), [
+            'employee_id' => $employee->id, 'type' => 'annual',
+            'start_date' => now()->addWeek()->toDateString(), 'end_date' => now()->addWeek()->addDays(2)->toDateString(),
+        ]);
+        $leaveRequest = LeaveRequest::first();
+        $this->actingAs($owner)->post(route('app.leave-requests.approve', $leaveRequest));
+
+        $this->actingAs($owner)->get(route('app.leave-requests.index'))
+            ->assertOk()
+            ->assertDontSee(route('app.leave-requests.cancel', $leaveRequest), false);
+    }
+
     public function test_a_company_cannot_approve_another_companys_leave_request(): void
     {
         $companyA = $this->makeCompany();

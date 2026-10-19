@@ -75,4 +75,19 @@ class LeaveRequestController extends Controller
 
         return back()->with('status', __('Leave request rejected.'));
     }
+
+    public function cancel(LeaveRequest $leaveRequest, LeaveRequestService $service)
+    {
+        try {
+            $service->cancel($leaveRequest);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['leave' => $e->getMessage()]);
+        }
+
+        AuditLog::record('leave_request.cancel', $leaveRequest, __('Cancelled :days day(s) :type leave for :name', [
+            'days' => $leaveRequest->days, 'type' => $leaveRequest->type, 'name' => $leaveRequest->employee->full_name,
+        ]));
+
+        return back()->with('status', __('Leave request cancelled.'));
+    }
 }

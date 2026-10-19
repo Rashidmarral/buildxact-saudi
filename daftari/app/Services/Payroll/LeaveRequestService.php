@@ -108,4 +108,20 @@ class LeaveRequestService
 
         $request->update(['status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now()]);
     }
+
+    /**
+     * Lets the requester (or an admin) withdraw a request before a manager
+     * has acted on it — e.g. it was submitted with the wrong dates. Scoped
+     * to pending requests only: an already-approved request has already
+     * counted against balance(), and unwinding that is a separate concern
+     * from a simple withdrawal.
+     */
+    public function cancel(LeaveRequest $request): void
+    {
+        if (! $request->isPending()) {
+            throw new RuntimeException(__('This request has already been reviewed.'));
+        }
+
+        $request->update(['status' => 'cancelled']);
+    }
 }

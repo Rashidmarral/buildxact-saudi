@@ -70,6 +70,8 @@
                             <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{{ __('Approved') }}</span>
                         @elseif ($leaveRequest->status === 'rejected')
                             <span class="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">{{ __('Rejected') }}</span>
+                        @elseif ($leaveRequest->status === 'cancelled')
+                            <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{{ __('Cancelled') }}</span>
                         @else
                             <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">{{ __('Pending') }}</span>
                         @endif
@@ -84,6 +86,10 @@
                                 <form method="POST" action="{{ route('app.leave-requests.reject', $leaveRequest) }}">
                                     @csrf
                                     <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Reject') }}</button>
+                                </form>
+                                <form method="POST" action="{{ route('app.leave-requests.cancel', $leaveRequest) }}" onsubmit="return confirm('{{ __('Cancel this leave request?') }}')">
+                                    @csrf
+                                    <button type="submit" class="text-xs font-semibold text-slate-500 hover:underline">{{ __('Cancel') }}</button>
                                 </form>
                             </div>
                         @endif
