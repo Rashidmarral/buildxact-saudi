@@ -947,7 +947,7 @@
                 ['en' => 'Address', 'ar' => 'العنوان', 'value' => method_exists($dcParty, 'fullAddress') ? ($dcParty->fullAddress() ?: '—') : '—'],
             ],
             [
-                ['en' => 'Terms of Payment', 'ar' => 'طريقة الدفع', 'value' => $doc['payment_method'] ?: $primary('Credit', 'آجل')],
+                ['en' => 'Terms of Payment', 'ar' => 'طريقة الدفع', 'value' => ($doc['payment_method'] ?? null) ?: $primary('Credit', 'آجل')],
                 ['en' => 'Supply Date', 'ar' => 'تاريخ التوريد', 'value' => \App\Support\PlatformFormat::date($doc['date'])],
                 ['en' => 'Ref. No.', 'ar' => 'رقم المرجع', 'value' => '—'],
             ],
