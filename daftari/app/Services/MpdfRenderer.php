@@ -27,7 +27,7 @@ class MpdfRenderer
             $template = $data['template'] ?? null;
             $pageSize = $this->resolvePageSize($template);
 
-            $mpdf = $this->makeMpdf($pageSize, $this->resolveLetterheadMargins($template, $pageSize));
+            $mpdf = $this->makeMpdf($pageSize, $this->resolvePageMargins($template, $pageSize));
             $embed = $this->embedHelper();
 
             // A template's background watermark is an mPDF page feature
@@ -133,7 +133,7 @@ class MpdfRenderer
 
     /**
      * mPDF's own auto-margin recalculation (setAutoTopMargin/
-     * setAutoBottomMargin: 'stretch', triggered by letter-pdf.blade.php's
+     * setAutoBottomMargin: 'stretch', triggered by a view's own
      * <sethtmlpageheader>/<sethtmlpagefooter>) only grows the page margin
      * from the point in the HTML stream where it's processed onward — by
      * the time that tag runs, page 1 has already started with whatever
@@ -145,12 +145,20 @@ class MpdfRenderer
      * margin_bottom to fit BEFORE the Mpdf object (and therefore page 1)
      * is ever created fixes this at the source; 'stretch' stays on as a
      * safety net for a measurement that somehow still comes up short.
+     *
+     * The top margin only needs this for the 'custom_letterhead' layout
+     * (the only one with a full-width header image, used by letter-pdf.
+     * blade.php and pdf.blade.php). The bottom margin needs it whenever
+     * footer_path is set at all, independent of layout — pdf.blade.php,
+     * project-cash-flow-pdf.blade.php, voucher-pdf.blade.php and
+     * voucher-summary-pdf.blade.php all offer a footer banner on every
+     * layout, not just custom_letterhead.
      */
-    private function resolveLetterheadMargins(mixed $template, string|array $pageSize): array
+    private function resolvePageMargins(mixed $template, string|array $pageSize): array
     {
         $defaults = ['top' => 12.0, 'bottom' => 15.0];
 
-        if (! $template instanceof \App\Models\InvoiceTemplate || $template->layout !== 'custom_letterhead') {
+        if (! $template instanceof \App\Models\InvoiceTemplate) {
             return $defaults;
         }
 
@@ -167,7 +175,7 @@ class MpdfRenderer
 
         $printableWidthMm = $this->pageWidthMm($pageSize) - 12 - 12;
 
-        if ($template->letterhead_path) {
+        if ($template->layout === 'custom_letterhead' && $template->letterhead_path) {
             $headerHeight = $this->imageHeightMm($template->letterhead_path, $printableWidthMm);
             $defaults['top'] = $headerHeight > 0 ? max($defaults['top'], $headerHeight + 6) : $unmeasuredFallback['top'];
         }
@@ -269,15 +277,14 @@ class MpdfRenderer
             'margin_bottom' => $margins['bottom'],
             // Only takes effect for a document that actually defines a
             // repeating HTML header/footer via mPDF's own
-            // <htmlpageheader>/<sethtmlpageheader> tags (currently just
-            // letter-pdf.blade.php's custom letterhead) — it auto-grows
+            // <htmlpageheader>/<sethtmlpageheader> tags — it auto-grows
             // the page's top/bottom margin to fit whatever that header/
             // footer's real rendered height turns out to be, so body
             // content never overlaps it. A no-op for every other
             // document, which never sets an HTML header/footer at all.
             // Acts only as a safety net now that margin_top/margin_bottom
-            // above are already pre-sized for a custom letterhead (see
-            // resolveLetterheadMargins()) — that's what fixes page 1.
+            // above are already pre-sized for a letterhead/footer image
+            // (see resolvePageMargins()) — that's what fixes page 1.
             'setAutoTopMargin' => 'stretch',
             'setAutoBottomMargin' => 'stretch',
             'default_font' => 'cairo',

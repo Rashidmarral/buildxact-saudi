@@ -246,7 +246,7 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
             'layout' => 'custom_letterhead', 'is_default' => true, 'letterhead_path' => $letterheadPath,
         ]);
 
-        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolvePageMargins');
         $method->setAccessible(true);
         $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
 
@@ -262,7 +262,7 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
             'company_id' => $company->id, 'document_type' => 'letter', 'name' => 'Plain', 'layout' => 'minimal', 'is_default' => true,
         ]);
 
-        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolvePageMargins');
         $method->setAccessible(true);
         $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
 
@@ -291,7 +291,7 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
             'layout' => 'custom_letterhead', 'is_default' => true, 'letterhead_path' => $path,
         ]);
 
-        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolvePageMargins');
         $method->setAccessible(true);
         $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
 
@@ -318,7 +318,7 @@ class CompanyLetterReferenceDocumentsTest extends TestCase
             'layout' => 'custom_letterhead', 'is_default' => true, 'letterhead_path' => $path,
         ]);
 
-        $method = new ReflectionMethod(MpdfRenderer::class, 'resolveLetterheadMargins');
+        $method = new ReflectionMethod(MpdfRenderer::class, 'resolvePageMargins');
         $method->setAccessible(true);
         $margins = $method->invoke(new MpdfRenderer, $template, 'A4');
 

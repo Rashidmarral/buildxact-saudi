@@ -118,6 +118,22 @@
      correctly in the PDF via the per-element dir="rtl" spans below,
      regardless of the body's own direction. --}}
 
+{{--
+    Registered as mPDF's own repeating <htmlpagefooter> (not a plain
+    trailing <img>) so it's pinned to the bottom of EVERY page,
+    available on every layout — a plain <img> at the end of the
+    document just flowed once wherever the content happened to end,
+    so on a long enough document it could land mid-page or spill onto
+    its own trailing page instead of repeating at the bottom of each
+    one (same bug found and fixed in letter-pdf.blade.php).
+--}}
+@if ($footerData)
+    <htmlpagefooter name="footer-banner">
+        <img src="{{ $footerData }}" style="width: 100%;" alt="">
+    </htmlpagefooter>
+    <sethtmlpagefooter name="footer-banner" page="ALL" />
+@endif
+
 @if ($layout === 'bilingual_classic')
     <table style="border: 1.5pt solid {{ $accent }}; margin-bottom: {{ $sectionGap }}px;"><tr><td style="height: 6px;"></td></tr></table>
 
@@ -226,8 +242,21 @@
     </td></tr></table>
 
 @elseif ($layout === 'custom_letterhead')
+    {{--
+        Registered as mPDF's own repeating <htmlpageheader> (not a plain
+        inline <img>) so it's pinned to the top of EVERY page the
+        document spans, instead of flowing once wherever the content
+        happened to end — a plain <img> here meant any document long
+        enough to reach a second page lost its letterhead entirely past
+        page 1 (same bug found and fixed in letter-pdf.blade.php; see
+        MpdfRenderer::resolvePageMargins() for the matching page-1
+        margin fix this needs to avoid overlapping body content).
+    --}}
     @if ($letterheadData)
-        <img src="{{ $letterheadData }}" style="width: 100%;" alt="">
+        <htmlpageheader name="letterhead">
+            <img src="{{ $letterheadData }}" style="width: 100%;" alt="">
+        </htmlpageheader>
+        <sethtmlpageheader name="letterhead" page="ALL" show-this-page="1" />
     @else
         @include('documents.print.pdf-bilingual-header', ['company' => $company, 'showLogo' => $showLogo, 'logoData' => $logoData])
     @endif
@@ -1011,10 +1040,6 @@
     <table style="margin-top: 2px;"><tr><td class="footer-note">
         {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ $doc['number'] }}
     </td></tr></table>
-@endif
-
-@if ($footerData)
-    <img src="{{ $footerData }}" style="width: 100%; margin-top: 20px;" alt="">
 @endif
 
 </body>

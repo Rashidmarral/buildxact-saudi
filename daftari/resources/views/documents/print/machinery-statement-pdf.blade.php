@@ -35,6 +35,21 @@
 </head>
 <body>
 
+{{--
+    Registered as mPDF's own repeating <htmlpagefooter> (not a plain
+    trailing <img>) so it's pinned to the bottom of every page — a
+    statement is exactly the kind of document likely to span multiple
+    pages, where a plain trailing <img> just flowed once wherever the
+    content happened to end instead of repeating at the bottom of each
+    one (same bug found and fixed in letter-pdf.blade.php).
+--}}
+@if ($footerData)
+    <htmlpagefooter name="footer-banner">
+        <img src="{{ $footerData }}" style="width: 100%;" alt="">
+    </htmlpagefooter>
+    <sethtmlpagefooter name="footer-banner" page="ALL" />
+@endif
+
 <table class="header-table" style="border-bottom: 1pt solid #0f172a; padding-bottom: 10px;">
     <tr>
         <td style="width: 60%;">
@@ -84,10 +99,6 @@
         @endforelse
     </tbody>
 </table>
-
-@if ($footerData)
-    <img src="{{ $footerData }}" style="width: 100%; margin-top: 20px;" alt="">
-@endif
 
 </body>
 </html>

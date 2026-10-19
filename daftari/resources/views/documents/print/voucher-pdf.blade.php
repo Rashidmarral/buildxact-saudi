@@ -60,6 +60,19 @@
 </head>
 <body>
 
+{{--
+    Registered as mPDF's own repeating <htmlpagefooter> (not a plain
+    trailing <img>) so it's pinned to the bottom of every page the
+    voucher spans — same bug found and fixed in letter-pdf.blade.php
+    for any document whose content pushes past one page.
+--}}
+@if ($footerData)
+    <htmlpagefooter name="footer-banner">
+        <img src="{{ $footerData }}" style="width: 100%;" alt="">
+    </htmlpagefooter>
+    <sethtmlpagefooter name="footer-banner" page="ALL" />
+@endif
+
 <table class="header-table">
     <tr>
         <td style="width: 60%;">
@@ -172,10 +185,6 @@
             @endif
         </td></tr>
     </table>
-@endif
-
-@if ($footerData)
-    <img src="{{ $footerData }}" style="width: 100%; margin-top: 20px;" alt="">
 @endif
 
 </body>
