@@ -61,6 +61,7 @@ class Company extends Model
         'machinery_prefix', 'next_machinery_number',
         'rental_contract_prefix', 'next_rental_contract_number',
         'letter_prefix', 'next_letter_number',
+        'delivery_note_prefix', 'next_delivery_note_number',
     ];
 
     // Mirrors the migration's DB-level defaults on the in-memory model:
@@ -110,6 +111,8 @@ class Company extends Model
         'next_hire_in_contract_number' => 1,
         'letter_prefix' => 'LTR',
         'next_letter_number' => 1,
+        'delivery_note_prefix' => 'DO',
+        'next_delivery_note_number' => 1,
         'primary_customer_type' => 'mixed',
         'negative_number_format' => 'minus',
         'currency' => 'SAR',
@@ -439,6 +442,18 @@ class Company extends Model
         $number = $this->nextSequenceNumber('next_letter_number');
 
         return $this->letter_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function nextDeliveryNoteNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_delivery_note_number');
+
+        return $this->delivery_note_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function deliveryNotes(): HasMany
+    {
+        return $this->hasMany(DeliveryNote::class);
     }
 
     public function nextQuotationNumber(string $type = 'quotation'): string

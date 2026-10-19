@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InvoiceItem extends Model
 {
@@ -15,6 +16,29 @@ class InvoiceItem extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function deliveryNoteItems(): HasMany
+    {
+        return $this->hasMany(DeliveryNoteItem::class);
+    }
+
+    /**
+     * How much of this line has already gone out on a non-cancelled
+     * delivery note — the guard DeliveryNoteController relies on so a
+     * company can split one invoice's shipment across several partial
+     * delivery notes without ever shipping more than was invoiced.
+     */
+    public function deliveredQuantity(): float
+    {
+        return (float) $this->deliveryNoteItems()
+            ->whereHas('deliveryNote', fn ($q) => $q->where('status', '!=', 'cancelled'))
+            ->sum('quantity');
+    }
+
+    public function remainingQuantity(): float
+    {
+        return max((float) $this->quantity - $this->deliveredQuantity(), 0);
     }
 
     /**

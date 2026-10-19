@@ -173,6 +173,16 @@ class Invoice extends Model
         return $this->hasMany(ZatcaInvoiceLog::class);
     }
 
+    public function deliveryNotes(): HasMany
+    {
+        return $this->hasMany(DeliveryNote::class);
+    }
+
+    public function hasUndeliveredItems(): bool
+    {
+        return $this->items->sum(fn (InvoiceItem $item) => $item->remainingQuantity()) > 0.004;
+    }
+
     public function creditNotes(): HasMany
     {
         return $this->hasMany(CreditNote::class);
