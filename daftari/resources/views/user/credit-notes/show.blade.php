@@ -51,7 +51,9 @@
         'subtotal' => $creditNote->subtotal,
         'vat_total' => $creditNote->vat_total,
         'total' => $creditNote->total,
-        'notes' => $creditNote->reason,
+        'notes' => $creditNote->reasonTypeLabel()
+            ? $creditNote->reasonTypeLabel().($creditNote->reason ? ' — '.$creditNote->reason : '')
+            : $creditNote->reason,
     ];
 @endphp
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">

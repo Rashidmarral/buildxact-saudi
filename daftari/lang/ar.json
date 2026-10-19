@@ -5913,5 +5913,11 @@
     "Unit price before VAT, in the invoice currency. For a price correction enter only the increase per unit.": "سعر الوحدة قبل ضريبة القيمة المضافة، بعملة الفاتورة. لتصحيح السعر، أدخل فقط الزيادة لكل وحدة.",
     "+ Add charge line": "+ إضافة بند رسوم",
     "VAT @:rate%": "ضريبة القيمة المضافة @:rate%",
-    "Price correction — :description": "تصحيح السعر — :description"
+    "Price correction — :description": "تصحيح السعر — :description",
+    "Returned goods": "بضائع مرتجعة",
+    "Pricing error": "خطأ في التسعير",
+    "Discount given": "خصم ممنوح",
+    "Order cancelled": "طلب ملغى",
+    "+ Add credit line": "+ إضافة بند دائن",
+    "Adjust quantities to credit only part of an invoice line, or clear a line entirely to leave it out. Add a line below for a credit that isn't tied to a specific invoice line (e.g. a goodwill credit).": "عدّل الكميات لإعادة جزء فقط من بند الفاتورة، أو احذف البند بالكامل لاستبعاده. أضف بندًا أدناه لرصيد دائن غير مرتبط ببند معين في الفاتورة (مثل رصيد دائن كبادرة حسن نية)."
 }

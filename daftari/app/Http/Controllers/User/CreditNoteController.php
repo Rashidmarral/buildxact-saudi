@@ -68,7 +68,7 @@ class CreditNoteController extends Controller
             return view('user.credit-notes.select-invoice');
         }
 
-        $invoice = Invoice::with('items.item')->findOrFail($invoiceId);
+        $invoice = Invoice::with(['items.item', 'client', 'branch'])->findOrFail($invoiceId);
 
         if (! in_array($invoice->status, self::ELIGIBLE_STATUSES, true) || $invoice->remainingCreditableTotal() <= 0.01) {
             return redirect()->route('app.credit-notes.create')->withErrors(['invoice' => __('This invoice is no longer eligible for a credit note.')]);
@@ -98,6 +98,7 @@ class CreditNoteController extends Controller
             'invoice_id' => ['required', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
             'issue_date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:255'],
+            'reason_type' => ['nullable', Rule::in(CreditNote::REASON_TYPES)],
             'items' => ['required', 'array', 'min:1'],
             // invoice_item_id deliberately stays unscoped here — see
             // CrossTenantLineItemTest / "commercial audit finding A6":
@@ -181,6 +182,7 @@ class CreditNoteController extends Controller
                     'credit_note_number' => $company->nextCreditNoteNumber(),
                     'issue_date' => $data['issue_date'],
                     'reason' => $data['reason'] ?? null,
+                    'reason_type' => $data['reason_type'] ?? null,
                     'status' => 'issued',
                     'currency' => $invoice->currency,
                     'exchange_rate' => $invoice->exchange_rate,
@@ -264,7 +266,9 @@ class CreditNoteController extends Controller
             'subtotal' => $creditNote->subtotal,
             'vat_total' => $creditNote->vat_total,
             'total' => $creditNote->total,
-            'notes' => $creditNote->reason,
+            'notes' => $creditNote->reasonTypeLabel()
+                ? $creditNote->reasonTypeLabel().($creditNote->reason ? ' — '.$creditNote->reason : '')
+                : $creditNote->reason,
         ];
 
         $pdf = $renderer->render('documents.print.pdf', [

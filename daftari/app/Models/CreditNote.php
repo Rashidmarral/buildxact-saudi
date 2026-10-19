@@ -12,9 +12,11 @@ class CreditNote extends Model
 {
     use BelongsToCompany;
 
+    public const REASON_TYPES = ['returned_goods', 'pricing_error', 'discount', 'cancelled_order', 'other'];
+
     protected $fillable = [
         'company_id', 'invoice_id', 'client_id', 'branch_id', 'created_by',
-        'credit_note_number', 'issue_date', 'reason', 'status',
+        'credit_note_number', 'issue_date', 'reason', 'reason_type', 'status',
         'subtotal', 'vat_total', 'total', 'currency', 'exchange_rate', 'qr_code',
     ];
 
@@ -58,6 +60,18 @@ class CreditNote extends Model
     public function isZatcaSynced(): bool
     {
         return $this->zatcaCreditNoteLogs()->whereIn('status', ['cleared', 'reported'])->exists();
+    }
+
+    public function reasonTypeLabel(): ?string
+    {
+        return match ($this->reason_type) {
+            'returned_goods' => __('Returned goods'),
+            'pricing_error' => __('Pricing error'),
+            'discount' => __('Discount given'),
+            'cancelled_order' => __('Order cancelled'),
+            'other' => __('Other'),
+            default => null,
+        };
     }
 
     public function recalculateTotals(): void
