@@ -20,7 +20,7 @@
     <div class="flex items-center gap-3">
         @if ($voucher->status === 'issued')
             <a href="{{ route('app.payment-vouchers.edit', $voucher) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
-            <form method="POST" action="{{ route('app.payment-vouchers.void', $voucher) }}" onsubmit="return confirm('{{ __('Void this payment voucher?') }}')">
+            <form method="POST" action="{{ route('app.payment-vouchers.void', $voucher) }}" onsubmit="return confirm('{{ __('Void this payment voucher? This reverses any linked bill payment.') }}')">
                 @csrf
                 <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Void') }}</button>
             </form>

@@ -441,6 +441,56 @@ class VoucherRedesignTest extends TestCase
     }
 
     /**
+     * Found while auditing for further payment-vs-receipt parity gaps:
+     * voiding either voucher type reverses its linked bill/invoice
+     * payment (PaymentVoucherController::void() / ReceiptVoucherController::
+     * void(), symmetrically), but only the receipt voucher's confirm()
+     * dialog actually said so — the payment voucher's just asked "Void
+     * this payment voucher?" with no warning about the bill payment it
+     * also undoes.
+     */
+    public function test_the_void_confirmation_warns_about_the_linked_bill_payment_on_payment_vouchers_too(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+
+        $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
+            'party_type' => 'manual', 'payee_name' => 'Void Warning Payee',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 100, 'method' => 'cash',
+        ]);
+        $voucher = PaymentVoucher::first();
+
+        $response = $this->actingAs($owner)->get(route('app.payment-vouchers.show', $voucher));
+
+        $response->assertOk();
+        $response->assertSee('This reverses any linked bill payment.');
+    }
+
+    /**
+     * Another parity gap found the same way: the payment voucher form's
+     * "Reference" field has a placeholder and a hint explaining it's
+     * for an IBAN/transaction ID so the voucher is easy to match
+     * against the bank statement — equally useful for a receipt voucher
+     * (also commonly paid by bank transfer), but the receipt form's
+     * matching field had neither.
+     */
+    public function test_the_reference_field_hint_is_present_on_both_voucher_forms(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+
+        $paymentForm = $this->actingAs($owner)->get(route('app.payment-vouchers.create'));
+        $receiptForm = $this->actingAs($owner)->get(route('app.receipt-vouchers.create'));
+
+        $paymentForm->assertOk()->assertSee('e.g. IBAN, transaction ID, cheque number');
+        $receiptForm->assertOk()->assertSee('e.g. IBAN, transaction ID, cheque number');
+        $paymentForm->assertSee('match against the bank statement later', false);
+        $receiptForm->assertSee('match against the bank statement later', false);
+    }
+
+    /**
      * "reciept voucher heading should be in center same as print body
      * in print body logo is cutting and in download pdf check boxes
      * for bank transfer cash is not coming good" — three fixes:
