@@ -36,6 +36,46 @@ class ClientController extends Controller
     }
 
     /**
+     * A lightweight sales pipeline on top of the same client record a
+     * prospect eventually gets invoiced on — no separate lead entity or
+     * conversion step to manage. Only clients someone has explicitly put
+     * into the pipeline (pipeline_stage set) show up here; a client added
+     * the normal way, with no stage picked, is simply unaffected.
+     */
+    public function pipeline()
+    {
+        $clients = Client::whereNotNull('pipeline_stage')
+            ->orderByRaw('next_follow_up_date IS NULL, next_follow_up_date')
+            ->get()
+            ->groupBy('pipeline_stage');
+
+        return view('user.clients.pipeline', [
+            'stages' => Client::PIPELINE_STAGES,
+            'clientsByStage' => $clients,
+        ]);
+    }
+
+    public function advanceStage(Request $request, Client $client)
+    {
+        $data = $request->validate([
+            'pipeline_stage' => ['required', Rule::in(Client::PIPELINE_STAGES)],
+            'lost_reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($data['pipeline_stage'] !== 'lost') {
+            $data['lost_reason'] = null;
+        }
+
+        $client->update($data);
+
+        AuditLog::record('client.pipeline_stage', $client, __('Moved :name to :stage', [
+            'name' => $client->name, 'stage' => $data['pipeline_stage'],
+        ]));
+
+        return back()->with('status', __('Pipeline stage updated.'));
+    }
+
+    /**
      * Audit finding MEDIUM-15: no list page could act on more than one
      * record at a time. Exports exactly the checked rows, independent of
      * the current filter.
@@ -326,6 +366,8 @@ class ClientController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
             'lead_source' => ['nullable', 'string', 'max:100'],
             'next_follow_up_date' => ['nullable', 'date'],
+            'pipeline_stage' => ['nullable', Rule::in(Client::PIPELINE_STAGES)],
+            'lost_reason' => ['nullable', 'string', 'max:255'],
             'contacts' => ['nullable', 'array'],
             'contacts.*.name' => ['nullable', 'string', 'max:255'],
             'contacts.*.phone' => ['nullable', 'string', 'max:30'],

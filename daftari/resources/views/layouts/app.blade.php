@@ -83,6 +83,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.debit-notes.index', 'label' => __('Debit notes')])
                         @include('partials.nav-subitem', ['route' => 'app.prepayment-invoices.index', 'label' => __('Prepayment invoices')])
                         @include('partials.nav-subitem', ['route' => 'app.clients.index', 'label' => __('Customers')])
+                        @include('partials.nav-subitem', ['route' => 'app.clients.pipeline', 'label' => __('Pipeline')])
                         @include('partials.nav-subitem', ['route' => 'app.salespersons.index', 'label' => __('Salespersons')])
                     </div>
                 </details>

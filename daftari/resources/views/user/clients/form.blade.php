@@ -107,6 +107,23 @@
                 </div>
             </div>
 
+            <div class="grid sm:grid-cols-2 gap-5" x-data="{ stage: '{{ old('pipeline_stage', $client->pipeline_stage) }}' }">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Pipeline stage') }}</label>
+                    <select name="pipeline_stage" x-model="stage" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">{{ __('Not tracked (regular client)') }}</option>
+                        @foreach (\App\Models\Client::PIPELINE_STAGES as $stageOption)
+                            <option value="{{ $stageOption }}">{{ __(ucfirst($stageOption)) }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('Track this client as a prospect moving through your sales pipeline. Shows up on the Pipeline board until Won or Lost.') }}</p>
+                </div>
+                <div x-show="stage === 'lost'" x-cloak>
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Lost reason') }}</label>
+                    <input type="text" name="lost_reason" value="{{ old('lost_reason', $client->lost_reason) }}" placeholder="{{ __('e.g. Chose a competitor, Budget, No response') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                </div>
+            </div>
+
             @if ($client->exists)
                 <div class="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
                     <p class="text-sm text-slate-500">

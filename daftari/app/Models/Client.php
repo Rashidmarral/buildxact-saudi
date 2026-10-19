@@ -14,13 +14,24 @@ class Client extends Model
 
     public const CUSTOM_FIELD_ENTITY_TYPE = 'client';
 
+    /**
+     * A client record doubles as a sales pipeline card when a stage is
+     * set — the same record a prospect gets invoiced on once they convert,
+     * rather than a separate lead entity that would need its own
+     * conversion flow. 'won' and 'lost' are terminal; everything else is
+     * still an open deal (see isInOpenPipeline()).
+     */
+    public const PIPELINE_STAGES = ['prospect', 'contacted', 'qualified', 'negotiating', 'won', 'lost'];
+
+    public const OPEN_PIPELINE_STAGES = ['prospect', 'contacted', 'qualified', 'negotiating'];
+
     protected $fillable = [
         'company_id', 'client_code', 'type', 'name', 'name_ar', 'contact_name',
         'is_vat_registered', 'vat_number', 'cr_number', 'additional_id_type',
         'additional_id_number', 'initial_balance', 'payment_terms_days', 'email', 'phone', 'mobile',
         'street_name', 'building_number', 'district', 'city', 'state', 'country',
         'postal_code', 'notes',
-        'lead_source', 'next_follow_up_date', 'last_contacted_at',
+        'lead_source', 'next_follow_up_date', 'last_contacted_at', 'pipeline_stage', 'lost_reason',
         'platform_billed_company_id',
         'credit_hold', 'credit_hold_reason',
     ];
@@ -86,5 +97,10 @@ class Client extends Model
             $this->postal_code,
             $this->country,
         ])->filter()->implode(', ');
+    }
+
+    public function isInOpenPipeline(): bool
+    {
+        return in_array($this->pipeline_stage, self::OPEN_PIPELINE_STAGES, true);
     }
 }

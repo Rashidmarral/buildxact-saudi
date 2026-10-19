@@ -286,6 +286,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:clients')->group(function () {
         Route::resource('clients', ClientController::class)->except(['show']);
+        Route::get('clients/pipeline', [ClientController::class, 'pipeline'])->name('clients.pipeline');
+        Route::post('clients/{client}/advance-stage', [ClientController::class, 'advanceStage'])->name('clients.advance-stage');
         Route::post('clients/bulk-export', [ClientController::class, 'bulkExport'])->name('clients.bulk-export');
         Route::post('clients/bulk-destroy', [ClientController::class, 'bulkDestroy'])->name('clients.bulk-destroy');
         Route::get('clients/{client}/outstanding-invoices', [ClientController::class, 'outstandingInvoices'])->name('clients.outstanding-invoices');
