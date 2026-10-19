@@ -385,6 +385,62 @@ class VoucherRedesignTest extends TestCase
     }
 
     /**
+     * "the fixes you have done for payment vouchers these fixes have
+     * been fixed in receipt vouchers" — every redesign fix above
+     * (Arabic name, stamp, no internal bank account name, cheque bank
+     * name, centered heading, method pills, contact footer) was only
+     * ever exercised with type => 'payment' in this test file, even
+     * though voucher-pdf.blade.php/voucher-body.blade.php are one
+     * shared template for both PaymentVoucher and ReceiptVoucher,
+     * branching only on an $isReceipt flag for wording. Confirmed by
+     * rendering the actual shared template with a receipt voucher: the
+     * parity already holds (nothing here is payment-only), but this
+     * closes the coverage gap so a future regression on the receipt
+     * side wouldn't go unnoticed again.
+     */
+    public function test_the_receipt_voucher_pdf_has_every_payment_voucher_redesign_fix_too(): void
+    {
+        $company = $this->makeCompany();
+        $company->update([
+            'name_ar' => 'شركة تصميم السندات',
+            'stamp_path' => 'stamps/fake-stamp.png',
+            'address' => '123 Test St', 'city' => 'Riyadh', 'phone' => '0500000000', 'email' => 'test@example.com',
+        ]);
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company, 'Saudi National Bank');
+        $account->update(['name' => 'SNB — Operating Account']);
+
+        $this->actingAs($owner)->post(route('app.receipt-vouchers.store'), [
+            'party_type' => 'manual', 'payer_name' => 'PDF Test Payer',
+            'bank_account_id' => $account->id, 'date' => now()->toDateString(),
+            'amount' => 250, 'method' => 'cheque', 'reference' => 'CHQ-999',
+        ]);
+
+        $voucher = ReceiptVoucher::first();
+        $voucher->loadMissing('bankAccount', 'invoice.items', 'counterAccount');
+
+        $html = view('documents.print.voucher-pdf', [
+            'voucher' => $voucher,
+            'type' => 'receipt',
+            'company' => $company,
+            'template' => $company->defaultTemplateFor('receipt_voucher'),
+            'embed' => fn ($path) => $path ? 'data:image/png;base64,fake' : null,
+        ])->render();
+
+        $this->assertStringContainsString('شركة تصميم السندات', $html);
+        $this->assertStringContainsString('data:image/png;base64,fake', $html);
+        $this->assertStringNotContainsString('SNB — Operating Account', $html);
+        $this->assertStringContainsString('Saudi National Bank', $html);
+        $this->assertStringContainsString('CHQ-999', $html);
+        $this->assertStringContainsString('text-align: center', $html);
+        $this->assertStringContainsString('Receipt Voucher', $html);
+        $this->assertStringContainsString('method-pill selected', $html);
+        $this->assertStringContainsString('footer-contact', $html);
+        $this->assertStringContainsString('0500000000', $html);
+        $this->assertStringContainsString('test@example.com', $html);
+    }
+
+    /**
      * "reciept voucher heading should be in center same as print body
      * in print body logo is cutting and in download pdf check boxes
      * for bank transfer cash is not coming good" — three fixes:
