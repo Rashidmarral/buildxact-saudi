@@ -403,10 +403,11 @@
                                     @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
-                                <td class="py-2 text-end">
+                                <td class="py-2 text-end space-x-3 rtl:space-x-reverse">
                                     @if (in_array($log->status, ['cleared', 'reported'], true) && $log->invoice)
                                         <a href="{{ route('app.invoices.xml', $log->invoice) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
                                     @endif
+                                    <a href="{{ route('app.zatca.logs.show', ['type' => 'invoice', 'log' => $log->id]) }}" class="text-xs font-semibold text-slate-500 hover:underline">{{ __('View details') }}</a>
                                 </td>
                             </tr>
                         @empty
@@ -453,10 +454,11 @@
                                     @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
-                                <td class="py-2 text-end">
+                                <td class="py-2 text-end space-x-3 rtl:space-x-reverse">
                                     @if (in_array($log->status, ['cleared', 'reported'], true) && $log->prepaymentInvoice)
                                         <a href="{{ route('app.prepayment-invoices.xml', $log->prepaymentInvoice) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
                                     @endif
+                                    <a href="{{ route('app.zatca.logs.show', ['type' => 'invoice', 'log' => $log->id]) }}" class="text-xs font-semibold text-slate-500 hover:underline">{{ __('View details') }}</a>
                                 </td>
                             </tr>
                         @empty
@@ -503,10 +505,11 @@
                                     @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
-                                <td class="py-2 text-end">
+                                <td class="py-2 text-end space-x-3 rtl:space-x-reverse">
                                     @if (in_array($log->status, ['cleared', 'reported'], true) && $log->creditNote)
                                         <a href="{{ route('app.credit-notes.xml', $log->creditNote) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
                                     @endif
+                                    <a href="{{ route('app.zatca.logs.show', ['type' => 'credit_note', 'log' => $log->id]) }}" class="text-xs font-semibold text-slate-500 hover:underline">{{ __('View details') }}</a>
                                 </td>
                             </tr>
                         @empty
@@ -553,10 +556,11 @@
                                     @endif
                                 </td>
                                 <td class="py-2 text-slate-500">{{ $log->submitted_at?->format('Y-m-d H:i') }}</td>
-                                <td class="py-2 text-end">
+                                <td class="py-2 text-end space-x-3 rtl:space-x-reverse">
                                     @if (in_array($log->status, ['cleared', 'reported'], true) && $log->debitNote)
                                         <a href="{{ route('app.debit-notes.xml', $log->debitNote) }}" class="text-xs font-semibold text-brand-600 hover:underline">{{ __('Download XML') }}</a>
                                     @endif
+                                    <a href="{{ route('app.zatca.logs.show', ['type' => 'debit_note', 'log' => $log->id]) }}" class="text-xs font-semibold text-slate-500 hover:underline">{{ __('View details') }}</a>
                                 </td>
                             </tr>
                         @empty

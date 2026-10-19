@@ -845,6 +845,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:zatca')->prefix('zatca')->name('zatca.')->group(function () {
         Route::get('/', [ZatcaController::class, 'dashboard'])->name('dashboard');
         Route::put('mode', [ZatcaController::class, 'updateMode'])->name('mode.update');
+        Route::get('logs/{type}/{log}', [ZatcaController::class, 'showLog'])->name('logs.show');
     });
 
     Route::middleware(['permission:zatca', 'feature:zatca_phase2'])->prefix('zatca')->name('zatca.')->group(function () {

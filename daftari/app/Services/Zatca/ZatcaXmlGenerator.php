@@ -68,7 +68,7 @@ class ZatcaXmlGenerator
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
-            'name' => $company->name,
+            'name' => $company->name_ar ?: $company->name,
             'vat_number' => $company->vat_number,
             'id_scheme' => 'CRN',
             'id_value' => $company->cr_number,
@@ -80,7 +80,7 @@ class ZatcaXmlGenerator
         ]));
 
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
-            'name' => $client->name,
+            'name' => $client->name_ar ?: $client->name,
             'vat_number' => $client->vat_number,
             'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
             'id_value' => $client->additional_id_number,
@@ -216,7 +216,7 @@ class ZatcaXmlGenerator
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
-            'name' => $company->name,
+            'name' => $company->name_ar ?: $company->name,
             'vat_number' => $company->vat_number,
             'id_scheme' => 'CRN',
             'id_value' => $company->cr_number,
@@ -228,7 +228,7 @@ class ZatcaXmlGenerator
         ]));
 
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
-            'name' => $client->name,
+            'name' => $client->name_ar ?: $client->name,
             'vat_number' => $client->vat_number,
             'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
             'id_value' => $client->additional_id_number,
@@ -358,7 +358,7 @@ class ZatcaXmlGenerator
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
-            'name' => $company->name,
+            'name' => $company->name_ar ?: $company->name,
             'vat_number' => $company->vat_number,
             'id_scheme' => 'CRN',
             'id_value' => $company->cr_number,
@@ -370,7 +370,7 @@ class ZatcaXmlGenerator
         ]));
 
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
-            'name' => $client->name,
+            'name' => $client->name_ar ?: $client->name,
             'vat_number' => $client->vat_number,
             'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
             'id_value' => $client->additional_id_number,
@@ -497,7 +497,7 @@ class ZatcaXmlGenerator
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
-            'name' => $company->name,
+            'name' => $company->name_ar ?: $company->name,
             'vat_number' => $company->vat_number,
             'id_scheme' => 'CRN',
             'id_value' => $company->cr_number,
@@ -509,7 +509,7 @@ class ZatcaXmlGenerator
         ]));
 
         $root->appendChild($this->party($doc, 'cac:AccountingCustomerParty', [
-            'name' => $client->name,
+            'name' => $client->name_ar ?: $client->name,
             'vat_number' => $client->vat_number,
             'id_scheme' => $this->buyerAdditionalIdScheme($client->additional_id_type),
             'id_value' => $client->additional_id_number,
@@ -654,7 +654,7 @@ class ZatcaXmlGenerator
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
-            'name' => $company->name,
+            'name' => $company->name_ar ?: $company->name,
             'vat_number' => $company->vat_number,
             'id_scheme' => 'CRN',
             'id_value' => $company->cr_number,
@@ -737,6 +737,15 @@ class ZatcaXmlGenerator
         return (string) Str::uuid();
     }
 
+    /**
+     * $data['name'] feeds cac:PartyLegalEntity/cbc:RegistrationName —
+     * UBL allows exactly one value here, no separate English/Arabic
+     * slots, so every caller passes $company->name_ar ?: $company->name
+     * (or the client/supplier equivalent): the Arabic name as registered
+     * on the Commercial Registration when one is on file, since that's
+     * the name ZATCA's own backend is most likely to cross-check against,
+     * falling back to English only when no Arabic name was ever entered.
+     */
     private function party(DOMDocument $doc, string $wrapperTag, array $data): \DOMElement
     {
         $wrapper = $doc->createElement($wrapperTag);

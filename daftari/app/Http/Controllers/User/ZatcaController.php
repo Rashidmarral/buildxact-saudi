@@ -673,6 +673,74 @@ class ZatcaController extends Controller
     }
 
     /**
+     * "how can i check in response if there is any warning or something
+     * showing or not" — until now, ZATCA's raw response (and anything
+     * inside its validationResults beyond a bare pass/fail, such as
+     * warningMessages ZATCA can return even on a CLEARED/REPORTED
+     * submission) was only visible to Daftari's own platform admins, via
+     * the equivalent admin.zatca.logs.show page — a company had no way to
+     * see its own submission detail at all. Mirrors that admin page, but
+     * company-scoped: every log model's BelongsToCompany global scope
+     * already 404s a findOrFail() for another company's log, the same way
+     * {$invoice}/{$creditNote}/{$debitNote} route-model binding already
+     * does elsewhere in this controller.
+     */
+    public function showLog(string $type, int $log)
+    {
+        abort_unless(in_array($type, ['invoice', 'credit_note', 'debit_note'], true), 404);
+
+        $logModel = match ($type) {
+            'invoice' => ZatcaInvoiceLog::with(['invoice', 'prepaymentInvoice'])->findOrFail($log),
+            'credit_note' => ZatcaCreditNoteLog::with('creditNote')->findOrFail($log),
+            'debit_note' => ZatcaDebitNoteLog::with('debitNote')->findOrFail($log),
+        };
+
+        $document = match ($type) {
+            'invoice' => $logModel->invoice ?? $logModel->prepaymentInvoice,
+            'credit_note' => $logModel->creditNote,
+            'debit_note' => $logModel->debitNote,
+        };
+
+        return view('user.zatca.log-show', [
+            'type' => $type,
+            'log' => $logModel,
+            'document' => $document,
+            'messages' => $this->parseValidationMessages($logModel->response_payload),
+        ]);
+    }
+
+    /**
+     * ZATCA's clearance/reporting response carries a validationResults
+     * object with up to three message arrays — errorMessages,
+     * warningMessages, infoMessages — any of which can be present even on
+     * an otherwise-successful (cleared/reported) submission. Nothing in
+     * this app parsed them out before; the log's response_payload column
+     * already stores the full raw body regardless, so no data was lost,
+     * it just was never surfaced anywhere a company could see it.
+     */
+    private function parseValidationMessages(?string $responsePayload): array
+    {
+        $empty = ['errors' => [], 'warnings' => [], 'infos' => []];
+
+        if (! $responsePayload) {
+            return $empty;
+        }
+
+        $body = json_decode($responsePayload, true);
+        $results = $body['validationResults'] ?? null;
+
+        if (! is_array($results)) {
+            return $empty;
+        }
+
+        return [
+            'errors' => $results['errorMessages'] ?? [],
+            'warnings' => $results['warningMessages'] ?? [],
+            'infos' => $results['infoMessages'] ?? [],
+        ];
+    }
+
+    /**
      * Security audit finding: raw ZATCA upstream error response bodies
      * were flashed into the session/browser verbatim on OTP/CSID-exchange
      * failures — low risk given ZATCA's documented, short JSON error

@@ -5887,5 +5887,14 @@
     "Lines": "البنود",
     "Cancellation reason:": "سبب الإلغاء:",
     "Delivery Note": "مذكرة تسليم",
-    "Name of the person who received the goods": "اسم الشخص الذي استلم البضاعة"
+    "Name of the person who received the goods": "اسم الشخص الذي استلم البضاعة",
+    "Back to ZATCA integration": "العودة إلى تكامل زاتكا",
+    "Errors from ZATCA": "أخطاء من زاتكا",
+    "Warnings from ZATCA": "تحذيرات من زاتكا",
+    "These did not block clearance/reporting, but are worth reviewing — ZATCA flagged something about this submission.": "لم تمنع هذه التحذيرات التخليص/الإبلاغ، لكنها تستحق المراجعة — أشارت زاتكا إلى شيء بخصوص هذا الإرسال.",
+    "Additional information from ZATCA": "معلومات إضافية من زاتكا",
+    "ZATCA returned no warnings or additional messages for this submission — a clean clearance/reporting result.": "لم تُرجع زاتكا أي تحذيرات أو رسائل إضافية لهذا الإرسال — نتيجة تخليص/إبلاغ نظيفة.",
+    "Raw response": "الاستجابة الخام",
+    "XML submitted": "ملف XML المُرسل",
+    "View details": "عرض التفاصيل"
 }
