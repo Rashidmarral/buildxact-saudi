@@ -896,6 +896,197 @@
         {{ $company->name }} @if ($company->name_ar) — {{ $company->name_ar }} @endif &nbsp;·&nbsp; {{ __('Page 1 of 1') }} &nbsp;·&nbsp; {{ $doc['number'] }}
     </div>
 
+@elseif ($layout === 'distribution_classic')
+    {{-- "Distribution Classic": modeled 1:1 on a real wholesale/trading
+         company's tax invoice a user shared — a dense, every-field-on-
+         the-page layout typical of Gulf distribution/trading ERPs:
+         plain two-column company header (English left, Arabic right, no
+         boxed title bar), a tan "Tax Invoice" title box with the invoice
+         number beside it, a dashed-border info grid (Hijri + Gregorian
+         date + time, customer code/name/C.R./VAT, phone/address, payment
+         terms/supply date/ref.), an RTL-first items table (column order
+         follows $tableDirection, matching the source document), a
+         three-column totals grid ending in a bilingual amount-in-words
+         bar, a single IBAN strip, and a Received-By / QR / Issued-By
+         signature row. Fields this app has no real concept of (shipping
+         cost, other expenses, a separate reference number) render as
+         "—"/0.00 placeholders rather than invented data — same
+         convention "Retail Classic" already set for its own "Other
+         Charges" row. --}}
+    @php
+        $dcHijri = \App\Support\HijriDate::format($doc['date']);
+        $dcTime = \App\Support\PlatformFormat::time($doc['issue_time'] ?? $doc['date']);
+        $dcParty = $doc['party'];
+        $dcTotalQty = $doc['lines']->sum(fn ($l) => (float) $l->quantity);
+        $dcPaid = collect($doc['extra_rows'] ?? [])->first(fn ($r) => ($r['label'] ?? '') === __('Paid'))['value'] ?? 0;
+        $dcBalance = collect($doc['extra_rows'] ?? [])->first(fn ($r) => in_array($r['label'] ?? '', [__('Balance due'), __('Overpaid')]))['value'] ?? max($doc['total'] - $dcPaid, 0);
+        $dcRates = $doc['lines']->pluck('vat_rate')->unique();
+        $dcVatLabel = $dcRates->count() === 1 ? $lbl('Total VAT').' '.rtrim(rtrim(number_format($dcRates->first(), 2), '0'), '.').'%' : $lbl('Total VAT');
+        $dcBank = $doc['bank_account'] ?? null;
+    @endphp
+
+    <div class="flex items-start justify-between gap-6 text-sm">
+        @if ($showEn)
+            <div class="leading-relaxed text-slate-900">
+                <h1 class="text-base font-bold">{{ $company->name }}</h1>
+                @if ($company->address)<p>{{ $company->address }}</p>@endif
+                @if ($company->cr_number)<p>C - R - {{ $company->cr_number }}</p>@endif
+                @if ($company->vat_number)<p>Vat No. : {{ $company->vat_number }}</p>@endif
+            </div>
+        @endif
+        @if ($showAr)
+            <div class="leading-relaxed text-slate-900 text-end" dir="rtl">
+                <h1 class="text-base font-bold">{{ $company->name_ar ?: $company->name }}</h1>
+                @if ($company->address)<p>{{ $company->address }}</p>@endif
+                @if ($company->cr_number)<p>{{ $company->cr_number }} - س.ت</p>@endif
+                @if ($company->vat_number)<p>: الرقم الضريبي {{ $company->vat_number }}</p>@endif
+            </div>
+        @endif
+    </div>
+
+    <div class="mt-4 flex items-center justify-between gap-4">
+        <div class="rounded border border-amber-300 bg-amber-50 px-10 py-2 text-center">
+            @if ($showAr)<div class="font-bold text-slate-900" dir="rtl">{{ $doc['type_label_ar'] ?? 'فاتورة ضريبية' }}</div>@endif
+            @if ($showEn)<div class="font-semibold text-slate-700">{{ $doc['type_label'] }}</div>@endif
+        </div>
+        <div class="text-sm font-semibold text-slate-900">{{ $lbl('Invoice No') }} : {{ $doc['number'] }}</div>
+    </div>
+
+    @php
+        $dcRow = function (array $cells) {
+            return $cells;
+        };
+        $dcInfoRows = array_values(array_filter([
+            $dcRow([
+                ['en' => 'Hijri date', 'ar' => 'التاريخ الهجري', 'value' => $dcHijri ?: '—'],
+                ['en' => 'Time', 'ar' => 'الوقت', 'value' => $dcTime],
+                ['en' => 'Gregorian Date', 'ar' => 'التاريخ الميلادي', 'value' => \App\Support\PlatformFormat::date($doc['date'])],
+            ]),
+            $dcRow([
+                ['en' => 'Customer No', 'ar' => 'رقم العميل', 'value' => $dcParty->client_code ?? ($dcParty->supplier_code ?? '—')],
+                ['en' => 'Customer Name', 'ar' => 'أسم العميل', 'value' => $primary($dcParty->name, $dcParty->name_ar ?? null), 'wide' => true],
+            ]),
+            $dcRow([
+                ['en' => 'Customer C.R.', 'ar' => 'السجل التجاري للعميل', 'value' => $dcParty->cr_number ?? '—'],
+                ['en' => 'Customer VAT No', 'ar' => 'الرقم الضريبي للعميل', 'value' => $dcParty->vat_number ?? '—'],
+            ]),
+            $dcRow([
+                ['en' => 'Tele No.', 'ar' => 'رقم الهاتف', 'value' => $dcParty->phone ?? $dcParty->mobile ?? '—'],
+                ['en' => 'Address', 'ar' => 'العنوان', 'value' => method_exists($dcParty, 'fullAddress') ? ($dcParty->fullAddress() ?: '—') : '—', 'wide' => true],
+            ]),
+            $dcRow([
+                ['en' => 'Terms of Payment', 'ar' => 'طريقة الدفع', 'value' => $doc['payment_method'] ?: $primary('Credit', 'آجل')],
+                ['en' => 'Supply Date', 'ar' => 'تاريخ التوريد', 'value' => \App\Support\PlatformFormat::date($doc['date'])],
+                ['en' => 'Ref. No.', 'ar' => 'رقم المرجع', 'value' => '—'],
+            ]),
+        ]));
+    @endphp
+    <div class="mt-4 border border-dashed border-slate-400 text-xs">
+        @foreach ($dcInfoRows as $i => $row)
+            <div class="flex {{ $i > 0 ? 'border-t border-dashed border-slate-300' : '' }}">
+                @foreach ($row as $cell)
+                    <div class="flex-1 px-2 py-1.5 flex items-center justify-between gap-2 {{ !$loop->last ? 'border-e border-dashed border-slate-300' : '' }}">
+                        @if ($showEn)<span class="text-slate-500">{{ $cell['en'] }} :</span>@endif
+                        <span class="font-semibold text-slate-900 text-end">{{ $cell['value'] }}</span>
+                        @if ($showAr)<span class="text-slate-500" dir="rtl">: {{ $cell['ar'] }}</span>@endif
+                    </div>
+                @endforeach
+            </div>
+        @endforeach
+    </div>
+
+    <table class="w-full text-xs mt-4 border border-slate-400">
+        <thead>
+            <tr class="bg-slate-100 text-slate-700">
+                <th class="border border-slate-300 px-1.5 py-1.5">{{ $lbl('Sr.') }}</th>
+                <th class="border border-slate-300 px-1.5 py-1.5">{{ $lbl('Item Code') }}</th>
+                <th class="border border-slate-300 px-1.5 py-1.5 text-start">{{ $lbl('Description') }}</th>
+                <th class="border border-slate-300 px-1.5 py-1.5">{{ $lbl('Qty') }}</th>
+                @if ($showUnitLabels)<th class="border border-slate-300 px-1.5 py-1.5">{{ $lbl('Unit') }}</th>@endif
+                <th class="border border-slate-300 px-1.5 py-1.5 text-end">{{ $lbl('Price') }}</th>
+                <th class="border border-slate-300 px-1.5 py-1.5 text-end">{{ $lbl('Total') }}</th>
+                @if ($showVatColumn)
+                    <th class="border border-slate-300 px-1.5 py-1.5 text-end">{{ $lbl('VAT %') }}</th>
+                    <th class="border border-slate-300 px-1.5 py-1.5 text-end">{{ $lbl('VAT Value') }}</th>
+                @endif
+                <th class="border border-slate-300 px-1.5 py-1.5 text-end">{{ $lbl('Total With VAT') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($doc['lines'] as $index => $line)
+                <tr>
+                    <td class="border border-slate-300 px-1.5 py-1.5 text-center">{{ $index + 1 }}</td>
+                    <td class="border border-slate-300 px-1.5 py-1.5 text-center">{{ $line->item?->sku ?: '—' }}</td>
+                    <td class="border border-slate-300 px-1.5 py-1.5">
+                        {{ $primary($line->description, $line->name_ar) }}
+                        @if ($showItemDescription && $secondary($line->name_ar))<span class="block text-slate-500" dir="rtl">{{ $line->name_ar }}</span>@endif
+                    </td>
+                    <td class="border border-slate-300 px-1.5 py-1.5 text-center">{{ rtrim(rtrim(number_format($line->quantity, 2), '0'), '.') }}</td>
+                    @if ($showUnitLabels)<td class="border border-slate-300 px-1.5 py-1.5 text-center">{{ ($line->unit?->symbol ?: $line->unit?->nameFor(app()->getLocale())) ?? $line->item?->unit ?? '—' }}</td>@endif
+                    <td class="border border-slate-300 px-1.5 py-1.5 text-end">{{ number_format($line->unit_price, 2) }}</td>
+                    <td class="border border-slate-300 px-1.5 py-1.5 text-end">{{ number_format($line->quantity * $line->unit_price, 2) }}</td>
+                    @if ($showVatColumn)
+                        <td class="border border-slate-300 px-1.5 py-1.5 text-end">{{ rtrim(rtrim(number_format($line->vat_rate, 2), '0'), '.') }}</td>
+                        <td class="border border-slate-300 px-1.5 py-1.5 text-end">{{ number_format($line->vat_amount, 2) }}</td>
+                    @endif
+                    <td class="border border-slate-300 px-1.5 py-1.5 text-end font-semibold">{{ number_format($line->line_total, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <div class="mt-4 grid grid-cols-3 gap-2 text-xs">
+        <table class="border border-slate-300 w-full"><tbody>
+            <tr class="border-b border-slate-200"><td class="px-2 py-1.5 font-semibold text-slate-900">{{ number_format($doc['subtotal'], 2) }}</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Amount') }}</td></tr>
+            <tr class="border-b border-slate-200"><td class="px-2 py-1.5 font-semibold text-slate-900">{{ number_format($doc['discount_total'] ?? 0, 2) }}</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Discount') }}</td></tr>
+            <tr><td class="px-2 py-1.5 font-semibold text-slate-900">{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Amount After Discount') }}</td></tr>
+        </tbody></table>
+        <table class="border border-slate-300 w-full"><tbody>
+            <tr class="border-b border-slate-200"><td class="px-2 py-1.5 font-semibold text-slate-900">{{ rtrim(rtrim(number_format($dcTotalQty, 2), '0'), '.') }}</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Total Qty') }}</td></tr>
+            <tr class="border-b border-slate-200"><td class="px-2 py-1.5 font-semibold text-slate-900">{{ number_format($dcPaid, 2) }}</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Payment') }}</td></tr>
+            <tr><td class="px-2 py-1.5 font-semibold text-slate-900">{{ number_format($dcBalance, 2) }}</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Cust Balance') }}</td></tr>
+        </tbody></table>
+        <table class="border border-slate-300 w-full"><tbody>
+            <tr class="border-b border-slate-200"><td class="px-2 py-1.5 font-semibold text-slate-900">0.00</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Shipping Cost') }}</td></tr>
+            <tr class="border-b border-slate-200"><td class="px-2 py-1.5 font-semibold text-slate-900">0.00</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $lbl('Other expenses') }}</td></tr>
+            <tr><td class="px-2 py-1.5 font-semibold text-slate-900">{{ number_format($doc['vat_total'], 2) }}</td><td class="px-2 py-1.5 text-end text-slate-500">{{ $dcVatLabel }}</td></tr>
+        </tbody></table>
+    </div>
+
+    <div class="mt-2 flex border border-slate-300 text-xs">
+        <div class="flex-1 px-3 py-2 border-e border-slate-300">
+            @if ($showAr)<p dir="rtl">{{ \App\Support\NumberToWords::arabicRiyals($doc['total']) }}</p>@endif
+            @if ($showEn)<p>{{ \App\Support\NumberToWords::sar($doc['total'], $doc['currency'] ?? 'SAR') }}</p>@endif
+        </div>
+        <div class="w-40 px-3 py-2 flex items-center justify-center text-center font-semibold text-slate-600">{{ $lbl('Writing Amount') }} :</div>
+    </div>
+
+    @if ($dcBank)
+        <div class="mt-2 border border-slate-300 py-2 text-center text-xs font-semibold text-slate-800">
+            {{ $lbl('IBAN') }} - {{ $dcBank->iban }} @if ($dcBank->bank_name) {{ $dcBank->bank_name }} @endif
+        </div>
+    @endif
+
+    <div class="mt-6 grid grid-cols-3 items-start text-xs">
+        <div>
+            <p class="font-semibold text-slate-700">{{ $lbl('Received By') }} :</p>
+            <p class="mt-3 text-slate-500">{{ $lbl('Name') }} : ______________________</p>
+            <p class="mt-3 text-slate-500">{{ $lbl('Signature') }} : ______________________</p>
+        </div>
+        <div class="flex justify-center">
+            @if (!empty($doc['qr_code']))
+                <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="h-28 w-28">
+            @endif
+        </div>
+        <div class="text-end">
+            <p class="font-semibold text-slate-700">{{ $lbl('Issued By') }} :</p>
+            <p class="mt-3 text-slate-500">{{ $lbl('Name') }} : {{ $doc['salesperson']->name ?? '______________________' }}</p>
+            <p class="mt-3 text-slate-500">{{ $lbl('Signature') }} : ______________________</p>
+        </div>
+    </div>
+
+    <div class="mt-6 text-center text-[10px] text-slate-400">{{ __('Page 1 of 1') }}</div>
+
 @else
     {{-- minimal / bordered / boxed — a single professional foundation
          shared by all three, differentiated only by the left accent

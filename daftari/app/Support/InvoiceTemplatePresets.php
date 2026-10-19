@@ -130,6 +130,22 @@ class InvoiceTemplatePresets
                 'layout' => 'retail_classic',
                 'size' => 'A4',
             ],
+            // Modeled 1:1 on a real wholesale/trading company's tax
+            // invoice a user shared: plain two-column header (no boxed
+            // title bar), a tan title box beside the invoice number, a
+            // dashed-border info grid (Hijri/Gregorian date, time,
+            // customer code/name/C.R./VAT, phone/address, payment terms/
+            // supply date/ref.), an item-code-carrying items table, a
+            // three-box totals grid ending in a running customer balance,
+            // a bilingual amount-in-words bar, an IBAN strip, and a
+            // Received-By / QR / Issued-By signature row.
+            'distribution_classic' => [
+                'name' => 'Distribution Classic',
+                'name_ar' => 'توزيع كلاسيكي',
+                'accent_color' => '#92400e',
+                'layout' => 'distribution_classic',
+                'size' => 'A4',
+            ],
         ];
     }
 

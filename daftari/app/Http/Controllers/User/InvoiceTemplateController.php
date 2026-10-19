@@ -24,7 +24,7 @@ class InvoiceTemplateController extends Controller
 
     private const LAYOUTS = [
         'minimal', 'bordered', 'boxed', 'bilingual_classic', 'custom_letterhead', 'quotation_offer',
-        'sage_classic', 'retail_classic',
+        'sage_classic', 'retail_classic', 'distribution_classic',
         'bilingual_side_by_side', 'bilingual_stacked',
     ];
 
