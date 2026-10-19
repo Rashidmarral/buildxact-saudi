@@ -11,6 +11,20 @@
     <a href="{{ route('app.purchase-returns.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
 </div>
 
+<div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+    <h2 class="font-semibold text-slate-900 mb-4">{{ __('Original bill') }}</h2>
+    <div class="grid sm:grid-cols-3 gap-4 text-sm">
+        <div><span class="text-slate-400">{{ __('Bill No.') }}:</span> <span class="font-medium text-slate-800">{{ $bill->bill_number }}</span></div>
+        <div><span class="text-slate-400">{{ __('Date') }}:</span> <span class="font-medium text-slate-800">{{ $bill->bill_date->format('Y-m-d') }}</span></div>
+        <div><span class="text-slate-400">{{ __('Supplier') }}:</span> <span class="font-medium text-slate-800">{{ $bill->supplier->display_name }}</span></div>
+        @if ($bill->branch)
+            <div><span class="text-slate-400">{{ __('Business Location') }}:</span> <span class="font-medium text-slate-800">{{ $bill->branch->name }}</span></div>
+        @endif
+        <div><span class="text-slate-400">{{ __('Total') }}:</span> <span class="font-medium text-slate-800">{{ \App\Support\Money::format($bill->total) }}</span></div>
+        <div><span class="text-slate-400">{{ __('Currency') }}:</span> <span class="font-medium text-slate-800">{{ $bill->currency }}</span></div>
+    </div>
+</div>
+
 <form method="POST" action="{{ route('app.purchase-returns.store') }}" class="space-y-6">
     @csrf
     <input type="hidden" name="bill_id" value="{{ $bill->id }}">
@@ -25,14 +39,30 @@
             <input type="date" name="issue_date" value="{{ old('issue_date', now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
-            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reason (optional)') }}</label>
-            <input type="text" name="reason" value="{{ old('reason') }}" placeholder="{{ __('e.g. damaged goods, wrong item, pricing error') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reason type') }}</label>
+            <select name="reason_type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Please select') }}</option>
+                @foreach (\App\Models\PurchaseReturn::REASON_TYPES as $type)
+                    <option value="{{ $type }}" @selected(old('reason_type') === $type)>
+                        {{ match ($type) {
+                            'returned_goods' => __('Returned goods'),
+                            'pricing_error' => __('Pricing error'),
+                            'cancelled_order' => __('Order cancelled'),
+                            'other' => __('Other'),
+                        } }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="sm:col-span-3">
+            <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Reason for issuance (optional)') }}</label>
+            <textarea name="reason" rows="2" placeholder="{{ __('e.g. damaged goods, wrong item, pricing error') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('reason') }}</textarea>
         </div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <h2 class="font-semibold text-slate-900 mb-4">{{ __('Line items to return') }}</h2>
-        <p class="text-xs text-slate-400 mb-4">{{ __('Adjust quantities to return only part of a bill line, or clear a line entirely to leave it out.') }}</p>
+        <h2 class="font-semibold text-slate-900 mb-1">{{ __('Line items to return') }}</h2>
+        <p class="text-xs text-slate-400 mb-4">{{ __('Adjust quantities to return only part of a bill line, or clear a line entirely to leave it out. Add a line below for a return that isn\'t tied to a specific bill line.') }}</p>
 
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -43,6 +73,7 @@
                         <th class="py-2 pe-3 font-medium w-28">{{ __('Unit price') }}</th>
                         <th class="py-2 pe-3 font-medium w-24">{{ __('VAT %') }}</th>
                         <th class="py-2 font-medium w-28 text-end">{{ __('Line total') }}</th>
+                        <th class="py-2 ps-2 w-8"></th>
                     </tr>
                 </thead>
                 <tbody id="items-body">
@@ -62,11 +93,14 @@
                                 <input type="number" step="0.01" min="0" max="100" name="items[{{ $index }}][vat_rate]" value="{{ $item->vat_rate }}" data-vat class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                             </td>
                             <td class="py-2 text-end font-medium" data-line-total>{{ \App\Support\Money::format($item->line_total) }}</td>
+                            <td class="py-2 ps-2"></td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
+
+        <button type="button" id="add-row" class="mt-3 text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add line') }}</button>
 
         <div class="mt-6 flex justify-end">
             <div class="w-full max-w-xs space-y-2 text-sm">
@@ -83,12 +117,14 @@
 <script>
 (function () {
     const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
-    const rows = () => document.querySelectorAll('#items-body tr[data-row]');
+    const DEFAULT_VAT = 15;
+    const body = document.getElementById('items-body');
+    let rowIndex = {{ $bill->items->count() }};
 
     function recalc() {
         let subtotal = 0, vat = 0;
 
-        rows().forEach(row => {
+        body.querySelectorAll('tr[data-row]').forEach(row => {
             const qty = parseFloat(row.querySelector('[data-qty]').value) || 0;
             const price = parseFloat(row.querySelector('[data-price]').value) || 0;
             const rate = parseFloat(row.querySelector('[data-vat]').value) || 0;
@@ -104,7 +140,45 @@
         document.getElementById('summary-total').textContent = CURRENCY_SYMBOL + ' ' + (subtotal + vat).toFixed(2);
     }
 
-    document.getElementById('items-body').addEventListener('input', recalc);
+    // A freeform line (no bill_item_id) isn't tied to any original bill
+    // line — unlike the pre-filled rows above, it has no source line to
+    // cap its quantity or pre-fill its price from.
+    function addRow() {
+        const index = rowIndex++;
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-slate-50';
+        tr.setAttribute('data-row', '');
+        tr.innerHTML = `
+            <td class="py-2 pe-3">
+                <input type="text" name="items[${index}][description]" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </td>
+            <td class="py-2 pe-3">
+                <input type="number" step="0.01" min="0.01" name="items[${index}][quantity]" value="1" data-qty class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </td>
+            <td class="py-2 pe-3">
+                <input type="number" step="0.01" min="0" name="items[${index}][unit_price]" value="0" data-price class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </td>
+            <td class="py-2 pe-3">
+                <input type="number" step="0.01" min="0" max="100" name="items[${index}][vat_rate]" value="${DEFAULT_VAT}" data-vat class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </td>
+            <td class="py-2 text-end font-medium" data-line-total>${CURRENCY_SYMBOL} 0.00</td>
+            <td class="py-2 ps-2 text-end">
+                <button type="button" data-remove class="text-slate-400 hover:text-red-600">&times;</button>
+            </td>
+        `;
+        body.appendChild(tr);
+        recalc();
+    }
+
+    document.getElementById('add-row').addEventListener('click', addRow);
+    body.addEventListener('input', recalc);
+    body.addEventListener('click', (e) => {
+        if (e.target.closest('[data-remove]')) {
+            e.target.closest('tr[data-row]').remove();
+            recalc();
+        }
+    });
+
     recalc();
 })();
 </script>

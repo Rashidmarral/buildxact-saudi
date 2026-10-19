@@ -11,9 +11,11 @@ class PurchaseReturn extends Model
 {
     use BelongsToCompany;
 
+    public const REASON_TYPES = ['returned_goods', 'pricing_error', 'cancelled_order', 'other'];
+
     protected $fillable = [
         'company_id', 'bill_id', 'supplier_id', 'branch_id', 'created_by',
-        'return_number', 'issue_date', 'reason', 'status',
+        'return_number', 'issue_date', 'reason', 'reason_type', 'status',
         'subtotal', 'vat_total', 'total', 'currency', 'exchange_rate',
     ];
 
@@ -47,6 +49,17 @@ class PurchaseReturn extends Model
     public function items(): HasMany
     {
         return $this->hasMany(PurchaseReturnItem::class);
+    }
+
+    public function reasonTypeLabel(): ?string
+    {
+        return match ($this->reason_type) {
+            'returned_goods' => __('Returned goods'),
+            'pricing_error' => __('Pricing error'),
+            'cancelled_order' => __('Order cancelled'),
+            'other' => __('Other'),
+            default => null,
+        };
     }
 
     public function recalculateTotals(): void

@@ -66,7 +66,7 @@ class PurchaseReturnController extends Controller
             return view('user.purchase-returns.select-bill');
         }
 
-        $bill = Bill::with('items.item')->findOrFail($billId);
+        $bill = Bill::with(['items.item', 'supplier', 'branch'])->findOrFail($billId);
 
         if (! in_array($bill->status, self::ELIGIBLE_STATUSES, true) || $bill->remainingReturnableTotal() <= 0.01) {
             return redirect()->route('app.purchase-returns.create')->withErrors(['bill' => __('This bill is no longer eligible for a purchase return.')]);
@@ -95,6 +95,7 @@ class PurchaseReturnController extends Controller
             'bill_id' => ['required', Rule::exists('bills', 'id')->where('company_id', $companyId)],
             'issue_date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:255'],
+            'reason_type' => ['nullable', Rule::in(PurchaseReturn::REASON_TYPES)],
             'items' => ['required', 'array', 'min:1'],
             // bill_item_id deliberately stays unscoped here — see
             // CrossTenantLineItemTest / "commercial audit finding A6":
@@ -138,6 +139,7 @@ class PurchaseReturnController extends Controller
                 'return_number' => $company->nextPurchaseReturnNumber(),
                 'issue_date' => $data['issue_date'],
                 'reason' => $data['reason'] ?? null,
+                'reason_type' => $data['reason_type'] ?? null,
                 'status' => 'issued',
                 'currency' => $bill->currency,
                 'exchange_rate' => $bill->exchange_rate,
@@ -212,7 +214,9 @@ class PurchaseReturnController extends Controller
             'subtotal' => $purchaseReturn->subtotal,
             'vat_total' => $purchaseReturn->vat_total,
             'total' => $purchaseReturn->total,
-            'notes' => $purchaseReturn->reason,
+            'notes' => $purchaseReturn->reasonTypeLabel()
+                ? $purchaseReturn->reasonTypeLabel().($purchaseReturn->reason ? ' — '.$purchaseReturn->reason : '')
+                : $purchaseReturn->reason,
         ];
 
         $pdf = $renderer->render('documents.print.pdf', [

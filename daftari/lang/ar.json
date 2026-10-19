@@ -5919,5 +5919,8 @@
     "Discount given": "خصم ممنوح",
     "Order cancelled": "طلب ملغى",
     "+ Add credit line": "+ إضافة بند دائن",
-    "Adjust quantities to credit only part of an invoice line, or clear a line entirely to leave it out. Add a line below for a credit that isn't tied to a specific invoice line (e.g. a goodwill credit).": "عدّل الكميات لإعادة جزء فقط من بند الفاتورة، أو احذف البند بالكامل لاستبعاده. أضف بندًا أدناه لرصيد دائن غير مرتبط ببند معين في الفاتورة (مثل رصيد دائن كبادرة حسن نية)."
+    "Adjust quantities to credit only part of an invoice line, or clear a line entirely to leave it out. Add a line below for a credit that isn't tied to a specific invoice line (e.g. a goodwill credit).": "عدّل الكميات لإعادة جزء فقط من بند الفاتورة، أو احذف البند بالكامل لاستبعاده. أضف بندًا أدناه لرصيد دائن غير مرتبط ببند معين في الفاتورة (مثل رصيد دائن كبادرة حسن نية).",
+    "Original bill": "الفاتورة الأصلية",
+    "Bill No.": "رقم الفاتورة",
+    "Adjust quantities to return only part of a bill line, or clear a line entirely to leave it out. Add a line below for a return that isn't tied to a specific bill line.": "عدّل الكميات لإرجاع جزء فقط من بند الفاتورة، أو احذف البند بالكامل لاستبعاده. أضف بندًا أدناه لمرتجع غير مرتبط ببند معين في الفاتورة."
 }

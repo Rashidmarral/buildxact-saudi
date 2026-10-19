@@ -43,7 +43,9 @@
         'subtotal' => $purchaseReturn->subtotal,
         'vat_total' => $purchaseReturn->vat_total,
         'total' => $purchaseReturn->total,
-        'notes' => $purchaseReturn->reason,
+        'notes' => $purchaseReturn->reasonTypeLabel()
+            ? $purchaseReturn->reasonTypeLabel().($purchaseReturn->reason ? ' — '.$purchaseReturn->reason : '')
+            : $purchaseReturn->reason,
     ];
 @endphp
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
