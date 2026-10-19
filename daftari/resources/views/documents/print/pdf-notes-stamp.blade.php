@@ -30,9 +30,6 @@
             <td style="width: {{ $showQr ? '50%' : '60%' }};"></td>
             @if ($showQr)
                 <td style="width: 25%; text-align: center;">
-                    @if (!empty($doc['zatca_status']))
-                        <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div><br>
-                    @endif
                     <img src="data:image/png;base64,{{ $doc['qr_code'] }}" class="qr-img" alt="">
                 </td>
             @endif

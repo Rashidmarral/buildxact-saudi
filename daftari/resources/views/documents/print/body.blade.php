@@ -55,6 +55,16 @@
     // has no Arabic name at all.
     $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
     $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
+    // $primary()/$secondary() split a name across a main line + a sub
+    // line — exactly right where there's room for two lines (the default
+    // minimal/bordered/boxed layout's own party block). The single-line
+    // label/value rows inside retail_classic's and sage_classic's Seller/
+    // Customer address boxes have no second line to put $secondary() in,
+    // so a party with a name_ar on file silently printed English-only
+    // there even in bilingual mode — this combines both onto that one
+    // line instead, the same "English / Arabic" shape $lbl() already
+    // gives every static label in those same boxes.
+    $bilingualName = fn (string $en, ?string $ar = null) => $ar && $showAr && $languageMode !== 'arabic_only' ? "{$en} / {$ar}" : $primary($en, $ar);
     // See documents.print.pdf's own comment — ZATCA's cbc:IssueTime (and
     // the QR built from it) already carries the real issue time, but no
     // printed layout ever showed it to the buyer.
@@ -231,11 +241,6 @@
         <div class="mt-8 flex items-end justify-end gap-8">
             @if (!empty($doc['qr_code']))
                 <div class="text-center">
-                    @if (!empty($doc['zatca_status']))
-                        <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                            {{ $doc['zatca_status'] === 'cleared' ? __('ZATCA Cleared') : __('ZATCA Reported') }}
-                        </p>
-                    @endif
                     <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ __('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
                 </div>
             @endif
@@ -394,11 +399,6 @@
         <div class="mt-8 flex items-end justify-end gap-8">
             @if (!empty($doc['qr_code']))
                 <div class="text-center">
-                    @if (!empty($doc['zatca_status']))
-                        <p class="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                            {{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}
-                        </p>
-                    @endif
                     <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="mx-auto h-40 w-40" onerror="this.style.display='none'">
                 </div>
             @endif
@@ -618,7 +618,7 @@
 
     @php
         $sellerRows = [
-            ['label' => $lbl('Seller Name'), 'value' => $primary($company->name, $company->name_ar)],
+            ['label' => $lbl('Seller Name'), 'value' => $bilingualName($company->name, $company->name_ar)],
             ['label' => $lbl('Vat Number'), 'value' => $company->vat_number],
             ['label' => $lbl('CR Number'), 'value' => $company->cr_number],
             ['label' => $lbl('Building No'), 'value' => $company->building_number],
@@ -628,7 +628,7 @@
             ['label' => $lbl('City'), 'value' => $company->city],
         ];
         $buyerRows = [
-            ['label' => $lbl('Customer Name'), 'value' => $primary($doc['party']->name, $doc['party']->name_ar ?? null)],
+            ['label' => $lbl('Customer Name'), 'value' => $bilingualName($doc['party']->name, $doc['party']->name_ar ?? null)],
             ['label' => $lbl('Vat Number'), 'value' => $doc['party']->vat_number ?? null],
             ['label' => $lbl('Buyer C.R. No'), 'value' => $doc['party']->cr_number ?? null],
             ['label' => $lbl('Building No'), 'value' => $doc['party']->building_number ?? null],
@@ -763,7 +763,7 @@
             ['label' => $lbl('City'), 'value' => $company->city],
         ];
         $retailCustomerRows = [
-            ['label' => $lbl('Customer'), 'value' => $primary($doc['party']->name, $doc['party']->name_ar ?? null)],
+            ['label' => $lbl('Customer'), 'value' => $bilingualName($doc['party']->name, $doc['party']->name_ar ?? null)],
             ['label' => $lbl('Tax Code'), 'value' => $doc['party']->vat_number ?? null],
             ['label' => $lbl('R.C'), 'value' => $doc['party']->cr_number ?? null],
             ['label' => $lbl('Building'), 'value' => $doc['party']->building_number ?? null],
@@ -964,7 +964,7 @@
             ]),
             $dcRow([
                 ['en' => 'Customer No', 'ar' => 'رقم العميل', 'value' => $dcParty->client_code ?? ($dcParty->supplier_code ?? '—')],
-                ['en' => 'Customer Name', 'ar' => 'أسم العميل', 'value' => $primary($dcParty->name, $dcParty->name_ar ?? null), 'wide' => true],
+                ['en' => 'Customer Name', 'ar' => 'أسم العميل', 'value' => $bilingualName($dcParty->name, $dcParty->name_ar ?? null), 'wide' => true],
             ]),
             $dcRow([
                 ['en' => 'Customer C.R.', 'ar' => 'السجل التجاري للعميل', 'value' => $dcParty->cr_number ?? '—'],
@@ -1135,11 +1135,6 @@
         </div>
         <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-card text-end">
             @if (!empty($doc['qr_code']))
-                @if (!empty($doc['zatca_status']))
-                    <p class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                        {{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}
-                    </p>
-                @endif
                 <img src="data:image/png;base64,{{ $doc['qr_code'] }}" alt="{{ $lbl('ZATCA QR code') }}" class="ms-auto h-32 w-32" onerror="this.style.display='none'">
             @endif
         </div>

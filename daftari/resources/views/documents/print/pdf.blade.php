@@ -68,6 +68,16 @@
     };
     $primary = fn (string $en, ?string $ar = null) => $languageMode === 'arabic_only' && $ar ? $ar : $en;
     $secondary = fn (?string $ar = null) => $showAr && $languageMode !== 'arabic_only' ? $ar : null;
+    // $primary()/$secondary() split a name across a main line + a sub
+    // line — exactly right where there's room for two lines (the default
+    // minimal/bordered/boxed layout's own party block). The single-line
+    // label/value rows inside retail_classic's and sage_classic's Seller/
+    // Customer address boxes have no second line to put $secondary() in,
+    // so a party with no English name_ar fallback silently printed
+    // English-only there even in bilingual mode — this combines both
+    // onto that one line instead, the same "English / Arabic" shape
+    // $lbl() already gives every static label in those same boxes.
+    $bilingualName = fn (string $en, ?string $ar = null) => $ar && $showAr && $languageMode !== 'arabic_only' ? "{$en} / {$ar}" : $primary($en, $ar);
     // ZATCA's cbc:IssueTime (and the QR code built from it) already
     // carries the real issue time — invoices.issue_date itself is a
     // date-only column with nothing to show — but no printed layout
@@ -91,7 +101,6 @@
     .text-end { text-align: right; }
     .text-center { text-align: center; }
     .ar { direction: rtl; text-align: right; }
-    .zatca-badge { background-color: #d1fae5; color: #047857; font-size: 8pt; font-weight: bold; padding: 3px 10px; margin-bottom: 4px; }
     /* The Phase 2 QR is a dense 9-tag payload (~450-500 base64 chars,
        version ~25+ even at Quartile EC) — printed too small, its modules
        shrink below what a phone camera can resolve and every scan comes
@@ -613,7 +622,7 @@
 
     @php
         $sellerRows = [
-            ['label' => $lbl('Seller Name'), 'value' => $primary($company->name, $company->name_ar)],
+            ['label' => $lbl('Seller Name'), 'value' => $bilingualName($company->name, $company->name_ar)],
             ['label' => $lbl('Vat Number'), 'value' => $company->vat_number],
             ['label' => $lbl('CR Number'), 'value' => $company->cr_number],
             ['label' => $lbl('Building No'), 'value' => $company->building_number],
@@ -623,7 +632,7 @@
             ['label' => $lbl('City'), 'value' => $company->city],
         ];
         $buyerRows = [
-            ['label' => $lbl('Customer Name'), 'value' => $primary($doc['party']->name, $doc['party']->name_ar ?? null)],
+            ['label' => $lbl('Customer Name'), 'value' => $bilingualName($doc['party']->name, $doc['party']->name_ar ?? null)],
             ['label' => $lbl('Vat Number'), 'value' => $doc['party']->vat_number ?? null],
             ['label' => $lbl('Buyer C.R. No'), 'value' => $doc['party']->cr_number ?? null],
             ['label' => $lbl('Building No'), 'value' => $doc['party']->building_number ?? null],
@@ -759,7 +768,7 @@
             ['label' => $lbl('City'), 'value' => $company->city],
         ];
         $retailCustomerRows = [
-            ['label' => $lbl('Customer'), 'value' => $primary($doc['party']->name, $doc['party']->name_ar ?? null)],
+            ['label' => $lbl('Customer'), 'value' => $bilingualName($doc['party']->name, $doc['party']->name_ar ?? null)],
             ['label' => $lbl('Tax Code'), 'value' => $doc['party']->vat_number ?? null],
             ['label' => $lbl('R.C'), 'value' => $doc['party']->cr_number ?? null],
             ['label' => $lbl('Building'), 'value' => $doc['party']->building_number ?? null],
@@ -927,7 +936,7 @@
             ],
             [
                 ['en' => 'Customer No', 'ar' => 'رقم العميل', 'value' => $dcParty->client_code ?? ($dcParty->supplier_code ?? '—')],
-                ['en' => 'Customer Name', 'ar' => 'أسم العميل', 'value' => $primary($dcParty->name, $dcParty->name_ar ?? null)],
+                ['en' => 'Customer Name', 'ar' => 'أسم العميل', 'value' => $bilingualName($dcParty->name, $dcParty->name_ar ?? null)],
             ],
             [
                 ['en' => 'Customer C.R.', 'ar' => 'السجل التجاري للعميل', 'value' => $dcParty->cr_number ?? '—'],
@@ -1145,12 +1154,6 @@
                 @if ($showPartyVatNumber && $doc['party']->vat_number)<div style="margin-top: 1px; color: #64748b;">{{ $lbl('VAT') }}: {{ $doc['party']->vat_number }}</div>@endif
                 @if (method_exists($doc['party'], 'fullAddress') && $doc['party']->fullAddress())<div style="color: #64748b;">{{ $doc['party']->fullAddress() }}</div>@endif
                 @if (!empty($doc['party']->email))<div style="color: #64748b;">{{ $doc['party']->email }}</div>@endif
-            </td>
-            <td style="width: 2%;"></td>
-            <td style="width: 49%; vertical-align: top; text-align: right; background-color: #f8fafc; border: 0.5pt solid #f1f5f9; border-radius: 14px; padding: 3px 6px;">
-                @if (!empty($doc['zatca_status']))
-                    <div class="zatca-badge">{{ $doc['zatca_status'] === 'cleared' ? $lbl('ZATCA Cleared') : $lbl('ZATCA Reported') }}</div>
-                @endif
             </td>
         </tr>
     </table>
