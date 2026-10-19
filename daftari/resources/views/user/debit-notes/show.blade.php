@@ -51,7 +51,9 @@
         'subtotal' => $debitNote->subtotal,
         'vat_total' => $debitNote->vat_total,
         'total' => $debitNote->total,
-        'notes' => $debitNote->reason,
+        'notes' => $debitNote->reasonTypeLabel()
+            ? $debitNote->reasonTypeLabel().($debitNote->reason ? ' — '.$debitNote->reason : '')
+            : $debitNote->reason,
     ];
 @endphp
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">

@@ -12,9 +12,11 @@ class DebitNote extends Model
 {
     use BelongsToCompany;
 
+    public const REASON_TYPES = ['price_correction', 'additional_charges', 'freight', 'other'];
+
     protected $fillable = [
         'company_id', 'invoice_id', 'client_id', 'branch_id', 'created_by',
-        'debit_note_number', 'issue_date', 'reason', 'status',
+        'debit_note_number', 'issue_date', 'reason', 'reason_type', 'status',
         'subtotal', 'vat_total', 'total', 'currency', 'exchange_rate', 'qr_code',
     ];
 
@@ -58,6 +60,17 @@ class DebitNote extends Model
     public function isZatcaSynced(): bool
     {
         return $this->zatcaDebitNoteLogs()->whereIn('status', ['cleared', 'reported'])->exists();
+    }
+
+    public function reasonTypeLabel(): ?string
+    {
+        return match ($this->reason_type) {
+            'price_correction' => __('Price correction'),
+            'additional_charges' => __('Additional charges or services'),
+            'freight' => __('Freight billed after the invoice'),
+            'other' => __('Other'),
+            default => null,
+        };
     }
 
     public function recalculateTotals(): void

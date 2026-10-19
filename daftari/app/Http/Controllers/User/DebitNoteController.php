@@ -72,7 +72,7 @@ class DebitNoteController extends Controller
             return view('user.debit-notes.select-invoice');
         }
 
-        $invoice = Invoice::findOrFail($invoiceId);
+        $invoice = Invoice::with(['items.item', 'client', 'branch'])->findOrFail($invoiceId);
 
         if (! in_array($invoice->status, self::ELIGIBLE_STATUSES, true)) {
             return redirect()->route('app.debit-notes.create')->withErrors(['invoice' => __('This invoice is no longer eligible for a debit note.')]);
@@ -95,6 +95,7 @@ class DebitNoteController extends Controller
             'invoice_id' => ['required', Rule::exists('invoices', 'id')->where('company_id', Auth::user()->company_id)],
             'issue_date' => ['required', 'date'],
             'reason' => ['nullable', 'string', 'max:255'],
+            'reason_type' => ['nullable', Rule::in(DebitNote::REASON_TYPES)],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
@@ -119,6 +120,7 @@ class DebitNoteController extends Controller
                 'debit_note_number' => $company->nextDebitNoteNumber(),
                 'issue_date' => $data['issue_date'],
                 'reason' => $data['reason'] ?? null,
+                'reason_type' => $data['reason_type'] ?? null,
                 'status' => 'issued',
                 'currency' => $invoice->currency,
                 'exchange_rate' => $invoice->exchange_rate,
@@ -182,7 +184,9 @@ class DebitNoteController extends Controller
             'subtotal' => $debitNote->subtotal,
             'vat_total' => $debitNote->vat_total,
             'total' => $debitNote->total,
-            'notes' => $debitNote->reason,
+            'notes' => $debitNote->reasonTypeLabel()
+                ? $debitNote->reasonTypeLabel().($debitNote->reason ? ' — '.$debitNote->reason : '')
+                : $debitNote->reason,
         ];
 
         $pdf = $renderer->render('documents.print.pdf', [

@@ -161,4 +161,103 @@ class DebitNoteTest extends TestCase
         $response->assertOk();
         $response->assertJsonFragment(['invoice_number' => $invoice->invoice_number]);
     }
+
+    /**
+     * "can we make our debit note something like this" — a competitor
+     * screenshot added a structured "Reason type" dropdown (Price
+     * correction / Additional charges or services / Freight billed after
+     * the invoice / Other), a read-only "Original invoice" summary and
+     * its line items for reference, and a one-click "Correct price"
+     * pre-fill for just the increase on an existing invoice line.
+     */
+    public function test_a_reason_type_can_be_saved_alongside_the_free_text_reason(): void
+    {
+        [, $owner, , $invoice] = $this->makeCompanyWithInvoice();
+
+        $this->actingAs($owner)->post(route('app.debit-notes.store'), [
+            'invoice_id' => $invoice->id,
+            'issue_date' => now()->toDateString(),
+            'reason' => 'Billed the wrong unit price originally',
+            'reason_type' => 'price_correction',
+            'items' => [
+                ['description' => 'Price correction — Item', 'quantity' => 1, 'unit_price' => 50, 'vat_rate' => 15],
+            ],
+        ])->assertSessionDoesntHaveErrors();
+
+        $debitNote = DebitNote::latest('id')->first();
+        $this->assertSame('price_correction', $debitNote->reason_type);
+        $this->assertSame('Price correction', $debitNote->reasonTypeLabel());
+    }
+
+    public function test_an_invalid_reason_type_is_rejected(): void
+    {
+        [, $owner, , $invoice] = $this->makeCompanyWithInvoice();
+
+        $response = $this->actingAs($owner)->post(route('app.debit-notes.store'), [
+            'invoice_id' => $invoice->id,
+            'issue_date' => now()->toDateString(),
+            'reason_type' => 'not-a-real-type',
+            'items' => [
+                ['description' => 'Line', 'quantity' => 1, 'unit_price' => 50, 'vat_rate' => 15],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors('reason_type');
+        $this->assertSame(0, DebitNote::count());
+    }
+
+    public function test_reason_type_is_optional(): void
+    {
+        [, $owner, , $invoice] = $this->makeCompanyWithInvoice();
+
+        $this->actingAs($owner)->post(route('app.debit-notes.store'), [
+            'invoice_id' => $invoice->id,
+            'issue_date' => now()->toDateString(),
+            'items' => [
+                ['description' => 'Line', 'quantity' => 1, 'unit_price' => 50, 'vat_rate' => 15],
+            ],
+        ])->assertSessionDoesntHaveErrors();
+
+        $debitNote = DebitNote::latest('id')->first();
+        $this->assertNull($debitNote->reason_type);
+        $this->assertNull($debitNote->reasonTypeLabel());
+    }
+
+    public function test_the_create_form_shows_the_original_invoice_summary_and_its_lines(): void
+    {
+        [, $owner, , $invoice] = $this->makeCompanyWithInvoice();
+        $invoice->items()->create([
+            'description' => 'Consulting hours', 'quantity' => 2, 'unit_price' => 500,
+            'vat_rate' => 15, 'vat_amount' => 150, 'line_total' => 1150,
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('app.debit-notes.create', ['invoice_id' => $invoice->id]));
+
+        $response->assertOk();
+        $response->assertSee($invoice->invoice_number);
+        $response->assertSee('Consulting hours');
+        $response->assertSee(__('Correct price'));
+        $response->assertSee(__('Reason type'));
+    }
+
+    public function test_the_show_page_renders_the_reason_type_label_alongside_the_reason(): void
+    {
+        [$company, $owner, $client, $invoice] = $this->makeCompanyWithInvoice();
+        $debitNote = DebitNote::create([
+            'company_id' => $company->id, 'invoice_id' => $invoice->id, 'client_id' => $client->id,
+            'debit_note_number' => 'DN-1', 'issue_date' => now(), 'status' => 'issued', 'currency' => 'SAR',
+            'reason' => 'Under-billed on the original quote', 'reason_type' => 'price_correction',
+            'subtotal' => 200, 'vat_total' => 30, 'total' => 230,
+        ]);
+        $debitNote->items()->create([
+            'description' => 'Additional freight', 'quantity' => 1, 'unit_price' => 200,
+            'vat_rate' => 15, 'vat_amount' => 30, 'line_total' => 230,
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('app.debit-notes.show', $debitNote));
+
+        $response->assertOk();
+        $response->assertSee('Price correction');
+        $response->assertSee('Under-billed on the original quote');
+    }
 }

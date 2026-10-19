@@ -5896,5 +5896,22 @@
     "ZATCA returned no warnings or additional messages for this submission — a clean clearance/reporting result.": "لم تُرجع زاتكا أي تحذيرات أو رسائل إضافية لهذا الإرسال — نتيجة تخليص/إبلاغ نظيفة.",
     "Raw response": "الاستجابة الخام",
     "XML submitted": "ملف XML المُرسل",
-    "View details": "عرض التفاصيل"
+    "View details": "عرض التفاصيل",
+    "Original invoice": "الفاتورة الأصلية",
+    "Invoice No.": "رقم الفاتورة",
+    "Business Location": "موقع العمل",
+    "Reason type": "نوع السبب",
+    "Please select": "الرجاء الاختيار",
+    "Price correction": "تصحيح السعر",
+    "Additional charges or services": "رسوم أو خدمات إضافية",
+    "Freight billed after the invoice": "رسوم شحن فوترت بعد الفاتورة",
+    "Reason for issuance (optional)": "سبب الإصدار (اختياري)",
+    "Invoice lines": "بنود الفاتورة",
+    "What was originally billed — for reference. Click \"Correct price\" to pre-fill a debit note line for just the increase on that line.": "ما تم فوترته أصلاً — للمرجعية. انقر على \"تصحيح السعر\" لتعبئة بند إشعار مدين بالزيادة فقط على ذلك البند.",
+    "Correct price": "تصحيح السعر",
+    "Debit note lines": "بنود إشعار المدين",
+    "Unit price before VAT, in the invoice currency. For a price correction enter only the increase per unit.": "سعر الوحدة قبل ضريبة القيمة المضافة، بعملة الفاتورة. لتصحيح السعر، أدخل فقط الزيادة لكل وحدة.",
+    "+ Add charge line": "+ إضافة بند رسوم",
+    "VAT @:rate%": "ضريبة القيمة المضافة @:rate%",
+    "Price correction — :description": "تصحيح السعر — :description"
 }
