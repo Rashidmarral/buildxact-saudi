@@ -10,6 +10,7 @@
         @if ($tracker->notes)<p class="text-sm text-slate-500 mt-0.5">{{ $tracker->notes }}</p>@endif
     </div>
     <div class="flex items-center gap-2 shrink-0">
+        <button type="button" onclick="document.getElementById('add-entry-modal').showModal()" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Add entry') }}</button>
         <a href="{{ route('app.cash-trackers.pdf', $tracker) }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download report') }}</a>
         <form method="POST" action="{{ route('app.cash-trackers.destroy', $tracker) }}" onsubmit="return confirm('{{ __('Delete this cash tracker and every entry in it? This cannot be undone.') }}')">
             @csrf @method('DELETE')
@@ -78,43 +79,6 @@
                 </tbody>
             </table>
         @endif
-
-        <div class="border-t border-slate-100 p-5">
-            <h4 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Add entry') }}</h4>
-            <form method="POST" action="{{ route('app.cash-trackers.entries.store', $tracker) }}" class="grid sm:grid-cols-2 gap-3">
-                @csrf
-                <div>
-                    <label class="block text-xs font-medium text-slate-500">{{ __('Date') }}</label>
-                    <input type="date" name="date" value="{{ old('date', now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500">{{ __('Type') }}</label>
-                    <select name="type" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                        <option value="deposit">{{ __('Deposit — cash coming in') }}</option>
-                        <option value="withdrawal">{{ __('Withdrawal — cash going out / used') }}</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500">{{ __('Amount') }}</label>
-                    <input type="number" step="0.01" min="0.01" name="amount" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500">{{ __('Party (who gave / received it)') }}</label>
-                    <input type="text" name="party_name" placeholder="{{ __('e.g. Project Manager, Owner, Myself') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-medium text-slate-500">{{ __('Purpose') }}</label>
-                    <input type="text" name="purpose" placeholder="{{ __('e.g. Paid to project manager for site expenses') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-xs font-medium text-slate-500">{{ __('Notes (optional)') }}</label>
-                    <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
-                </div>
-                <div class="sm:col-span-2">
-                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add entry') }}</button>
-                </div>
-            </form>
-        </div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -138,4 +102,46 @@
         @endif
     </div>
 </div>
+
+<dialog id="add-entry-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-lg backdrop:bg-slate-900/40">
+    <div class="p-6">
+        <div class="flex items-start justify-between mb-4">
+            <h3 class="text-lg font-bold text-slate-900">{{ __('Add entry') }}</h3>
+            <button type="button" onclick="document.getElementById('add-entry-modal').close()" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+        <form method="POST" action="{{ route('app.cash-trackers.entries.store', $tracker) }}" class="grid sm:grid-cols-2 gap-3">
+            @csrf
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Date') }}</label>
+                <input type="date" name="date" value="{{ old('date', now()->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Type') }}</label>
+                <select name="type" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <option value="deposit">{{ __('Deposit — cash coming in') }}</option>
+                    <option value="withdrawal">{{ __('Withdrawal — cash going out / used') }}</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Amount') }}</label>
+                <input type="number" step="0.01" min="0.01" name="amount" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Party (who gave / received it)') }}</label>
+                <input type="text" name="party_name" placeholder="{{ __('e.g. Project Manager, Owner, Myself') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-500">{{ __('Purpose') }}</label>
+                <input type="text" name="purpose" placeholder="{{ __('e.g. Paid to project manager for site expenses') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-500">{{ __('Notes (optional)') }}</label>
+                <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></textarea>
+            </div>
+            <div class="sm:col-span-2">
+                <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add entry') }}</button>
+            </div>
+        </form>
+    </div>
+</dialog>
 @endsection
