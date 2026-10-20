@@ -56,6 +56,7 @@ use App\Http\Controllers\User\ApiTokenController;
 use App\Http\Controllers\User\BankAccountController;
 use App\Http\Controllers\User\BankAccountReportController;
 use App\Http\Controllers\User\CashCustodyController;
+use App\Http\Controllers\User\CashTrackerController;
 use App\Http\Controllers\User\BankReconciliationController;
 use App\Http\Controllers\User\BankTransferController;
 use App\Http\Controllers\User\BillController;
@@ -496,6 +497,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('cash-custody', [CashCustodyController::class, 'index'])->name('cash-custody.index');
         Route::get('cash-custody/report', [CashCustodyController::class, 'report'])->name('cash-custody.report');
         Route::get('cash-custody/report/pdf', [CashCustodyController::class, 'pdf'])->middleware('throttle:pdf')->name('cash-custody.pdf');
+        Route::prefix('cash-trackers')->name('cash-trackers.')->group(function () {
+            Route::get('/', [CashTrackerController::class, 'index'])->name('index');
+            Route::post('/', [CashTrackerController::class, 'store'])->name('store');
+            Route::get('{cashTracker}', [CashTrackerController::class, 'show'])->name('show');
+            Route::delete('{cashTracker}', [CashTrackerController::class, 'destroy'])->name('destroy');
+            Route::get('{cashTracker}/pdf', [CashTrackerController::class, 'pdf'])->middleware('throttle:pdf')->name('pdf');
+            Route::post('{cashTracker}/entries', [CashTrackerController::class, 'storeEntry'])->name('entries.store');
+            Route::delete('{cashTracker}/entries/{entry}', [CashTrackerController::class, 'destroyEntry'])->name('entries.destroy');
+        });
         Route::get('account-reports', [BankAccountReportController::class, 'index'])->name('account-reports.index');
         Route::get('account-reports/{bankAccount}', [BankAccountReportController::class, 'show'])->name('account-reports.show');
         Route::get('account-reports/{bankAccount}/pdf', [BankAccountReportController::class, 'pdf'])->middleware('throttle:pdf')->name('account-reports.pdf');

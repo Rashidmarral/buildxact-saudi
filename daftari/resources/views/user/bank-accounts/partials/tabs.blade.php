@@ -5,6 +5,7 @@
     <a href="{{ route('app.payment-vouchers.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.payment-vouchers.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Payment vouchers') }}</a>
     <a href="{{ route('app.bank-transfers.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.bank-transfers.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Transfers') }}</a>
     <a href="{{ route('app.cash-custody.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.cash-custody.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Custody / Advances') }}</a>
+    <a href="{{ route('app.cash-trackers.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.cash-trackers.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Cash Trackers') }}</a>
     <a href="{{ route('app.owner-reimbursements.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.owner-reimbursements.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Owner Reimbursements') }}</a>
     <a href="{{ route('app.account-reports.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.account-reports.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Reports') }}</a>
 </div>

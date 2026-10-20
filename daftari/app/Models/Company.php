@@ -691,6 +691,11 @@ class Company extends Model
         return $this->hasMany(InvoiceTemplate::class);
     }
 
+    public function cashTrackers(): HasMany
+    {
+        return $this->hasMany(CashTracker::class);
+    }
+
     public function restaurantTables(): HasMany
     {
         return $this->hasMany(RestaurantTable::class);
