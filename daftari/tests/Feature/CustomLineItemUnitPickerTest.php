@@ -88,6 +88,17 @@ class CustomLineItemUnitPickerTest extends TestCase
         $response->assertSee('Ton');
     }
 
+    /**
+     * Updated for the "products will save in database" fix
+     * (QuotationLineItemsSavedToCatalogTest): a freeform line with no
+     * item_id no longer stays unlinked — QuotationController::
+     * syncItems() now finds-or-creates a catalog Item for it and links
+     * it back. What this test actually guards (the unit picker's
+     * company-wide unit list) still works the same either way, so it
+     * now asserts the unit/description landed correctly and that the
+     * line picked up a real catalog item, instead of asserting item_id
+     * stayed null.
+     */
     public function test_a_custom_line_can_be_submitted_with_a_company_unit_and_no_linked_item(): void
     {
         $owner = $this->makeOwner();
@@ -106,9 +117,11 @@ class CustomLineItemUnitPickerTest extends TestCase
 
         $response->assertSessionDoesntHaveErrors();
         $this->assertDatabaseHas('quotation_items', [
-            'item_id' => null,
             'unit_id' => $unit->id,
             'description' => 'Freeform labour charge',
         ]);
+        $line = \App\Models\QuotationItem::where('description', 'Freeform labour charge')->first();
+        $this->assertNotNull($line->item_id, 'the freeform line should now auto-link to a catalog item');
+        $this->assertSame('Freeform labour charge', \App\Models\Item::find($line->item_id)->name);
     }
 }

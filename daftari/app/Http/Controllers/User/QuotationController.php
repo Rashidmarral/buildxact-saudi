@@ -716,14 +716,28 @@ class QuotationController extends Controller
         // submission order so drag-reordered rows persist in their new
         // position rather than the index they were first created with.
         foreach (array_values($items) as $sort => $row) {
+            $itemId = $row['item_id'] ?? null;
+
+            // "products will save in database that's quotation or
+            // performa invoice created" — a freeform line (no item_id,
+            // just typed text) previously vanished into this one
+            // quotation/proforma only. Now it's also saved into the
+            // Items catalog, so it's a pickable item next time instead
+            // of being retyped — matched by name per company so quoting
+            // the same product twice doesn't create a duplicate catalog
+            // entry.
+            if (! $itemId && trim((string) ($row['description'] ?? '')) !== '') {
+                $itemId = $this->findOrCreateCatalogItem($quotation->company_id, $row)->id;
+            }
+
             // See InvoiceController::syncItems — freezes the item's Arabic
             // name/description so later product edits don't rewrite this
             // quotation's historical display.
-            $item = ! empty($row['item_id']) ? Item::find($row['item_id']) : null;
+            $item = $itemId ? Item::find($itemId) : null;
 
             $line = new QuotationItem([
                 'quotation_id' => $quotation->id,
-                'item_id' => $row['item_id'] ?? null,
+                'item_id' => $itemId,
                 'unit_id' => $row['unit_id'] ?? null,
                 'description' => $row['description'],
                 'name_ar' => $item?->name_ar,
@@ -736,6 +750,41 @@ class QuotationController extends Controller
             $line->recalculate();
             $line->save();
         }
+    }
+
+    /**
+     * Looked up by name (case-insensitive, scoped to the company) before
+     * creating anything — quoting "Bulk, shaft seal HQQE" on two separate
+     * proformas must land on the same catalog item, not spawn a second
+     * one. Seeded as a non-stock-tracked service by default (matching
+     * how this app's own real-operator catalogs — e.g.
+     * ZubaidiProductsSeeder — model spare parts billed on a maintenance
+     * job rather than warehouse inventory): a typed quotation line was
+     * never going to carry stock-tracking details like a reorder point,
+     * and the operator can convert it to a tracked physical item in
+     * Settings afterward if that's what they actually want.
+     */
+    private function findOrCreateCatalogItem(int $companyId, array $row): Item
+    {
+        $name = trim($row['description']);
+
+        $existing = Item::where('company_id', $companyId)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return Item::create([
+            'company_id' => $companyId,
+            'name' => $name,
+            'item_type' => 'service',
+            'unit_price' => $row['unit_price'] ?? 0,
+            'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($companyId),
+            'is_active' => true,
+            'track_inventory' => false,
+        ]);
     }
 
     private function validated(Request $request): array
