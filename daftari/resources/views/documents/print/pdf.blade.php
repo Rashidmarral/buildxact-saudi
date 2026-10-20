@@ -89,15 +89,23 @@
     // documents and simply don't set it, so they render unchanged.
     $issuedDisplay = \App\Support\PlatformFormat::date($doc['date'])
         .(! empty($doc['issue_time']) ? ' '.\App\Support\PlatformFormat::time($doc['issue_time']) : '');
+    // See InvoiceTemplate's own doc comments: this nudges the base/
+    // paragraph text size (body copy, notes, footer) rather than the
+    // already page-density-tuned item tables scattered per layout —
+    // and, unlike the browser view's Tailwind rem classes, every size
+    // here is a literal PHP-interpolated pt value already, so scaling
+    // it is just arithmetic, no CSS cascade limitation to work around.
+    $tplFontScale = $template?->fontSizeScale() ?? 1.0;
+    $tplBorder = $template?->borderStyleCss();
 @endphp
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
-    body { font-family: cairo, sans-serif; color: #1e293b; font-size: 10pt; }
+    body { font-family: cairo, sans-serif; color: #1e293b; font-size: {{ round(10 * $tplFontScale, 1) }}pt; }
     table { border-collapse: collapse; width: 100%; }
-    .muted { color: #64748b; font-size: 9pt; }
+    .muted { color: #64748b; font-size: {{ round(9 * $tplFontScale, 1) }}pt; }
     .text-end { text-align: right; }
     .text-center { text-align: center; }
     .ar { direction: rtl; text-align: right; }
@@ -109,16 +117,22 @@
        needs meaningfully more physical area for the same module count to
        stay scannable. */
     .qr-img { width: 180px; height: 180px; }
-    .footer-note { margin-top: {{ $footerGap + 4 }}px; font-size: 8.5pt; color: #94a3b8; text-align: center; }
+    .footer-note { margin-top: {{ $footerGap + 4 }}px; font-size: {{ round(8.5 * $tplFontScale, 1) }}pt; color: #94a3b8; text-align: center; }
     /* No fixed height here — a real company stamp/seal is rarely a
        perfect square, and mPDF (unlike a browser) has no object-fit
        support, so forcing both width and height stretches/distorts a
        non-square stamp image. Width alone lets it scale proportionally. */
     .stamp-img { width: 130px; }
-    .notes-block { margin-top: {{ $notesGap }}px; font-size: 8.5pt; }
+    .notes-block { margin-top: {{ $notesGap }}px; font-size: {{ round(8.5 * $tplFontScale, 1) }}pt; }
+    @if ($tplBorder)
+        .doc-frame { border: {{ $tplBorder }}; padding: 10px; }
+    @endif
 </style>
 </head>
 <body>
+@if ($tplBorder)
+<div class="doc-frame">
+@endif
 {{-- Note: mPDF's table renderer has known instability combining a
      dir="rtl" <body> with certain colspan/border table shapes (a real
      "Undefined array key BORDER-RIGHT" crash was hit here), so
@@ -1275,6 +1289,10 @@
     <table style="margin-top: 2px;"><tr><td class="footer-note">
         {{ $company->name }}@if ($company->name_ar) — <span class="ar">{{ $company->name_ar }}</span>@endif &nbsp;·&nbsp; {{ $doc['number'] }}
     </td></tr></table>
+@endif
+
+@if ($tplBorder)
+</div>
 @endif
 
 </body>

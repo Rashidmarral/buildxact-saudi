@@ -11,15 +11,17 @@ use App\Support\InvoiceTemplatePresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class InvoiceTemplateController extends Controller
 {
     private const TYPES = [
         'all', 'invoice', 'quotation', 'proforma', 'bill', 'purchase_order',
-        'receipt_voucher', 'payment_voucher', 'project_cash_flow',
-        'letter', 'machinery_statement',
+        'receipt_voucher', 'payment_voucher', 'voucher_summary', 'client_statement',
+        'project_cash_flow', 'letter', 'machinery_statement',
     ];
 
     private const LAYOUTS = [
@@ -36,12 +38,23 @@ class InvoiceTemplateController extends Controller
 
     private const PAGE_SIZES = ['a4', 'letter'];
 
+    /**
+     * "i don't have option to change quotation layout to new template ...
+     * user choose the layout type and then user have multiple choice
+     * selection where it is applies and also user have option to
+     * deselect" — each InvoiceTemplate row is still scoped to exactly one
+     * document_type (Company::defaultTemplateFor() and every print path
+     * are untouched), but the editor now presents "the same design
+     * applied to several document types" as one thing: a $design is a
+     * group of sibling rows sharing one design_group, built here by
+     * grouping the company's own rows rather than a new table.
+     */
     public function index(Request $request)
     {
         $company = Auth::user()->company;
         $type = $request->query('type');
 
-        $templates = $company->invoiceTemplates()
+        $allTemplates = $company->invoiceTemplates()
             // pos_receipt rows are a different template family entirely
             // (see ReceiptTemplateController) — its layout keys
             // ('receipt_compact', 'receipt_detailed') aren't in this
@@ -52,22 +65,47 @@ class InvoiceTemplateController extends Controller
             // here is to never let a receipt template be reachable from
             // this list/editor at all.
             ->where('document_type', '!=', 'pos_receipt')
-            ->when($type && $type !== 'all_types', fn ($q) => $q->where('document_type', $type))
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();
 
-        $selected = null;
+        $designs = $allTemplates->groupBy('design_group')->map(function ($rows) {
+            $primary = $rows->firstWhere('is_default', true) ?? $rows->first();
+
+            return (object) [
+                'design_group' => $primary->design_group,
+                'primary' => $primary,
+                'rows' => $rows->values(),
+                'document_types' => $rows->pluck('document_type')->unique()->values()->all(),
+            ];
+        })->values();
+
+        // The type filter narrows which designs are listed, but never
+        // hides which document types a shown design applies to — a
+        // design covering both Invoice and Quotation must still show
+        // both chips while filtered to "Quotations", not just the one
+        // that matched.
+        $visibleDesigns = ($type && $type !== 'all_types')
+            ? $designs->filter(fn ($d) => in_array($type, $d->document_types, true))->values()
+            : $designs;
+
+        $selectedDesign = null;
         if ($request->filled('template')) {
-            $selected = $templates->firstWhere('id', (int) $request->query('template'));
+            $selectedRow = $allTemplates->firstWhere('id', (int) $request->query('template'));
+            if ($selectedRow) {
+                $selectedDesign = $designs->firstWhere('design_group', $selectedRow->design_group);
+            }
         }
 
         return view('user.invoice-templates.index', [
-            'templates' => $templates,
-            'selected' => $selected,
+            'designs' => $visibleDesigns,
+            'selected' => $selectedDesign,
             'type' => $type,
             'documentTypes' => self::TYPES,
             'presets' => InvoiceTemplatePresets::all(),
+            'fontFamilies' => InvoiceTemplate::FONT_FAMILIES,
+            'fontSizes' => InvoiceTemplate::FONT_SIZES,
+            'borderStyles' => InvoiceTemplate::BORDER_STYLES,
         ]);
     }
 
@@ -75,29 +113,28 @@ class InvoiceTemplateController extends Controller
     {
         $data = $request->validate([
             'preset' => ['required', Rule::in(array_keys(InvoiceTemplatePresets::all()))],
-            'document_type' => ['required', Rule::in(self::TYPES)],
+            'document_types' => ['required', 'array', 'min:1'],
+            'document_types.*' => [Rule::in(self::TYPES)],
         ]);
 
         $company = Auth::user()->company;
+        $preset = InvoiceTemplatePresets::find($data['preset']);
 
-        if ($company->hasReachedPlanLimit('invoice_templates')) {
+        $result = $this->createDesign($company, array_unique($data['document_types']), [
+            'name' => $preset['name'],
+            'name_ar' => $preset['name_ar'],
+            'accent_color' => $preset['accent_color'],
+            'layout' => $preset['layout'],
+            'language_mode' => $preset['language_mode'] ?? 'bilingual',
+            'is_default' => true,
+        ]);
+
+        if (! $result) {
             return redirect()->route('app.invoice-templates.index')
                 ->withErrors(['plan_limit' => __('You have reached your plan\'s invoice template limit. Upgrade your plan to add more templates.')]);
         }
 
-        $preset = InvoiceTemplatePresets::find($data['preset']);
-        $isFirst = $company->invoiceTemplates()->count() === 0;
-
-        $template = $company->invoiceTemplates()->create([
-            'name' => $preset['name'],
-            'name_ar' => $preset['name_ar'],
-            'document_type' => $data['document_type'],
-            'accent_color' => $preset['accent_color'],
-            'layout' => $preset['layout'],
-            'is_default' => $isFirst,
-        ]);
-
-        return redirect()->route('app.invoice-templates.index', ['template' => $template->id])
+        return redirect()->route('app.invoice-templates.index', ['template' => $result->id])
             ->with('status', __('Template created from ":name". Customize it below.', ['name' => $preset['name']]));
     }
 
@@ -105,23 +142,69 @@ class InvoiceTemplateController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'document_type' => ['required', Rule::in(self::TYPES)],
+            'document_types' => ['required', 'array', 'min:1'],
+            'document_types.*' => [Rule::in(self::TYPES)],
         ]);
 
         $company = Auth::user()->company;
 
-        if ($company->hasReachedPlanLimit('invoice_templates')) {
+        $result = $this->createDesign($company, array_unique($data['document_types']), [
+            'name' => $data['name'],
+            'accent_color' => '#0f766e',
+            'layout' => 'minimal',
+            'is_default' => true,
+        ]);
+
+        if (! $result) {
             return redirect()->route('app.invoice-templates.index')
                 ->withErrors(['plan_limit' => __('You have reached your plan\'s invoice template limit. Upgrade your plan to add more templates.')]);
         }
 
-        $template = $company->invoiceTemplates()->create($data + [
-            'accent_color' => '#0f766e',
-            'layout' => 'minimal',
-        ]);
-
-        return redirect()->route('app.invoice-templates.index', ['template' => $template->id])
+        return redirect()->route('app.invoice-templates.index', ['template' => $result->id])
             ->with('status', __('Template created.'));
+    }
+
+    /**
+     * One row per selected document type, all sharing one new
+     * design_group, each replacing whatever was the active template for
+     * that type — "applies to" means "active for" in this editor, so
+     * checking a box and saving is the whole action; there's no separate
+     * inert "created but not applied yet" state to also know about.
+     * Returns null (nothing created, transaction rolled back) if the
+     * plan's template limit would be exceeded partway through.
+     */
+    private function createDesign($company, array $types, array $attributes): ?InvoiceTemplate
+    {
+        $designGroup = (string) Str::uuid();
+
+        try {
+            return DB::transaction(function () use ($company, $types, $attributes, $designGroup) {
+                $first = null;
+
+                foreach ($types as $type) {
+                    if ($company->hasReachedPlanLimit('invoice_templates')) {
+                        throw new \RuntimeException('plan_limit');
+                    }
+
+                    $company->invoiceTemplates()->where('document_type', $type)->update(['is_default' => false]);
+
+                    $row = $company->invoiceTemplates()->create($attributes + [
+                        'document_type' => $type,
+                        'design_group' => $designGroup,
+                    ]);
+
+                    $first ??= $row;
+                }
+
+                return $first;
+            });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'plan_limit') {
+                return null;
+            }
+
+            throw $e;
+        }
     }
 
     public function update(Request $request, InvoiceTemplate $invoiceTemplate): RedirectResponse
@@ -129,13 +212,17 @@ class InvoiceTemplateController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
-            'document_type' => ['required', Rule::in(self::TYPES)],
+            'document_types' => ['required', 'array', 'min:1'],
+            'document_types.*' => [Rule::in(self::TYPES)],
             'accent_color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'table_header_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'remove_table_header_color' => ['nullable', 'boolean'],
             'totals_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'remove_totals_color' => ['nullable', 'boolean'],
             'layout' => ['required', Rule::in(self::LAYOUTS)],
+            'font_family' => ['nullable', Rule::in(InvoiceTemplate::FONT_FAMILIES)],
+            'font_size' => ['nullable', Rule::in(InvoiceTemplate::FONT_SIZES)],
+            'border_style' => ['nullable', Rule::in(InvoiceTemplate::BORDER_STYLES)],
             'density' => ['nullable', Rule::in(self::DENSITIES)],
             'language_mode' => ['required', Rule::in(self::LANGUAGE_MODES)],
             'table_direction' => ['required', Rule::in(self::TABLE_DIRECTIONS)],
@@ -175,8 +262,15 @@ class InvoiceTemplateController extends Controller
         $data['density'] = $data['density'] ?? $invoiceTemplate->density;
         $data['table_header_color'] = $request->boolean('remove_table_header_color') ? null : ($data['table_header_color'] ?? $invoiceTemplate->table_header_color);
         $data['totals_color'] = $request->boolean('remove_totals_color') ? null : ($data['totals_color'] ?? $invoiceTemplate->totals_color);
-        unset($data['letterhead'], $data['footer'], $data['remove_footer'], $data['watermark'], $data['remove_watermark'], $data['remove_table_header_color'], $data['remove_totals_color']);
 
+        $types = array_values(array_unique($data['document_types']));
+        unset(
+            $data['document_types'], $data['letterhead'], $data['footer'], $data['remove_footer'],
+            $data['watermark'], $data['remove_watermark'], $data['remove_table_header_color'], $data['remove_totals_color']
+        );
+
+        // Uploaded once, shared by every row in the group (same stored
+        // file, same path string) — not re-uploaded per document type.
         if ($request->hasFile('letterhead')) {
             if ($invoiceTemplate->letterhead_path) {
                 Storage::disk('public')->delete($invoiceTemplate->letterhead_path);
@@ -204,32 +298,116 @@ class InvoiceTemplateController extends Controller
             $data['watermark_path'] = null;
         }
 
-        $invoiceTemplate->update($data);
+        $error = $this->syncDesignGroup($invoiceTemplate, $types, $data);
+
+        if ($error) {
+            return back()->withErrors(['plan_limit' => $error])->withInput();
+        }
 
         return back()->with('status', __('Template saved.'));
     }
 
+    /**
+     * Reconciles a design's rows against the newly submitted "Applies
+     * to" list: removes a row for every deselected type (the fallback
+     * template for that type takes over immediately — the company-wide
+     * "all" default, or the hardcoded built-in look if there isn't one),
+     * updates every still-selected type's row with the shared style
+     * attributes, and creates a new row — stealing that type away from
+     * whichever other design currently has it — for every newly
+     * selected type. Returns a user-facing error string, or null on
+     * success.
+     */
+    private function syncDesignGroup(InvoiceTemplate $invoiceTemplate, array $types, array $attributes): ?string
+    {
+        $company = Auth::user()->company;
+        $groupId = $invoiceTemplate->design_group;
+
+        $existingRows = $company->invoiceTemplates()->where('design_group', $groupId)->get()->keyBy('document_type');
+
+        // Net row count after this save = current total - rows being
+        // removed (deselected types) + rows being added (newly selected
+        // types) — only the newly added ones can push the company over
+        // its plan's template limit.
+        $newTypesCount = collect($types)->reject(fn ($type) => $existingRows->has($type))->count();
+        $removedCount = $existingRows->keys()->diff($types)->count();
+        $netNewRows = $newTypesCount - $removedCount;
+
+        if ($netNewRows > 0) {
+            $projectedTotal = $company->invoiceTemplates()->count() + $netNewRows;
+            $subscription = $company->activeSubscription();
+            $limit = $subscription?->plan?->max_invoice_templates;
+
+            if ($limit !== null && $projectedTotal > $limit) {
+                return __('You have reached your plan\'s invoice template limit. Upgrade your plan to add more templates.');
+            }
+        }
+
+        DB::transaction(function () use ($company, $groupId, $types, $attributes, $existingRows) {
+            foreach ($existingRows as $type => $row) {
+                if (! in_array($type, $types, true)) {
+                    $row->delete();
+                }
+            }
+
+            foreach ($types as $type) {
+                if ($existingRows->has($type)) {
+                    $existingRows[$type]->update($attributes);
+
+                    continue;
+                }
+
+                $company->invoiceTemplates()->where('document_type', $type)->update(['is_default' => false]);
+                $company->invoiceTemplates()->create($attributes + [
+                    'document_type' => $type,
+                    'design_group' => $groupId,
+                    'is_default' => true,
+                ]);
+            }
+        });
+
+        return null;
+    }
+
     public function destroy(InvoiceTemplate $invoiceTemplate): RedirectResponse
     {
+        $company = Auth::user()->company;
+        $siblings = $company->invoiceTemplates()->where('design_group', $invoiceTemplate->design_group)->get();
+
         if ($invoiceTemplate->letterhead_path) {
             Storage::disk('public')->delete($invoiceTemplate->letterhead_path);
         }
         if ($invoiceTemplate->footer_path) {
             Storage::disk('public')->delete($invoiceTemplate->footer_path);
         }
+        if ($invoiceTemplate->watermark_path) {
+            Storage::disk('public')->delete($invoiceTemplate->watermark_path);
+        }
 
-        $invoiceTemplate->delete();
+        foreach ($siblings as $sibling) {
+            $sibling->delete();
+        }
 
         return redirect()->route('app.invoice-templates.index')->with('status', __('Template deleted.'));
     }
 
+    /**
+     * Reactivates this design for every document type it's assigned to
+     * at once — the "Applies to" checkboxes on the editor's own form
+     * already do this the moment a type is checked and saved; this
+     * button covers the other case, where this design already has a
+     * row for a type but isn't currently the active one there (some
+     * other design is), without having to open the editor and re-save.
+     */
     public function makeDefault(InvoiceTemplate $invoiceTemplate): RedirectResponse
     {
-        Auth::user()->company->invoiceTemplates()
-            ->where('document_type', $invoiceTemplate->document_type)
-            ->update(['is_default' => false]);
+        $company = Auth::user()->company;
+        $siblings = $company->invoiceTemplates()->where('design_group', $invoiceTemplate->design_group)->get();
 
-        $invoiceTemplate->update(['is_default' => true]);
+        foreach ($siblings as $sibling) {
+            $company->invoiceTemplates()->where('document_type', $sibling->document_type)->update(['is_default' => false]);
+            $sibling->update(['is_default' => true]);
+        }
 
         return back()->with('status', __('Set as the default template.'));
     }

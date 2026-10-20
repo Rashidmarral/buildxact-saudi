@@ -70,9 +70,24 @@
     // printed layout ever showed it to the buyer.
     $issuedDisplay = \App\Support\PlatformFormat::date($doc['date'])
         .(! empty($doc['issue_time']) ? ' '.\App\Support\PlatformFormat::time($doc['issue_time']) : '');
+
+    // Font family/size/border are deliberately applied once, here, on the
+    // whole document's outer wrapper rather than threaded through every
+    // layout branch — see InvoiceTemplate's own doc comments for why each
+    // one is scoped the way it is (font family is browser-only; font
+    // size nudges the base text size rather than rescaling every
+    // already page-density-tuned element; border is an outer frame, not
+    // per-cell).
+    $tplFontFamily = $template?->cssFontFamily();
+    $tplFontScale = $template?->fontSizeScale() ?? 1.0;
+    $tplBorder = $template?->borderStyleCss();
 @endphp
 
-<div dir="{{ $tableDirection }}" class="relative">
+@if ($template?->googleFontFamily())
+    <style>@import url('https://fonts.googleapis.com/css2?family={{ $template->googleFontFamily() }}&display=swap');</style>
+@endif
+
+<div dir="{{ $tableDirection }}" class="relative" style="font-family: {{ $tplFontFamily }}; font-size: {{ $tplFontScale }}em; @if ($tplBorder) border: {{ $tplBorder }}; padding: 1.25rem; @endif">
 
 @if ($template && $template->watermark_path)
     <img src="{{ Storage::url($template->watermark_path) }}" alt="" class="pointer-events-none select-none absolute inset-0 m-auto max-w-[70%] max-h-[70%] object-contain" style="opacity: {{ ($template->watermark_opacity ?? 10) / 100 }}; z-index: 0;">

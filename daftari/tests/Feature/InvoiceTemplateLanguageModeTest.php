@@ -174,7 +174,7 @@ class InvoiceTemplateLanguageModeTest extends TestCase
         ]);
 
         $response = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
-            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'name' => 'Default', 'document_types' => ['all'], 'accent_color' => '#0f766e',
             'layout' => 'minimal', 'language_mode' => 'arabic_only', 'table_direction' => 'rtl',
             'show_signature' => '1', 'signature_label_en' => 'Signed', 'signature_label_ar' => 'موقّع',
         ]);

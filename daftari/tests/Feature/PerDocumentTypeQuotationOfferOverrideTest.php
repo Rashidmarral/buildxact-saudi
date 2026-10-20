@@ -111,7 +111,7 @@ class PerDocumentTypeQuotationOfferOverrideTest extends TestCase
         ]);
 
         $response = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
-            'name' => 'Quotation Offer', 'document_type' => 'quotation', 'accent_color' => '#123456',
+            'name' => 'Quotation Offer', 'document_types' => ['quotation'], 'accent_color' => '#123456',
             'layout' => 'quotation_offer', 'language_mode' => 'arabic_only', 'table_direction' => 'ltr',
         ]);
 

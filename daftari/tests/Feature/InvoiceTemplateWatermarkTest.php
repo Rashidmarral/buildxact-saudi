@@ -62,7 +62,7 @@ class InvoiceTemplateWatermarkTest extends TestCase
         ]);
 
         $response = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
-            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'name' => 'Default', 'document_types' => ['all'], 'accent_color' => '#0f766e',
             'layout' => 'minimal', 'language_mode' => 'bilingual', 'table_direction' => 'ltr',
             'watermark' => UploadedFile::fake()->image('watermark.png', 800, 800),
             'watermark_opacity' => 25,
@@ -76,7 +76,7 @@ class InvoiceTemplateWatermarkTest extends TestCase
         $this->assertStringStartsWith('watermarks/', $template->watermark_path);
 
         $removal = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
-            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'name' => 'Default', 'document_types' => ['all'], 'accent_color' => '#0f766e',
             'layout' => 'minimal', 'language_mode' => 'bilingual', 'table_direction' => 'ltr',
             'remove_watermark' => '1',
         ]);

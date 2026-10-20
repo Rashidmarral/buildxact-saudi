@@ -158,7 +158,7 @@ class VoucherRedesignTest extends TestCase
         ]);
 
         $response = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
-            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'name' => 'Default', 'document_types' => ['all'], 'accent_color' => '#0f766e',
             'layout' => 'bilingual_classic', 'language_mode' => 'bilingual', 'table_direction' => 'ltr',
             'footer' => UploadedFile::fake()->image('footer.png', 1600, 200),
         ]);
@@ -169,7 +169,7 @@ class VoucherRedesignTest extends TestCase
         Storage::disk('public')->assertExists($template->footer_path);
 
         $removal = $this->actingAs($owner)->put(route('app.invoice-templates.update', $template), [
-            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'name' => 'Default', 'document_types' => ['all'], 'accent_color' => '#0f766e',
             'layout' => 'bilingual_classic', 'language_mode' => 'bilingual', 'table_direction' => 'ltr',
             'remove_footer' => '1',
         ]);

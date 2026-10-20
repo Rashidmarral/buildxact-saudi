@@ -41,7 +41,7 @@ class InvoiceTemplateFlexibilityTest extends TestCase
     private function baseTemplatePayload(): array
     {
         return [
-            'name' => 'Default', 'document_type' => 'all', 'accent_color' => '#0f766e',
+            'name' => 'Default', 'document_types' => ['all'], 'accent_color' => '#0f766e',
             'layout' => 'minimal', 'language_mode' => 'bilingual', 'table_direction' => 'ltr',
         ];
     }
