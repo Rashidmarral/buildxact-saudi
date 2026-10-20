@@ -1235,6 +1235,12 @@
         </div>
     @endif
 
+    @if ($company->stamp_path)
+        <div class="mt-8 flex justify-end">
+            <img src="{{ Storage::url($company->stamp_path) }}" alt="{{ __('Company stamp') }}" class="h-28 w-28 object-contain">
+        </div>
+    @endif
+
     @include('documents.print.signature')
 
     <div class="mt-10 border-t border-slate-100 pt-4 text-center text-xs text-slate-400">

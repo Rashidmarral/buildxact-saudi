@@ -102,7 +102,8 @@
         'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
         'vat_total' => $quotation->vat_total,
         'total' => $quotation->total,
-        'bank_account' => $quotation->bankAccount,
+        'extra_rows' => $quotation->paymentExtraRows(),
+        'bank_account' => $quotation->bankAccount ?? $quotation->company->defaultBankAccount(),
         'salesperson' => $quotation->salesperson,
         'notes' => $quotation->notes,
     ];

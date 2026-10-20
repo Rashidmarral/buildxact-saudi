@@ -18,7 +18,7 @@ class Quotation extends Model
     protected $fillable = [
         'company_id', 'client_id', 'project_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
         'quotation_number', 'type', 'status', 'is_staged', 'issue_date', 'expiry_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value',
-        'vat_total', 'total', 'currency', 'notes', 'bank_account_id',
+        'vat_total', 'total', 'advance_received', 'currency', 'notes', 'bank_account_id',
         'approved_by', 'approved_at', 'approval_rejection_reason',
         'accepted_at', 'accepted_by_name', 'accepted_signature', 'accepted_ip',
     ];
@@ -150,6 +150,29 @@ class Quotation extends Model
         return $this->expiry_date && $this->expiry_date->isPast() && ! in_array($this->status, ['converted', 'accepted']);
     }
 
+    public function balanceDue(): float
+    {
+        return round((float) $this->total - (float) $this->advance_received, 2);
+    }
+
+    /**
+     * Mirrors Invoice::pdfData()'s "Paid" + Money::balanceRow() extra_rows
+     * pair — same visual spot (right under the Total line, in every print
+     * layout) so a proforma's advance/balance reads exactly like an
+     * invoice's does, instead of being buried in free-text notes.
+     */
+    public function paymentExtraRows(): array
+    {
+        if (! $this->advance_received || $this->advance_received <= 0) {
+            return [];
+        }
+
+        return array_values(array_filter([
+            ['label' => __('Paid'), 'label_ar' => 'المدفوع', 'value' => $this->advance_received, 'emphasis' => true, 'variant' => 'green'],
+            \App\Support\Money::balanceRow($this->balanceDue()),
+        ]));
+    }
+
     /**
      * The view data documents.print.pdf needs to render this quotation —
      * moved here (from a private QuotationController method) so anything
@@ -182,6 +205,7 @@ class Quotation extends Model
             'discount_percent' => $this->discount_type === 'percentage' ? $this->discount_value : null,
             'vat_total' => $this->vat_total,
             'total' => $this->total,
+            'extra_rows' => $this->paymentExtraRows(),
             'bank_account' => $bankAccount,
             'salesperson' => $this->salesperson,
             'notes' => $this->notes,

@@ -160,6 +160,11 @@ $company = auth()->user()->company;
                 </div>
                 <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">{{ \App\Support\Money::format(0) }}</span></div>
                 <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-100"><span>{{ __('Total') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
+                <div id="advance-received-row" class="flex justify-between items-center text-slate-500 pt-2 {{ $quotation->type === 'proforma' ? '' : 'hidden' }}">
+                    <span>{{ __('Advance received') }}</span>
+                    <input type="number" step="0.01" min="0" name="advance_received" id="advance_received" value="{{ old('advance_received', $quotation->advance_received ?? '') }}" placeholder="0.00" class="w-28 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <p id="advance-received-hint" class="text-xs text-slate-400 {{ $quotation->type === 'proforma' ? '' : 'hidden' }}">{{ __('Shown on the printed proforma as "Paid" with the remaining balance due.') }}</p>
             </div>
         </div>
     </div>
@@ -422,6 +427,10 @@ document.querySelectorAll('.type-tab').forEach(btn => {
             b.classList.toggle('text-white', active);
             b.classList.toggle('text-slate-500', ! active);
         });
+        const isProforma = btn.dataset.typeTab === 'proforma';
+        document.getElementById('advance-received-row').classList.toggle('hidden', ! isProforma);
+        document.getElementById('advance-received-hint').classList.toggle('hidden', ! isProforma);
+        if (! isProforma) document.getElementById('advance_received').value = '';
     });
 });
 

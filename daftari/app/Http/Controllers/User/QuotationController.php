@@ -116,6 +116,7 @@ class QuotationController extends Controller
                 'expiry_date' => $data['expiry_date'],
                 'discount_type' => $data['discount_type'] ?? 'fixed',
                 'discount_value' => $data['discount_value'] ?? 0,
+                'advance_received' => $data['type'] === 'proforma' ? ($data['advance_received'] ?? null) : null,
                 'currency' => $company->currency,
                 'notes' => $data['notes'] ?? null,
             ]);
@@ -216,6 +217,7 @@ class QuotationController extends Controller
                 'expiry_date' => $data['expiry_date'],
                 'discount_type' => $data['discount_type'] ?? 'fixed',
                 'discount_value' => $data['discount_value'] ?? 0,
+                'advance_received' => $quotation->type === 'proforma' ? ($data['advance_received'] ?? null) : null,
                 'notes' => $data['notes'] ?? null,
             ]);
 
@@ -750,6 +752,7 @@ class QuotationController extends Controller
             'expiry_date' => ['required', 'date', 'after_or_equal:issue_date'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
+            'advance_received' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['nullable', Rule::exists('items', 'id')->where('company_id', $companyId)],

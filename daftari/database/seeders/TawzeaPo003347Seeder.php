@@ -102,52 +102,54 @@ class TawzeaPo003347Seeder extends Seeder
 
         $this->createDocument(
             $company, $client, $unit, $items, 'quotation',
-            fn () => "Client PO Ref: ".self::PO_NUMBER." (PR 006318)\n".
+            "Client PO Ref: ".self::PO_NUMBER." (PR 006318)\n".
                 "Our Quotation Ref: 208\n".
                 "Payment Terms: 50% advance, 50% before delivery\n".
                 "Delivery Terms: Delivered Duty Paid\n".
                 "Requested Delivery Date: 29 Oct 2026"
         );
 
-        // The 50/50 split is derived from this document's own computed
-        // total (built after recalculateTotals() runs), not the PO's
-        // hand-typed grand total — per-line VAT rounding can land a cent
-        // or two off the buyer's own aggregate calculation, and the split
-        // shown to the client must always foot to the total actually
-        // printed on this proforma, not the source PO.
+        // No hand-typed advance/balance figures here — the 50% advance is
+        // set as this document's own advance_received field (see
+        // Quotation::paymentExtraRows()), which prints as a "Paid" /
+        // "Balance due" row right under the Total on every layout, always
+        // computed from the document's own total rather than a number
+        // that could drift from it.
         $this->createDocument(
             $company, $client, $unit, $items, 'proforma',
-            function (Quotation $quotation) {
-                $advance = round($quotation->total / 2, 2);
-                $balance = round($quotation->total - $advance, 2);
-
-                return "Client PO Ref: ".self::PO_NUMBER."\n".
-                    "Total Order Value (incl. VAT): SAR {$this->money($quotation->total)}\n".
-                    "Advance Payment Received (50%): SAR {$this->money($advance)}\n".
-                    "Balance Due (remaining 50%): SAR {$this->money($balance)}\n".
-                    "Payment Terms: Balance due before delivery\n".
-                    "Delivery Terms: Delivered Duty Paid | Requested Delivery Date: 29 Oct 2026";
-            }
+            "Client PO Ref: ".self::PO_NUMBER."\n".
+                "Payment Terms: 50% advance already received, balance due before delivery\n".
+                "Delivery Terms: Delivered Duty Paid | Requested Delivery Date: 29 Oct 2026"
         );
     }
 
-    private function createDocument(Company $company, Client $client, Unit $unit, array $items, string $type, \Closure $notesFor): void
+    private function createDocument(Company $company, Client $client, Unit $unit, array $items, string $type, string $notes): void
     {
         $label = $type === 'proforma' ? 'Proforma invoice' : 'Quotation';
 
-        $exists = Quotation::where('company_id', $company->id)
+        $existing = Quotation::where('company_id', $company->id)
             ->where('client_id', $client->id)
             ->where('type', $type)
             ->where('notes', 'like', '%'.self::PO_NUMBER.'%')
-            ->exists();
+            ->first();
 
-        if ($exists) {
-            $this->command?->info("{$label} for ".self::PO_NUMBER.' already exists — skipping.');
+        if ($existing) {
+            // Repairs a document created by an earlier run of this seeder,
+            // before advance_received existed, without touching anything
+            // the operator may have since edited in the UI themselves.
+            if ($type === 'proforma' && is_null($existing->advance_received)) {
+                $existing->advance_received = round($existing->total / 2, 2);
+                $existing->notes = $notes;
+                $existing->save();
+                $this->command?->info("{$label} {$existing->quotation_number} updated with the 50% advance received.");
+            } else {
+                $this->command?->info("{$label} for ".self::PO_NUMBER.' already exists — skipping.');
+            }
 
             return;
         }
 
-        DB::transaction(function () use ($company, $client, $unit, $items, $type, $notesFor, $label) {
+        DB::transaction(function () use ($company, $client, $unit, $items, $type, $notes, $label) {
             $quotation = Quotation::create([
                 'company_id' => $company->id,
                 'client_id' => $client->id,
@@ -158,6 +160,7 @@ class TawzeaPo003347Seeder extends Seeder
                 'issue_date' => now()->toDateString(),
                 'expiry_date' => '2026-10-29',
                 'currency' => $company->currency ?? 'SAR',
+                'notes' => $notes,
             ]);
 
             foreach ($items as $sort => $row) {
@@ -176,8 +179,10 @@ class TawzeaPo003347Seeder extends Seeder
 
             $quotation->recalculateTotals();
 
-            $quotation->notes = $notesFor($quotation);
-            $quotation->save();
+            if ($type === 'proforma') {
+                $quotation->advance_received = round($quotation->total / 2, 2);
+                $quotation->save();
+            }
 
             $this->command?->info("{$label} {$quotation->quotation_number} created for {$client->name} — total SAR ".$this->money($quotation->total).'.');
         });
