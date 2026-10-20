@@ -537,6 +537,19 @@
                 <td colspan="4" class="border border-slate-300 px-2 py-1.5 font-bold {{ $qoAlign }}">{{ $lbl('Total including VAT') }}</td>
                 <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end font-bold">{{ number_format($doc['total'], 2) }}</td>
             </tr>
+            @foreach ($doc['extra_rows'] ?? [] as $row)
+                @php
+                    $rowColor = match ($row['variant'] ?? null) {
+                        'red' => 'text-red-600',
+                        'green' => 'text-emerald-600',
+                        default => '',
+                    };
+                @endphp
+                <tr>
+                    <td colspan="4" class="border border-slate-300 px-2 py-1.5 font-semibold {{ $qoAlign }} {{ $rowColor }}">{{ $row['label'] }}</td>
+                    <td colspan="2" class="border border-slate-300 px-2 py-1.5 text-end font-semibold {{ $rowColor }}">{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</td>
+                </tr>
+            @endforeach
         </tfoot>
     </table>
 
@@ -686,6 +699,16 @@
                 <tr><td class="py-1 pe-6 text-slate-600">{{ $lbl('Total Taxable Amount (Excluding VAT)') }}</td><td class="py-1 text-end font-medium">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td></tr>
                 <tr><td class="py-1 pe-6 text-slate-600">{{ $lbl('Total VAT 15%') }}</td><td class="py-1 text-end font-medium">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</td></tr>
                 <tr class="border-t-2 border-slate-800"><td class="py-1.5 pe-6 font-bold text-slate-900">{{ $lbl('Total Amount Due') }}</td><td class="py-1.5 text-end font-bold text-slate-900">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</td></tr>
+                @foreach ($doc['extra_rows'] ?? [] as $row)
+                    @php
+                        $rowColor = match ($row['variant'] ?? null) {
+                            'red' => 'font-semibold text-red-600',
+                            'green' => 'font-semibold text-emerald-600',
+                            default => ($row['emphasis'] ?? false) ? 'font-semibold text-brand-700' : 'text-slate-600',
+                        };
+                    @endphp
+                    <tr><td class="py-1 pe-6 {{ $rowColor }}">{{ $row['label'] }}</td><td class="py-1 text-end {{ $rowColor }}">{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</td></tr>
+                @endforeach
             </tbody>
         </table>
     </div>
@@ -868,6 +891,16 @@
                 <tr><td class="py-1 pe-6 text-slate-600">{{ $lbl('Total Taxable Amount') }}</td><td class="py-1 text-end font-medium">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td></tr>
                 <tr><td class="py-1 pe-6 text-slate-600">{{ $lbl('Total VAT') }}</td><td class="py-1 text-end font-medium">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['vat_total'], 2) }}</td></tr>
                 <tr class="border-t-2 border-slate-800"><td class="py-1.5 pe-6 font-bold text-slate-900">{{ $lbl('Total Amount Including VAT') }}</td><td class="py-1.5 text-end font-bold text-slate-900">{{ $doc['currency'] ?? 'SAR' }} {{ number_format($doc['total'], 2) }}</td></tr>
+                @foreach ($doc['extra_rows'] ?? [] as $row)
+                    @php
+                        $rowColor = match ($row['variant'] ?? null) {
+                            'red' => 'font-semibold text-red-600',
+                            'green' => 'font-semibold text-emerald-600',
+                            default => ($row['emphasis'] ?? false) ? 'font-semibold text-brand-700' : 'text-slate-600',
+                        };
+                    @endphp
+                    <tr><td class="py-1 pe-6 {{ $rowColor }}">{{ $row['label'] }}</td><td class="py-1 text-end {{ $rowColor }}">{{ $row['currency'] ?? ($doc['currency'] ?? 'SAR') }} {{ number_format($row['value'], 2) }}</td></tr>
+                @endforeach
             </tbody>
         </table>
     </div>

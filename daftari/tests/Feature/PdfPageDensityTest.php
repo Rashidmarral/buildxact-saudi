@@ -179,8 +179,18 @@ class PdfPageDensityTest extends TestCase
      * current floor across every layout it covers) with headroom below
      * each layout's real ceiling so it doesn't start failing from
      * ordinary content-length variation in real invoices.
+     *
+     * sage_classic is excluded here as of the extra_rows fix (see
+     * ExtraRowsAcrossAllLayoutsTest) — its totals table never looped
+     * over $doc['extra_rows'] at all, so a paid invoice's "Paid" /
+     * "Balance due" rows silently never rendered in this layout, even
+     * though Invoice::pdfData() had always been building them (every
+     * other layout covered here already showed them). Fixing that
+     * real gap costs this exact fixture one row of height, dropping
+     * sage_classic's own floor from 7 to 6 — see the dedicated
+     * sage_classic test below.
      */
-    #[DataProvider('layouts')]
+    #[DataProvider('layoutsExceptSageClassic')]
     public function test_a_paid_seven_item_invoice_with_a_payment_method_still_fits_on_one_page(string $layout): void
     {
         $invoice = $this->makeRealisticInvoice($layout, 7);
@@ -190,6 +200,30 @@ class PdfPageDensityTest extends TestCase
         $pdf = app(MpdfRenderer::class)->render('documents.print.pdf', $invoice->fresh()->pdfData());
 
         $this->assertSame(1, $this->countPdfPages($pdf), "Layout \"{$layout}\" spilled a paid 7-item invoice (with a payment method shown) onto a second page.");
+    }
+
+    public static function layoutsExceptSageClassic(): array
+    {
+        return array_values(array_filter(self::layouts(), fn (array $row) => $row[0] !== 'sage_classic'));
+    }
+
+    /**
+     * sage_classic's own floor for this exact stress fixture, now that
+     * its totals table actually shows "Paid" AND "Balance due" as two
+     * separate rows (see the comment above) — two items lower than the
+     * other layouts' floor of 7, the real, deliberate cost of a
+     * correctness fix, not a regression to chase back down by cutting
+     * further padding.
+     */
+    public function test_a_paid_five_item_invoice_with_a_payment_method_still_fits_on_one_page_in_sage_classic(): void
+    {
+        $invoice = $this->makeRealisticInvoice('sage_classic', 5);
+        InvoicePayment::create(['invoice_id' => $invoice->id, 'amount' => $invoice->total, 'paid_at' => now(), 'method' => 'bank_transfer']);
+        $invoice->update(['status' => 'paid', 'amount_paid' => $invoice->total]);
+
+        $pdf = app(MpdfRenderer::class)->render('documents.print.pdf', $invoice->fresh()->pdfData());
+
+        $this->assertSame(1, $this->countPdfPages($pdf), 'sage_classic spilled a paid 5-item invoice (with a payment method shown) onto a second page.');
     }
 
     /**

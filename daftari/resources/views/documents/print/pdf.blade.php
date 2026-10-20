@@ -535,6 +535,19 @@
                 <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoRight }};">{{ $lbl('Total including VAT') }}</td>
                 <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['total']) }}</td>
             </tr>
+            @foreach ($doc['extra_rows'] ?? [] as $row)
+                @php
+                    $rowStyle = match ($row['variant'] ?? null) {
+                        'red' => 'color: #dc2626;',
+                        'green' => 'color: #059669;',
+                        default => '',
+                    };
+                @endphp
+                <tr>
+                    <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; text-align: {{ $qoRight }}; {{ $rowStyle }}">{{ $row['label'] }}</td>
+                    <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; text-align: {{ $qoLeft }}; {{ $rowStyle }}">{{ \App\Support\Money::format($row['value'], $row['currency'] ?? null) }}</td>
+                </tr>
+            @endforeach
         </tfoot>
     </table>
 
@@ -698,6 +711,16 @@
                     <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total Taxable Amount (Excluding VAT)') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td></tr>
                     <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total VAT 15%') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
                     <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Due') }}</td><td class="text-end" style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                    @foreach ($doc['extra_rows'] ?? [] as $row)
+                        @php
+                            $rowStyle = match ($row['variant'] ?? null) {
+                                'red' => 'color: #dc2626; font-weight: bold;',
+                                'green' => 'color: #059669; font-weight: bold;',
+                                default => ($row['emphasis'] ?? false) ? 'color: #0f172a; font-weight: bold;' : 'color: #64748b;',
+                            };
+                        @endphp
+                        <tr><td style="padding: 2px 0; {{ $rowStyle }}">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; {{ $rowStyle }}">{{ \App\Support\Money::format($row['value'], $row['currency'] ?? null) }}</td></tr>
+                    @endforeach
                 </table>
             </td>
         </tr>
@@ -878,6 +901,16 @@
                     <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total Taxable Amount') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td></tr>
                     <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total VAT') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
                     <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Including VAT') }}</td><td class="text-end" style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                    @foreach ($doc['extra_rows'] ?? [] as $row)
+                        @php
+                            $rowStyle = match ($row['variant'] ?? null) {
+                                'red' => 'color: #dc2626; font-weight: bold;',
+                                'green' => 'color: #059669; font-weight: bold;',
+                                default => ($row['emphasis'] ?? false) ? 'color: #0f172a; font-weight: bold;' : 'color: #64748b;',
+                            };
+                        @endphp
+                        <tr><td style="padding: 2px 0; {{ $rowStyle }}">{{ $row['label'] }}</td><td class="text-end" style="padding: 2px 0; {{ $rowStyle }}">{{ \App\Support\Money::format($row['value'], $row['currency'] ?? null) }}</td></tr>
+                    @endforeach
                 </table>
             </td>
         </tr>
