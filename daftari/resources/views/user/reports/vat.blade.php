@@ -71,6 +71,9 @@
         <p class="text-xs font-semibold uppercase text-slate-400">{{ __('Output Tax (Sales)') }}</p>
         <p class="mt-2 text-xl font-bold text-slate-900">{{ \App\Support\Money::format($outputTax) }}</p>
         <p class="mt-1 text-xs text-slate-400">{{ __('Net Sales Excl. Tax') }}: {{ \App\Support\Money::format($netSalesExclTax) }}</p>
+        @if (abs($prepaymentVatDueThisPeriod) > 0.004 || abs($advanceCreditVatAlreadyReported) > 0.004 || abs($prepaymentVatAppliedThisPeriod) > 0.004)
+            <p class="mt-1 text-[11px] text-amber-600">{{ __('Adjusted for advance/prepayment VAT — see breakdown below.') }}</p>
+        @endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs font-semibold uppercase text-slate-400">{{ __('Input Tax (Purchases)') }}</p>
@@ -115,6 +118,58 @@
                 <p class="font-semibold text-red-600">{{ \App\Support\Money::format($nonRecoverableInputTax) }}</p>
             </div>
         </div>
+    </div>
+@endif
+
+@if (abs($prepaymentVatDueThisPeriod) > 0.004 || abs($advanceCreditVatAlreadyReported) > 0.004 || abs($prepaymentVatAppliedThisPeriod) > 0.004)
+    <div class="bg-white rounded-xl border border-amber-200 p-5 mb-6">
+        <p class="text-xs font-semibold uppercase text-amber-700">{{ __('Output tax — advance/prepayment adjustment') }}</p>
+        <p class="mt-1 text-xs text-slate-500">{{ __('An invoice\'s own VAT total never shrinks when an advance is credited against it, so summing invoices alone would report the same VAT twice. This nets that out — the Output Tax figure above is already net.') }}</p>
+        <div class="mt-4 space-y-1.5 text-sm max-w-md">
+            <div class="flex items-center justify-between">
+                <span class="text-slate-500">{{ __('VAT on sales invoices (gross)') }}</span>
+                <span class="tabular-nums">{{ \App\Support\Money::format($outputTaxFromInvoices) }}</span>
+            </div>
+            @if ($prepaymentVatDueThisPeriod > 0.004)
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">{{ __('+ VAT due on prepayment invoices issued this period') }}</span>
+                    <span class="tabular-nums text-emerald-700">+{{ \App\Support\Money::format($prepaymentVatDueThisPeriod) }}</span>
+                </div>
+            @endif
+            @if ($advanceCreditVatAlreadyReported > 0.004)
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">{{ __('− VAT already reported via Advance Credit (earlier period)') }}</span>
+                    <span class="tabular-nums text-red-600">−{{ \App\Support\Money::format($advanceCreditVatAlreadyReported) }}</span>
+                </div>
+            @endif
+            @if ($prepaymentVatAppliedThisPeriod > 0.004)
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500">{{ __('− VAT already reported via Prepayment Invoice (earlier period)') }}</span>
+                    <span class="tabular-nums text-red-600">−{{ \App\Support\Money::format($prepaymentVatAppliedThisPeriod) }}</span>
+                </div>
+            @endif
+            <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 font-semibold text-slate-900">
+                <span>{{ __('= Net output tax for this period') }}</span>
+                <span class="tabular-nums">{{ \App\Support\Money::format($outputTax) }}</span>
+            </div>
+        </div>
+        @if ($prepaymentRows->isNotEmpty())
+            <div class="mt-4 pt-4 border-t border-amber-100">
+                <p class="text-xs font-semibold text-slate-600 mb-2">{{ __('Prepayment invoices issued this period') }}</p>
+                <table class="w-full text-sm">
+                    <tbody>
+                        @foreach ($prepaymentRows as $prepayment)
+                            <tr class="border-b border-slate-50 last:border-0">
+                                <td class="py-1.5 text-slate-500">{{ $prepayment->issue_date?->format('Y-m-d') }}</td>
+                                <td class="py-1.5"><a href="{{ route('app.prepayment-invoices.show', $prepayment) }}" class="text-brand-600 hover:underline">{{ $prepayment->prepayment_number }}</a></td>
+                                <td class="py-1.5 text-slate-500">{{ $prepayment->client->display_name ?? '—' }}</td>
+                                <td class="py-1.5 text-end tabular-nums">{{ \App\Support\Money::format($prepayment->vat_amount) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </div>
 @endif
 

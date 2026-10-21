@@ -122,6 +122,16 @@
     </table>
 @endif
 
+@if ($tab === 'sales' && (abs($prepaymentVatDueThisPeriod ?? 0) > 0.004 || abs($advanceCreditVatAlreadyReported ?? 0) > 0.004 || abs($prepaymentVatAppliedThisPeriod ?? 0) > 0.004))
+    <p style="font-size: 8pt; color: #94a3b8; margin-top: 10px;">
+        {{ __('Output tax above is net of advance/prepayment adjustments: :gross gross', ['gross' => \App\Support\Money::format($outputTaxFromInvoices)]) }},
+        @if (($prepaymentVatDueThisPeriod ?? 0) > 0.004) {{ __('+:amount VAT due on prepayment invoices issued this period', ['amount' => \App\Support\Money::format($prepaymentVatDueThisPeriod)]) }}, @endif
+        @if (($advanceCreditVatAlreadyReported ?? 0) > 0.004) {{ __('−:amount already reported via Advance Credit', ['amount' => \App\Support\Money::format($advanceCreditVatAlreadyReported)]) }}, @endif
+        @if (($prepaymentVatAppliedThisPeriod ?? 0) > 0.004) {{ __('−:amount already reported via Prepayment Invoice', ['amount' => \App\Support\Money::format($prepaymentVatAppliedThisPeriod)]) }}, @endif
+        {{ __('= :net net', ['net' => \App\Support\Money::format($outputTax)]) }}.
+    </p>
+@endif
+
 @if ($vatApportionmentEnabled ?? false)
     <p style="font-size: 8pt; color: #94a3b8; margin-top: 10px;">{{ __('Apportioned at :pct% recovery — :amount disallowed as attributable to exempt supplies.', ['pct' => number_format($recoveryPercentage, 2), 'amount' => \App\Support\Money::format($nonRecoverableInputTax)]) }}</p>
 @endif

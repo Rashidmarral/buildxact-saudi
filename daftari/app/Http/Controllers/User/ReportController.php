@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesReportPeriod;
 use App\Models\Account;
+use App\Models\AdvanceCreditApplication;
 use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Client;
@@ -16,6 +17,7 @@ use App\Models\Invoice;
 use App\Models\PaymentVoucher;
 use App\Models\InvoicePayment;
 use App\Models\Item;
+use App\Models\PrepaymentInvoice;
 use App\Models\Salesperson;
 use App\Models\Supplier;
 use App\Models\Warehouse;
@@ -69,13 +71,37 @@ class ReportController extends Controller
             ->orderByDesc('expense_date')
             ->get();
 
-        $outputTax = (float) $salesRows->sum('vat_total');
+        // Neither advance mechanism reduces an invoice's own vat_total, so
+        // summing $salesRows->vat_total on its own double-counts VAT that
+        // was already recognized earlier: once when a regular invoice later
+        // credited via an Advance Credit application was first issued, and
+        // once (never, today) for a genuine 386 Prepayment Invoice, whose
+        // own VAT otherwise never enters this report at all. This nets both
+        // out — see AdvanceCreditApplication/PrepaymentInvoice::appliedToInvoice.
+        $prepaymentRows = PrepaymentInvoice::with('client')
+            ->whereBetween('issue_date', [$period['from'], $period['to']])
+            ->where('status', 'issued')
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->query('client_id')))
+            ->orderByDesc('issue_date')
+            ->get();
+
+        $advanceCreditVatAlreadyReported = (float) AdvanceCreditApplication::whereIn('invoice_id', $salesRows->pluck('id'))->sum('vat_amount');
+        $prepaymentVatAppliedThisPeriod = (float) PrepaymentInvoice::whereHas('appliedToInvoice', fn ($q) => $q->whereIn('id', $salesRows->pluck('id')))->sum('vat_amount');
+        $prepaymentVatDueThisPeriod = (float) $prepaymentRows->sum('vat_amount');
+
+        $outputTaxFromInvoices = (float) $salesRows->sum('vat_total');
+        $outputTax = round($outputTaxFromInvoices + $prepaymentVatDueThisPeriod - $advanceCreditVatAlreadyReported - $prepaymentVatAppliedThisPeriod, 2);
         $inputTaxPurchases = (float) $purchaseRows->sum('vat_total');
         $expenseTax = (float) $expenseRows->sum('vat_amount');
 
         $summary = [
             'outputTax' => $outputTax,
-            'netSalesExclTax' => (float) $salesRows->sum('subtotal'),
+            'outputTaxFromInvoices' => $outputTaxFromInvoices,
+            'prepaymentRows' => $prepaymentRows,
+            'prepaymentVatDueThisPeriod' => $prepaymentVatDueThisPeriod,
+            'advanceCreditVatAlreadyReported' => $advanceCreditVatAlreadyReported,
+            'prepaymentVatAppliedThisPeriod' => $prepaymentVatAppliedThisPeriod,
+            'netSalesExclTax' => (float) $salesRows->sum('subtotal') + (float) $prepaymentRows->sum('amount'),
             'inputTaxPurchases' => $inputTaxPurchases,
             'netPurchasesExclTax' => (float) $purchaseRows->sum('subtotal'),
             'expenseTax' => $expenseTax,
