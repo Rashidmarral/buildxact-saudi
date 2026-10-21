@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\TaxRate;
 use App\Support\Zatca\VatExemptionReason;
 use Illuminate\Http\Request;
@@ -35,17 +36,25 @@ class TaxRateController extends Controller
             $taxRate->makeDefault();
         }
 
+        // Audit finding SEC-08: tax-rate configuration (the number that
+        // decides how much VAT every invoice/bill/expense charges or
+        // recovers) had no audit trail at all.
+        AuditLog::record('tax_rate.create', $taxRate, __('Created tax rate ":name" (:rate% :type)', ['name' => $taxRate->name, 'rate' => $taxRate->rate, 'type' => $taxRate->type]));
+
         return redirect()->route('app.tax-rates.index')->with('status', __('Tax rate saved.'));
     }
 
     public function update(Request $request, TaxRate $taxRate)
     {
+        $old = $taxRate->only(['name', 'rate', 'type', 'is_active', 'exemption_reason_code', 'exemption_reason_text']);
         $data = $this->validated($request);
         $taxRate->update($data);
 
         if ($request->boolean('is_default')) {
             $taxRate->makeDefault();
         }
+
+        AuditLog::record('tax_rate.update', $taxRate, __('Updated tax rate ":name"', ['name' => $taxRate->name]), null, $old, $taxRate->only(array_keys($old)));
 
         return redirect()->route('app.tax-rates.index')->with('status', __('Tax rate updated.'));
     }
@@ -67,10 +76,15 @@ class TaxRateController extends Controller
             'vat_recovery_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
-        Auth::user()->company->update([
+        $company = Auth::user()->company;
+        $old = $company->only(['vat_makes_exempt_supplies', 'vat_recovery_percentage']);
+
+        $company->update([
             'vat_makes_exempt_supplies' => $request->boolean('vat_makes_exempt_supplies'),
             'vat_recovery_percentage' => $data['vat_recovery_percentage'] ?? null,
         ]);
+
+        AuditLog::record('tax_rate.recovery_update', $company, __('Updated VAT recovery/apportionment settings'), null, $old, $company->only(array_keys($old)));
 
         return redirect()->route('app.tax-rates.index')->with('status', __('VAT recovery settings saved.'));
     }
@@ -84,6 +98,8 @@ class TaxRateController extends Controller
         if ($this->isInUse($taxRate)) {
             return back()->withErrors(['tax_rate' => __('This tax rate is referenced by existing documents and cannot be deleted. Deactivate it instead.')]);
         }
+
+        AuditLog::record('tax_rate.delete', $taxRate, __('Deleted tax rate ":name"', ['name' => $taxRate->name]));
 
         $taxRate->delete();
 

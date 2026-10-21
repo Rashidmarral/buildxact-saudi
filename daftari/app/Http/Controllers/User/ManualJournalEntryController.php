@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\JournalEntry;
+use App\Models\PendingManualJournalEntry;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,7 +26,8 @@ class ManualJournalEntryController extends Controller
 
     public function store(Request $request, LedgerPostingService $ledger): RedirectResponse
     {
-        $companyId = Auth::user()->company_id;
+        $company = Auth::user()->company;
+        $companyId = $company->id;
 
         $data = $request->validate([
             'entry_date' => ['required', 'date'],
@@ -42,8 +44,35 @@ class ManualJournalEntryController extends Controller
             ->values()
             ->all();
 
+        // Audit finding GL-6: the same balance check postManual() would
+        // otherwise do is run here first, so a submission routed to the
+        // approval queue below gets the identical upfront validation a
+        // directly-posted one gets from postManual() itself.
+        $totalDebit = round(array_sum(array_map(fn ($line) => (float) ($line['debit'] ?? 0), $lines)), 2);
+        $totalCredit = round(array_sum(array_map(fn ($line) => (float) ($line['credit'] ?? 0), $lines)), 2);
+
+        if (count($lines) < 2 || abs($totalDebit - $totalCredit) > 0.01) {
+            return back()->withInput()->withErrors(['lines' => __('Total debits (:debit) must equal total credits (:credit).', ['debit' => $totalDebit, 'credit' => $totalCredit])]);
+        }
+
+        if ($company->manualJournalRequiresApproval($totalDebit)) {
+            $pending = PendingManualJournalEntry::create([
+                'company_id' => $companyId,
+                'entry_date' => $data['entry_date'],
+                'description' => $data['description'],
+                'lines' => $lines,
+                'total' => $totalDebit,
+                'status' => 'pending_approval',
+                'created_by' => Auth::id(),
+            ]);
+
+            AuditLog::record('journal_entry.create_pending', $pending, __('Submitted manual journal entry for approval (total :total)', ['total' => $totalDebit]));
+
+            return redirect()->route('app.journals.pending.index')->with('status', __('This entry is :total, at or above your approval threshold — it has been submitted for approval instead of posted.', ['total' => $totalDebit]));
+        }
+
         try {
-            $entry = $ledger->postManual(Auth::user()->company, $data['description'], Carbon::parse($data['entry_date']), $lines);
+            $entry = $ledger->postManual($company, $data['description'], Carbon::parse($data['entry_date']), $lines);
         } catch (PeriodLockedException $e) {
             return back()->withInput()->withErrors(['entry_date' => $e->getMessage()]);
         } catch (InvalidArgumentException $e) {
@@ -53,6 +82,66 @@ class ManualJournalEntryController extends Controller
         AuditLog::record('journal_entry.create_manual', $entry, __('Created manual journal entry ":number"', ['number' => $entry->entry_number]));
 
         return redirect()->route('app.journals.show', $entry)->with('status', __('Journal entry posted.'));
+    }
+
+    public function pendingIndex()
+    {
+        $pending = PendingManualJournalEntry::with('creator')
+            ->where('status', 'pending_approval')
+            ->orderByDesc('id')
+            ->get();
+
+        return view('user.journals.pending-index', compact('pending'));
+    }
+
+    /**
+     * Audit finding GL-6: this is the only moment a threshold-gated entry
+     * ever actually calls postManual() — nothing here has touched the
+     * ledger before approval, so there is nothing to undo on rejection.
+     */
+    public function approvePending(PendingManualJournalEntry $pendingManualJournalEntry, LedgerPostingService $ledger): RedirectResponse
+    {
+        abort_if($pendingManualJournalEntry->company_id !== Auth::user()->company_id, 404);
+        abort_unless($pendingManualJournalEntry->status === 'pending_approval', 404);
+
+        try {
+            $entry = $ledger->postManual(
+                Auth::user()->company,
+                $pendingManualJournalEntry->description,
+                Carbon::parse($pendingManualJournalEntry->entry_date),
+                $pendingManualJournalEntry->lines
+            );
+        } catch (PeriodLockedException $e) {
+            return back()->withErrors(['approve' => $e->getMessage()]);
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['approve' => $e->getMessage()]);
+        }
+
+        $pendingManualJournalEntry->update([
+            'status' => 'approved', 'journal_entry_id' => $entry->id,
+            'approved_by' => Auth::id(), 'approved_at' => now(),
+        ]);
+
+        AuditLog::record('journal_entry.approve_pending', $entry, __('Approved and posted manual journal entry ":number"', ['number' => $entry->entry_number]));
+
+        return redirect()->route('app.journals.show', $entry)->with('status', __('Journal entry approved and posted.'));
+    }
+
+    public function rejectPending(Request $request, PendingManualJournalEntry $pendingManualJournalEntry): RedirectResponse
+    {
+        abort_if($pendingManualJournalEntry->company_id !== Auth::user()->company_id, 404);
+        abort_unless($pendingManualJournalEntry->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $pendingManualJournalEntry->update([
+            'status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('journal_entry.reject_pending', $pendingManualJournalEntry, __('Rejected a pending manual journal entry (total :total)', ['total' => $pendingManualJournalEntry->total]));
+
+        return back()->with('status', __('Journal entry rejected.'));
     }
 
     public function reverse(JournalEntry $journalEntry, LedgerPostingService $ledger): RedirectResponse

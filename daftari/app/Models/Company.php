@@ -45,7 +45,7 @@ class Company extends Model
         'primary_customer_type', 'negative_number_format',
         'vat_makes_exempt_supplies', 'vat_recovery_percentage', 'vat_filing_frequency',
         'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
-        'invoice_approval_threshold', 'quotation_approval_threshold', 'invoice_dunning_enabled',
+        'invoice_approval_threshold', 'quotation_approval_threshold', 'manual_journal_approval_threshold', 'invoice_dunning_enabled',
         'default_payment_terms_days',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_common_name', 'zatca_organization_unit_name',
@@ -146,6 +146,7 @@ class Company extends Model
             'expense_approval_threshold' => 'decimal:2',
             'invoice_approval_threshold' => 'decimal:2',
             'quotation_approval_threshold' => 'decimal:2',
+            'manual_journal_approval_threshold' => 'decimal:2',
             'invoice_dunning_enabled' => 'boolean',
             'default_payment_terms_days' => 'integer',
             'accounting_lock_date' => 'date',
@@ -527,6 +528,12 @@ class Company extends Model
     public function quotationRequiresApproval(float $total): bool
     {
         return $this->quotation_approval_threshold !== null && $total >= (float) $this->quotation_approval_threshold;
+    }
+
+    /** Audit finding GL-6 — mirrors the PO/expense/invoice/quotation threshold pattern for direct manual journal postings. */
+    public function manualJournalRequiresApproval(float $total): bool
+    {
+        return $this->manual_journal_approval_threshold !== null && $total >= (float) $this->manual_journal_approval_threshold;
     }
 
     public function formatNumber(float $amount, int $decimals = 2): string

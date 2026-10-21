@@ -365,6 +365,23 @@ class ZatcaSyncService
             ]);
         }
 
+        // Audit finding ZATCA-05: pendingInvoices() already excludes any
+        // invoice with a cleared/reported log from bulk/scheduled sync,
+        // but — same class of gap as the currency check above — the
+        // single-document "Sync now" button and the admin retry action
+        // had no guard of their own against resubmitting an
+        // already-cleared invoice. A double-click or a retry after a slow
+        // response would mint a fresh UUID/hash, advance the ICV, and fire
+        // a second live clearance/report call for the same invoice.
+        if ($invoice->isZatcaLocked()) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'status' => 'failed',
+                'error_message' => __('This invoice has already been cleared or reported to ZATCA — resubmitting would create a duplicate clearance. If a correction is needed, issue a credit or debit note instead.'),
+            ]);
+        }
+
         if ($error = $this->missingExemptionReasonError($invoice->items()->with('taxRate')->get())) {
             return new ZatcaInvoiceLog([
                 'company_id' => $invoice->company_id,
@@ -440,6 +457,15 @@ class ZatcaSyncService
             ]);
         }
 
+        if ($prepayment->isZatcaSynced()) {
+            return new ZatcaInvoiceLog([
+                'company_id' => $prepayment->company_id,
+                'prepayment_invoice_id' => $prepayment->id,
+                'status' => 'failed',
+                'error_message' => __('This prepayment invoice has already been cleared or reported to ZATCA — resubmitting would create a duplicate clearance.'),
+            ]);
+        }
+
         if ($error = $this->missingExemptionReasonError([$prepayment])) {
             return new ZatcaInvoiceLog([
                 'company_id' => $prepayment->company_id,
@@ -506,6 +532,15 @@ class ZatcaSyncService
                 'credit_note_id' => $creditNote->id,
                 'status' => 'failed',
                 'error_message' => __('A voided credit note cannot be synced to ZATCA.'),
+            ]);
+        }
+
+        if ($creditNote->isZatcaSynced()) {
+            return new ZatcaCreditNoteLog([
+                'company_id' => $creditNote->company_id,
+                'credit_note_id' => $creditNote->id,
+                'status' => 'failed',
+                'error_message' => __('This credit note has already been cleared or reported to ZATCA — resubmitting would create a duplicate clearance.'),
             ]);
         }
 
@@ -584,6 +619,15 @@ class ZatcaSyncService
                 'debit_note_id' => $debitNote->id,
                 'status' => 'failed',
                 'error_message' => __('A voided debit note cannot be synced to ZATCA.'),
+            ]);
+        }
+
+        if ($debitNote->isZatcaSynced()) {
+            return new ZatcaDebitNoteLog([
+                'company_id' => $debitNote->company_id,
+                'debit_note_id' => $debitNote->id,
+                'status' => 'failed',
+                'error_message' => __('This debit note has already been cleared or reported to ZATCA — resubmitting would create a duplicate clearance.'),
             ]);
         }
 

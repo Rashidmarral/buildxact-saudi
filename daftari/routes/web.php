@@ -453,6 +453,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::get('/', [JournalController::class, 'index'])->name('index');
             Route::get('manual/create', [ManualJournalEntryController::class, 'create'])->name('manual.create');
             Route::post('manual', [ManualJournalEntryController::class, 'store'])->name('manual.store');
+            // Audit finding GL-6 — must come before the {journalEntry}
+            // wildcard below, or "pending" would be matched as a
+            // journal-entry ID.
+            Route::get('pending', [ManualJournalEntryController::class, 'pendingIndex'])->name('pending.index');
+            Route::post('pending/{pendingManualJournalEntry}/approve', [ManualJournalEntryController::class, 'approvePending'])->name('pending.approve');
+            Route::post('pending/{pendingManualJournalEntry}/reject', [ManualJournalEntryController::class, 'rejectPending'])->name('pending.reject');
             Route::get('{journalEntry}', [JournalController::class, 'show'])->name('show');
             Route::post('{journalEntry}/reverse', [ManualJournalEntryController::class, 'reverse'])->name('reverse');
         });

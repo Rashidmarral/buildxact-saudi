@@ -11,6 +11,7 @@
         <p class="text-sm text-slate-500 mt-1">{{ __('Every posting made by invoices, bills, payments, and adjustments.') }}</p>
     </div>
     <div class="flex items-center gap-2">
+        <a href="{{ route('app.journals.pending.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Pending approvals') }}</a>
         <a href="{{ route('app.recurring-journal-entries.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Recurring entries') }}</a>
         <a href="{{ route('app.journals.manual.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New manual entry') }}</a>
     </div>
