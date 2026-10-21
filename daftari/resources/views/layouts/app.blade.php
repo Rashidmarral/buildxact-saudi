@@ -82,6 +82,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.credit-notes.index', 'label' => __('Credit notes')])
                         @include('partials.nav-subitem', ['route' => 'app.debit-notes.index', 'label' => __('Debit notes')])
                         @include('partials.nav-subitem', ['route' => 'app.prepayment-invoices.index', 'label' => __('Prepayment invoices')])
+                        @include('partials.nav-subitem', ['route' => 'app.advance-credits.index', 'label' => __('Advance credits')])
                         @include('partials.nav-subitem', ['route' => 'app.delivery-notes.index', 'label' => __('Delivery notes')])
                         @include('partials.nav-subitem', ['route' => 'app.clients.index', 'label' => __('Customers')])
                         @include('partials.nav-subitem', ['route' => 'app.clients.pipeline', 'label' => __('Pipeline')])

@@ -208,6 +208,46 @@ class Invoice extends Model
         return round((float) $this->total - $this->creditedTotal(), 2);
     }
 
+    public function advanceCreditApplications(): HasMany
+    {
+        return $this->hasMany(AdvanceCreditApplication::class);
+    }
+
+    public function advanceCreditAppliedTotal(): float
+    {
+        return (float) $this->advanceCreditApplications()->sum('total');
+    }
+
+    /**
+     * "can we do this in our accounting system" — a completed-works
+     * invoice crediting part of an earlier advance against itself, line
+     * by line, the way a real reconciliation statement shows it:
+     * Completed work total / Less: <portion> — <source invoice> / ...
+     * Balance after these advance adjustments. Mirrors
+     * Quotation::paymentExtraRows()'s own doc comment — rendered via
+     * $doc['extra_rows'], the same mechanism already used for every
+     * other "Paid" / "Balance due" row, so it shows up on every print
+     * layout with no layout-specific work.
+     */
+    public function advanceCreditExtraRows(): array
+    {
+        return $this->advanceCreditApplications
+            ->load('portion.advanceCredit.sourceInvoice')
+            ->map(function (AdvanceCreditApplication $application) {
+                $portion = $application->portion;
+                $source = $portion->advanceCredit->sourceInvoice;
+                $label = __('Less: :portion', ['portion' => $portion->description]);
+
+                if ($source) {
+                    $label .= ' — '.$source->invoice_number;
+                }
+
+                return ['label' => $label, 'value' => -$application->total, 'variant' => 'red'];
+            })
+            ->values()
+            ->all();
+    }
+
     /**
      * True once ZATCA has cleared (B2B) or reported (B2C) this invoice —
      * at that point the document is part of an immutable tax record and
@@ -299,7 +339,7 @@ class Invoice extends Model
      */
     public function balanceDue(): float
     {
-        return round((float) $this->total - (float) $this->amount_paid - $this->creditedTotal(), 2);
+        return round((float) $this->total - (float) $this->amount_paid - $this->creditedTotal() - $this->advanceCreditAppliedTotal(), 2);
     }
 
     public function isFullyPaid(): bool
@@ -316,7 +356,7 @@ class Invoice extends Model
      */
     public function pdfData(): array
     {
-        $this->loadMissing('items.item', 'items.taxRate', 'client', 'bankAccount');
+        $this->loadMissing('items.item', 'items.taxRate', 'client', 'bankAccount', 'advanceCreditApplications.portion.advanceCredit.sourceInvoice');
 
         $bankAccount = $this->bankAccount ?? $this->company->defaultBankAccount();
 
@@ -354,19 +394,24 @@ class Invoice extends Model
             'discount_percent' => $this->discount_type === 'percentage' ? $this->discount_value : null,
             'vat_total' => $this->vat_total,
             'total' => $this->total,
-            'extra_rows' => array_values(array_filter([
-                $this->currency !== $this->company->currency ? [
-                    'label' => __(':currency equivalent (rate :rate)', ['currency' => $this->company->currency, 'rate' => rtrim(rtrim(number_format($this->exchange_rate, 6), '0'), '.')]),
-                    'value' => round($this->total * $this->exchange_rate, 2),
-                    'currency' => $this->company->currency,
-                ] : null,
-                $this->retention_amount > 0 ? [
-                    'label' => __('Retention held').' ('.rtrim(rtrim(number_format($this->retention_rate, 2), '0'), '.').'%)',
-                    'value' => $this->retention_amount,
-                ] : null,
-                $this->amount_paid > 0 ? ['label' => __('Paid'), 'label_ar' => 'المدفوع', 'value' => $this->amount_paid, 'emphasis' => true, 'variant' => 'green'] : null,
-                \App\Support\Money::balanceRow($this->balanceDue()),
-            ])),
+            'extra_rows' => array_merge(
+                array_values(array_filter([
+                    $this->currency !== $this->company->currency ? [
+                        'label' => __(':currency equivalent (rate :rate)', ['currency' => $this->company->currency, 'rate' => rtrim(rtrim(number_format($this->exchange_rate, 6), '0'), '.')]),
+                        'value' => round($this->total * $this->exchange_rate, 2),
+                        'currency' => $this->company->currency,
+                    ] : null,
+                    $this->retention_amount > 0 ? [
+                        'label' => __('Retention held').' ('.rtrim(rtrim(number_format($this->retention_rate, 2), '0'), '.').'%)',
+                        'value' => $this->retention_amount,
+                    ] : null,
+                ])),
+                $this->advanceCreditExtraRows(),
+                array_values(array_filter([
+                    $this->amount_paid > 0 ? ['label' => __('Paid'), 'label_ar' => 'المدفوع', 'value' => $this->amount_paid, 'emphasis' => true, 'variant' => 'green'] : null,
+                    \App\Support\Money::balanceRow($this->balanceDue()),
+                ])),
+            ),
             'bank_account' => $bankAccount,
             'salesperson' => $this->salesperson,
             'notes' => $this->notes,

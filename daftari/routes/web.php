@@ -100,6 +100,7 @@ use App\Http\Controllers\User\ManualJournalEntryController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OwnerReimbursementController;
 use App\Http\Controllers\User\PaymentVoucherController;
+use App\Http\Controllers\User\AdvanceCreditController;
 use App\Http\Controllers\User\PrepaymentInvoiceController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCashFlowController;
@@ -337,6 +338,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('prepayment-invoices', PrepaymentInvoiceController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
         Route::get('prepayment-invoices/{prepaymentInvoice}/xml', [PrepaymentInvoiceController::class, 'downloadXml'])->name('prepayment-invoices.xml');
         Route::get('prepayment-invoices/{prepaymentInvoice}/pdf', [PrepaymentInvoiceController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('prepayment-invoices.pdf');
+
+        Route::resource('advance-credits', AdvanceCreditController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+        Route::post('invoices/{invoice}/advance-credit-applications', [AdvanceCreditController::class, 'apply'])->name('advance-credits.apply');
+        Route::delete('invoices/{invoice}/advance-credit-applications/{application}', [AdvanceCreditController::class, 'unapply'])->name('advance-credits.unapply');
 
         Route::get('credit-notes/eligible-invoices', [CreditNoteController::class, 'eligibleInvoices'])->name('credit-notes.eligible-invoices');
         Route::resource('credit-notes', CreditNoteController::class)->only(['index', 'create', 'store', 'show']);

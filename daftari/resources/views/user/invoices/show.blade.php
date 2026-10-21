@@ -137,19 +137,24 @@
         'discount_percent' => $invoice->discount_type === 'percentage' ? $invoice->discount_value : null,
         'vat_total' => $invoice->vat_total,
         'total' => $invoice->total,
-        'extra_rows' => array_values(array_filter([
-            $invoice->currency !== $invoice->company->currency ? [
-                'label' => __(':currency equivalent (rate :rate)', ['currency' => $invoice->company->currency, 'rate' => rtrim(rtrim(number_format($invoice->exchange_rate, 6), '0'), '.')]),
-                'value' => round($invoice->total * $invoice->exchange_rate, 2),
-                'currency' => $invoice->company->currency,
-            ] : null,
-            $invoice->retention_amount > 0 ? [
-                'label' => __('Retention held').' ('.rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.').'%)',
-                'value' => $invoice->retention_amount,
-            ] : null,
-            ['label' => __('Paid'), 'value' => $invoice->amount_paid],
-            \App\Support\Money::balanceRow($invoice->balanceDue()),
-        ])),
+        'extra_rows' => array_merge(
+            array_values(array_filter([
+                $invoice->currency !== $invoice->company->currency ? [
+                    'label' => __(':currency equivalent (rate :rate)', ['currency' => $invoice->company->currency, 'rate' => rtrim(rtrim(number_format($invoice->exchange_rate, 6), '0'), '.')]),
+                    'value' => round($invoice->total * $invoice->exchange_rate, 2),
+                    'currency' => $invoice->company->currency,
+                ] : null,
+                $invoice->retention_amount > 0 ? [
+                    'label' => __('Retention held').' ('.rtrim(rtrim(number_format($invoice->retention_rate, 2), '0'), '.').'%)',
+                    'value' => $invoice->retention_amount,
+                ] : null,
+            ])),
+            $invoice->advanceCreditExtraRows(),
+            [
+                ['label' => __('Paid'), 'value' => $invoice->amount_paid],
+                \App\Support\Money::balanceRow($invoice->balanceDue()),
+            ],
+        ),
         'bank_account' => $invoice->bankAccount ?? $invoice->company->defaultBankAccount(),
         'salesperson' => $invoice->salesperson,
         'notes' => $invoice->notes,
@@ -291,6 +296,73 @@
                 document.getElementById('payment-amount').value = amount > 0 ? amount.toFixed(2) : '';
             }
         </script>
+    @endif
+</div>
+
+<div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
+    <h3 class="font-semibold text-slate-900 mb-1">{{ __('Advance credits') }}</h3>
+    <p class="text-xs text-slate-400 mb-4">{{ __('Credit part of an earlier advance payment against this invoice — shown on the printed invoice as "Less: ..." and reflected in the balance due. See Advance Credits to set up a new advance.') }}</p>
+
+    @if ($invoice->advanceCreditApplications->isNotEmpty())
+        <table class="w-full text-sm mb-4">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2">{{ __('Portion') }}</th>
+                    <th class="py-2">{{ __('Source invoice') }}</th>
+                    <th class="py-2 text-end">{{ __('Amount applied') }}</th>
+                    <th class="py-2"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($invoice->advanceCreditApplications as $application)
+                    <tr class="border-b border-slate-50 last:border-0">
+                        <td class="py-2">{{ $application->portion->description }}</td>
+                        <td class="py-2">{{ $application->portion->advanceCredit->sourceInvoice?->invoice_number ?: '—' }}</td>
+                        <td class="py-2 text-end">{{ \App\Support\Money::format($application->total) }}</td>
+                        <td class="py-2 text-end">
+                            <form method="POST" action="{{ route('app.advance-credits.unapply', [$invoice, $application]) }}" onsubmit="return confirm('{{ __('Remove this advance credit application?') }}')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    @if ($availableAdvancePortions->isNotEmpty() && $invoice->balanceDue() > 0)
+        <form method="POST" action="{{ route('app.advance-credits.apply', $invoice) }}" class="flex flex-wrap items-end gap-3">
+            @csrf
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Advance portion') }}</label>
+                <select name="advance_credit_portion_id" id="advance-portion-select" onchange="syncAdvanceAmount()" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    @foreach ($availableAdvancePortions as $portion)
+                        <option value="{{ $portion->id }}" data-remaining="{{ $portion->remainingTotal() }}">
+                            {{ $portion->description }} — {{ __('Remaining') }}: {{ \App\Support\Money::format($portion->remainingTotal()) }}
+                            @if ($portion->advanceCredit->sourceInvoice) ({{ $portion->advanceCredit->sourceInvoice->invoice_number }}) @endif
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Amount to apply') }}</label>
+                <input type="number" step="0.01" min="0.01" name="amount" id="advance-amount" required class="mt-1 w-32 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Apply') }}</button>
+        </form>
+        <script>
+            function syncAdvanceAmount() {
+                const select = document.getElementById('advance-portion-select');
+                const option = select.options[select.selectedIndex];
+                const remaining = parseFloat(option?.dataset.remaining || 0);
+                const balanceDue = {{ (float) $invoice->balanceDue() }};
+                document.getElementById('advance-amount').value = Math.min(remaining, balanceDue).toFixed(2);
+            }
+            syncAdvanceAmount();
+        </script>
+    @elseif ($availableAdvancePortions->isEmpty())
+        <p class="text-sm text-slate-400">{{ __('No advance credit is available for this client yet.') }} <a href="{{ route('app.advance-credits.create', ['client_id' => $invoice->client_id]) }}" class="text-brand-700 hover:underline">{{ __('Set one up') }}</a></p>
     @endif
 </div>
 

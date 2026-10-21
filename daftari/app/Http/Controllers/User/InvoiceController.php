@@ -300,13 +300,18 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load('items.item', 'items.taxRate', 'client', 'invoicePayments.bankAccount', 'bankAccount', 'warehouse', 'attachments', 'installments');
+        $invoice->load('items.item', 'items.taxRate', 'client', 'invoicePayments.bankAccount', 'bankAccount', 'warehouse', 'attachments', 'installments', 'advanceCreditApplications.portion.advanceCredit.sourceInvoice');
         $template = $invoice->company->defaultTemplateFor('invoice');
         $whatsappEnabled = (bool) WhatsappConfig::where('is_enabled', true)->exists();
         $smsEnabled = (bool) SmsConfig::where('is_enabled', true)->exists();
         $paymentBankAccounts = BankAccount::where('is_active', true)->orderBy('name')->get();
+        $availableAdvancePortions = \App\Models\AdvanceCreditPortion::with('advanceCredit.sourceInvoice')
+            ->whereHas('advanceCredit', fn ($q) => $q->where('client_id', $invoice->client_id))
+            ->get()
+            ->filter(fn (\App\Models\AdvanceCreditPortion $portion) => $portion->remainingTotal() > 0.009)
+            ->values();
 
-        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled', 'smsEnabled', 'paymentBankAccounts'));
+        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled', 'smsEnabled', 'paymentBankAccounts', 'availableAdvancePortions'));
     }
 
     public function downloadPdf(Invoice $invoice, MpdfRenderer $renderer)
