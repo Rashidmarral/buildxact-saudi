@@ -105,22 +105,60 @@ class AccountingPeriodLockTest extends TestCase
         $this->assertSame(0, JournalEntry::where('source_type', 'expense')->count());
     }
 
-    public function test_owner_can_set_and_clear_the_lock_date_from_settings(): void
+    public function test_owner_can_close_and_reopen_the_period_from_settings(): void
     {
         $company = $this->makeCompany();
         $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
 
-        $this->actingAs($owner)->post(route('app.settings.approvals.lock-date'), [
+        $this->actingAs($owner)->post(route('app.settings.approvals.close-period'), [
             'accounting_lock_date' => '2026-06-30',
         ])->assertSessionDoesntHaveErrors();
 
         $this->assertSame('2026-06-30', $owner->company->fresh()->accounting_lock_date->toDateString());
         $this->assertNotNull(AuditLog::where('action', 'company.lock_date_update')->first());
+        $closure = \App\Models\PeriodClosure::where('company_id', $company->id)->first();
+        $this->assertSame('close', $closure->action);
+        $this->assertSame($owner->id, $closure->performed_by);
 
-        $this->actingAs($owner)->post(route('app.settings.approvals.lock-date'), [
+        // Audit finding GL-4: reopening always requires a reason.
+        $this->actingAs($owner)->post(route('app.settings.approvals.reopen-period'), [
             'accounting_lock_date' => '',
+        ])->assertSessionHasErrors('reason');
+        $this->assertSame('2026-06-30', $owner->company->fresh()->accounting_lock_date->toDateString());
+
+        $this->actingAs($owner)->post(route('app.settings.approvals.reopen-period'), [
+            'accounting_lock_date' => '',
+            'reason' => 'Correcting a miscoded expense found after close',
         ])->assertSessionDoesntHaveErrors();
 
         $this->assertNull($owner->company->fresh()->accounting_lock_date);
+        $reopenClosure = \App\Models\PeriodClosure::where('company_id', $company->id)->where('action', 'reopen')->first();
+        $this->assertSame('Correcting a miscoded expense found after close', $reopenClosure->reason);
+    }
+
+    public function test_closing_cannot_move_the_lock_date_backward(): void
+    {
+        $company = $this->makeCompany();
+        $company->update(['accounting_lock_date' => '2026-06-30']);
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $this->actingAs($owner)->post(route('app.settings.approvals.close-period'), [
+            'accounting_lock_date' => '2026-05-31',
+        ])->assertSessionHasErrors('accounting_lock_date');
+
+        $this->assertSame('2026-06-30', $owner->company->fresh()->accounting_lock_date->toDateString());
+    }
+
+    public function test_reopening_cannot_move_the_lock_date_forward(): void
+    {
+        $company = $this->makeCompany();
+        $company->update(['accounting_lock_date' => '2026-06-30']);
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $this->actingAs($owner)->post(route('app.settings.approvals.reopen-period'), [
+            'accounting_lock_date' => '2026-07-31', 'reason' => 'Trying to go forward',
+        ])->assertSessionHasErrors('accounting_lock_date');
+
+        $this->assertSame('2026-06-30', $owner->company->fresh()->accounting_lock_date->toDateString());
     }
 }

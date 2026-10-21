@@ -11,6 +11,7 @@ use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\Client;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\Project;
@@ -131,6 +132,7 @@ class PaymentVoucherController extends Controller
         $company = Auth::user()->company;
         $suppliers = Supplier::orderBy('name')->get();
         $clients = Client::orderBy('name')->get();
+        $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
 
         // Arriving from the Owner Reimbursements "Settle" link: prefill the
         // voucher from the chosen (still-unpaid) expense, the same way
@@ -149,6 +151,7 @@ class PaymentVoucherController extends Controller
             'expenses' => Expense::whereNull('bank_account_id')->latest('expense_date')->take(100)->get(),
             'suppliers' => $suppliers,
             'clients' => $clients,
+            'employees' => $employees,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
             'projects' => Project::orderBy('name')->get(),
             'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
@@ -158,6 +161,10 @@ class PaymentVoucherController extends Controller
             'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
                 'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
                 'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
+            ]]),
+            'employeesData' => $employees->mapWithKeys(fn (Employee $e) => [$e->id => [
+                'name_ar' => $e->full_name_ar, 'name' => $e->full_name, 'vat_number' => null,
+                'phone' => $e->mobile, 'email' => $e->email, 'address' => $e->address,
             ]]),
         ]);
     }
@@ -181,6 +188,7 @@ class PaymentVoucherController extends Controller
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
+                'employee_id' => $data['party_type'] === 'employee' ? $data['employee_id'] : null,
                 'counter_account_id' => $data['counter_account_id'] ?? null,
                 'expense_id' => $data['expense_id'] ?? null,
                 'bill_id' => $data['bill_id'] ?? null,
@@ -314,6 +322,10 @@ class PaymentVoucherController extends Controller
         $company = Auth::user()->company;
         $suppliers = Supplier::orderBy('name')->get();
         $clients = Client::orderBy('name')->get();
+        $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
+        if ($paymentVoucher->employee && ! $employees->contains('id', $paymentVoucher->employee_id)) {
+            $employees->push($paymentVoucher->employee);
+        }
 
         $expenses = Expense::whereNull('bank_account_id')->latest('expense_date')->take(100)->get();
         if ($paymentVoucher->expense && ! $expenses->contains('id', $paymentVoucher->expense_id)) {
@@ -326,6 +338,7 @@ class PaymentVoucherController extends Controller
             'expenses' => $expenses,
             'suppliers' => $suppliers,
             'clients' => $clients,
+            'employees' => $employees,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
             'projects' => Project::orderBy('name')->get(),
             'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
@@ -335,6 +348,10 @@ class PaymentVoucherController extends Controller
             'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
                 'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
                 'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
+            ]]),
+            'employeesData' => $employees->mapWithKeys(fn (Employee $e) => [$e->id => [
+                'name_ar' => $e->full_name_ar, 'name' => $e->full_name, 'vat_number' => null,
+                'phone' => $e->mobile, 'email' => $e->email, 'address' => $e->address,
             ]]),
             // The bill this voucher is already linked to may no longer be
             // "outstanding" (this very voucher's payment may have fully
@@ -419,6 +436,7 @@ class PaymentVoucherController extends Controller
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
+                'employee_id' => $data['party_type'] === 'employee' ? $data['employee_id'] : null,
                 'counter_account_id' => $data['counter_account_id'] ?? null,
                 'expense_id' => $data['expense_id'] ?? null,
                 'bill_id' => $data['bill_id'] ?? null,
@@ -520,9 +538,10 @@ class PaymentVoucherController extends Controller
 
         return $request->validate([
             'bank_account_id' => ['required', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
-            'party_type' => ['required', 'in:manual,customer,supplier'],
+            'party_type' => ['required', 'in:manual,customer,supplier,employee'],
             'client_id' => ['nullable', 'required_if:party_type,customer', Rule::exists('clients', 'id')->where('company_id', $companyId)],
             'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
+            'employee_id' => ['nullable', 'required_if:party_type,employee', Rule::exists('employees', 'id')->where('company_id', $companyId)],
             'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'expense_id' => ['nullable', Rule::exists('expenses', 'id')->where('company_id', $companyId)],
             'bill_id' => ['nullable', Rule::exists('bills', 'id')->where('company_id', $companyId)],

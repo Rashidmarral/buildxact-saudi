@@ -13,6 +13,7 @@ use App\Models\Client;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\PaymentVoucher;
 use App\Models\InvoicePayment;
@@ -756,6 +757,50 @@ class ReportController extends Controller
             'rows' => $rows,
             'totals' => $totals,
         ]);
+    }
+
+    /**
+     * Audit finding CASH-02: every active employee's running cash-advance
+     * balance — what they've been given via Payment Vouchers minus what
+     * they've repaid via Receipt Vouchers. A running balance, not a
+     * period report, since an advance outstanding from last quarter is
+     * still owed today regardless of what date range someone picks.
+     */
+    public function employeeAdvances(Request $request)
+    {
+        $company = Auth::user()->company;
+
+        $rows = Employee::query()
+            ->withSum(['paymentVouchers as advanced_sum' => fn ($q) => $q->where('status', 'issued')], 'amount')
+            ->withSum(['receiptVouchers as settled_sum' => fn ($q) => $q->where('status', 'issued')], 'amount')
+            ->orderBy('full_name')
+            ->get()
+            ->map(fn (Employee $employee) => [
+                'employee' => $employee,
+                'advanced' => (float) $employee->advanced_sum,
+                'settled' => (float) $employee->settled_sum,
+                'outstanding' => round((float) $employee->advanced_sum - (float) $employee->settled_sum, 2),
+            ])
+            ->filter(fn (array $row) => $row['advanced'] > 0 || $row['settled'] > 0)
+            ->values();
+
+        $summary = [
+            'totalAdvanced' => $rows->sum('advanced'),
+            'totalSettled' => $rows->sum('settled'),
+            'totalOutstanding' => $rows->sum('outstanding'),
+        ];
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('employee-advances.csv',
+                [__('Employee'), __('Employee No.'), __('Advanced'), __('Settled'), __('Outstanding')],
+                $rows->map(fn (array $r) => [
+                    $r['employee']->full_name, $r['employee']->employee_number,
+                    number_format($r['advanced'], 2, '.', ''), number_format($r['settled'], 2, '.', ''),
+                    number_format($r['outstanding'], 2, '.', ''),
+                ]));
+        }
+
+        return view('user.reports.employee-advances', ['company' => $company, 'rows' => $rows] + $summary);
     }
 
     /**

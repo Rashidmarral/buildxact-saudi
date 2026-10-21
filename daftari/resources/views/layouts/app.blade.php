@@ -260,6 +260,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.customers', 'label' => __('Customer Report')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.suppliers', 'label' => __('Supplier Report')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.aging', 'label' => __('Aged Receivables/Payables')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.employee-advances', 'label' => __('Employee Advances')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.wht-return', 'label' => __('Withholding Tax')])
                     </div>
                 </details>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalChainStep;
 use App\Models\AuditLog;
+use App\Models\PeriodClosure;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,7 @@ class ApprovalSettingsController extends Controller
             'company' => Auth::user()->company,
             'chainSteps' => ApprovalChainStep::query()->with('role')->orderBy('document_type')->orderBy('step_number')->get()->groupBy('document_type'),
             'roles' => Role::orderBy('name')->get(),
+            'periodClosures' => PeriodClosure::with('performer')->orderByDesc('id')->take(20)->get(),
         ]);
     }
 
@@ -83,34 +85,75 @@ class ApprovalSettingsController extends Controller
     }
 
     /**
-     * Nothing posts a journal entry dated on or before this date once it's
-     * set — LedgerPostingService::post() enforces it for every module.
-     * Gated behind the same "settings" permission as the rest of this
-     * page, since moving the date backward (or clearing it) reopens a
-     * period that was presumably closed for a reason.
+     * Audit finding GL-4: moving the lock date FORWARD only — closing
+     * further, never reopening — recorded as a structured PeriodClosure
+     * with a named approver, alongside LedgerPostingService's own
+     * enforcement (unchanged). A forward-only guard here means this
+     * action can never be the one that reopens a period; that's
+     * reopenPeriod()'s job alone, with its own required reason.
      */
-    public function updateLockDate(Request $request)
+    public function closePeriod(Request $request)
+    {
+        $data = $request->validate([
+            'accounting_lock_date' => ['required', 'date'],
+        ]);
+
+        $company = Auth::user()->company;
+        $new = $data['accounting_lock_date'];
+
+        if ($company->accounting_lock_date && \Illuminate\Support\Carbon::parse($new)->lte($company->accounting_lock_date)) {
+            return back()->withErrors(['accounting_lock_date' => __('The new lock date must be after the current one — use "Reopen" below to move it backward.')]);
+        }
+
+        $old = $company->accounting_lock_date?->toDateString();
+        $company->update(['accounting_lock_date' => $new]);
+
+        PeriodClosure::create(['company_id' => $company->id, 'action' => 'close', 'lock_date' => $new, 'performed_by' => Auth::id()]);
+
+        AuditLog::record(
+            'company.lock_date_update',
+            null,
+            __('Locked the books through :date', ['date' => $new]),
+            old: ['accounting_lock_date' => $old],
+            new: ['accounting_lock_date' => $new],
+        );
+
+        return back()->with('status', __('Period closed through :date.', ['date' => $new]));
+    }
+
+    /**
+     * The only path that can move the lock date backward or clear it —
+     * always requires a reason, which the close action above does not.
+     */
+    public function reopenPeriod(Request $request)
     {
         $data = $request->validate([
             'accounting_lock_date' => ['nullable', 'date'],
+            'reason' => ['required', 'string', 'max:1000'],
         ]);
 
         $company = Auth::user()->company;
         $old = $company->accounting_lock_date?->toDateString();
         $new = $data['accounting_lock_date'] ?: null;
 
+        if ($new !== null && $company->accounting_lock_date && \Illuminate\Support\Carbon::parse($new)->gt($company->accounting_lock_date)) {
+            return back()->withErrors(['accounting_lock_date' => __('That date is not earlier than the current lock date — use "Close" above to move it forward.')]);
+        }
+
         $company->update(['accounting_lock_date' => $new]);
+
+        PeriodClosure::create(['company_id' => $company->id, 'action' => 'reopen', 'lock_date' => $new, 'performed_by' => Auth::id(), 'reason' => $data['reason']]);
 
         AuditLog::record(
             'company.lock_date_update',
             null,
             $new
-                ? __('Locked the books through :date', ['date' => $new])
-                : __('Removed the accounting lock date'),
+                ? __('Reopened the books back to :date — :reason', ['date' => $new, 'reason' => $data['reason']])
+                : __('Reopened the books entirely — :reason', ['reason' => $data['reason']]),
             old: ['accounting_lock_date' => $old],
             new: ['accounting_lock_date' => $new],
         );
 
-        return back()->with('status', __('Lock date saved.'));
+        return back()->with('status', __('Period reopened.'));
     }
 }

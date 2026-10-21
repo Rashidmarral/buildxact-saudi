@@ -28,6 +28,7 @@
                 <button type="button" data-tab="manual" class="party-tab rounded-md px-3 py-1.5 font-semibold bg-white shadow-sm">{{ __('Manual') }}</button>
                 <button type="button" data-tab="customer" class="party-tab rounded-md px-3 py-1.5 font-semibold text-slate-500">{{ __('Customer') }}</button>
                 <button type="button" data-tab="supplier" class="party-tab rounded-md px-3 py-1.5 font-semibold text-slate-500">{{ __('Supplier') }}</button>
+                <button type="button" data-tab="employee" class="party-tab rounded-md px-3 py-1.5 font-semibold text-slate-500">{{ __('Employee') }}</button>
             </div>
             <input type="hidden" name="party_type" id="party_type" value="{{ old('party_type', $voucher->party_type ?? 'manual') }}">
 
@@ -40,6 +41,17 @@
                     @endforeach
                 </select>
                 <p class="mt-1 text-xs text-slate-400">{{ __('For refunds paid back to a customer.') }}</p>
+            </div>
+
+            <div id="panel-employee" class="party-panel hidden mb-4">
+                <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Employee') }}</label>
+                <select name="employee_id" id="employee_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="">{{ __('Select an employee') }}</option>
+                    @foreach ($employees as $employee)
+                        <option value="{{ $employee->id }}" @selected(old('employee_id', $voucher->employee_id ?? null) == $employee->id)>{{ $employee->full_name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-400">{{ __('A cash advance to this employee — see Reports → Employee Advances for who still owes what.') }}</p>
             </div>
 
             <div id="panel-supplier" class="party-panel hidden space-y-4 mb-4">
@@ -187,17 +199,19 @@
 @php
     $suppliersDataJson = $suppliersData;
     $clientsDataJson = $clientsData;
+    $employeesDataJson = $employeesData;
 @endphp
 <script>
 (function () {
     const suppliersData = @json($suppliersDataJson);
     const clientsData = @json($clientsDataJson);
+    const employeesData = @json($employeesDataJson);
     const initialBillId = {{ old('bill_id', $voucher->bill_id ?? '') ? (int) old('bill_id', $voucher->bill_id) : 'null' }};
     const currentBill = @json($currentBill ?? null);
 
     const tabs = document.querySelectorAll('.party-tab');
     const typeInput = document.getElementById('party_type');
-    const panels = { customer: document.getElementById('panel-customer'), supplier: document.getElementById('panel-supplier') };
+    const panels = { customer: document.getElementById('panel-customer'), supplier: document.getElementById('panel-supplier'), employee: document.getElementById('panel-employee') };
 
     function activate(tab) {
         typeInput.value = tab;
@@ -228,6 +242,9 @@
 
     const supplierSelect = document.getElementById('supplier_id');
     supplierSelect.addEventListener('change', () => fillPartyFields(suppliersData[supplierSelect.value]));
+
+    const employeeSelect = document.getElementById('employee_id');
+    employeeSelect.addEventListener('change', () => fillPartyFields(employeesData[employeeSelect.value]));
 
     const billSelect = document.getElementById('bill_id');
     const amountInput = document.getElementById('amount');

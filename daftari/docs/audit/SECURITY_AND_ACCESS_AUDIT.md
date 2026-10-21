@@ -17,9 +17,17 @@ Every tenant-scoped model uses `BelongsToCompany` (`app/Models/Concerns/BelongsT
 - **2FA is real**, with both failed and successful verification attempts logged.
 - **ZATCA credentials are encrypted at rest** (Laravel `encrypted` cast on `zatca_private_key` and both CSID secret fields) — no plaintext storage found.
 
-## Real gap: file access control
+## File access control — correction to this finding (SEC-03)
 
-Files on the `public` disk (expense receipts, invoice/quotation/voucher/bank-transfer attachments — potentially containing bank statements, contracts, and personal data) have **no authorization check once the URL is known** — no expiry, no revocation, no access trail. Security rests entirely on filename entropy (acceptable, but not defense-in-depth). Not fixed this session — would require moving to signed/expiring URLs or a private-disk-plus-authorized-streaming-controller pattern, a moderate change touching every attachment controller.
+This finding, as originally written in this audit, was **wrong**: it claimed attachment URLs carry "no authorization check once the URL is known." Re-verification while implementing the fix found that this had already been closed, in a session before this audit (commit `94c3832`, "Fix critical/high security findings from SaaS audit", finding CRIT-01) — not by this engagement, and missed during this audit's own Phase 1 inspection:
+
+- `config/filesystems.php`'s `'links'` array is deliberately empty, so `php artisan storage:link` creates no `public/storage` symlink — there is no path by which the web server can hand out attachment files directly.
+- Every file on the `public` disk resolves through `/files/{filepath}` → `FileServeController::show()`, which requires `Auth::check()` and, for anything outside a small fixed list of public branding prefixes, requires a matching `Attachment` or `Item` row to exist — and that lookup runs under `BelongsToCompany`'s global scope, so a different company's attachment path 404s even if the exact filename is known.
+- This is covered by its own pre-existing regression suite, `tests/Feature/PublicStorageSymlinkRemovedTest.php`, which still passes.
+
+**What was genuinely missing**, and is the actual fix made this session: no record existed of *who* downloaded a sensitive attachment (bank statements, contracts, personal data) or *when*. `FileServeController::show()` now calls `AuditLog::record('attachment.download', ...)` on every successful, authorized attachment download (not on `Item` image loads, which aren't sensitive in the same way, and not on the public branding prefixes, which need no login at all). Covered by `tests/Feature/AttachmentDownloadAuditTest.php`: same-company download logs an entry with the correct actor and company; a cross-company request still 404s and logs nothing; an unauthenticated request 404s.
+
+Still open, genuinely out of scope for this session: no expiry or revocation for a once-valid download (a link never "goes stale" on its own) — would require moving to signed/expiring URLs, a larger change to how every attachment link is generated across ~13 controllers for a low-severity residual gap given the access check already in place.
 
 ## Audit log coverage — verified, not assumed
 
@@ -37,6 +45,6 @@ This is a useful lesson for how this audit was conducted: the inspection agents'
 ## What a security review should still cover
 
 - A systematic Policy-layer audit, one controller at a time, rather than this pass's spot-check.
-- File access control redesign (signed URLs or authorized streaming).
+- Signed/expiring URLs for attachment downloads, if revocation of a previously-valid link is ever required (see the SEC-03 correction above — the access-control gap itself is already closed).
 - A full enumeration of every `AuditLog::record()` call site (this pass's grep hit 41KB of matches — too large to fully catalog in one sitting) to find any remaining gaps beyond the four checked above.
 - Whether 2FA is enforceable per-role or always optional (not verified in this pass).

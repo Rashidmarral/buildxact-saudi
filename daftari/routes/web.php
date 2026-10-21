@@ -97,6 +97,7 @@ use App\Http\Controllers\User\GlobalSearchController;
 use App\Http\Controllers\User\JournalController;
 use App\Http\Controllers\User\FxRevaluationController;
 use App\Http\Controllers\User\ManualJournalEntryController;
+use App\Http\Controllers\User\OpeningBalanceController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OwnerReimbursementController;
 use App\Http\Controllers\User\PaymentVoucherController;
@@ -428,6 +429,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('customers', [ReportController::class, 'customers'])->name('customers');
         Route::get('suppliers', [ReportController::class, 'suppliers'])->name('suppliers');
         Route::get('aging', [ReportController::class, 'aging'])->name('aging');
+        Route::get('employee-advances', [ReportController::class, 'employeeAdvances'])->name('employee-advances');
         Route::get('withholding-tax', [ReportController::class, 'whtReturn'])->name('wht-return');
     });
 
@@ -448,6 +450,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::post('{account}/activate', [AccountController::class, 'activate'])->name('activate');
         });
         Route::post('mappings', [AccountController::class, 'updateMapping'])->name('accounts.mappings.update');
+
+        Route::get('opening-balances', [OpeningBalanceController::class, 'create'])->name('opening-balances.create');
+        Route::post('opening-balances', [OpeningBalanceController::class, 'store'])->name('opening-balances.store');
 
         Route::prefix('journals')->name('journals.')->group(function () {
             Route::get('/', [JournalController::class, 'index'])->name('index');
@@ -836,7 +841,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
         Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
         Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
-        Route::post('settings/approvals/lock-date', [ApprovalSettingsController::class, 'updateLockDate'])->name('settings.approvals.lock-date');
+        Route::post('settings/approvals/close-period', [ApprovalSettingsController::class, 'closePeriod'])->name('settings.approvals.close-period');
+        Route::post('settings/approvals/reopen-period', [ApprovalSettingsController::class, 'reopenPeriod'])->name('settings.approvals.reopen-period');
         Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
         Route::post('settings/approvals/chain-steps', [ApprovalChainController::class, 'store'])->name('settings.approvals.chain-steps.store');
         Route::delete('settings/approvals/chain-steps/{approvalChainStep}', [ApprovalChainController::class, 'destroy'])->name('settings.approvals.chain-steps.destroy');

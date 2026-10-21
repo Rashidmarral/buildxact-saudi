@@ -58,6 +58,33 @@ class Employee extends Model
         return $this->hasMany(LeaveRequest::class);
     }
 
+    /** Audit finding CASH-02: cash advanced to this employee via a Payment Voucher. */
+    public function paymentVouchers(): HasMany
+    {
+        return $this->hasMany(PaymentVoucher::class);
+    }
+
+    /** Cash repaid by this employee via a Receipt Voucher — the settlement side of an advance. */
+    public function receiptVouchers(): HasMany
+    {
+        return $this->hasMany(ReceiptVoucher::class);
+    }
+
+    public function totalAdvanced(): float
+    {
+        return (float) $this->paymentVouchers()->where('status', 'issued')->sum('amount');
+    }
+
+    public function totalSettled(): float
+    {
+        return (float) $this->receiptVouchers()->where('status', 'issued')->sum('amount');
+    }
+
+    public function outstandingAdvanceTotal(): float
+    {
+        return round($this->totalAdvanced() - $this->totalSettled(), 2);
+    }
+
     public function grossSalary(): float
     {
         return (float) $this->basic_salary + (float) $this->housing_allowance

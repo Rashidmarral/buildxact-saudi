@@ -10,6 +10,7 @@ use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Client;
+use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Project;
 use App\Models\ReceiptVoucher;
@@ -124,6 +125,7 @@ class ReceiptVoucherController extends Controller
         $company = Auth::user()->company;
         $clients = Client::orderBy('name')->get();
         $suppliers = Supplier::orderBy('name')->get();
+        $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
 
         return view('user.receipt-vouchers.form', [
             // Not a real $voucher — the form's isset($voucher) checks are
@@ -134,6 +136,7 @@ class ReceiptVoucherController extends Controller
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'clients' => $clients,
             'suppliers' => $suppliers,
+            'employees' => $employees,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
             'projects' => Project::orderBy('name')->get(),
             'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
@@ -143,6 +146,10 @@ class ReceiptVoucherController extends Controller
             'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
                 'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
                 'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
+            ]]),
+            'employeesData' => $employees->mapWithKeys(fn (Employee $e) => [$e->id => [
+                'name_ar' => $e->full_name_ar, 'name' => $e->full_name, 'vat_number' => null,
+                'phone' => $e->mobile, 'email' => $e->email, 'address' => $e->address,
             ]]),
         ]);
     }
@@ -164,6 +171,7 @@ class ReceiptVoucherController extends Controller
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
+                'employee_id' => $data['party_type'] === 'employee' ? $data['employee_id'] : null,
                 'counter_account_id' => $data['counter_account_id'] ?? null,
                 'invoice_id' => $data['invoice_id'] ?? null,
                 'invoice_payment_id' => null,
@@ -278,12 +286,22 @@ class ReceiptVoucherController extends Controller
         $company = Auth::user()->company;
         $clients = Client::orderBy('name')->get();
         $suppliers = Supplier::orderBy('name')->get();
+        $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
+
+        // The voucher's own employee may be inactive/terminated — keep it
+        // selectable on the edit form even though it's excluded above,
+        // mirroring the same treatment already given to clients/suppliers
+        // via currentInvoice below.
+        if ($receiptVoucher->employee_id && ! $employees->contains('id', $receiptVoucher->employee_id)) {
+            $employees = $employees->push($receiptVoucher->employee)->sortBy('full_name')->values();
+        }
 
         return view('user.receipt-vouchers.form', [
             'voucher' => $receiptVoucher,
             'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
             'clients' => $clients,
             'suppliers' => $suppliers,
+            'employees' => $employees,
             'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
             'projects' => Project::orderBy('name')->get(),
             'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
@@ -293,6 +311,10 @@ class ReceiptVoucherController extends Controller
             'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
                 'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
                 'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
+            ]]),
+            'employeesData' => $employees->mapWithKeys(fn (Employee $e) => [$e->id => [
+                'name_ar' => $e->full_name_ar, 'name' => $e->full_name, 'vat_number' => null,
+                'phone' => $e->mobile, 'email' => $e->email, 'address' => $e->address,
             ]]),
             // The invoice this voucher is already linked to may no longer
             // be "outstanding" (this very voucher's payment may have fully
@@ -367,6 +389,7 @@ class ReceiptVoucherController extends Controller
                 'party_type' => $data['party_type'],
                 'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
+                'employee_id' => $data['party_type'] === 'employee' ? $data['employee_id'] : null,
                 'counter_account_id' => $data['counter_account_id'] ?? null,
                 'invoice_id' => $data['invoice_id'] ?? null,
                 'invoice_payment_id' => $invoicePaymentId,
@@ -462,9 +485,10 @@ class ReceiptVoucherController extends Controller
 
         return $request->validate([
             'bank_account_id' => ['required', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
-            'party_type' => ['required', 'in:manual,customer,supplier'],
+            'party_type' => ['required', 'in:manual,customer,supplier,employee'],
             'client_id' => ['nullable', 'required_if:party_type,customer', Rule::exists('clients', 'id')->where('company_id', $companyId)],
             'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
+            'employee_id' => ['nullable', 'required_if:party_type,employee', Rule::exists('employees', 'id')->where('company_id', $companyId)],
             'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             // "1 document(s) are marked posted but have no matching
             // ledger entry" — linking a receipt voucher's payment to a

@@ -125,14 +125,67 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('app.settings.approvals.lock-date') }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
-        @csrf
-        <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Lock date') }}</label>
-            <input type="date" name="accounting_lock_date" value="{{ old('accounting_lock_date', $company->accounting_lock_date?->toDateString()) }}" class="w-full rounded-lg border border-slate-200 text-sm">
-            <p class="text-xs text-slate-400 mt-1">{{ __('Leave blank to keep the books fully open.') }}</p>
+    <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <h3 class="text-sm font-semibold text-slate-800">{{ __('Close a period') }}</h3>
+        <form method="POST" action="{{ route('app.settings.approvals.close-period') }}" class="flex items-end gap-3">
+            @csrf
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Lock through date') }}</label>
+                <input type="date" name="accounting_lock_date" required value="{{ old('accounting_lock_date') }}" class="rounded-lg border border-slate-200 text-sm">
+            </div>
+            <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Close') }}</button>
+        </form>
+        <p class="text-xs text-slate-400">{{ __('Can only move forward — once reported, a period stays closed until explicitly reopened below, with a reason.') }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <h3 class="text-sm font-semibold text-slate-800">{{ __('Reopen the books') }}</h3>
+        <form method="POST" action="{{ route('app.settings.approvals.reopen-period') }}" class="space-y-3">
+            @csrf
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('New lock date (blank = fully open)') }}</label>
+                <input type="date" name="accounting_lock_date" value="{{ old('accounting_lock_date') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Reason (required)') }}</label>
+                <textarea name="reason" rows="2" required class="w-full rounded-lg border border-slate-200 text-sm">{{ old('reason') }}</textarea>
+            </div>
+            <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-5 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reopen') }}</button>
+        </form>
+    </div>
+
+    @if ($periodClosures->isNotEmpty())
+        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-900">{{ __('Closure history') }}</h3>
+            </div>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-5 py-2 font-medium">{{ __('Date') }}</th>
+                        <th class="px-5 py-2 font-medium">{{ __('Action') }}</th>
+                        <th class="px-5 py-2 font-medium">{{ __('Lock date') }}</th>
+                        <th class="px-5 py-2 font-medium">{{ __('By') }}</th>
+                        <th class="px-5 py-2 font-medium">{{ __('Reason') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($periodClosures as $closure)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-5 py-2 text-slate-500">{{ $closure->created_at->format('Y-m-d H:i') }}</td>
+                            <td class="px-5 py-2">
+                                <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium {{ $closure->action === 'close' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600' }}">
+                                    {{ $closure->action === 'close' ? __('Closed') : __('Reopened') }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-2 text-slate-600">{{ $closure->lock_date?->format('Y-m-d') ?? __('— fully open') }}</td>
+                            <td class="px-5 py-2 text-slate-600">{{ $closure->performer?->name ?? __('Unknown') }}</td>
+                            <td class="px-5 py-2 text-slate-500">{{ $closure->reason ?: '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
-        <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save lock date') }}</button>
-    </form>
+    @endif
 </div>
 @endsection

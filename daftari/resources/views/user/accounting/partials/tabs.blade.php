@@ -3,4 +3,5 @@
     <a href="{{ route('app.journals.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.journals.*') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Journals') }}</a>
     <a href="{{ route('app.ledger.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.ledger.index') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Ledger') }}</a>
     <a href="{{ route('app.cost-centers.index') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.cost-centers.index') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Cost Centers') }}</a>
+    <a href="{{ route('app.opening-balances.create') }}" class="rounded-lg px-3 py-1.5 {{ request()->routeIs('app.opening-balances.create') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Opening Balances') }}</a>
 </div>

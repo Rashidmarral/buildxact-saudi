@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\Item;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -54,10 +55,20 @@ class FileServeController extends Controller
 
         if (! Str::startsWith($filepath, self::PUBLIC_PREFIXES)) {
             abort_unless(Auth::check(), 404);
-            abort_unless(
-                Attachment::where('path', $filepath)->exists() || Item::where('image_path', $filepath)->exists(),
-                404
-            );
+
+            $attachment = Attachment::where('path', $filepath)->first();
+            abort_unless($attachment || Item::where('image_path', $filepath)->exists(), 404);
+
+            // Audit finding SEC-03: the tenant-isolation check above already
+            // blocks cross-company access (it was addressed under CRIT-01,
+            // before this audit) — what was still missing was any record of
+            // *who* viewed a sensitive attachment (receipts, contracts,
+            // bank statements) and *when*. Item images (product photos)
+            // aren't sensitive in the same way, so only Attachment downloads
+            // are logged here.
+            if ($attachment) {
+                AuditLog::record('attachment.download', $attachment, __('Downloaded attachment :name', ['name' => $attachment->original_name]));
+            }
         }
 
         return Storage::disk('public')->response($filepath);
