@@ -218,6 +218,40 @@ class Invoice extends Model
         return (float) $this->advanceCreditApplications()->sum('total');
     }
 
+    /** Partial draw-downs of a genuine 386 Prepayment Invoice against this invoice — see PrepaymentInvoice::applications(). */
+    public function prepaymentInvoiceApplications(): HasMany
+    {
+        return $this->hasMany(PrepaymentInvoiceApplication::class);
+    }
+
+    public function prepaymentAppliedTotal(): float
+    {
+        $fullFk = $this->appliesPrepaymentInvoice ? (float) $this->appliesPrepaymentInvoice->total : 0.0;
+
+        return $fullFk + (float) $this->prepaymentInvoiceApplications()->sum('total');
+    }
+
+    /**
+     * Mirrors advanceCreditExtraRows() for the genuine, ZATCA-386-backed
+     * mechanism — one row for the simple full-amount case
+     * (applies_prepayment_invoice_id), plus one per partial
+     * PrepaymentInvoiceApplication row.
+     */
+    public function prepaymentExtraRows(): array
+    {
+        $rows = [];
+
+        if ($this->appliesPrepaymentInvoice) {
+            $rows[] = ['label' => __('Less: Prepayment — :number', ['number' => $this->appliesPrepaymentInvoice->prepayment_number]), 'value' => -$this->appliesPrepaymentInvoice->total, 'variant' => 'red'];
+        }
+
+        foreach ($this->prepaymentInvoiceApplications->load('prepaymentInvoice') as $application) {
+            $rows[] = ['label' => __('Less: Prepayment — :number', ['number' => $application->prepaymentInvoice->prepayment_number]), 'value' => -$application->total, 'variant' => 'red'];
+        }
+
+        return $rows;
+    }
+
     /**
      * "can we do this in our accounting system" — a completed-works
      * invoice crediting part of an earlier advance against itself, line
@@ -339,7 +373,7 @@ class Invoice extends Model
      */
     public function balanceDue(): float
     {
-        return round((float) $this->total - (float) $this->amount_paid - $this->creditedTotal() - $this->advanceCreditAppliedTotal(), 2);
+        return round((float) $this->total - (float) $this->amount_paid - $this->creditedTotal() - $this->advanceCreditAppliedTotal() - $this->prepaymentAppliedTotal(), 2);
     }
 
     public function isFullyPaid(): bool
@@ -356,7 +390,7 @@ class Invoice extends Model
      */
     public function pdfData(): array
     {
-        $this->loadMissing('items.item', 'items.taxRate', 'client', 'bankAccount', 'advanceCreditApplications.portion.advanceCredit.sourceInvoice');
+        $this->loadMissing('items.item', 'items.taxRate', 'client', 'bankAccount', 'advanceCreditApplications.portion.advanceCredit.sourceInvoice', 'appliesPrepaymentInvoice', 'prepaymentInvoiceApplications.prepaymentInvoice');
 
         $bankAccount = $this->bankAccount ?? $this->company->defaultBankAccount();
 
@@ -407,6 +441,7 @@ class Invoice extends Model
                     ] : null,
                 ])),
                 $this->advanceCreditExtraRows(),
+                $this->prepaymentExtraRows(),
                 array_values(array_filter([
                     $this->amount_paid > 0 ? ['label' => __('Paid'), 'label_ar' => 'المدفوع', 'value' => $this->amount_paid, 'emphasis' => true, 'variant' => 'green'] : null,
                     \App\Support\Money::balanceRow($this->balanceDue()),

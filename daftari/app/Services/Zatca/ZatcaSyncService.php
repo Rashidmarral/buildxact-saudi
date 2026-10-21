@@ -660,7 +660,7 @@ class ZatcaSyncService
             $uuid = $this->xml->newUuid();
             $previousHash = $company->zatca_last_invoice_hash ?: $this->crypto->genesisHash();
             $icv = $this->nextIcv($company);
-            $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $icv, $invoice->appliesPrepaymentInvoice);
+            $unsignedXml = $this->xml->generate($invoice, $isB2b ? '0100000' : '0200000', $previousHash, $uuid, $icv, $invoice->appliesPrepaymentInvoice, $invoice->prepaymentInvoiceApplications->loadMissing('prepaymentInvoice'));
             $invoiceHash = $this->signer->contentHash($unsignedXml);
 
             $xmlString = $unsignedXml;

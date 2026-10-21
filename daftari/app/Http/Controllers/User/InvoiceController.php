@@ -300,7 +300,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load('items.item', 'items.taxRate', 'client', 'invoicePayments.bankAccount', 'bankAccount', 'warehouse', 'attachments', 'installments', 'advanceCreditApplications.portion.advanceCredit.sourceInvoice');
+        $invoice->load('items.item', 'items.taxRate', 'client', 'invoicePayments.bankAccount', 'bankAccount', 'warehouse', 'attachments', 'installments', 'advanceCreditApplications.portion.advanceCredit.sourceInvoice', 'appliesPrepaymentInvoice', 'prepaymentInvoiceApplications.prepaymentInvoice');
         $template = $invoice->company->defaultTemplateFor('invoice');
         $whatsappEnabled = (bool) WhatsappConfig::where('is_enabled', true)->exists();
         $smsEnabled = (bool) SmsConfig::where('is_enabled', true)->exists();
@@ -310,8 +310,14 @@ class InvoiceController extends Controller
             ->get()
             ->filter(fn (\App\Models\AdvanceCreditPortion $portion) => $portion->remainingTotal() > 0.009)
             ->values();
+        $availablePrepaymentInvoices = \App\Models\PrepaymentInvoice::where('client_id', $invoice->client_id)
+            ->where('status', 'issued')
+            ->whereDoesntHave('appliedToInvoice')
+            ->get()
+            ->filter(fn (\App\Models\PrepaymentInvoice $prepayment) => $prepayment->remainingTotal() > 0.009)
+            ->values();
 
-        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled', 'smsEnabled', 'paymentBankAccounts', 'availableAdvancePortions'));
+        return view('user.invoices.show', compact('invoice', 'template', 'whatsappEnabled', 'smsEnabled', 'paymentBankAccounts', 'availableAdvancePortions', 'availablePrepaymentInvoices'));
     }
 
     public function downloadPdf(Invoice $invoice, MpdfRenderer $renderer)

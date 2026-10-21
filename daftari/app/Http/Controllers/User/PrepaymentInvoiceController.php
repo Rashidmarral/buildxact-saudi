@@ -7,10 +7,13 @@ use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Jobs\SyncPrepaymentInvoiceToZatca;
 use App\Models\AuditLog;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\PrepaymentInvoice;
+use App\Models\PrepaymentInvoiceApplication;
 use App\Models\Project;
 use App\Models\TaxRate;
 use App\Services\MpdfRenderer;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -107,7 +110,7 @@ class PrepaymentInvoiceController extends Controller
 
     public function show(PrepaymentInvoice $prepaymentInvoice)
     {
-        $prepaymentInvoice->load('client', 'project', 'taxRate', 'appliedToInvoice');
+        $prepaymentInvoice->load('client', 'project', 'taxRate', 'appliedToInvoice', 'applications.invoice');
 
         $zatcaLog = $prepaymentInvoice->zatcaInvoiceLogs()->latest('id')->first();
 
@@ -185,6 +188,72 @@ class PrepaymentInvoiceController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$prepaymentInvoice->prepayment_number.'.pdf"',
         ]);
+    }
+
+    /**
+     * Draws down part (or all) of this prepayment's remaining balance
+     * against an invoice — the ZATCA-386-backed counterpart to
+     * AdvanceCreditController::apply(). Capped at both the prepayment's
+     * own remaining balance and the invoice's own balance due, and off
+     * limits once the prepayment has already been linked in full via the
+     * older, simpler applies_prepayment_invoice_id path.
+     */
+    public function apply(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $companyId = Auth::user()->company_id;
+
+        $data = $request->validate([
+            'prepayment_invoice_id' => ['required', Rule::exists('prepayment_invoices', 'id')->where('company_id', $companyId)],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'invoice_item_id' => ['nullable', Rule::exists('invoice_items', 'id')->where('invoice_id', $invoice->id)],
+        ]);
+
+        $prepayment = PrepaymentInvoice::findOrFail($data['prepayment_invoice_id']);
+
+        if ($prepayment->status !== 'issued') {
+            return back()->withErrors(['prepayment_invoice_id' => __('This prepayment invoice is not available to apply — it must be issued (not draft/cancelled).')]);
+        }
+
+        if ((string) $prepayment->client_id !== (string) $invoice->client_id) {
+            return back()->withErrors(['prepayment_invoice_id' => __('This prepayment invoice belongs to a different customer.')]);
+        }
+
+        if ($prepayment->appliedToInvoice()->exists()) {
+            return back()->withErrors(['prepayment_invoice_id' => __('This prepayment invoice has already been applied in full to another invoice.')]);
+        }
+
+        $remainingPrepayment = $prepayment->remainingTotal();
+        $remainingInvoice = max($invoice->balanceDue(), 0);
+        $applyTotal = round(min((float) $data['amount'], $remainingPrepayment, $remainingInvoice), 2);
+
+        if ($applyTotal <= 0) {
+            return back()->withErrors(['amount' => __('Nothing available to apply — the prepayment invoice or the invoice has no remaining balance.')]);
+        }
+
+        $vatRateFraction = (float) $prepayment->vat_rate / 100;
+        $amountExclVat = round($applyTotal / (1 + $vatRateFraction), 2);
+        $vatAmount = round($applyTotal - $amountExclVat, 2);
+
+        PrepaymentInvoiceApplication::create([
+            'prepayment_invoice_id' => $prepayment->id,
+            'invoice_id' => $invoice->id,
+            'invoice_item_id' => $data['invoice_item_id'] ?? null,
+            'amount' => $amountExclVat,
+            'vat_amount' => $vatAmount,
+            'total' => $applyTotal,
+            'created_by' => Auth::id(),
+        ]);
+
+        return back()->with('status', __('Prepayment invoice applied.'));
+    }
+
+    public function unapply(Invoice $invoice, PrepaymentInvoiceApplication $application): RedirectResponse
+    {
+        abort_unless($application->invoice_id === $invoice->id, 404);
+
+        $application->delete();
+
+        return back()->with('status', __('Prepayment invoice application removed.'));
     }
 
     public function downloadXml(PrepaymentInvoice $prepaymentInvoice)

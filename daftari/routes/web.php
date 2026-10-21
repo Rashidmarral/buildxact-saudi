@@ -338,6 +338,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('prepayment-invoices', PrepaymentInvoiceController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
         Route::get('prepayment-invoices/{prepaymentInvoice}/xml', [PrepaymentInvoiceController::class, 'downloadXml'])->name('prepayment-invoices.xml');
         Route::get('prepayment-invoices/{prepaymentInvoice}/pdf', [PrepaymentInvoiceController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('prepayment-invoices.pdf');
+        Route::post('invoices/{invoice}/prepayment-invoice-applications', [PrepaymentInvoiceController::class, 'apply'])->name('prepayment-invoices.apply');
+        Route::delete('invoices/{invoice}/prepayment-invoice-applications/{application}', [PrepaymentInvoiceController::class, 'unapply'])->name('prepayment-invoices.unapply');
 
         Route::resource('advance-credits', AdvanceCreditController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
         Route::post('invoices/{invoice}/advance-credit-applications', [AdvanceCreditController::class, 'apply'])->name('advance-credits.apply');

@@ -69,6 +69,32 @@ class PrepaymentInvoice extends Model
         return $this->hasMany(ZatcaInvoiceLog::class, 'prepayment_invoice_id');
     }
 
+    /**
+     * Partial/multiple draw-downs of this advance against several future
+     * invoices — see the create_prepayment_invoice_applications_table
+     * migration. Coexists with appliedToInvoice() (the simpler, older,
+     * single-invoice-full-amount path): a prepayment is settled through
+     * exactly one of the two, never both.
+     */
+    public function applications(): HasMany
+    {
+        return $this->hasMany(PrepaymentInvoiceApplication::class);
+    }
+
+    public function appliedTotal(): float
+    {
+        if ($this->appliedToInvoice()->exists()) {
+            return (float) $this->total;
+        }
+
+        return (float) $this->applications()->sum('total');
+    }
+
+    public function remainingTotal(): float
+    {
+        return round((float) $this->total - $this->appliedTotal(), 2);
+    }
+
     public function isZatcaSynced(): bool
     {
         return $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->exists();
@@ -76,6 +102,6 @@ class PrepaymentInvoice extends Model
 
     public function isApplied(): bool
     {
-        return $this->appliedToInvoice()->exists();
+        return $this->appliedToInvoice()->exists() || $this->applications()->exists();
     }
 }

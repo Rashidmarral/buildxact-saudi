@@ -366,6 +366,74 @@
     @endif
 </div>
 
+<div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
+    <h3 class="font-semibold text-slate-900 mb-1">{{ __('Prepayment credits') }}</h3>
+    <p class="text-xs text-slate-400 mb-4">{{ __('Draw down a genuine ZATCA prepayment (386) invoice against this one — carries full PrepaidAmount/document-reference linkage to ZATCA, and can be split across several invoices. See Prepayment Invoices to issue a new advance.') }}</p>
+
+    @if ($invoice->appliesPrepaymentInvoice)
+        <p class="text-sm text-slate-600 mb-4">{{ __('This invoice fully settles') }} <a href="{{ route('app.prepayment-invoices.show', $invoice->appliesPrepaymentInvoice) }}" class="text-brand-700 hover:underline">{{ $invoice->appliesPrepaymentInvoice->prepayment_number }}</a> ({{ \App\Support\Money::format($invoice->appliesPrepaymentInvoice->total) }}).</p>
+    @endif
+
+    @if ($invoice->prepaymentInvoiceApplications->isNotEmpty())
+        <table class="w-full text-sm mb-4">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2">{{ __('Prepayment invoice') }}</th>
+                    <th class="py-2 text-end">{{ __('Amount applied') }}</th>
+                    <th class="py-2"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($invoice->prepaymentInvoiceApplications as $application)
+                    <tr class="border-b border-slate-50 last:border-0">
+                        <td class="py-2"><a href="{{ route('app.prepayment-invoices.show', $application->prepaymentInvoice) }}" class="text-brand-700 hover:underline">{{ $application->prepaymentInvoice->prepayment_number }}</a></td>
+                        <td class="py-2 text-end">{{ \App\Support\Money::format($application->total) }}</td>
+                        <td class="py-2 text-end">
+                            <form method="POST" action="{{ route('app.prepayment-invoices.unapply', [$invoice, $application]) }}" onsubmit="return confirm('{{ __('Remove this prepayment application?') }}')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    @if ($availablePrepaymentInvoices->isNotEmpty() && $invoice->balanceDue() > 0 && ! $invoice->appliesPrepaymentInvoice)
+        <form method="POST" action="{{ route('app.prepayment-invoices.apply', $invoice) }}" class="flex flex-wrap items-end gap-3">
+            @csrf
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Prepayment invoice') }}</label>
+                <select name="prepayment_invoice_id" id="prepayment-select" onchange="syncPrepaymentAmount()" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    @foreach ($availablePrepaymentInvoices as $prepayment)
+                        <option value="{{ $prepayment->id }}" data-remaining="{{ $prepayment->remainingTotal() }}">
+                            {{ $prepayment->prepayment_number }} — {{ __('Remaining') }}: {{ \App\Support\Money::format($prepayment->remainingTotal()) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500">{{ __('Amount to apply') }}</label>
+                <input type="number" step="0.01" min="0.01" name="amount" id="prepayment-amount" required class="mt-1 w-32 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Apply') }}</button>
+        </form>
+        <script>
+            function syncPrepaymentAmount() {
+                const select = document.getElementById('prepayment-select');
+                const option = select.options[select.selectedIndex];
+                const remaining = parseFloat(option?.dataset.remaining || 0);
+                const balanceDue = {{ (float) $invoice->balanceDue() }};
+                document.getElementById('prepayment-amount').value = Math.min(remaining, balanceDue).toFixed(2);
+            }
+            syncPrepaymentAmount();
+        </script>
+    @elseif ($availablePrepaymentInvoices->isEmpty() && ! $invoice->appliesPrepaymentInvoice)
+        <p class="text-sm text-slate-400">{{ __('No prepayment invoice is available for this client yet.') }} <a href="{{ route('app.prepayment-invoices.create') }}" class="text-brand-700 hover:underline">{{ __('Issue one') }}</a></p>
+    @endif
+</div>
+
 @if ($invoice->status !== 'cancelled')
     <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden" x-data="{ editing: {{ $invoice->installments->isEmpty() ? 'true' : 'false' }} }">
         <div class="flex items-center justify-between mb-4">

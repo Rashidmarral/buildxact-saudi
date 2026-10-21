@@ -18,6 +18,7 @@ use App\Models\PaymentVoucher;
 use App\Models\InvoicePayment;
 use App\Models\Item;
 use App\Models\PrepaymentInvoice;
+use App\Models\PrepaymentInvoiceApplication;
 use App\Models\Salesperson;
 use App\Models\Supplier;
 use App\Models\Warehouse;
@@ -86,7 +87,8 @@ class ReportController extends Controller
             ->get();
 
         $advanceCreditVatAlreadyReported = (float) AdvanceCreditApplication::whereIn('invoice_id', $salesRows->pluck('id'))->sum('vat_amount');
-        $prepaymentVatAppliedThisPeriod = (float) PrepaymentInvoice::whereHas('appliedToInvoice', fn ($q) => $q->whereIn('id', $salesRows->pluck('id')))->sum('vat_amount');
+        $prepaymentVatAppliedThisPeriod = (float) PrepaymentInvoice::whereHas('appliedToInvoice', fn ($q) => $q->whereIn('id', $salesRows->pluck('id')))->sum('vat_amount')
+            + (float) PrepaymentInvoiceApplication::whereIn('invoice_id', $salesRows->pluck('id'))->sum('vat_amount');
         $prepaymentVatDueThisPeriod = (float) $prepaymentRows->sum('vat_amount');
 
         $outputTaxFromInvoices = (float) $salesRows->sum('vat_total');

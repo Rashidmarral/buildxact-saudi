@@ -12,6 +12,7 @@ use App\Models\PrepaymentInvoice;
 use App\Models\TaxRate;
 use App\Support\Zatca\VatExemptionReason;
 use DOMDocument;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -22,8 +23,19 @@ use Illuminate\Support\Str;
  */
 class ZatcaXmlGenerator
 {
-    public function generate(Invoice $invoice, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1, ?PrepaymentInvoice $appliedPrepayment = null): string
+    /**
+     * $appliedPrepayment covers the simple case (one 386 advance, applied
+     * once, in full, via invoices.applies_prepayment_invoice_id).
+     * $prepaymentApplications additionally covers PrepaymentInvoiceApplication
+     * rows — a single advance drawn down in parts across several final
+     * invoices (see the create_prepayment_invoice_applications_table
+     * migration). Both can be non-empty on the same invoice; every
+     * distinct 386 document referenced gets its own document reference,
+     * and PrepaidAmount is their combined total.
+     */
+    public function generate(Invoice $invoice, string $invoiceTypeName, ?string $previousInvoiceHash, string $uuid, int $icv = 1, ?PrepaymentInvoice $appliedPrepayment = null, ?Collection $prepaymentApplications = null): string
     {
+        $prepaymentApplications = $prepaymentApplications ?? collect();
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = false;
 
@@ -63,8 +75,14 @@ class ZatcaXmlGenerator
         // must reference that 386 prepayment invoice's own number/date —
         // see the PrepaidAmount handling below and the
         // add_applies_prepayment_invoice_id_to_invoices_table migration.
-        if ($appliedPrepayment) {
-            $root->appendChild($this->prepaymentReference($doc, $appliedPrepayment));
+        // One reference per distinct 386 document, however it was applied.
+        $referencedPrepayments = collect([$appliedPrepayment])
+            ->merge($prepaymentApplications->map(fn ($application) => $application->prepaymentInvoice))
+            ->filter()
+            ->unique('id');
+
+        foreach ($referencedPrepayments as $referencedPrepayment) {
+            $root->appendChild($this->prepaymentReference($doc, $referencedPrepayment));
         }
 
         $root->appendChild($this->party($doc, 'cac:AccountingSupplierParty', [
@@ -114,17 +132,18 @@ class ZatcaXmlGenerator
         // already paid us something" — per the spec's own section 9.5, it
         // specifically means an advance settled against a formal, separate
         // prepayment TAX INVOICE (type code 386). It's only ever non-zero
-        // here when $appliedPrepayment is set (PrepaymentInvoice — see
-        // generateForPrepayment()), in which case it's that document's own
-        // tax-inclusive total and PayableAmount is reduced by the same, so
-        // ZATCA doesn't see the VAT on that advance counted twice. Never
+        // here when $appliedPrepayment and/or $prepaymentApplications is
+        // set (PrepaymentInvoice — see generateForPrepayment()), in which
+        // case it's the combined tax-inclusive total actually drawn down
+        // against this invoice, and PayableAmount is reduced by the same,
+        // so ZATCA doesn't see the VAT on that advance counted twice. Never
         // derived from ordinary InvoicePayment rows (e.g. a deposit
         // collected before invoicing with no 386 invoice behind it) — that
         // would set BT-113 without the required document reference
         // (BR-KSA-73/BR-KSA-80) and risk clearance rejection. CreditNote/
         // DebitNote's own PrepaidAmount stays hardcoded zero below —
         // neither document type can settle an advance.
-        $prepaidAmount = $appliedPrepayment ? (float) $appliedPrepayment->total : 0.0;
+        $prepaidAmount = ($appliedPrepayment ? (float) $appliedPrepayment->total : 0.0) + (float) $prepaymentApplications->sum('total');
         $monetaryTotal = $doc->createElement('cac:LegalMonetaryTotal');
         $this->appendAmount($doc, $monetaryTotal, 'cbc:LineExtensionAmount', $invoice->subtotal, $docCurrency);
         $this->appendAmount($doc, $monetaryTotal, 'cbc:TaxExclusiveAmount', $invoice->subtotal - $invoice->discount_total, $docCurrency);

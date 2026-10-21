@@ -49,7 +49,38 @@
 
 @if ($prepaymentInvoice->appliedToInvoice)
     <div class="mb-6 rounded-lg bg-slate-50 border border-slate-100 px-4 py-3 text-sm text-slate-600 print:hidden">
-        {{ __('Applied to invoice') }}: <a href="{{ route('app.invoices.show', $prepaymentInvoice->appliedToInvoice) }}" class="font-semibold text-brand-700 hover:underline">{{ $prepaymentInvoice->appliedToInvoice->invoice_number }}</a>
+        {{ __('Applied in full to invoice') }}: <a href="{{ route('app.invoices.show', $prepaymentInvoice->appliedToInvoice) }}" class="font-semibold text-brand-700 hover:underline">{{ $prepaymentInvoice->appliedToInvoice->invoice_number }}</a>
+    </div>
+@elseif ($prepaymentInvoice->applications->isNotEmpty())
+    <div class="mb-6 bg-white rounded-xl border border-slate-100 p-5 print:hidden">
+        <div class="grid sm:grid-cols-2 gap-4 mb-4">
+            <div>
+                <p class="text-xs text-slate-400">{{ __('Applied so far') }}</p>
+                <p class="text-lg font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($prepaymentInvoice->appliedTotal()) }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400">{{ __('Remaining (not yet applied)') }}</p>
+                <p class="text-lg font-bold text-amber-600 mt-1">{{ \App\Support\Money::format($prepaymentInvoice->remainingTotal()) }}</p>
+            </div>
+        </div>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2">{{ __('Applied to invoice') }}</th>
+                    <th class="py-2">{{ __('Date') }}</th>
+                    <th class="py-2 text-end">{{ __('Amount applied') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($prepaymentInvoice->applications as $application)
+                    <tr class="border-b border-slate-50 last:border-0">
+                        <td class="py-2"><a href="{{ route('app.invoices.show', $application->invoice) }}" class="text-brand-700 hover:underline">{{ $application->invoice->invoice_number }}</a></td>
+                        <td class="py-2 text-slate-500">{{ $application->created_at->format('Y-m-d') }}</td>
+                        <td class="py-2 text-end">{{ \App\Support\Money::format($application->total) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
 @endif
 

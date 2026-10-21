@@ -11,6 +11,7 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\PrepaymentInvoice;
+use App\Models\PrepaymentInvoiceApplication;
 use App\Models\Subscription;
 use App\Models\Supplier;
 use App\Models\User;
@@ -231,5 +232,64 @@ class TaxReportTest extends TestCase
         // net output tax for the period is just the final invoice's own 750.
         $after->assertSee('750.00');
         $after->assertDontSee('900.00');
+    }
+
+    /**
+     * Same netting, but with the advance drawn down in two parts across
+     * two separate final invoices (PrepaymentInvoiceApplication) rather
+     * than settled once in full via the simple FK — each application's
+     * own vat_amount must be netted out of its own invoice's period,
+     * leaving only the two invoices' own net-new VAT.
+     */
+    public function test_output_tax_nets_out_vat_from_partial_prepayment_invoice_applications(): void
+    {
+        $company = $this->makeCompanyWithAccess();
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+        $this->actingAs($owner);
+
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Split Prepayment Client']);
+
+        $prepayment = PrepaymentInvoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'created_by' => $owner->id,
+            'prepayment_number' => 'PRE-SPLIT-1', 'type' => 'standard', 'status' => 'issued',
+            'issue_date' => now(), 'amount' => 10000, 'vat_rate' => 15, 'vat_amount' => 1500, 'total' => 11500, 'currency' => 'SAR',
+        ]);
+
+        $firstMilestone = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'SPLIT-FINAL-1',
+            'issue_date' => now(), 'due_date' => now()->addDays(30), 'status' => 'sent', 'currency' => 'SAR',
+        ]);
+        $firstMilestone->items()->create(['description' => 'Milestone 1', 'quantity' => 1, 'unit_price' => 20000, 'vat_rate' => 15, 'vat_amount' => 3000, 'line_total' => 23000]);
+        $firstMilestone->recalculateTotals();
+        $firstMilestone->save();
+        PrepaymentInvoiceApplication::create([
+            'company_id' => $company->id, 'prepayment_invoice_id' => $prepayment->id, 'invoice_id' => $firstMilestone->id,
+            'amount' => 5000, 'vat_amount' => 750, 'total' => 5750, 'created_by' => $owner->id,
+        ]);
+
+        $secondMilestone = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'SPLIT-FINAL-2',
+            'issue_date' => now(), 'due_date' => now()->addDays(30), 'status' => 'sent', 'currency' => 'SAR',
+        ]);
+        $secondMilestone->items()->create(['description' => 'Milestone 2', 'quantity' => 1, 'unit_price' => 20000, 'vat_rate' => 15, 'vat_amount' => 3000, 'line_total' => 23000]);
+        $secondMilestone->recalculateTotals();
+        $secondMilestone->save();
+        PrepaymentInvoiceApplication::create([
+            'company_id' => $company->id, 'prepayment_invoice_id' => $prepayment->id, 'invoice_id' => $secondMilestone->id,
+            'amount' => 5000, 'vat_amount' => 750, 'total' => 5750, 'created_by' => $owner->id,
+        ]);
+
+        $query = ['period' => 'custom', 'from' => now()->subYear()->toDateString(), 'to' => now()->addYear()->toDateString(), 'tab' => 'sales'];
+        $response = $this->get(route('app.reports.vat', $query));
+
+        $response->assertOk();
+        // Gross from invoices alone: 3000 + 3000 (two milestones) = 6000.
+        // The 1500 prepayment VAT (due this period) and the 1500 of VAT
+        // already reported via the two 750 draw-downs cancel each other
+        // out, leaving the net figure exactly equal to the gross: 6000.
+        $response->assertSeeInOrder(['VAT on sales invoices (gross)', 'SAR 6,000.00']);
+        $response->assertSeeInOrder(['+ VAT due on prepayment invoices issued this period', '+SAR 1,500.00']);
+        $response->assertSeeInOrder(['Prepayment Invoice (earlier period)', '−SAR 1,500.00']);
+        $response->assertSeeInOrder(['Net output tax for this period', 'SAR 6,000.00']);
     }
 }

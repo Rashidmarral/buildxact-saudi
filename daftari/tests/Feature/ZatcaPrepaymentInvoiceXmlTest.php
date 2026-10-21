@@ -107,6 +107,48 @@ class ZatcaPrepaymentInvoiceXmlTest extends TestCase
         $this->assertStringContainsString('<cbc:DocumentTypeCode>386</cbc:DocumentTypeCode>', $xml);
     }
 
+    /**
+     * The same advance, drawn down in two parts across two separate final
+     * invoices, must still carry correct PrepaidAmount/PayableAmount and
+     * a document reference back to the 386 on EACH one — this is the
+     * whole point of PrepaymentInvoiceApplication over the single-FK path.
+     */
+    public function test_a_final_invoice_that_partially_applies_a_prepayment_reports_the_reduced_payable_amount(): void
+    {
+        $prepayment = $this->makePrepayment(50000)->fresh(); // total 57,500
+        $prepayment->load('client', 'company', 'taxRate');
+
+        $invoice = Invoice::create([
+            'company_id' => $this->company->id, 'client_id' => $this->client->id,
+            'invoice_number' => 'INV-PARTIAL-1', 'type' => 'standard', 'status' => 'sent',
+            'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+        ]);
+        $line = new InvoiceItem([
+            'invoice_id' => $invoice->id, 'description' => 'Subgrade completed', 'quantity' => 1,
+            'unit_price' => 100000, 'vat_rate' => 15, 'sort_order' => 0,
+        ]);
+        $line->recalculate();
+        $line->save();
+        $invoice->refresh();
+        $invoice->recalculateTotals();
+
+        $invoice->prepaymentInvoiceApplications()->create([
+            'company_id' => $this->company->id, 'prepayment_invoice_id' => $prepayment->id,
+            'amount' => 25000, 'vat_amount' => 3750, 'total' => 28750,
+        ]);
+        $invoice->load('items.taxRate', 'company', 'client', 'appliesPrepaymentInvoice', 'prepaymentInvoiceApplications.prepaymentInvoice');
+
+        $xml = app(ZatcaXmlGenerator::class)->generate($invoice, '0100000', null, (string) \Illuminate\Support\Str::uuid(), 1, $invoice->appliesPrepaymentInvoice, $invoice->prepaymentInvoiceApplications);
+
+        // Invoice total is 115000 (100000 + 15% VAT); only half of the
+        // advance (28,750 of its 57,500 total) was drawn down against it.
+        $this->assertStringContainsString('<cbc:TaxInclusiveAmount currencyID="SAR">115000.00</cbc:TaxInclusiveAmount>', $xml);
+        $this->assertStringContainsString('<cbc:PrepaidAmount currencyID="SAR">28750.00</cbc:PrepaidAmount>', $xml);
+        $this->assertStringContainsString('<cbc:PayableAmount currencyID="SAR">86250.00</cbc:PayableAmount>', $xml);
+        $this->assertStringContainsString('<cbc:ID>PPI-00001</cbc:ID>', $xml);
+        $this->assertStringContainsString('<cbc:DocumentTypeCode>386</cbc:DocumentTypeCode>', $xml);
+    }
+
     public function test_a_final_invoice_with_no_applied_prepayment_is_unaffected(): void
     {
         $invoice = Invoice::create([
