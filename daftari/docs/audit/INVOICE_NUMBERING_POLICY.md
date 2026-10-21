@@ -26,9 +26,15 @@ Changing `Company::invoice_prefix` from `INV` to `INV-2026` (or however you want
 
 **But if you mean "00005 should mean the 5th invoice issued in 2026" — i.e. the counter resets each fiscal year — that logic does not exist today.** A prefix-only change would produce `INV-2026-00005`, then `INV-2026-00006`, `00007`... continuing the same lifetime count under the new prefix forever, not a fresh count starting at `00001` each January.
 
-## Open decision (not implemented — needs your confirmation)
+## Update: year-scoped numbering is now built (opt-in)
 
-Building real year-scoped numbering (reset the counter on fiscal-year rollover, keyed per company and, if relevant, per branch) is a legitimate, moderate-sized feature — but it's a policy decision with real consequences (e.g., what happens to a sequence that spans a year boundary mid-transaction, whether branches share or have independent sequences) that the business should decide explicitly before it's built silently. This was deliberately **not implemented** in this engagement pending that decision — see the parent report's Open Questions section.
+The business confirmed: reset each fiscal year. `Company::document_numbering_resets_yearly` (false by default — every existing company is completely unaffected) is a new toggle in Settings → General. Once enabled:
+
+- `nextInvoiceNumber()`, `nextQuotationNumber()` (and `proforma`), `nextCreditNoteNumber()`, `nextDebitNoteNumber()`, and `nextPrepaymentNumber()` all format as `{prefix}-{fiscal year}-{5-digit counter}` (e.g. `INV-2026-00001`), using the company's existing `fiscal_year_start` setting (Settings → Regional) for the year boundary — the same boundary the VAT Report already uses.
+- Each of the six sequences resets to `00001` independently the moment its own fiscal year rolls over, computed and compared inside the same `lockForUpdate()`-held transaction as the increment itself, so two concurrent requests spanning the rollover can't both reset and both hand out `00001`.
+- Turning the toggle on **never** renames or resets anything retroactively — `INV-00001` through `INV-00004` keep their exact historical numbers. The new year-scoped sequence starts fresh at `00001` from the moment the toggle is enabled, under the new format, which is the semantically correct behavior (continuing the old lifetime count instead would make "00001" a lie about being the first invoice of the year).
+
+See `tests/Feature/YearlyDocumentNumberingTest.php` for the full behavior, including the fiscal-year-rollover and non-January-start cases.
 
 ## What's already solid (verified, no action needed)
 

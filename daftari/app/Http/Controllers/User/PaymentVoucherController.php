@@ -7,6 +7,7 @@ use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\Client;
@@ -164,35 +165,16 @@ class PaymentVoucherController extends Controller
     public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
+        $company = Auth::user()->company;
 
-        $voucher = DB::transaction(function () use ($data, $ledger) {
-            $company = Auth::user()->company;
-            $billPaymentId = null;
-            $whtAmount = 0.0;
+        // Audit finding CASH-06: at/above the threshold, nothing here
+        // happens yet — no bill payment, no WHT withholding, no GL
+        // posting — until approvePending() explicitly runs it. Computed
+        // before the transaction so the decision can't change partway
+        // through creating the voucher row.
+        $requiresApproval = $company->paymentVoucherRequiresApproval((float) $data['amount']);
 
-            if (! empty($data['bill_id'])) {
-                $bill = Bill::findOrFail($data['bill_id']);
-
-                // Withholding is applied once, on the first voucher paid
-                // against a WHT-bearing bill — the tax due on the full
-                // bill is deducted from the supplier's cash then, rather
-                // than being prorated across installment payments.
-                if ((float) $bill->wht_amount > 0 && ! $bill->wht_withheld) {
-                    $whtAmount = (float) $bill->wht_amount;
-                    $bill->wht_withheld = true;
-                }
-
-                $payment = $bill->billPayments()->create([
-                    'amount' => $data['amount'] + $whtAmount,
-                    'paid_at' => $data['date'],
-                    'method' => $data['method'],
-                    'reference' => $data['reference'] ?? null,
-                ]);
-                $bill->amount_paid = $bill->billPayments()->sum('amount');
-                $bill->save();
-                $billPaymentId = $payment->id;
-            }
-
+        $voucher = DB::transaction(function () use ($data, $ledger, $company, $requiresApproval) {
             $voucher = PaymentVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
                 'project_id' => $data['project_id'] ?? null,
@@ -202,7 +184,7 @@ class PaymentVoucherController extends Controller
                 'counter_account_id' => $data['counter_account_id'] ?? null,
                 'expense_id' => $data['expense_id'] ?? null,
                 'bill_id' => $data['bill_id'] ?? null,
-                'bill_payment_id' => $billPaymentId,
+                'bill_payment_id' => null,
                 'created_by' => Auth::id(),
                 'voucher_number' => $company->nextPaymentVoucherNumber(),
                 'date' => $data['date'],
@@ -213,20 +195,99 @@ class PaymentVoucherController extends Controller
                 'party_email' => $data['party_email'] ?? null,
                 'party_address' => $data['party_address'] ?? null,
                 'amount' => $data['amount'],
-                'wht_amount' => $whtAmount,
+                'wht_amount' => 0,
                 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'notes_ar' => $data['notes_ar'] ?? null,
-                'status' => 'issued',
+                'status' => $requiresApproval ? 'pending_approval' : 'issued',
             ]);
 
-            $ledger->postPaymentVoucher($voucher);
+            if ($requiresApproval) {
+                AuditLog::record('payment_voucher.create_pending', $voucher, __('Submitted payment voucher :number for approval (amount :amount)', ['number' => $voucher->voucher_number, 'amount' => $voucher->amount]));
+            } else {
+                $this->settleBillAndPost($voucher, $ledger);
+            }
 
             return $voucher;
         });
 
-        return redirect()->route('app.payment-vouchers.show', $voucher)->with('status', __('Payment voucher created.'));
+        $status = $requiresApproval
+            ? __('This payment is :amount, at or above your approval threshold — it has been submitted for approval instead of posted.', ['amount' => $voucher->amount])
+            : __('Payment voucher created.');
+
+        return redirect()->route('app.payment-vouchers.show', $voucher)->with('status', $status);
+    }
+
+    /**
+     * The side effects that used to happen unconditionally inside
+     * store() — WHT withholding, the linked bill's own BillPayment, and
+     * the GL posting itself. Shared with approvePending() so a
+     * threshold-gated voucher gets exactly the same treatment once
+     * approved as an immediate one gets today, just deferred.
+     */
+    private function settleBillAndPost(PaymentVoucher $voucher, LedgerPostingService $ledger): void
+    {
+        if ($voucher->bill_id && ! $voucher->bill_payment_id) {
+            $bill = Bill::findOrFail($voucher->bill_id);
+
+            // Withholding is applied once, on the first voucher paid
+            // against a WHT-bearing bill — the tax due on the full bill
+            // is deducted from the supplier's cash then, rather than
+            // being prorated across installment payments.
+            $whtAmount = 0.0;
+            if ((float) $bill->wht_amount > 0 && ! $bill->wht_withheld) {
+                $whtAmount = (float) $bill->wht_amount;
+                $bill->wht_withheld = true;
+            }
+
+            $payment = $bill->billPayments()->create([
+                'amount' => $voucher->amount + $whtAmount,
+                'paid_at' => $voucher->date,
+                'method' => $voucher->method,
+                'reference' => $voucher->reference,
+            ]);
+            $bill->amount_paid = $bill->billPayments()->sum('amount');
+            $bill->save();
+
+            $voucher->bill_payment_id = $payment->id;
+            $voucher->wht_amount = $whtAmount;
+        }
+
+        $voucher->status = 'issued';
+        $voucher->save();
+
+        $ledger->postPaymentVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense']));
+    }
+
+    public function approvePending(PaymentVoucher $paymentVoucher, LedgerPostingService $ledger)
+    {
+        abort_unless($paymentVoucher->status === 'pending_approval', 404);
+
+        DB::transaction(function () use ($paymentVoucher, $ledger) {
+            $this->settleBillAndPost($paymentVoucher, $ledger);
+            $paymentVoucher->update(['approved_by' => Auth::id(), 'approved_at' => now()]);
+        });
+
+        AuditLog::record('payment_voucher.approve_pending', $paymentVoucher, __('Approved and posted payment voucher :number', ['number' => $paymentVoucher->voucher_number]));
+
+        return redirect()->route('app.payment-vouchers.show', $paymentVoucher)->with('status', __('Payment voucher approved and posted.'));
+    }
+
+    public function rejectPending(Request $request, PaymentVoucher $paymentVoucher)
+    {
+        abort_unless($paymentVoucher->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $paymentVoucher->update([
+            'status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('payment_voucher.reject_pending', $paymentVoucher, __('Rejected pending payment voucher :number', ['number' => $paymentVoucher->voucher_number]));
+
+        return redirect()->route('app.payment-vouchers.show', $paymentVoucher)->with('status', __('Payment voucher rejected.'));
     }
 
     public function show(PaymentVoucher $paymentVoucher)
@@ -242,6 +303,10 @@ class PaymentVoucherController extends Controller
     {
         if ($paymentVoucher->status === 'void') {
             return redirect()->route('app.payment-vouchers.show', $paymentVoucher)->with('status', __('A voided voucher cannot be edited.'));
+        }
+
+        if (in_array($paymentVoucher->status, ['pending_approval', 'rejected'], true)) {
+            return redirect()->route('app.payment-vouchers.show', $paymentVoucher)->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
         }
 
         $paymentVoucher->load('bill.items', 'expense');
@@ -295,6 +360,10 @@ class PaymentVoucherController extends Controller
     {
         if ($paymentVoucher->status === 'void') {
             return back()->with('status', __('A voided voucher cannot be edited.'));
+        }
+
+        if (in_array($paymentVoucher->status, ['pending_approval', 'rejected'], true)) {
+            return back()->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
         }
 
         $data = $this->validated($request);
@@ -377,7 +446,7 @@ class PaymentVoucherController extends Controller
 
     public function destroy(PaymentVoucher $paymentVoucher)
     {
-        if ($paymentVoucher->status !== 'void') {
+        if (! in_array($paymentVoucher->status, ['void', 'rejected'], true)) {
             return back()->with('status', __('Void this voucher first so its ledger entries and any linked bill payment are safely reversed, then delete it.'));
         }
 

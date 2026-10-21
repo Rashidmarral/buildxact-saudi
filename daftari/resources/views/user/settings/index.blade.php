@@ -242,6 +242,11 @@
                             <option value="{{ $num }}" @selected((int) old('fiscal_year_start', $company->fiscal_year_start) === $num)>{{ $label }}</option>
                         @endforeach
                     </select>
+                    <label class="mt-2 flex items-start gap-2 text-sm text-slate-600">
+                        <input type="hidden" name="document_numbering_resets_yearly" value="0">
+                        <input type="checkbox" name="document_numbering_resets_yearly" value="1" @checked(old('document_numbering_resets_yearly', $company->document_numbering_resets_yearly)) class="mt-0.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        <span>{{ __('Reset invoice/quotation/credit note/debit note/prepayment numbers to 00001 each fiscal year, with the year embedded in the number (e.g. INV-:year-00001).', ['year' => now()->year]) }}</span>
+                    </label>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">{{ __('VAT filing frequency') }}</label>

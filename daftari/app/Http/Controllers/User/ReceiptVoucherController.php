@@ -7,6 +7,7 @@ use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
@@ -149,25 +150,14 @@ class ReceiptVoucherController extends Controller
     public function store(Request $request, LedgerPostingService $ledger)
     {
         $data = $this->validated($request);
+        $company = Auth::user()->company;
 
-        $voucher = DB::transaction(function () use ($data, $ledger) {
-            $company = Auth::user()->company;
-            $invoicePaymentId = null;
+        // Audit finding CASH-06: at/above the threshold, nothing here
+        // happens yet — no invoice payment recorded, no GL posting —
+        // until approvePending() explicitly runs it.
+        $requiresApproval = $company->receiptVoucherRequiresApproval((float) $data['amount']);
 
-            if (! empty($data['invoice_id'])) {
-                $invoice = Invoice::findOrFail($data['invoice_id']);
-                $payment = $invoice->invoicePayments()->create([
-                    'amount' => $data['amount'],
-                    'paid_at' => $data['date'],
-                    'method' => $data['method'],
-                    'reference' => $data['reference'] ?? null,
-                ]);
-                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
-                $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
-                $invoice->save();
-                $invoicePaymentId = $payment->id;
-            }
-
+        $voucher = DB::transaction(function () use ($data, $ledger, $company, $requiresApproval) {
             $voucher = ReceiptVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
                 'project_id' => $data['project_id'] ?? null,
@@ -176,7 +166,7 @@ class ReceiptVoucherController extends Controller
                 'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
                 'counter_account_id' => $data['counter_account_id'] ?? null,
                 'invoice_id' => $data['invoice_id'] ?? null,
-                'invoice_payment_id' => $invoicePaymentId,
+                'invoice_payment_id' => null,
                 'created_by' => Auth::id(),
                 'voucher_number' => $company->nextReceiptNumber(),
                 'date' => $data['date'],
@@ -191,15 +181,77 @@ class ReceiptVoucherController extends Controller
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'notes_ar' => $data['notes_ar'] ?? null,
-                'status' => 'issued',
+                'status' => $requiresApproval ? 'pending_approval' : 'issued',
             ]);
 
-            $ledger->postReceiptVoucher($voucher);
+            if ($requiresApproval) {
+                AuditLog::record('receipt_voucher.create_pending', $voucher, __('Submitted receipt voucher :number for approval (amount :amount)', ['number' => $voucher->voucher_number, 'amount' => $voucher->amount]));
+            } else {
+                $this->settleInvoiceAndPost($voucher, $ledger);
+            }
 
             return $voucher;
         });
 
-        return redirect()->route('app.receipt-vouchers.show', $voucher)->with('status', __('Receipt voucher created.'));
+        $status = $requiresApproval
+            ? __('This receipt is :amount, at or above your approval threshold — it has been submitted for approval instead of posted.', ['amount' => $voucher->amount])
+            : __('Receipt voucher created.');
+
+        return redirect()->route('app.receipt-vouchers.show', $voucher)->with('status', $status);
+    }
+
+    /** Mirrors PaymentVoucherController::settleBillAndPost() for the receipt side. */
+    private function settleInvoiceAndPost(ReceiptVoucher $voucher, LedgerPostingService $ledger): void
+    {
+        if ($voucher->invoice_id && ! $voucher->invoice_payment_id) {
+            $invoice = Invoice::findOrFail($voucher->invoice_id);
+            $payment = $invoice->invoicePayments()->create([
+                'amount' => $voucher->amount,
+                'paid_at' => $voucher->date,
+                'method' => $voucher->method,
+                'reference' => $voucher->reference,
+            ]);
+            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+            $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+            $invoice->save();
+
+            $voucher->invoice_payment_id = $payment->id;
+        }
+
+        $voucher->status = 'issued';
+        $voucher->save();
+
+        $ledger->postReceiptVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'invoice']));
+    }
+
+    public function approvePending(ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)
+    {
+        abort_unless($receiptVoucher->status === 'pending_approval', 404);
+
+        DB::transaction(function () use ($receiptVoucher, $ledger) {
+            $this->settleInvoiceAndPost($receiptVoucher, $ledger);
+            $receiptVoucher->update(['approved_by' => Auth::id(), 'approved_at' => now()]);
+        });
+
+        AuditLog::record('receipt_voucher.approve_pending', $receiptVoucher, __('Approved and posted receipt voucher :number', ['number' => $receiptVoucher->voucher_number]));
+
+        return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('Receipt voucher approved and posted.'));
+    }
+
+    public function rejectPending(Request $request, ReceiptVoucher $receiptVoucher)
+    {
+        abort_unless($receiptVoucher->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $receiptVoucher->update([
+            'status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('receipt_voucher.reject_pending', $receiptVoucher, __('Rejected pending receipt voucher :number', ['number' => $receiptVoucher->voucher_number]));
+
+        return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('Receipt voucher rejected.'));
     }
 
     public function show(ReceiptVoucher $receiptVoucher)
@@ -215,6 +267,10 @@ class ReceiptVoucherController extends Controller
     {
         if ($receiptVoucher->status === 'void') {
             return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('A voided voucher cannot be edited.'));
+        }
+
+        if (in_array($receiptVoucher->status, ['pending_approval', 'rejected'], true)) {
+            return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
         }
 
         $receiptVoucher->load('invoice.items');
@@ -262,6 +318,10 @@ class ReceiptVoucherController extends Controller
     {
         if ($receiptVoucher->status === 'void') {
             return back()->with('status', __('A voided voucher cannot be edited.'));
+        }
+
+        if (in_array($receiptVoucher->status, ['pending_approval', 'rejected'], true)) {
+            return back()->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
         }
 
         $data = $this->validated($request);
@@ -332,7 +392,7 @@ class ReceiptVoucherController extends Controller
 
     public function destroy(ReceiptVoucher $receiptVoucher)
     {
-        if ($receiptVoucher->status !== 'void') {
+        if (! in_array($receiptVoucher->status, ['void', 'rejected'], true)) {
             return back()->with('status', __('Void this voucher first so its ledger entries and any linked invoice payment are safely reversed, then delete it.'));
         }
 

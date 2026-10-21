@@ -43,7 +43,10 @@
                         <td class="px-6 py-3">{{ $account->name }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $account->type === 'cash' ? __('Cash') : __('Bank') }}</td>
                         <td class="px-6 py-3 text-right">
-                            <span class="font-semibold tabular-nums">{{ \App\Support\Money::format($account->currentBalance()) }}</span>
+                            <span class="font-semibold tabular-nums {{ $account->currentBalance() < 0 ? 'text-red-600' : '' }}">{{ \App\Support\Money::format($account->currentBalance()) }}</span>
+                            @if ($account->currentBalance() < 0)
+                                <span class="block mt-0.5 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">{{ __('Negative balance') }}</span>
+                            @endif
                             @if ($idle !== null && $idle >= $idleAlertThreshold && (float) $account->currentBalance() != 0)
                                 <span class="block mt-0.5 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">{{ __('Outstanding :days days', ['days' => $idle]) }}</span>
                             @endif

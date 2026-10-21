@@ -62,7 +62,7 @@
                             </div>
                             <span class="inline-block rounded-full {{ $section['accent'] }} text-xs font-medium px-2.5 py-1 shrink-0">{{ $account->currency }}</span>
                         </div>
-                        <p class="text-xl font-bold text-slate-900 mt-4 tabular-nums">{{ \App\Support\Money::format($account->currentBalance()) }}</p>
+                        <p class="text-xl font-bold mt-4 tabular-nums {{ $account->currentBalance() < 0 ? 'text-red-600' : 'text-slate-900' }}">{{ \App\Support\Money::format($account->currentBalance()) }}</p>
                         <div class="mt-4 flex items-center justify-between text-xs">
                             <span class="font-semibold text-brand-700 group-hover:underline">{{ __('View statement →') }}</span>
                             <a href="{{ route('app.account-reports.pdf', $account) }}" class="relative z-10 text-slate-400 hover:text-slate-600">{{ __('Download PDF') }}</a>

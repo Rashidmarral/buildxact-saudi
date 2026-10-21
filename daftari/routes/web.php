@@ -524,12 +524,16 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('account-reports/{bankAccount}/pdf', [BankAccountReportController::class, 'pdf'])->middleware('throttle:pdf')->name('account-reports.pdf');
         Route::get('receipt-vouchers/summary/pdf', [ReceiptVoucherController::class, 'summaryPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.summary-pdf');
         Route::resource('receipt-vouchers', ReceiptVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+        Route::post('receipt-vouchers/{receiptVoucher}/approve', [ReceiptVoucherController::class, 'approvePending'])->name('receipt-vouchers.approve');
+        Route::post('receipt-vouchers/{receiptVoucher}/reject', [ReceiptVoucherController::class, 'rejectPending'])->name('receipt-vouchers.reject');
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
         Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.pdf');
         Route::post('receipt-vouchers/{receiptVoucher}/attachments', [ReceiptVoucherController::class, 'storeAttachment'])->name('receipt-vouchers.attachments.store');
         Route::delete('receipt-vouchers/{receiptVoucher}/attachments/{attachment}', [ReceiptVoucherController::class, 'destroyAttachment'])->name('receipt-vouchers.attachments.destroy');
         Route::get('payment-vouchers/summary/pdf', [PaymentVoucherController::class, 'summaryPdf'])->middleware('throttle:pdf')->name('payment-vouchers.summary-pdf');
         Route::resource('payment-vouchers', PaymentVoucherController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+        Route::post('payment-vouchers/{paymentVoucher}/approve', [PaymentVoucherController::class, 'approvePending'])->name('payment-vouchers.approve');
+        Route::post('payment-vouchers/{paymentVoucher}/reject', [PaymentVoucherController::class, 'rejectPending'])->name('payment-vouchers.reject');
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
         Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('payment-vouchers.pdf');
         Route::post('payment-vouchers/{paymentVoucher}/attachments', [PaymentVoucherController::class, 'storeAttachment'])->name('payment-vouchers.attachments.store');
@@ -563,6 +567,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('bills/bulk-export', [BillController::class, 'bulkExport'])->name('bills.bulk-export');
         Route::post('bills/bulk-void', [BillController::class, 'bulkVoid'])->name('bills.bulk-void');
         Route::post('bills/{bill}/post', [BillController::class, 'post'])->name('bills.post');
+        Route::post('bills/{bill}/approve', [BillController::class, 'approvePending'])->name('bills.approve');
+        Route::post('bills/{bill}/reject', [BillController::class, 'rejectPending'])->name('bills.reject');
         Route::post('bills/{bill}/void', [BillController::class, 'void'])->name('bills.void');
         Route::post('bills/{bill}/attachments', [BillController::class, 'storeAttachment'])->name('bills.attachments.store');
         Route::delete('bills/{bill}/attachments/{attachment}', [BillController::class, 'destroyAttachment'])->name('bills.attachments.destroy');

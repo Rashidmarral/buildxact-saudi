@@ -194,12 +194,13 @@ class BillController extends Controller
 
         AuditLog::record('bill.create', $bill, __('Created bill :number', ['number' => $bill->bill_number]));
 
+        $status = __('Bill created.');
+
         if ($postImmediately) {
-            $this->postAndReceiveStock($bill, $ledger);
-            AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
+            $status = $this->postOrQueueForApproval($bill, $ledger);
         }
 
-        return redirect()->route('app.bills.show', $bill)->with('status', $postImmediately ? __('Bill created and posted.') : __('Bill created.'));
+        return redirect()->route('app.bills.show', $bill)->with('status', $status);
     }
 
     public function show(Bill $bill)
@@ -261,13 +262,67 @@ class BillController extends Controller
 
     public function post(Bill $bill, LedgerPostingService $ledger)
     {
-        if ($bill->status === 'draft') {
-            $this->postAndReceiveStock($bill, $ledger);
+        $status = __('Bill posted.');
 
-            AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
+        if ($bill->status === 'draft') {
+            $status = $this->postOrQueueForApproval($bill, $ledger);
         }
 
-        return back()->with('status', __('Bill posted.'));
+        return back()->with('status', $status);
+    }
+
+    /**
+     * Audit finding CASH-06 — mirrors the Expense/PO/manual-journal
+     * approval-threshold pattern. A bill at or above the threshold is
+     * routed to 'pending_approval' instead of actually posting (no GL
+     * entry, no stock receipt) — only approvePending() ever calls
+     * postAndReceiveStock() for one. Returns the flash message, since the
+     * caller's wording differs by entry point (create-and-post vs. the
+     * standalone Post button).
+     */
+    private function postOrQueueForApproval(Bill $bill, LedgerPostingService $ledger): string
+    {
+        $company = Auth::user()->company;
+
+        if ($company->billRequiresApproval((float) $bill->total)) {
+            $bill->update(['status' => 'pending_approval']);
+            AuditLog::record('bill.create_pending', $bill, __('Submitted bill :number for approval (total :total)', ['number' => $bill->bill_number, 'total' => $bill->total]));
+
+            return __('This bill is :total, at or above your approval threshold — it has been submitted for approval instead of posted.', ['total' => $bill->total]);
+        }
+
+        $this->postAndReceiveStock($bill, $ledger);
+        AuditLog::record('bill.post', $bill, __('Posted bill :number', ['number' => $bill->bill_number]));
+
+        return __('Bill created and posted.');
+    }
+
+    public function approvePending(Bill $bill, LedgerPostingService $ledger)
+    {
+        abort_unless($bill->status === 'pending_approval', 404);
+
+        $this->postAndReceiveStock($bill, $ledger);
+        $bill->update(['approved_by' => Auth::id(), 'approved_at' => now()]);
+
+        AuditLog::record('bill.approve_pending', $bill, __('Approved and posted bill :number', ['number' => $bill->bill_number]));
+
+        return back()->with('status', __('Bill approved and posted.'));
+    }
+
+    public function rejectPending(Request $request, Bill $bill)
+    {
+        abort_unless($bill->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $bill->update([
+            'status' => 'draft', 'approved_by' => Auth::id(), 'approved_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('bill.reject_pending', $bill, __('Rejected pending bill :number — returned to draft', ['number' => $bill->bill_number]));
+
+        return back()->with('status', __('Bill rejected and returned to draft.'));
     }
 
     public function void(Bill $bill, LedgerPostingService $ledger)

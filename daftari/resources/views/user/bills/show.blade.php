@@ -14,8 +14,17 @@
                 @csrf
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Post bill') }}</button>
             </form>
+        @elseif ($bill->status === 'pending_approval')
+            <form method="POST" action="{{ route('app.bills.approve', $bill) }}">
+                @csrf
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Approve & post') }}</button>
+            </form>
+            <form method="POST" action="{{ route('app.bills.reject', $bill) }}" onsubmit="return confirm('{{ __('Reject this bill? It will return to draft.') }}')">
+                @csrf
+                <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reject') }}</button>
+            </form>
         @endif
-        @if ($bill->status !== 'void')
+        @if (! in_array($bill->status, ['void', 'pending_approval'], true))
             <form method="POST" action="{{ route('app.bills.void', $bill) }}" onsubmit="return confirm('{{ __('Void this bill?') }}')">
                 @csrf
                 <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Void') }}</button>

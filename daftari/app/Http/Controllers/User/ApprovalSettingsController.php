@@ -37,6 +37,11 @@ class ApprovalSettingsController extends Controller
             'expense_approval_threshold' => ['nullable', 'numeric', 'min:0'],
             'invoice_approval_threshold' => ['nullable', 'numeric', 'min:0'],
             'quotation_approval_threshold' => ['nullable', 'numeric', 'min:0'],
+            // Audit findings GL-6/CASH-06.
+            'manual_journal_approval_threshold' => ['nullable', 'numeric', 'min:0'],
+            'payment_voucher_approval_threshold' => ['nullable', 'numeric', 'min:0'],
+            'receipt_voucher_approval_threshold' => ['nullable', 'numeric', 'min:0'],
+            'bill_approval_threshold' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         Auth::user()->company->update([
@@ -44,6 +49,10 @@ class ApprovalSettingsController extends Controller
             'expense_approval_threshold' => $data['expense_approval_threshold'] ?: null,
             'invoice_approval_threshold' => $data['invoice_approval_threshold'] ?: null,
             'quotation_approval_threshold' => $data['quotation_approval_threshold'] ?: null,
+            'manual_journal_approval_threshold' => $data['manual_journal_approval_threshold'] ?: null,
+            'payment_voucher_approval_threshold' => $data['payment_voucher_approval_threshold'] ?: null,
+            'receipt_voucher_approval_threshold' => $data['receipt_voucher_approval_threshold'] ?: null,
+            'bill_approval_threshold' => $data['bill_approval_threshold'] ?: null,
         ]);
 
         AuditLog::record('company.approval_thresholds_update', null, __('Updated approval thresholds'));

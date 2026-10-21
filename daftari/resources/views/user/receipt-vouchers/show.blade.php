@@ -13,6 +13,10 @@
         <h2 class="text-lg font-semibold text-slate-900">{{ $voucher->voucher_number }}</h2>
         @if ($voucher->status === 'void')
             <span class="inline-block rounded-full bg-red-50 text-red-600 text-xs font-medium px-2.5 py-1">{{ __('Void') }}</span>
+        @elseif ($voucher->status === 'pending_approval')
+            <span class="inline-block rounded-full bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1">{{ __('Pending approval') }}</span>
+        @elseif ($voucher->status === 'rejected')
+            <span class="inline-block rounded-full bg-red-50 text-red-600 text-xs font-medium px-2.5 py-1">{{ __('Rejected') }}</span>
         @else
             <span class="inline-block rounded-full bg-brand-50 text-brand-700 text-xs font-medium px-2.5 py-1">{{ __('Issued') }}</span>
         @endif
@@ -24,8 +28,17 @@
                 @csrf
                 <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Void') }}</button>
             </form>
-        @else
-            <form method="POST" action="{{ route('app.receipt-vouchers.destroy', $voucher) }}" onsubmit="return confirm('{{ __('Permanently delete this voided voucher? This cannot be undone.') }}')">
+        @elseif ($voucher->status === 'pending_approval')
+            <form method="POST" action="{{ route('app.receipt-vouchers.approve', $voucher) }}">
+                @csrf
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Approve & post') }}</button>
+            </form>
+            <form method="POST" action="{{ route('app.receipt-vouchers.reject', $voucher) }}" onsubmit="return confirm('{{ __('Reject this receipt voucher?') }}')">
+                @csrf
+                <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reject') }}</button>
+            </form>
+        @elseif (in_array($voucher->status, ['void', 'rejected'], true))
+            <form method="POST" action="{{ route('app.receipt-vouchers.destroy', $voucher) }}" onsubmit="return confirm('{{ __('Permanently delete this voucher? This cannot be undone.') }}')">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Delete') }}</button>

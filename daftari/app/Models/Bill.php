@@ -19,6 +19,7 @@ class Bill extends Model
         'supplier_reference', 'status', 'bill_date', 'due_date', 'subtotal',
         'discount_total', 'discount_type', 'discount_value', 'vat_total', 'total', 'amount_paid', 'currency', 'exchange_rate', 'notes',
         'stock_received', 'wht_rate_id', 'wht_amount', 'wht_withheld',
+        'approved_by', 'approved_at', 'rejection_reason',
     ];
 
     protected function casts(): array
@@ -29,12 +30,18 @@ class Bill extends Model
             'stock_received' => 'boolean',
             'wht_amount' => 'decimal:2',
             'wht_withheld' => 'boolean',
+            'approved_at' => 'datetime',
         ];
     }
 
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function project(): BelongsTo

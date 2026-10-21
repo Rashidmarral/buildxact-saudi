@@ -32,6 +32,25 @@
             <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Quotation approval threshold (SAR)') }}</label>
             <input type="number" step="0.01" min="0" name="quotation_approval_threshold" value="{{ old('quotation_approval_threshold', $company->quotation_approval_threshold) }}" placeholder="{{ __('No threshold — instant issue') }}" class="w-full rounded-lg border border-slate-200 text-sm">
         </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Manual journal entry approval threshold (SAR)') }}</label>
+            <input type="number" step="0.01" min="0" name="manual_journal_approval_threshold" value="{{ old('manual_journal_approval_threshold', $company->manual_journal_approval_threshold) }}" placeholder="{{ __('No threshold — instant post') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+            <p class="text-xs text-slate-400 mt-1">{{ __('A manual journal entry at or above this total waits in Journals → Pending approvals instead of posting straight to the ledger.') }}</p>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Payment voucher approval threshold (SAR)') }}</label>
+            <input type="number" step="0.01" min="0" name="payment_voucher_approval_threshold" value="{{ old('payment_voucher_approval_threshold', $company->payment_voucher_approval_threshold) }}" placeholder="{{ __('No threshold — instant post') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+            <p class="text-xs text-slate-400 mt-1">{{ __('Cash paid out at or above this amount waits for approval before any bill payment is recorded or the bank/cash account is actually debited.') }}</p>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Receipt voucher approval threshold (SAR)') }}</label>
+            <input type="number" step="0.01" min="0" name="receipt_voucher_approval_threshold" value="{{ old('receipt_voucher_approval_threshold', $company->receipt_voucher_approval_threshold) }}" placeholder="{{ __('No threshold — instant post') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Bill approval threshold (SAR)') }}</label>
+            <input type="number" step="0.01" min="0" name="bill_approval_threshold" value="{{ old('bill_approval_threshold', $company->bill_approval_threshold) }}" placeholder="{{ __('No threshold — instant post') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+            <p class="text-xs text-slate-400 mt-1">{{ __('A bill at or above this total can still be saved as a draft, but posting it (immediately or via the Post button) routes it to approval instead.') }}</p>
+        </div>
         <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
     </form>
 

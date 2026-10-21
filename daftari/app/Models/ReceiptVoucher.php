@@ -17,11 +17,17 @@ class ReceiptVoucher extends Model
         'invoice_id', 'invoice_payment_id', 'created_by', 'voucher_number', 'date', 'payer_name',
         'party_name_ar', 'party_vat_number', 'party_phone', 'party_email', 'party_address',
         'amount', 'method', 'reference', 'notes', 'notes_ar', 'status',
+        'approved_by', 'approved_at', 'rejection_reason',
     ];
 
     protected function casts(): array
     {
-        return ['date' => 'date'];
+        return ['date' => 'date', 'approved_at' => 'datetime'];
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function bankAccount(): BelongsTo

@@ -39,13 +39,14 @@ class Company extends Model
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
-        'currency', 'locale', 'timezone', 'date_format', 'time_format', 'fiscal_year_start',
+        'currency', 'locale', 'timezone', 'date_format', 'time_format', 'fiscal_year_start', 'document_numbering_resets_yearly',
         'status', 'is_demo', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
         'primary_customer_type', 'negative_number_format',
         'vat_makes_exempt_supplies', 'vat_recovery_percentage', 'vat_filing_frequency',
         'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
-        'invoice_approval_threshold', 'quotation_approval_threshold', 'manual_journal_approval_threshold', 'invoice_dunning_enabled',
+        'invoice_approval_threshold', 'quotation_approval_threshold', 'manual_journal_approval_threshold',
+        'payment_voucher_approval_threshold', 'receipt_voucher_approval_threshold', 'bill_approval_threshold', 'invoice_dunning_enabled',
         'default_payment_terms_days',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_common_name', 'zatca_organization_unit_name',
@@ -147,6 +148,10 @@ class Company extends Model
             'invoice_approval_threshold' => 'decimal:2',
             'quotation_approval_threshold' => 'decimal:2',
             'manual_journal_approval_threshold' => 'decimal:2',
+            'payment_voucher_approval_threshold' => 'decimal:2',
+            'receipt_voucher_approval_threshold' => 'decimal:2',
+            'bill_approval_threshold' => 'decimal:2',
+            'document_numbering_resets_yearly' => 'boolean',
             'invoice_dunning_enabled' => 'boolean',
             'default_payment_terms_days' => 'integer',
             'accounting_lock_date' => 'date',
@@ -313,23 +318,92 @@ class Company extends Model
      * DB::transaction() (invoice/bill/etc. creation), so this join the
      * same transaction rather than opening a separate one.
      */
-    private function nextSequenceNumber(string $column): int
+    private function nextSequenceNumber(string $column, ?string $fiscalYearColumn = null): int
     {
-        return DB::transaction(function () use ($column) {
-            $current = (int) self::query()->whereKey($this->id)->lockForUpdate()->value($column);
+        return DB::transaction(function () use ($column, $fiscalYearColumn) {
+            if ($fiscalYearColumn === null) {
+                $current = (int) self::query()->whereKey($this->id)->lockForUpdate()->value($column);
 
-            self::query()->whereKey($this->id)->update([$column => $current + 1]);
+                self::query()->whereKey($this->id)->update([$column => $current + 1]);
+                $this->{$column} = $current + 1;
+
+                return $current;
+            }
+
+            // Audit finding NUM-05: a year-scoped counter restarts at 1 the
+            // moment the fiscal year it last represents no longer matches
+            // today's — computed and compared inside this same locked
+            // transaction as the increment itself, so two concurrent
+            // requests spanning the rollover can't both reset and both
+            // hand out "00001".
+            $row = self::query()->whereKey($this->id)->lockForUpdate()->first([$column, $fiscalYearColumn]);
+            $current = (int) $row->{$column};
+            $currentFiscalYear = $this->currentFiscalYearLabel();
+
+            if ((string) $row->{$fiscalYearColumn} !== $currentFiscalYear) {
+                // The column's own baseline for "the next number to hand
+                // out is 1" (see the $attributes defaults above) — not 0,
+                // which would hand out "00000" for the first document of
+                // a new fiscal year.
+                $current = 1;
+            }
+
+            self::query()->whereKey($this->id)->update([
+                $column => $current + 1,
+                $fiscalYearColumn => $currentFiscalYear,
+            ]);
             $this->{$column} = $current + 1;
+            $this->{$fiscalYearColumn} = $currentFiscalYear;
 
             return $current;
         });
     }
 
+    /**
+     * Same fiscal-year boundary ResolvesReportPeriod::fiscalYearBounds()
+     * uses for reports, evaluated against "now" — a document number is
+     * allocated at creation time, not backdated to a document's own
+     * (possibly different) issue_date.
+     */
+    public function currentFiscalYearLabel(): string
+    {
+        $startMonth = (int) ($this->fiscal_year_start ?: Setting::get('general_fiscal_year_start', 1));
+        $startMonth = $startMonth >= 1 && $startMonth <= 12 ? $startMonth : 1;
+
+        $now = now();
+        $start = $now->copy()->startOfMonth()->month($startMonth);
+        if ($now->month < $startMonth) {
+            $start->subYear();
+        }
+
+        return (string) $start->year;
+    }
+
+    /**
+     * Shared formatting for every document type's next*Number(): off by
+     * default (document_numbering_resets_yearly = false), identical to
+     * today's plain lifetime counter for every company until an owner
+     * opts in via Settings. Once on, the formatted number embeds the
+     * current fiscal year and the underlying counter restarts at 1 each
+     * time the fiscal year rolls over.
+     */
+    private function formatYearScopedNumber(string $prefix, string $numberColumn, string $fiscalYearColumn, int $pad = 5): string
+    {
+        if (! $this->document_numbering_resets_yearly) {
+            $number = $this->nextSequenceNumber($numberColumn);
+
+            return $prefix.'-'.str_pad((string) $number, $pad, '0', STR_PAD_LEFT);
+        }
+
+        $fiscalYear = $this->currentFiscalYearLabel();
+        $number = $this->nextSequenceNumber($numberColumn, $fiscalYearColumn);
+
+        return $prefix.'-'.$fiscalYear.'-'.str_pad((string) $number, $pad, '0', STR_PAD_LEFT);
+    }
+
     public function nextInvoiceNumber(): string
     {
-        $number = $this->nextSequenceNumber('next_invoice_number');
-
-        return $this->invoice_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+        return $this->formatYearScopedNumber($this->invoice_prefix, 'next_invoice_number', 'invoice_number_fiscal_year');
     }
 
     /**
@@ -350,23 +424,17 @@ class Company extends Model
 
     public function nextCreditNoteNumber(): string
     {
-        $number = $this->nextSequenceNumber('next_credit_note_number');
-
-        return $this->credit_note_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+        return $this->formatYearScopedNumber($this->credit_note_prefix, 'next_credit_note_number', 'credit_note_number_fiscal_year');
     }
 
     public function nextDebitNoteNumber(): string
     {
-        $number = $this->nextSequenceNumber('next_debit_note_number');
-
-        return $this->debit_note_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+        return $this->formatYearScopedNumber($this->debit_note_prefix, 'next_debit_note_number', 'debit_note_number_fiscal_year');
     }
 
     public function nextPrepaymentNumber(): string
     {
-        $number = $this->nextSequenceNumber('next_prepayment_number');
-
-        return $this->prepayment_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+        return $this->formatYearScopedNumber($this->prepayment_prefix, 'next_prepayment_number', 'prepayment_number_fiscal_year');
     }
 
     public function nextPurchaseReturnNumber(): string
@@ -460,14 +528,10 @@ class Company extends Model
     public function nextQuotationNumber(string $type = 'quotation'): string
     {
         if ($type === 'proforma') {
-            $number = $this->nextSequenceNumber('next_proforma_number');
-
-            return $this->proforma_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+            return $this->formatYearScopedNumber($this->proforma_prefix, 'next_proforma_number', 'proforma_number_fiscal_year');
         }
 
-        $number = $this->nextSequenceNumber('next_quotation_number');
-
-        return $this->quotation_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+        return $this->formatYearScopedNumber($this->quotation_prefix, 'next_quotation_number', 'quotation_number_fiscal_year');
     }
 
     public function quotations(): HasMany
@@ -534,6 +598,22 @@ class Company extends Model
     public function manualJournalRequiresApproval(float $total): bool
     {
         return $this->manual_journal_approval_threshold !== null && $total >= (float) $this->manual_journal_approval_threshold;
+    }
+
+    /** Audit finding CASH-06 — same pattern, for direct outgoing cash. */
+    public function paymentVoucherRequiresApproval(float $amount): bool
+    {
+        return $this->payment_voucher_approval_threshold !== null && $amount >= (float) $this->payment_voucher_approval_threshold;
+    }
+
+    public function receiptVoucherRequiresApproval(float $amount): bool
+    {
+        return $this->receipt_voucher_approval_threshold !== null && $amount >= (float) $this->receipt_voucher_approval_threshold;
+    }
+
+    public function billRequiresApproval(float $total): bool
+    {
+        return $this->bill_approval_threshold !== null && $total >= (float) $this->bill_approval_threshold;
     }
 
     public function formatNumber(float $amount, int $decimals = 2): string
