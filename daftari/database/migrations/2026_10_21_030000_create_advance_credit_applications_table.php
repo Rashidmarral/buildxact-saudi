@@ -33,8 +33,11 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['company_id', 'advance_credit_portion_id']);
-            $table->index(['company_id', 'invoice_id']);
+            // Explicit short names — the auto-generated name for the first
+            // index (74 chars: table + both column names + "_index")
+            // exceeds MySQL's 64-character identifier limit.
+            $table->index(['company_id', 'advance_credit_portion_id'], 'aca_company_portion_idx');
+            $table->index(['company_id', 'invoice_id'], 'aca_company_invoice_idx');
         });
     }
 
