@@ -16,8 +16,27 @@
     <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-slate-900">{{ $kindLabel }}</h2>
         <span class="inline-block rounded-full bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1">{{ \App\Support\PlatformFormat::date($transfer->date) }}</span>
+        @if ($transfer->status === 'void')
+            <span class="inline-block rounded-full bg-red-50 text-red-600 text-xs font-medium px-2.5 py-1">{{ __('Void') }}</span>
+        @else
+            <span class="inline-block rounded-full bg-brand-50 text-brand-700 text-xs font-medium px-2.5 py-1">{{ __('Issued') }}</span>
+        @endif
     </div>
-    <a href="{{ route('app.bank-transfers.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('← Back') }}</a>
+    <div class="flex items-center gap-3">
+        @if ($transfer->status === 'issued')
+            <a href="{{ route('app.bank-transfers.edit', $transfer) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
+            <form method="POST" action="{{ route('app.bank-transfers.void', $transfer) }}" onsubmit="return confirm('{{ __('Void this transfer? This reverses its ledger entry and removes it from account balances — it stays visible, marked as void.') }}')">
+                @csrf
+                <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Void') }}</button>
+            </form>
+        @else
+            <form method="POST" action="{{ route('app.bank-transfers.destroy', $transfer) }}" onsubmit="return confirm('{{ __('Permanently delete this transfer? This cannot be undone.') }}')">
+                @csrf @method('DELETE')
+                <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Delete') }}</button>
+            </form>
+        @endif
+        <a href="{{ route('app.bank-transfers.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('← Back') }}</a>
+    </div>
 </div>
 
 <div class="max-w-2xl bg-white rounded-xl border border-slate-100 p-6">

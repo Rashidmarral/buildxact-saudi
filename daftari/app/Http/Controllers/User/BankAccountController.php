@@ -95,7 +95,7 @@ class BankAccountController extends Controller
                 'party' => __(':from → :to', ['from' => $t->fromAccount->name, 'to' => $t->toAccount->name]),
                 'account' => $accountId && (int) $t->to_bank_account_id === $accountId ? $t->toAccount->name : $t->fromAccount->name,
                 'amount' => (float) $t->amount,
-                'status' => 'issued',
+                'status' => $t->status,
                 'url' => route('app.bank-transfers.show', $t),
             ]);
 

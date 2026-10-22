@@ -109,10 +109,12 @@ class CashCustodyController extends Controller
     private function summarizeCustodian(BankAccount $account): array
     {
         $advanced = (float) BankTransfer::where('to_bank_account_id', $account->id)
+            ->where('status', 'issued')
             ->whereHas('fromAccount', fn ($q) => $q->where('is_personal', false))
             ->sum('amount');
 
         $returned = (float) BankTransfer::where('from_bank_account_id', $account->id)
+            ->where('status', 'issued')
             ->whereHas('toAccount', fn ($q) => $q->where('is_personal', false))
             ->sum('amount');
 
@@ -144,8 +146,8 @@ class CashCustodyController extends Controller
     private function idleDays(BankAccount $account): ?int
     {
         $lastExpense = Expense::where('bank_account_id', $account->id)->max('expense_date');
-        $lastTransfer = BankTransfer::where('from_bank_account_id', $account->id)
-            ->orWhere('to_bank_account_id', $account->id)
+        $lastTransfer = BankTransfer::where('status', 'issued')
+            ->where(fn ($q) => $q->where('from_bank_account_id', $account->id)->orWhere('to_bank_account_id', $account->id))
             ->max('date');
 
         $last = collect([$lastExpense, $lastTransfer])->filter()->map(fn ($d) => Carbon::parse($d))->sort()->last();

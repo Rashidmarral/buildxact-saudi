@@ -177,17 +177,17 @@ class Project extends Model
     }
 
     /**
-     * BankTransfer has no status column — every transfer posts
-     * immediately (see BankTransferController::store()). Purely
-     * informational: a transfer only moves money between two of the
+     * Purely informational: a transfer only moves money between two of the
      * company's own accounts (e.g. a bank withdrawal into a project's
      * petty cash) — it isn't spent yet, so it's deliberately excluded from
      * netCashPosition() below. Whatever is later actually paid out of the
      * destination account already shows up in cashPaid() once it happens.
+     * A voided transfer (safe edit/delete, added later) never happened as
+     * far as the books are concerned, so it's excluded here too.
      */
     public function cashTransferredOut(): float
     {
-        return (float) $this->bankTransfers()->sum('amount');
+        return (float) $this->bankTransfers()->where('status', 'issued')->sum('amount');
     }
 
     /**

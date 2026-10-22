@@ -543,7 +543,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('payment-vouchers.pdf');
         Route::post('payment-vouchers/{paymentVoucher}/attachments', [PaymentVoucherController::class, 'storeAttachment'])->name('payment-vouchers.attachments.store');
         Route::delete('payment-vouchers/{paymentVoucher}/attachments/{attachment}', [PaymentVoucherController::class, 'destroyAttachment'])->name('payment-vouchers.attachments.destroy');
-        Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store', 'show']);
+        Route::resource('bank-transfers', BankTransferController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+        Route::post('bank-transfers/{bankTransfer}/void', [BankTransferController::class, 'void'])->name('bank-transfers.void');
         Route::post('bank-transfers/{bankTransfer}/attachments', [BankTransferController::class, 'storeAttachment'])->name('bank-transfers.attachments.store');
         Route::delete('bank-transfers/{bankTransfer}/attachments/{attachment}', [BankTransferController::class, 'destroyAttachment'])->name('bank-transfers.attachments.destroy');
 

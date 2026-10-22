@@ -21,15 +21,23 @@
                     <th class="px-6 py-3 font-medium">{{ __('From') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('To') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Amount') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($transfers as $transfer)
-                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.bank-transfers.show', $transfer) }}'">
+                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer {{ $transfer->status === 'void' ? 'opacity-60' : '' }}" onclick="window.location='{{ route('app.bank-transfers.show', $transfer) }}'">
                         <td class="px-6 py-3">{{ $transfer->date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ $transfer->fromAccount->name }}</td>
                         <td class="px-6 py-3">{{ $transfer->toAccount->name }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($transfer->amount) }}</td>
+                        <td class="px-6 py-3">
+                            @if ($transfer->status === 'void')
+                                <span class="inline-block rounded-full bg-red-50 text-red-600 text-xs font-medium px-2.5 py-1">{{ __('Void') }}</span>
+                            @else
+                                <span class="inline-block rounded-full bg-brand-50 text-brand-700 text-xs font-medium px-2.5 py-1">{{ __('Issued') }}</span>
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
             </tbody>

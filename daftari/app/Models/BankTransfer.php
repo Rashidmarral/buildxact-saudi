@@ -6,14 +6,15 @@ use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BankTransfer extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, SoftDeletes;
 
     protected $fillable = [
         'company_id', 'from_bank_account_id', 'to_bank_account_id', 'project_id', 'created_by',
-        'amount', 'date', 'notes',
+        'amount', 'date', 'notes', 'status',
     ];
 
     protected function casts(): array

@@ -157,6 +157,7 @@ class BankAccountLedgerService
             ]);
 
         $transfers = BankTransfer::with('fromAccount', 'toAccount', 'project')
+            ->where('status', 'issued')
             ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
             ->when($bankAccountId, fn ($q) => $q->where(fn ($q2) => $q2->where('from_bank_account_id', $bankAccountId)->orWhere('to_bank_account_id', $bankAccountId)))
             ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))

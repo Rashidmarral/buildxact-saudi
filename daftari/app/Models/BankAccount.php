@@ -85,8 +85,8 @@ class BankAccount extends Model
             + $this->incomes()->sum('gross_amount');
         $paid = $this->paymentVouchers()->where('status', 'issued')->sum('amount');
         $expensesPaid = $this->expenses()->where('status', 'approved')->sum('gross_amount');
-        $transfersIn = BankTransfer::where('to_bank_account_id', $this->id)->sum('amount');
-        $transfersOut = BankTransfer::where('from_bank_account_id', $this->id)->sum('amount');
+        $transfersIn = BankTransfer::where('to_bank_account_id', $this->id)->where('status', 'issued')->sum('amount');
+        $transfersOut = BankTransfer::where('from_bank_account_id', $this->id)->where('status', 'issued')->sum('amount');
 
         return (float) $this->opening_balance + $received - $paid - $expensesPaid + $transfersIn - $transfersOut;
     }

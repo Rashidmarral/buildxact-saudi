@@ -205,11 +205,13 @@ class BankReconciliationController extends Controller
             ->map(fn ($v) => ['type' => 'payment_voucher', 'id' => $v->id, 'date' => $v->date, 'amount' => -(float) $v->amount, 'label' => __('Payment :number — :party', ['number' => $v->voucher_number, 'party' => $v->payee_name])]);
 
         $transfersOut = BankTransfer::where('from_bank_account_id', $accountId)
+            ->where('status', 'issued')
             ->whereNotIn('id', $alreadyMatched('bank_transfer'))
             ->get()
             ->map(fn ($t) => ['type' => 'bank_transfer', 'id' => $t->id, 'date' => $t->date, 'amount' => -(float) $t->amount, 'label' => __('Transfer to :account', ['account' => $t->toAccount->name])]);
 
         $transfersIn = BankTransfer::where('to_bank_account_id', $accountId)
+            ->where('status', 'issued')
             ->whereNotIn('id', $alreadyMatched('bank_transfer'))
             ->get()
             ->map(fn ($t) => ['type' => 'bank_transfer', 'id' => $t->id, 'date' => $t->date, 'amount' => (float) $t->amount, 'label' => __('Transfer from :account', ['account' => $t->fromAccount->name])]);
