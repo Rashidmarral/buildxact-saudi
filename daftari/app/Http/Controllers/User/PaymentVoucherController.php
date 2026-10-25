@@ -551,7 +551,28 @@ class PaymentVoucherController extends Controller
             'employee_id' => ['nullable', 'required_if:party_type,employee', Rule::exists('employees', 'id')->where('company_id', $companyId)],
             'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'expense_id' => ['nullable', Rule::exists('expenses', 'id')->where('company_id', $companyId)],
-            'bill_id' => ['nullable', Rule::exists('bills', 'id')->where('company_id', $companyId)],
+            // Audit finding GL-05: a PaymentVoucher has no currency of its
+            // own — ->amount is always a base-currency figure, matching
+            // exactly what postPaymentVoucher() posts to the GL with no
+            // conversion. settleBillAndPost() below increments the
+            // linked bill's amount_paid by that same base-currency
+            // number directly, which is only correct when the bill is
+            // ALSO in the base currency — a foreign-currency bill's
+            // amount_paid (compared against its own foreign-currency
+            // total) would otherwise be silently polluted with a number
+            // in the wrong currency entirely. Rejected here, the same way
+            // ZatcaSyncService already restricts e-invoicing sync to
+            // base-currency documents only, rather than guessing at a
+            // conversion.
+            'bill_id' => ['nullable', Rule::exists('bills', 'id')->where('company_id', $companyId), function ($attribute, $value, $fail) use ($companyId) {
+                if (! $value) {
+                    return;
+                }
+                $bill = Bill::where('company_id', $companyId)->find($value);
+                if ($bill && $bill->currency !== Auth::user()->company->currency) {
+                    $fail(__('This bill is in a foreign currency (:currency) — payment vouchers can only settle bills in your base currency. Record this payment directly against the bill instead.', ['currency' => $bill->currency]));
+                }
+            }],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'date' => ['required', 'date'],
             'payee_name' => ['required', 'string', 'max:255'],

@@ -101,6 +101,31 @@ class BillingController extends Controller
 
         $company = Auth::user()->company;
         $plan = Plan::findOrFail($data['plan_id']);
+
+        // Audit finding BILL-01: this only ever validated that plan_id
+        // resolves to *some* row in plans — index() (the page this form
+        // is actually built from) only ever lists plans that are both
+        // is_active and is_public, but nothing stopped a direct POST with
+        // a retired or internal-only plan's id from succeeding anyway, at
+        // whatever stale price that plan was last configured with.
+        if (! $plan->is_active || ! $plan->is_public) {
+            return back()->withErrors(['plan_id' => __('This plan is no longer available.')]);
+        }
+
+        // Audit finding BILL-01: a Plan's price is denominated in its own
+        // `currency` column, but every Payment/Subscription row created
+        // below labels the charged amount with the COMPANY's currency
+        // instead, with no conversion ever applied — a USD-priced plan
+        // checked out by a SAR-currency company would silently charge
+        // and record "500 SAR" for what was actually priced as $500.
+        // This app does not do real-time FX conversion for billing (the
+        // same restriction ZatcaSyncService already enforces for e-
+        // invoicing), so a currency mismatch is rejected cleanly rather
+        // than silently mislabeled.
+        if ($plan->currency && $plan->currency !== $company->currency) {
+            return back()->withErrors(['plan_id' => __('This plan is priced in :plan_currency, but your account bills in :company_currency. Contact support to switch plans.', ['plan_currency' => $plan->currency, 'company_currency' => $company->currency])]);
+        }
+
         $periodEnd = $data['billing_cycle'] === 'yearly' ? now()->addYear() : now()->addMonth();
         $originalAmount = $plan->priceFor($data['billing_cycle']);
         $amount = $originalAmount;

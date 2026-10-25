@@ -506,8 +506,24 @@ class ReceiptVoucherController extends Controller
             // it here is simpler and safer than silently auto-sending an
             // invoice from inside an unrelated form.
             'invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId), function ($attribute, $value, $fail) {
-                if ($value && Invoice::find($value)?->status === 'draft') {
+                $invoice = $value ? Invoice::find($value) : null;
+
+                if ($invoice?->status === 'draft') {
                     $fail(__('This invoice hasn\'t been sent yet — send it first, then record the payment against it.'));
+
+                    return;
+                }
+
+                // Audit finding GL-05: a ReceiptVoucher has no currency of
+                // its own — ->amount is always a base-currency figure,
+                // matching exactly what postReceiptVoucher() posts to the
+                // GL. settleInvoiceAndPost() increments the linked
+                // invoice's amount_paid by that same base-currency number
+                // directly, which is only correct when the invoice is
+                // ALSO in the base currency — see the identical
+                // PaymentVoucherController::validated() check for bills.
+                if ($invoice && $invoice->currency !== Auth::user()->company->currency) {
+                    $fail(__('This invoice is in a foreign currency (:currency) — receipt vouchers can only settle invoices in your base currency. Record this payment directly against the invoice instead.', ['currency' => $invoice->currency]));
                 }
             }],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],

@@ -148,6 +148,18 @@ class PosSaleService
             'status' => 'paid',
             'issue_date' => now()->toDateString(),
             'currency' => $company->currency,
+            // Audit finding POS-01: InvoiceItem has no per-line discount
+            // column, so recalculateTotals() below sums each mirrored
+            // line's full, undiscounted quantity*unit_price for subtotal
+            // — a PosSaleItem's own discount_amount (already baked into
+            // its line_total/vat_amount, both copied over as-is) would
+            // otherwise be silently dropped, leaving this invoice's total
+            // higher than what the sale actually charged and its
+            // InvoicePayment rows actually recorded. Carrying the sale's
+            // total discount forward as a header-level fixed discount
+            // lands recalculateTotals() on the exact same total.
+            'discount_type' => 'fixed',
+            'discount_value' => $sale->discount_total > 0 ? $sale->discount_total : 0,
         ]);
 
         foreach ($sale->items as $sort => $line) {

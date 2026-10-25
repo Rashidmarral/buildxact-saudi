@@ -346,6 +346,51 @@ For a clean rejection (ZATCA explicitly returned a 4xx with validation errors), 
 
 Targeted sweep (`--filter="Zatca|DemoMode|FailureNotifications|Invoice"`): **529 passed**, 0 failed — including fixing two pre-existing test fixtures (`DemoModeTest`, `FailureNotificationsTest`) that created an `Invoice` with no explicit `status`, silently relying on the in-memory object never reflecting the database's own `'draft'` column default; ZATCA-03's `->fresh()` re-fetch correctly started rejecting those as the drafts they actually were, which is what exposed the gap in the fixtures themselves, not a regression in the fix. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
 
-## Batches G–H
+## Batch G — Billing/POS/voucher currency correctness
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| BILL-01 | High | A hidden/retired plan can be self-upgraded to, and plan/company currency mismatches are never checked | **Fixed** |
+| BILL-02 | High | Coupon redemption has a usage-limit race | **Corrected — already fixed** |
+| POS-01 | High | A discounted POS sale's mirrored invoice loses the discount | **Fixed** |
+| GL-05 | High | Payment/receipt vouchers silently mislabel a foreign-currency bill/invoice's settlement | **Fixed** |
+
+### BILL-01 — Hidden plan and currency substitution
+
+**Confirmed, two distinct gaps.** `BillingController::upgrade()` validated `plan_id` only as `exists:plans,id` — the pricing page itself (`index()`) only ever lists plans that are both `is_active` and `is_public`, but nothing stopped a direct POST naming a retired or internal-only plan's id from succeeding anyway, at whatever price that plan was last configured with. Separately, `Plan` carries its own `currency` column, but every `Payment`/`Subscription` row created afterward labels the charged amount with the **company's** currency instead — with no conversion ever applied. A USD-priced plan checked out by a SAR-billing company would silently charge, and record, "500 SAR" for what was actually configured as $500.
+
+**Fix:** `upgrade()` now rejects a plan that isn't both `is_active` and `is_public` (matching exactly what the pricing page itself offers), and rejects a plan whose `currency` is set and differs from the company's own — this app does not do real-time FX conversion for billing (the same restriction `ZatcaSyncService` already enforces for e-invoicing), so a mismatch is rejected cleanly with a message to contact support, rather than silently mislabeled. A plan with no `currency` set at all (a legacy/unscoped row) is treated as matching anything, preserving existing behavior for plans that predate this column.
+
+**Files:** `app/Http/Controllers/User/BillingController.php`
+**Tests:** `tests/Feature/BillingHiddenPlanAndCurrencyMismatchTest.php` (5 tests) — a retired (`is_active=false`) plan and an internal-only (`is_public=false`) plan are both rejected; a plan priced in a different currency than the company bills in is rejected; a plan with no currency set is unaffected; a matching-currency plan still checks out normally.
+
+### BILL-02 — Coupon redemption usage-limit race
+
+**Corrected — already fixed, not a live finding.** `CouponService::redeem()` already locks the coupon row (`Coupon::where('id', ...)->lockForUpdate()->firstOrFail()`) and re-checks both `max_uses` and `max_uses_per_company` *inside* that lock, with its own docblock explaining exactly this TOCTOU race and why the earlier `validate()` call is only the fast, non-authoritative check. Direct inspection found no path that bypasses `redeem()` to apply a discount or record a redemption. No code change made.
+
+### POS-01 — Discounted POS sale loses its discount when mirrored to an invoice
+
+**Confirmed.** Every completed POS sale mirrors into a real `Invoice` (ZATCA treats it as a simplified tax invoice — see `PosSaleService::mirrorAsInvoice()`). `InvoiceItem` has no per-line discount column, so `Invoice::recalculateTotals()` sums each mirrored line's full, *undiscounted* `quantity * unit_price` for `subtotal`. A `PosSaleItem`'s own `discount_amount` (already correctly baked into its `line_total`/`vat_amount`, both copied over as-is) was silently dropped at the header level — a discounted sale's mirrored invoice ended up with a *higher* total than what was actually charged and than its own `InvoicePayment` rows actually recorded, leaving a "paid in full" invoice whose `total` didn't equal its `amount_paid`.
+
+**Fix:** `mirrorAsInvoice()` now carries the sale's own `discount_total` forward as the invoice's header-level fixed discount (`discount_type: 'fixed'`, `discount_value: $sale->discount_total`) — the same discount mechanism ordinary invoices already use — so `recalculateTotals()` lands on the exact same total the sale was actually rung up and paid at.
+
+**Files:** `app/Services/Pos/PosSaleService.php`
+**Tests:** `tests/Feature/Pos/PosSaleMirroredInvoiceDiscountTest.php` (2 tests) — a discounted sale's mirrored invoice total matches what was actually paid (and `total === amount_paid`); an undiscounted sale is unaffected.
+
+### GL-05 — Foreign-currency bill/invoice settled through a voucher mislabels the amount
+
+**Confirmed.** Neither `PaymentVoucher` nor `ReceiptVoucher` has a currency column of its own — `->amount` is always implicitly a base-currency figure, exactly matching what `postPaymentVoucher()`/`postReceiptVoucher()` post to the GL with no conversion (unlike `postBillPosted()`/`postInvoiceIssued()`, which explicitly convert through the document's own `exchange_rate`). `settleBillAndPost()`/`settleInvoiceAndPost()` increment the linked bill/invoice's `amount_paid` by that same base-currency number directly — correct only when the bill/invoice is *also* in the base currency. A foreign-currency bill paid through a voucher (a real, reachable path — the bill's own "Pay" link routes straight into the voucher form with no currency filter at all) had its `amount_paid` compared against its own foreign-currency `total`, two different currencies treated as the same number — e.g. a $1,000 USD bill paid via a 3,750 SAR voucher would show `amount_paid = 3750` against `total = 1000`, nowhere close to actually reconciling.
+
+**Fix:** both controllers' validation now rejects a `bill_id`/`invoice_id` whose own `currency` differs from the company's base currency, the same restriction `ZatcaSyncService` already applies to e-invoicing sync — directing the user to record that payment directly against the bill/invoice instead, rather than attempting a conversion this app has no established convention for inside a voucher.
+
+**Files:** `app/Http/Controllers/User/PaymentVoucherController.php`, `app/Http/Controllers/User/ReceiptVoucherController.php`
+**Tests:** `tests/Feature/VoucherForeignCurrencyDocumentRejectedTest.php` (4 tests) — a foreign-currency bill/invoice is rejected for both voucher types, with nothing created and `amount_paid` left untouched; a base-currency bill/invoice still settles normally.
+**Not done:** this only closes the voucher path. Whether a foreign-currency bill/invoice has any OTHER settlement path with the same gap (e.g. a direct "record payment" action, if one exists independent of vouchers) was not separately audited in this batch.
+
+### Batch G regression
+
+Targeted sweep (`--filter="Billing|Coupon|DemoMode|Pos|Restaurant|Repair|Voucher|WithholdingTax"`): **331 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
+
+## Batch H
 
 Not started. See the task list for scope; this file will be extended per batch as each lands.
