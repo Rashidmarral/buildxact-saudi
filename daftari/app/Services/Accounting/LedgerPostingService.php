@@ -24,6 +24,7 @@ use App\Models\PosSale;
 use App\Models\PurchaseReturn;
 use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -43,7 +44,7 @@ class LedgerPostingService
      */
     public function post(Company $company, string $sourceType, int $sourceId, string $description, \DateTimeInterface $date, array $lines): ?JournalEntry
     {
-        $lines = array_values(array_filter($lines, fn ($l) => (float) ($l['debit'] ?? 0) > 0 || (float) ($l['credit'] ?? 0) > 0));
+        $lines = $this->quantizeLines($lines, $sourceType, $sourceId);
 
         if (empty($lines)) {
             return null;
@@ -64,28 +65,44 @@ class LedgerPostingService
             throw new InvalidArgumentException("Unbalanced journal entry for {$sourceType}#{$sourceId}: debit {$totalDebit} != credit {$totalCredit}");
         }
 
-        return DB::transaction(function () use ($company, $sourceType, $sourceId, $description, $date, $lines) {
-            $entry = JournalEntry::create([
-                'company_id' => $company->id,
-                'entry_number' => $company->nextJournalNumber(),
-                'entry_date' => $date,
-                'source_type' => $sourceType,
-                'source_id' => $sourceId,
-                'description' => $description,
-                'created_by' => Auth::id(),
-            ]);
-
-            foreach ($lines as $line) {
-                $entry->lines()->create([
-                    'account_id' => $line['account_id'],
-                    'debit' => $line['debit'] ?? 0,
-                    'credit' => $line['credit'] ?? 0,
-                    'memo' => $line['memo'] ?? null,
+        // Audit finding GL-01: alreadyPosted() above is an unlocked read —
+        // two concurrent callers for the same source event could both
+        // pass it before either's transaction commits. The database-level
+        // unique index on (company_id, source_type, source_id)
+        // (migration 2026_10_25_040000) is what actually closes that
+        // race; a losing concurrent writer hits it here and is treated
+        // exactly like the sequential-duplicate case above — an idempotent
+        // no-op, not an error the caller needs to handle specially.
+        try {
+            return DB::transaction(function () use ($company, $sourceType, $sourceId, $description, $date, $lines) {
+                $entry = JournalEntry::create([
+                    'company_id' => $company->id,
+                    'entry_number' => $company->nextJournalNumber(),
+                    'entry_date' => $date,
+                    'source_type' => $sourceType,
+                    'source_id' => $sourceId,
+                    'description' => $description,
+                    'created_by' => Auth::id(),
                 ]);
+
+                foreach ($lines as $line) {
+                    $entry->lines()->create([
+                        'account_id' => $line['account_id'],
+                        'debit' => $line['debit'] ?? 0,
+                        'credit' => $line['credit'] ?? 0,
+                        'memo' => $line['memo'] ?? null,
+                    ]);
+                }
+
+                return $entry;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            if (! str_contains($e->getMessage(), 'journal_entries_source_unique')) {
+                throw $e;
             }
 
-            return $entry;
-        });
+            return null;
+        }
     }
 
     /**
@@ -101,7 +118,7 @@ class LedgerPostingService
      */
     public function postManual(Company $company, string $description, \DateTimeInterface $date, array $lines): JournalEntry
     {
-        $lines = array_values(array_filter($lines, fn ($l) => (float) ($l['debit'] ?? 0) > 0 || (float) ($l['credit'] ?? 0) > 0));
+        $lines = $this->quantizeLines($lines);
 
         if (count($lines) < 2) {
             throw new InvalidArgumentException('A manual journal entry needs at least two lines.');
@@ -186,6 +203,52 @@ class LedgerPostingService
                 $entry->lines()->delete();
                 $entry->delete();
             });
+    }
+
+    /**
+     * Audit finding GL-02: the balance check used to sum raw, unrounded
+     * line amounts and round only the two totals — but every line is
+     * independently rounded again when it lands in a decimal(14,2)
+     * column. Those two roundings can disagree: three debit lines of
+     * 0.004 plus one credit line of 0.012 pass the old aggregate
+     * 0.01-tolerance check (both totals round to 0.01), but each 0.004
+     * line stores as 0.00 (rounds down), landing 0.00 debit against 0.01
+     * credit — an unbalanced entry actually persisted. Quantizing every
+     * line to the same 2-decimal-place scale the database column
+     * actually stores, before any summing happens, makes the validated
+     * total and the stored total the same number by construction. Also
+     * drops any line where quantization leaves both sides at zero, and
+     * rejects a line carrying both a debit and a credit (never a valid
+     * double-entry line, and ambiguous for which side quantization
+     * rounding should apply to).
+     *
+     * @param  array<int, array{account_id:int, debit?:float, credit?:float, memo?:string}>  $lines
+     * @return array<int, array{account_id:int, debit?:float, credit?:float, memo?:string}>
+     */
+    private function quantizeLines(array $lines, ?string $sourceType = null, ?int $sourceId = null): array
+    {
+        $quantized = [];
+
+        foreach ($lines as $line) {
+            $debit = round((float) ($line['debit'] ?? 0), 2);
+            $credit = round((float) ($line['credit'] ?? 0), 2);
+
+            if ($debit > 0 && $credit > 0) {
+                $label = $sourceType ? "{$sourceType}#{$sourceId}" : 'manual entry';
+
+                throw new InvalidArgumentException("A single journal line cannot carry both a debit and a credit ({$label}).");
+            }
+
+            if ($debit <= 0 && $credit <= 0) {
+                continue;
+            }
+
+            $line['debit'] = $debit;
+            $line['credit'] = $credit;
+            $quantized[] = $line;
+        }
+
+        return $quantized;
     }
 
     private function alreadyPosted(Company $company, string $sourceType, int $sourceId): bool

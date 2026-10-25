@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesApprovalSeparation;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
@@ -26,7 +27,7 @@ use Illuminate\Validation\Rule;
 
 class PaymentVoucherController extends Controller
 {
-    use EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
+    use EnforcesApprovalSeparation, EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
 
     /**
      * "there is no option to get total amount paid" for a supplier across
@@ -271,6 +272,12 @@ class PaymentVoucherController extends Controller
     public function approvePending(PaymentVoucher $paymentVoucher, LedgerPostingService $ledger)
     {
         abort_unless($paymentVoucher->status === 'pending_approval', 404);
+
+        // Audit finding SEC-06: the preparer of this voucher must not also
+        // be its approver — see EnforcesApprovalSeparation.
+        if ($this->approvalBlockedBySelfApproval($paymentVoucher->created_by, $paymentVoucher->company_id)) {
+            return back()->withErrors(['approve' => __('You submitted this voucher — it must be approved by a different user.')]);
+        }
 
         DB::transaction(function () use ($paymentVoucher, $ledger) {
             $this->settleBillAndPost($paymentVoucher, $ledger);

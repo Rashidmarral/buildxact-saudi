@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Exceptions\PeriodLockedException;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesApprovalSeparation;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\JournalEntry;
@@ -13,10 +14,13 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class ManualJournalEntryController extends Controller
 {
+    use EnforcesApprovalSeparation;
+
     public function create()
     {
         $accounts = Auth::user()->company->accounts()->where('is_active', true)->orderBy('code')->get();
@@ -99,28 +103,55 @@ class ManualJournalEntryController extends Controller
      * ever actually calls postManual() — nothing here has touched the
      * ledger before approval, so there is nothing to undo on rejection.
      */
+    /**
+     * Audit finding GL-04: approval used to check status, then post, then
+     * update status as three separate unlocked steps. Two concurrent
+     * approve requests for the same pending entry could both pass the
+     * status check before either write landed, each calling postManual()
+     * — postManual() has no natural source document to deduplicate
+     * against (it self-assigns a fresh source_id per call, unlike post()),
+     * so both would genuinely post, leaving one of the two orphaned: a
+     * real, money-moving journal entry with no pending record pointing
+     * back at it. Locking the pending row for the duration of the
+     * check-then-act sequence and re-checking status after the lock is
+     * acquired closes that race — a losing concurrent request now finds
+     * the status already 'approved' and does nothing.
+     */
     public function approvePending(PendingManualJournalEntry $pendingManualJournalEntry, LedgerPostingService $ledger): RedirectResponse
     {
         abort_if($pendingManualJournalEntry->company_id !== Auth::user()->company_id, 404);
-        abort_unless($pendingManualJournalEntry->status === 'pending_approval', 404);
+
+        // Audit finding SEC-06: the preparer of this entry must not also
+        // be its approver — see EnforcesApprovalSeparation.
+        if ($this->approvalBlockedBySelfApproval($pendingManualJournalEntry->created_by, $pendingManualJournalEntry->company_id)) {
+            return back()->withErrors(['approve' => __('You submitted this entry — it must be approved by a different user.')]);
+        }
 
         try {
-            $entry = $ledger->postManual(
-                Auth::user()->company,
-                $pendingManualJournalEntry->description,
-                Carbon::parse($pendingManualJournalEntry->entry_date),
-                $pendingManualJournalEntry->lines
-            );
+            $entry = DB::transaction(function () use ($pendingManualJournalEntry, $ledger) {
+                $locked = PendingManualJournalEntry::where('id', $pendingManualJournalEntry->id)->lockForUpdate()->firstOrFail();
+
+                abort_unless($locked->status === 'pending_approval', 404);
+
+                $entry = $ledger->postManual(
+                    Auth::user()->company,
+                    $locked->description,
+                    Carbon::parse($locked->entry_date),
+                    $locked->lines
+                );
+
+                $locked->update([
+                    'status' => 'approved', 'journal_entry_id' => $entry->id,
+                    'approved_by' => Auth::id(), 'approved_at' => now(),
+                ]);
+
+                return $entry;
+            });
         } catch (PeriodLockedException $e) {
             return back()->withErrors(['approve' => $e->getMessage()]);
         } catch (InvalidArgumentException $e) {
             return back()->withErrors(['approve' => $e->getMessage()]);
         }
-
-        $pendingManualJournalEntry->update([
-            'status' => 'approved', 'journal_entry_id' => $entry->id,
-            'approved_by' => Auth::id(), 'approved_at' => now(),
-        ]);
 
         AuditLog::record('journal_entry.approve_pending', $entry, __('Approved and posted manual journal entry ":number"', ['number' => $entry->entry_number]));
 
@@ -130,14 +161,22 @@ class ManualJournalEntryController extends Controller
     public function rejectPending(Request $request, PendingManualJournalEntry $pendingManualJournalEntry): RedirectResponse
     {
         abort_if($pendingManualJournalEntry->company_id !== Auth::user()->company_id, 404);
-        abort_unless($pendingManualJournalEntry->status === 'pending_approval', 404);
 
         $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
 
-        $pendingManualJournalEntry->update([
-            'status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(),
-            'rejection_reason' => $data['rejection_reason'] ?? null,
-        ]);
+        // Audit finding GL-04: same lock-then-recheck discipline as
+        // approvePending() — a reject racing a concurrent approve must
+        // not silently overwrite an entry that's already been posted.
+        DB::transaction(function () use ($pendingManualJournalEntry, $data) {
+            $locked = PendingManualJournalEntry::where('id', $pendingManualJournalEntry->id)->lockForUpdate()->firstOrFail();
+
+            abort_unless($locked->status === 'pending_approval', 404);
+
+            $locked->update([
+                'status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(),
+                'rejection_reason' => $data['rejection_reason'] ?? null,
+            ]);
+        });
 
         AuditLog::record('journal_entry.reject_pending', $pendingManualJournalEntry, __('Rejected a pending manual journal entry (total :total)', ['total' => $pendingManualJournalEntry->total]));
 

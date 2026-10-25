@@ -140,10 +140,15 @@ class DebitNoteController extends Controller
 
             $debitNote->recalculateTotals();
 
+            // Audit finding GL-03: posting used to commit outside this
+            // transaction — a ledger-posting failure left a fully issued,
+            // numbered debit note permanently on the books with no
+            // corresponding journal entry. Posting inside the same
+            // transaction means a failure here rolls back the note too.
+            app(LedgerPostingService::class)->postDebitNote($debitNote);
+
             return $debitNote;
         });
-
-        app(LedgerPostingService::class)->postDebitNote($debitNote);
 
         AuditLog::record('debit_note.create', $debitNote, __('Issued debit note :number', ['number' => $debitNote->debit_note_number]));
 

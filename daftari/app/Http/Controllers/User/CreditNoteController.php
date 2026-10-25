@@ -219,13 +219,21 @@ class CreditNoteController extends Controller
 
                 $creditNote->recalculateTotals();
 
+                // Audit finding GL-03: this used to commit outside the
+                // transaction above — a ledger-posting failure (a missing
+                // account mapping, a period lock, ...) left a fully
+                // issued, numbered credit note permanently on the books
+                // with no corresponding journal entry. Posting inside the
+                // same transaction means a failure here rolls back the
+                // credit note too, so no number is consumed and nothing
+                // issued-looking survives without its GL entry.
+                app(LedgerPostingService::class)->postCreditNote($creditNote);
+
                 return $creditNote;
             });
         } catch (\RuntimeException $e) {
             return back()->withErrors(['items' => $e->getMessage()])->withInput();
         }
-
-        app(LedgerPostingService::class)->postCreditNote($creditNote);
 
         AuditLog::record('credit_note.create', $creditNote, __('Issued credit note :number', ['number' => $creditNote->credit_note_number]));
 

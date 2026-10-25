@@ -138,6 +138,72 @@ Tracks remediation of the 38 findings in the uploaded third-party review (`Dafta
 **Files:** `app/Rules/PublicHttpUrl.php` (exposed reusable `isSafe()`), `app/Jobs/SendWebhookDelivery.php`
 **Tests:** a delivery to a URL that now resolves to a private address is blocked before any HTTP call is attempted (asserted via `Http::assertNothingSent()`); a delivery to a genuinely public address still sends normally.
 
-## Batches C–H
+## Batch C — GL/ledger core correctness
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| GL-01 | High | Journal-entry idempotency check has a concurrent-posting race | **Fixed** |
+| GL-02 | High | Journal line amounts are rounded only at the aggregate total, not per line | **Fixed** |
+| GL-03 | High | Credit note, debit note, and purchase return posting (and employee termination settlement) commit outside the document's own transaction | **Fixed** |
+| GL-04 | High | Manual-journal approval has a concurrent double-approval race | **Fixed** |
+| SEC-06 | High | Approval thresholds do not enforce an independent approver | **Fixed** |
+
+### GL-01 — Concurrent-posting race in the idempotency check
+
+**Confirmed.** `LedgerPostingService::post()`'s only duplicate-prevention was `alreadyPosted()` — a plain, unlocked `SELECT ... EXISTS`. Two concurrent callers posting the same source document (a retried job alongside a webhook, two workers racing a queue) could both read "not yet posted" before either's `INSERT` committed, each then creating a real, duplicate journal entry for the same business event — silently doubling the recorded financial impact.
+
+**Fix:** a database-level unique index on `(company_id, source_type, source_id)` (`journal_entries_source_unique`), which is what actually closes the race a plain application-level check cannot — the database serializes the two concurrent inserts and the loser gets a constraint violation instead of a second row. `post()` catches exactly that violation and treats it as the same idempotent no-op as the pre-existing sequential check, so no caller-visible behavior changes for the normal (non-racing) case.
+
+**Files:** `app/Services/Accounting/LedgerPostingService.php`
+**Migrations:** `2026_10_25_040000_add_unique_source_index_to_journal_entries_table.php` — the migration includes an explicit comment warning against auto-deleting any pre-existing duplicate rows if it fails to apply in production; a real duplicate found there needs manual accounting review, not a silent cleanup script.
+**Tests:** `tests/Feature/LedgerPostingSourceIntegrityTest.php` — the database itself rejects a second journal entry for the same `(company_id, source_type, source_id)`; a different company may reuse the same `source_type`/`source_id` freely (the index is correctly company-scoped); calling `post()` twice for the same source through the service is an idempotent no-op end-to-end.
+**Not independently tested:** true multi-process concurrency (two real simultaneous database connections racing the same insert) — a single PHPUnit process can't reproduce that directly; what's verified is that the constraint exists and that the service's catch path is wired correctly, which is what a losing concurrent writer would actually hit.
+
+### GL-02 — Per-line vs. aggregate rounding mismatch
+
+**Confirmed.** Lines were summed as raw, unrounded floats, and only the aggregate `$totalDebit`/`$totalCredit` was rounded for the balance check. `journal_entry_lines`'s `debit`/`credit` columns are `decimal(14,2)` — the database independently rounds *each line* to 2dp at insert time regardless of what the application summed. A set of lines whose raw sum balanced could therefore still land unbalanced once actually stored, because each line rounded slightly differently than the aggregate did.
+
+**Fix:** new private `quantizeLines()` rounds every line's debit/credit to 2dp *before* any summing happens, in both `post()` and `postManual()` — the balance check and the eventual stored values are now computed from the exact same rounded numbers. It also now rejects outright any line carrying both a non-zero debit *and* a non-zero credit (a malformed line no legitimate caller should ever produce — previously these would have silently passed straight through to the balance sum).
+
+**Files:** `app/Services/Accounting/LedgerPostingService.php`
+**Tests:** `tests/Feature/LedgerPostingSourceIntegrityTest.php` — a line with both a non-zero debit and credit is rejected (via both `post()` and `postManual()`); fractional amounts that only balanced before per-line rounding still post correctly and every stored line is confirmed already rounded to 2dp; a zero-amount line is silently dropped rather than stored as a no-op row.
+
+### GL-03 — Posting commits outside the document's own transaction
+
+**Confirmed, and found to be broader than scoped.** `CreditNoteController::store()` and `DebitNoteController::store()` both called their `LedgerPostingService::post*()` method *after* the enclosing `DB::transaction()` had already returned — a ledger-posting failure (a missing account mapping, a locked period) left a fully issued, numbered document permanently on the books with zero corresponding journal entry. `EmployeeController::terminate()` had no transaction at all wrapping the status change, the `EndOfServiceSettlement` record, and the posting call together — any one of the three could succeed while another failed, with no rollback relationship between them.
+
+While investigating, re-checked `PurchaseReturnController::store()` against this existing codebase's own `LedgerPostingIntegrityTest.php` docblock, which claims an earlier "commercial audit finding C1" had already wrapped purchase-return posting in a transaction alongside every other document type. Direct inspection showed `postPurchaseReturn()` was **still** being called outside the transaction in `store()` — the earlier fix evidently covered a different purchase-return action (e.g. void), not document creation. This is a real, unfixed instance of the exact same bug the third-party report flagged, not a false positive — now fixed identically to credit/debit notes.
+
+**Fix:** in all three controllers, the `post*()` call moved to run *inside* the existing `DB::transaction()` closure, immediately before its `return`. For `EmployeeController::terminate()`, the employee status update, the `EndOfServiceSettlement::create()`, and the conditional `postEndOfServiceSettlement()` call are now all wrapped in one `DB::transaction()` — a posting failure rolls back the termination and the settlement record too, not just leaves them orphaned.
+
+**Files:** `app/Http/Controllers/User/CreditNoteController.php`, `app/Http/Controllers/User/DebitNoteController.php`, `app/Http/Controllers/User/PurchaseReturnController.php`, `app/Http/Controllers/User/EmployeeController.php`
+**Tests:** `tests/Feature/LedgerPostingIntegrityCreateFlowsTest.php` — issuing a credit note, debit note, or purchase return rolls back the document itself (zero rows, not just zero journal entries) if posting fails; terminating an employee rolls back both the status change and the settlement record if posting fails; terminating an employee whose gratuity computes to zero (short tenure, resignation) still commits cleanly with no posting call ever attempted, confirmed by *not* seeding any account mappings at all for that case and having it still succeed. Mirrors the existing, already-proven pattern from `LedgerPostingIntegrityTest.php` (Bill/Expense).
+
+### GL-04 — Concurrent double-approval race on manual journal entries
+
+**Confirmed.** `ManualJournalEntryController::approvePending()` and `rejectPending()` both checked `$pending->status === 'pending_approval'`, then posted/updated, then saved the new status — three separate, unlocked steps. Two concurrent approval requests for the same pending entry could both pass the status check before either write landed; `postManual()` has no natural source document to deduplicate against (unlike `post()`, it self-assigns a fresh `source_id` per call), so both would genuinely post — one pending record ending up pointing at only one of two real, money-moving journal entries, the other permanently orphaned with no record of its own existence.
+
+**Fix:** both actions now lock the pending row for the duration of the whole check-then-act sequence (`PendingManualJournalEntry::where('id', ...)->lockForUpdate()->firstOrFail()`) and re-check status *after* the lock is acquired, not before. A losing concurrent request now finds the status already `'approved'`/`'rejected'` once it gets the lock and does nothing, instead of posting a second time.
+
+**Files:** `app/Http/Controllers/User/ManualJournalEntryController.php`
+**Tests:** covered by the existing `ManualJournalApprovalThresholdTest.php` regression suite (unchanged behavior for the non-racing case) plus the new `ApprovalCreatorSeparationTest.php` exercising the same locked code path. **Not independently tested:** true concurrent double-approval (same limitation as GL-01 — a single test process can't submit two simultaneously-racing HTTP requests); the fix reuses the identical `lockForUpdate()` + re-check-after-lock pattern already relied on elsewhere in this codebase (GL-01's database constraint aside, this exact application-level pattern is what SEC-09's 2FA/magic-link fixes and the period-closure work both already use).
+
+**Scope note:** payment voucher, receipt voucher, and bill approvals (`PaymentVoucherController`, `ReceiptVoucherController`, `BillController`) were **not** given the same row-locking treatment in this batch — GL-04 as reported named manual journal entries specifically. `BillController::approvePending()` in particular still checks status before calling `postAndReceiveStock()` with no row lock of its own (though that method's internal `DB::transaction()` makes any single call atomic). The same class of race plausibly exists there too; tracked as a follow-up, not claimed as fixed here.
+
+### SEC-06 — Approval thresholds do not enforce an independent approver
+
+**Confirmed.** None of the four approval-threshold flows added across this engagement (manual journal entries, payment vouchers, receipt vouchers, bills) ever checked *who* was approving — the same user who created and submitted a pending entry could open it right back up and approve their own submission. A control whose entire purpose is forcing a second set of eyes on a large transaction is worthless if the first set of eyes can also be the second.
+
+**Fix:** a small shared `EnforcesApprovalSeparation` trait exposes `approvalBlockedBySelfApproval(?int $createdBy, int $companyId): bool` — true when the authenticated user is the record's own creator *and* the company has more than one active user. Applied at the top of all four `approvePending()` actions, rejecting with a clear validation error (`back()->withErrors(['approve' => ...])`) before any posting is attempted. A company with only one active user (a genuine sole owner/operator, with literally nobody else available to approve anything) is deliberately exempted — the check would otherwise permanently lock them out of their own thresholded transactions.
+
+**Files:** `app/Http/Controllers/User/Concerns/EnforcesApprovalSeparation.php` (new), `app/Http/Controllers/User/ManualJournalEntryController.php`, `app/Http/Controllers/User/PaymentVoucherController.php`, `app/Http/Controllers/User/ReceiptVoucherController.php`, `app/Http/Controllers/User/BillController.php`
+**Tests:** `tests/Feature/ApprovalCreatorSeparationTest.php` (9 tests) — the creator of a pending manual journal entry, payment voucher, receipt voucher, or bill cannot approve their own submission once a second active user exists on the company; a different user can approve the same submission; a sole owner (the only active user) may approve their own entry; an *inactive* second user does not count toward requiring separation (so deactivating everyone else can't be used to dodge the control, but also doesn't accidentally lock a genuinely-solo operator out just because an old disabled account still exists on the company).
+**Not done:** this only covers the four approval-threshold flows this engagement added. Other approval-style actions elsewhere in the app (if any exist outside this engagement's own threshold work) were not audited for the same gap.
+
+### Batch C regression
+
+Targeted sweep (`--filter="ManualJournal|CreditNote|DebitNote|PurchaseReturn|Employee|LedgerPosting|VoucherAndBillApprovalThreshold|ApprovalCreatorSeparation"`): **109 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
+
+## Batches D–H
 
 Not started. See the task list for scope; this file will be extended per batch as each lands.

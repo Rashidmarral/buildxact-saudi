@@ -14,6 +14,7 @@ use App\Services\Accounting\LedgerPostingService;
 use App\Services\Payroll\EndOfServiceCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
@@ -106,35 +107,46 @@ class EmployeeController extends Controller
             'reason' => ['required', 'in:resignation,termination,end_of_contract,retirement,death,disability'],
         ]);
 
-        $employee->update([
-            'status' => 'terminated',
-            'termination_date' => $data['termination_date'],
-        ]);
+        // Audit finding GL-03: the status change, settlement record, and
+        // ledger posting used to be three separate, unwrapped writes — a
+        // ledger-posting failure (a missing account mapping, a period
+        // lock) left the employee permanently marked terminated with a
+        // settlement record on file but no corresponding journal entry.
+        // One transaction means a failure anywhere in this sequence
+        // rolls back the whole termination, not just part of it.
+        $settlement = DB::transaction(function () use ($employee, $data, $ledger) {
+            $employee->update([
+                'status' => 'terminated',
+                'termination_date' => $data['termination_date'],
+            ]);
 
-        $calculator = new EndOfServiceCalculator;
-        $result = $calculator->calculate(
-            (float) $employee->basic_salary,
-            $employee->hire_date,
-            \Illuminate\Support\Carbon::parse($data['termination_date']),
-            $data['reason']
-        );
+            $calculator = new EndOfServiceCalculator;
+            $result = $calculator->calculate(
+                (float) $employee->basic_salary,
+                $employee->hire_date,
+                \Illuminate\Support\Carbon::parse($data['termination_date']),
+                $data['reason']
+            );
 
-        $settlement = EndOfServiceSettlement::create([
-            'employee_id' => $employee->id,
-            'hire_date' => $employee->hire_date,
-            'termination_date' => $data['termination_date'],
-            'reason' => $data['reason'],
-            'years_of_service' => $result['years_of_service'],
-            'last_basic_salary' => $employee->basic_salary,
-            'gratuity_days' => $result['gratuity_days'],
-            'gratuity_amount' => $result['gratuity_amount'],
-            'entitlement_fraction' => $result['entitlement_fraction'],
-            'created_by' => Auth::id(),
-        ]);
+            $settlement = EndOfServiceSettlement::create([
+                'employee_id' => $employee->id,
+                'hire_date' => $employee->hire_date,
+                'termination_date' => $data['termination_date'],
+                'reason' => $data['reason'],
+                'years_of_service' => $result['years_of_service'],
+                'last_basic_salary' => $employee->basic_salary,
+                'gratuity_days' => $result['gratuity_days'],
+                'gratuity_amount' => $result['gratuity_amount'],
+                'entitlement_fraction' => $result['entitlement_fraction'],
+                'created_by' => Auth::id(),
+            ]);
 
-        if ($settlement->gratuity_amount > 0) {
-            $ledger->postEndOfServiceSettlement($settlement);
-        }
+            if ($settlement->gratuity_amount > 0) {
+                $ledger->postEndOfServiceSettlement($settlement);
+            }
+
+            return $settlement;
+        });
 
         AuditLog::record('employee.terminate', $employee, __('Terminated employee :name, gratuity :amount', ['name' => $employee->full_name, 'amount' => number_format($settlement->gratuity_amount, 2)]));
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesApprovalSeparation;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
@@ -31,7 +32,7 @@ use Illuminate\Validation\Rule;
 
 class BillController extends Controller
 {
-    use EnforcesStorageQuota, ExportsCsv, ResolvesPerPage;
+    use EnforcesApprovalSeparation, EnforcesStorageQuota, ExportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -300,6 +301,12 @@ class BillController extends Controller
     public function approvePending(Bill $bill, LedgerPostingService $ledger)
     {
         abort_unless($bill->status === 'pending_approval', 404);
+
+        // Audit finding SEC-06: the preparer of this bill must not also be
+        // its approver — see EnforcesApprovalSeparation.
+        if ($this->approvalBlockedBySelfApproval($bill->created_by, $bill->company_id)) {
+            return back()->withErrors(['approve' => __('You submitted this bill — it must be approved by a different user.')]);
+        }
 
         $this->postAndReceiveStock($bill, $ledger);
         $bill->update(['approved_by' => Auth::id(), 'approved_at' => now()]);

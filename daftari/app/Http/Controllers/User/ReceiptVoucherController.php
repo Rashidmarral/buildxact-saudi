@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesApprovalSeparation;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
@@ -25,7 +26,7 @@ use Illuminate\Validation\Rule;
 
 class ReceiptVoucherController extends Controller
 {
-    use EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
+    use EnforcesApprovalSeparation, EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
 
     public function downloadPdf(ReceiptVoucher $receiptVoucher, MpdfRenderer $renderer)
     {
@@ -235,6 +236,12 @@ class ReceiptVoucherController extends Controller
     public function approvePending(ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)
     {
         abort_unless($receiptVoucher->status === 'pending_approval', 404);
+
+        // Audit finding SEC-06: the preparer of this voucher must not also
+        // be its approver — see EnforcesApprovalSeparation.
+        if ($this->approvalBlockedBySelfApproval($receiptVoucher->created_by, $receiptVoucher->company_id)) {
+            return back()->withErrors(['approve' => __('You submitted this voucher — it must be approved by a different user.')]);
+        }
 
         DB::transaction(function () use ($receiptVoucher, $ledger) {
             $this->settleInvoiceAndPost($receiptVoucher, $ledger);

@@ -178,10 +178,15 @@ class PurchaseReturnController extends Controller
 
             $purchaseReturn->recalculateTotals();
 
+            // Audit finding GL-03: posting used to commit outside this
+            // transaction — a ledger-posting failure left a fully issued,
+            // numbered purchase return permanently on the books with no
+            // corresponding journal entry. Posting inside the same
+            // transaction means a failure here rolls back the return too.
+            app(LedgerPostingService::class)->postPurchaseReturn($purchaseReturn);
+
             return $purchaseReturn;
         });
-
-        app(LedgerPostingService::class)->postPurchaseReturn($purchaseReturn);
 
         AuditLog::record('purchase_return.create', $purchaseReturn, __('Issued purchase return :number', ['number' => $purchaseReturn->return_number]));
 
