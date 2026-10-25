@@ -51,7 +51,7 @@ class FailureNotificationsTest extends TestCase
         $client = Client::create(['company_id' => $company->id, 'name' => 'Client', 'vat_number' => '300012345600003']);
         $invoice = Invoice::create([
             'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),
-            'type' => 'standard', 'issue_date' => now()->toDateString(), 'currency' => $company->currency,
+            'type' => 'standard', 'status' => 'sent', 'issue_date' => now()->toDateString(), 'currency' => $company->currency,
             'subtotal' => 100, 'discount_total' => 0, 'vat_total' => 15, 'total' => 115,
         ]);
 

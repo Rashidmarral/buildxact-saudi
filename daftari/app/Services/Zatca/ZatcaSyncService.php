@@ -695,6 +695,23 @@ class ZatcaSyncService
         }
 
         return $this->lockedSubmission($invoice->company_id, function (Company $company) use ($invoice) {
+            // Audit finding ZATCA-03: the check above runs before this
+            // company row is locked — two concurrent submissions for the
+            // SAME invoice (a double-click, a retry racing the original
+            // request) can both pass it before either's transaction
+            // commits. The company lock then serializes them, but without
+            // re-checking here, the second one to acquire the lock still
+            // goes on to mint a fresh UUID/ICV and fire a second live
+            // clearance/report call for a document the first one, now
+            // committed, already got cleared/reported. Re-running the
+            // exact same check against a freshly-read invoice, now that
+            // this company's submissions are serialized, closes the race.
+            $invoice = $invoice->fresh();
+
+            if ($rejected = $this->rejectUnsubmittable($invoice)) {
+                return $rejected;
+            }
+
             $environment = $company->zatca_environment;
             $isB2b = $this->isB2b($invoice);
 
@@ -754,10 +771,6 @@ class ZatcaSyncService
                 return $log;
             }
 
-            if ($qrPng) {
-                $invoice->update(['qr_code' => $qrPng]);
-            }
-
             $xmlBase64 = base64_encode($xmlString);
 
             try {
@@ -774,6 +787,18 @@ class ZatcaSyncService
                         'cleared_at' => now(),
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
+
+                    // Audit finding ZATCA-04: this used to save unconditionally,
+                    // before the outbound call even ran — so a QR encoding a
+                    // locally-signed, never-actually-cleared document stayed on
+                    // the invoice even when ZATCA went on to reject it. The QR
+                    // (and the signature/stamp it's built from) is only ever
+                    // meaningful once ZATCA has genuinely confirmed this exact
+                    // submission, so it's only persisted here, alongside the
+                    // log's own "cleared"/"reported" status.
+                    if ($qrPng) {
+                        $invoice->update(['qr_code' => $qrPng]);
+                    }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([
@@ -809,6 +834,13 @@ class ZatcaSyncService
         }
 
         return $this->lockedSubmission($prepayment->company_id, function (Company $company) use ($prepayment) {
+            // Audit finding ZATCA-03 — see submit()'s identical comment.
+            $prepayment = $prepayment->fresh();
+
+            if ($rejected = $this->rejectUnsubmittablePrepayment($prepayment)) {
+                return $rejected;
+            }
+
             $environment = $company->zatca_environment;
             $isB2b = $this->isB2bPrepayment($prepayment);
 
@@ -863,10 +895,6 @@ class ZatcaSyncService
                 return $log;
             }
 
-            if ($qrPng) {
-                $prepayment->update(['qr_code' => $qrPng]);
-            }
-
             $xmlBase64 = base64_encode($xmlString);
 
             try {
@@ -883,6 +911,11 @@ class ZatcaSyncService
                         'cleared_at' => now(),
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
+
+                    // Audit finding ZATCA-04 — see submit()'s identical comment.
+                    if ($qrPng) {
+                        $prepayment->update(['qr_code' => $qrPng]);
+                    }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([
@@ -911,6 +944,13 @@ class ZatcaSyncService
         }
 
         return $this->lockedSubmission($creditNote->company_id, function (Company $company) use ($creditNote) {
+            // Audit finding ZATCA-03 — see submit()'s identical comment.
+            $creditNote = $creditNote->fresh();
+
+            if ($rejected = $this->rejectUnsubmittableCreditNote($creditNote)) {
+                return $rejected;
+            }
+
             $environment = $company->zatca_environment;
             $isB2b = $this->isB2bCreditNote($creditNote);
 
@@ -965,10 +1005,6 @@ class ZatcaSyncService
                 return $log;
             }
 
-            if ($qrPng) {
-                $creditNote->update(['qr_code' => $qrPng]);
-            }
-
             $xmlBase64 = base64_encode($xmlString);
 
             try {
@@ -985,6 +1021,11 @@ class ZatcaSyncService
                         'cleared_at' => now(),
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
+
+                    // Audit finding ZATCA-04 — see submit()'s identical comment.
+                    if ($qrPng) {
+                        $creditNote->update(['qr_code' => $qrPng]);
+                    }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([
@@ -1013,6 +1054,13 @@ class ZatcaSyncService
         }
 
         return $this->lockedSubmission($debitNote->company_id, function (Company $company) use ($debitNote) {
+            // Audit finding ZATCA-03 — see submit()'s identical comment.
+            $debitNote = $debitNote->fresh();
+
+            if ($rejected = $this->rejectUnsubmittableDebitNote($debitNote)) {
+                return $rejected;
+            }
+
             $environment = $company->zatca_environment;
             $isB2b = $this->isB2bDebitNote($debitNote);
 
@@ -1067,10 +1115,6 @@ class ZatcaSyncService
                 return $log;
             }
 
-            if ($qrPng) {
-                $debitNote->update(['qr_code' => $qrPng]);
-            }
-
             $xmlBase64 = base64_encode($xmlString);
 
             try {
@@ -1087,6 +1131,11 @@ class ZatcaSyncService
                         'cleared_at' => now(),
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
+
+                    // Audit finding ZATCA-04 — see submit()'s identical comment.
+                    if ($qrPng) {
+                        $debitNote->update(['qr_code' => $qrPng]);
+                    }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
                     $log->update([

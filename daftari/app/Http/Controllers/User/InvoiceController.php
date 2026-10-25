@@ -338,6 +338,10 @@ class InvoiceController extends Controller
             return back()->withErrors(['invoice' => __('This client has no email address on file. Add one on the client record first.')]);
         }
 
+        if ($blocked = $this->blockedByMissingClearance($invoice)) {
+            return $blocked;
+        }
+
         $pdfBinary = $renderer->render('documents.print.pdf', $invoice->pdfData());
 
         Mail::to($recipient)->send(new InvoiceMail($invoice, $pdfBinary));
@@ -573,6 +577,35 @@ class InvoiceController extends Controller
         }
 
         return back()->withErrors(['invoice' => __('This client is on credit hold and cannot be sent new invoices (:reason). Release the hold on the client record first.', ['reason' => $invoice->client->credit_hold_reason ?: __('no reason given')])]);
+    }
+
+    /**
+     * Audit finding ZATCA-01: a standard (B2B) tax invoice is regulated
+     * under ZATCA's Clearance Model — the government must cryptographically
+     * clear it BEFORE it reaches the buyer, unlike a simplified (B2C) one,
+     * which is reported only after the fact. Marking an invoice "sent" in
+     * this app (doSend()) only ever queues the actual ZATCA submission
+     * (instant sync is an async job; anything else waits for a batched
+     * sync run) — nothing stopped the literal document handoff to the
+     * customer (this email) from happening well before that submission
+     * ever completes, or even ran at all. Only blocks once the company has
+     * actually turned on B2B sync and finished onboarding; a company that
+     * hasn't reached that point yet isn't under this obligation in the
+     * first place, so it isn't newly blocked from emailing invoices.
+     */
+    private function blockedByMissingClearance(Invoice $invoice): ?\Illuminate\Http\RedirectResponse
+    {
+        $company = $invoice->company;
+
+        if ($invoice->type !== 'standard' || ! $company->zatca_sync_b2b || ! $company->isZatcaOnboarded()) {
+            return null;
+        }
+
+        if ($invoice->zatcaInvoiceLogs()->where('status', 'cleared')->exists()) {
+            return null;
+        }
+
+        return back()->withErrors(['invoice' => __('This standard tax invoice has not yet been cleared by ZATCA — it must be cleared before it can be delivered to the customer. Sync it from the ZATCA dashboard, or wait for the next scheduled sync, then try again.')]);
     }
 
     /**

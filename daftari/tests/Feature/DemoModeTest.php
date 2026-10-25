@@ -209,6 +209,7 @@ class DemoModeTest extends TestCase
             'client_id' => $client->id,
             'invoice_number' => 'INV-'.uniqid(),
             'type' => 'standard',
+            'status' => 'sent',
             'issue_date' => now()->toDateString(),
             'currency' => $company->currency,
             'subtotal' => 100,

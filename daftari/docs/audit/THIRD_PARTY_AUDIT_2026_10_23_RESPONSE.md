@@ -293,6 +293,59 @@ Targeted sweep (`--filter="InventoryCosting|BillGoodsReceipt|PurchaseReturn|Inve
 
 Targeted sweep (`--filter="WpsExportIntegrityTest|PayrollRunSettlementTest|Payroll"`): **50 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
 
-## Batches F–H
+## Batch F — ZATCA integrity
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| ZATCA-01 | High | Delivery to the buyer is not gated by clearance for standard (B2B) invoices | **Fixed** |
+| ZATCA-02 | High | A retry regenerates the UUID/hash rather than resuming the original attempt | **Confirmed — not fixed, see below** |
+| ZATCA-03 | High | The duplicate-submission check runs before the company row is locked | **Fixed** |
+| ZATCA-04 | High | The QR code is saved before the clearance/reporting call is confirmed successful | **Fixed** |
+
+Outbound access to `gw-fatoora.zatca.gov.sa` and `zatca.gov.sa` is blocked from this sandbox (confirmed: `curl` returns `connect_rejected`/`403` from the egress proxy) — the same constraint already documented for PAY-03 in Batch B. No fix in this batch could be verified against a real ZATCA sandbox call; every test below exercises the code path with `Http::fake()`.
+
+### ZATCA-01 — Delivery not gated by clearance
+
+**Confirmed.** A standard (B2B) tax invoice is regulated under ZATCA's Clearance Model: the government must cryptographically clear it *before* it reaches the buyer — unlike a simplified (B2C) invoice, which is delivered immediately and only reported afterward. `InvoiceController::doSend()` marks an invoice `'sent'` immediately and synchronously; the actual ZATCA submission is either an async queued job (`zatca_sync_frequency === 'instant'`) or waits for a later batched/scheduled sync run. Nothing stopped `emailInvoice()` — which attaches the real tax-invoice PDF, QR code and all — from handing a standard invoice to the customer well before that submission ever completed, or even ran at all.
+
+**Fix:** `emailInvoice()` now refuses to send once a standard invoice's company has turned on B2B sync and finished ZATCA onboarding, unless that specific invoice already has a `cleared` log entry. A company that hasn't onboarded yet, or has deliberately left B2B sync off, isn't under this obligation in the app's own model and isn't newly blocked. Simplified (B2C) invoices are never gated by this check at all — they're correctly allowed to go out before reporting, matching the Reporting Model.
+
+**Scope note:** only `emailInvoice()` is gated — it's the one action that hands over the actual regulated tax document (PDF with QR/signature). `downloadPdf()` is left open (an internal preview/review action, not itself "delivery to the buyer"), and `sendWhatsapp()`/`sendSms()` only ever send a text notification with a payment link, never the document itself, so they carry no clearance obligation to gate.
+
+**Files:** `app/Http/Controllers/User/InvoiceController.php`
+**Tests:** `tests/Feature/ZatcaDeliveryGatedByClearanceTest.php` (5 tests) — emailing an uncleared standard invoice is blocked for an onboarded B2B company; emailing it succeeds once cleared; a simplified B2C invoice is never blocked; a company with B2B sync off, or not yet onboarded at all, is never blocked either.
+
+### ZATCA-02 — Retry regenerates the UUID/hash
+
+**Confirmed, and deliberately not fixed in this pass.** Every call to `submit()`/`submitCreditNote()`/`submitDebitNote()`/`submitPrepaymentInvoice()` — including a retry of a previously-failed attempt — calls `$this->xml->newUuid()` fresh and recomputes a fresh `invoiceHash` from it. The PIH/ICV hash chain itself is unaffected by this (both only ever advance on a *confirmed* success, so a failed attempt's retry correctly reuses the same previous-hash and ICV slot) — but the UUID embedded in the document changes on every attempt regardless of why the prior one failed.
+
+For a clean rejection (ZATCA explicitly returned a 4xx with validation errors), a fresh UUID on retry is correct and safe — the prior attempt is definitively dead. The real risk is a **connection-level failure** (a timeout, a dropped connection) where the request may have actually reached and been processed by ZATCA before the response was lost client-side. Retrying with a brand-new UUID in that case risks either ZATCA rejecting the retry as a duplicate against a submission it already has record of, or — worse — accepting it as a second, genuinely distinct cleared document for what is, on this app's side, the same single invoice.
+
+**Why this isn't fixed here:** a correct fix needs to distinguish "ZATCA told us no" from "we don't actually know what ZATCA did," and reuse the original UUID/hash/ICV only in the second case — while still minting fresh ones for a normal clean-rejection retry. This is a genuine design decision about how to safely resume an at-least-once retry against a non-idempotent government API, not a narrow, mechanical bug fix, and the correct behavior (does ZATCA's clearance endpoint tolerate a resubmission of the exact same UUID/hash it may or may not have already processed? does it reject outright? is there an idempotency key mechanism in the real API that documentation would reveal?) cannot be determined without access to ZATCA's own integration guide or a live sandbox call — both blocked from this environment, the same constraint PAY-03 hit in Batch B. Implementing a guess here risks making the hash chain *more* fragile than today's simple "always mint fresh" behavior, not less. Tracked as a genuinely open item requiring either real ZATCA sandbox access or a deliberate product/architecture decision, not claimed as resolved.
+
+### ZATCA-03 — Duplicate-submission check races the company lock
+
+**Confirmed.** `rejectUnsubmittable()` (and its prepayment/credit-note/debit-note equivalents) — which includes the already-cleared/reported duplicate check — ran *before* `lockedSubmission()` acquires the company row lock. Two concurrent submission attempts for the same document (a double-click on "Sync now," an admin retry racing the original async job) could both pass that check before either transaction committed. The company lock then correctly serializes the two calls, but without re-checking once inside it, the second one to acquire the lock — still holding its pre-lock, now-stale copy of the document — went on to mint a fresh UUID/ICV and fire a second, real clearance/reporting call for a document the first call, now committed, had already cleared.
+
+**Fix:** every `submit*()` method now re-fetches the document (`$invoice->fresh()`, etc.) and re-runs the exact same rejection check *inside* the locked closure, after the company row lock is held — mirroring the identical lock-then-recheck pattern already used for GL-04 (manual journal approvals) and SEC-09 (2FA/magic-link consumption) elsewhere in this engagement. A losing concurrent call now finds the document already cleared/reported once it actually gets the lock, and is rejected exactly like any other duplicate-submission attempt — no second UUID minted, no second ICV consumed, no second live call.
+
+**Files:** `app/Services/Zatca/ZatcaSyncService.php`
+**Tests:** `tests/Feature/ZatcaConcurrentSubmissionRaceTest.php` (3 tests) — a second submission call reusing the exact same pre-clearance in-memory invoice/prepayment/credit-note object (what a real concurrent second request would hold) is rejected without a second HTTP call, with the ICV left unadvanced.
+**Not independently tested:** true concurrent HTTP requests racing in separate processes — same limitation as GL-04/GL-01's identical caveat; what's verified is that the re-check is wired correctly, which is what a losing concurrent writer would actually hit once the lock serializes it.
+
+### ZATCA-04 — QR code saved before the clearance call is confirmed
+
+**Confirmed.** `buildSignedPayload()` builds the fully-signed XML and QR *proactively*, from the company's own private key — deliberately not dependent on a clearance response (its own docblock explains why: QR tag 9, the certificate signature, is a property of the certificate itself, not of any submission outcome). But the code then saved that locally-built QR straight onto the invoice/prepayment/credit note/debit note *before* the outbound clearance/reporting HTTP call was even attempted — not after confirming it succeeded. A submission ZATCA went on to reject (or one that failed outright on a connection error) still left the document carrying a QR that encodes a cryptographic stamp and signature for a document the government never actually cleared.
+
+**Fix:** the QR-code `update()` call for all four document types moved from immediately before the HTTP call to inside the `if ($response->successful())` branch, alongside the log's own `'cleared'`/`'reported'` status write — so the QR is only ever persisted in the exact same moment the submission is recorded as confirmed-successful, never before.
+
+**Files:** `app/Services/Zatca/ZatcaSyncService.php`
+**Tests:** `tests/Feature/ZatcaQrOnlyPersistedOnConfirmedSuccessTest.php` (3 tests) — a rejected submission (HTTP 400) leaves the invoice with no QR code; a connection-level failure leaves it with no QR code either; a confirmed cleared submission does save it.
+
+### Batch F regression
+
+Targeted sweep (`--filter="Zatca|DemoMode|FailureNotifications|Invoice"`): **529 passed**, 0 failed — including fixing two pre-existing test fixtures (`DemoModeTest`, `FailureNotificationsTest`) that created an `Invoice` with no explicit `status`, silently relying on the in-memory object never reflecting the database's own `'draft'` column default; ZATCA-03's `->fresh()` re-fetch correctly started rejecting those as the drafts they actually were, which is what exposed the gap in the fixtures themselves, not a regression in the fix. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
+
+## Batches G–H
 
 Not started. See the task list for scope; this file will be extended per batch as each lands.
