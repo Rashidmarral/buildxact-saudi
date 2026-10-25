@@ -23,6 +23,20 @@ use Carbon\CarbonInterface;
  * A date past the window isn't force-deleted or flagged for cleanup —
  * retention only ever blocks a delete that would otherwise happen; it
  * never requires one.
+ *
+ * Audit finding COMP-01: the window used to count 6 years from the
+ * document's own date directly, not from the end of its tax period as
+ * the regulation actually requires — a document dated early in a
+ * quarter became legally deletable up to ~3 months before Article 66
+ * actually permits it. Counting from the end of the QUARTER containing
+ * the document's date (via the same VatPeriods helper the VAT return
+ * tracker already uses) fixes this for a company that files quarterly,
+ * and is also a safe, deliberately conservative over-approximation for
+ * one that files monthly — a quarter always ends on or after the month
+ * containing the same date, so this never retains for LESS time than
+ * Article 66 requires, regardless of which frequency a given company
+ * actually files under (a fact this document-agnostic check has no way
+ * to know without every caller threading its own company through).
  */
 class RecordRetentionPolicy
 {
@@ -32,6 +46,8 @@ class RecordRetentionPolicy
     {
         $date = $date instanceof CarbonInterface ? $date : \Illuminate\Support\Carbon::instance($date);
 
-        return $date->diffInYears(now(), true) < self::RETENTION_YEARS;
+        $periodEnd = VatPeriods::periodContaining('quarterly', $date)['end'];
+
+        return $periodEnd->diffInYears(now(), true) < self::RETENTION_YEARS;
     }
 }

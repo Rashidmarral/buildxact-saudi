@@ -213,7 +213,7 @@ class FeatureLimitManagementTest extends TestCase
     public function test_api_request_under_the_limit_is_allowed_and_counted(): void
     {
         $company = $this->makeCompany();
-        $this->subscribe($company, $this->makePlan(['max_api_calls_per_month' => 5]));
+        $this->subscribe($company, $this->makePlan(['max_api_calls_per_month' => 5, 'has_api' => true]));
         $user = User::factory()->create(['company_id' => $company->id, 'role' => 'owner']);
         $token = $user->createToken('test', ['read'])->plainTextToken;
 
@@ -226,7 +226,7 @@ class FeatureLimitManagementTest extends TestCase
     public function test_api_request_over_the_limit_is_blocked_with_429(): void
     {
         $company = $this->makeCompany();
-        $this->subscribe($company, $this->makePlan(['max_api_calls_per_month' => 1]));
+        $this->subscribe($company, $this->makePlan(['max_api_calls_per_month' => 1, 'has_api' => true]));
         $user = User::factory()->create(['company_id' => $company->id, 'role' => 'owner']);
         $token = $user->createToken('test', ['read'])->plainTextToken;
 

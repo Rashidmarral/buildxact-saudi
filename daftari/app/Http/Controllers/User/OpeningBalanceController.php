@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\AccountMapping;
 use App\Models\AuditLog;
 use App\Models\JournalEntry;
 use App\Services\Accounting\LedgerPostingService;
@@ -72,6 +73,27 @@ class OpeningBalanceController extends Controller
 
         if ($lines->isEmpty()) {
             return back()->withInput()->withErrors(['lines' => __('Enter at least one account balance.')]);
+        }
+
+        // Audit finding GL-06: this class's own docblock already explains
+        // why customer/supplier opening balances are deliberately NOT
+        // part of this form — a GL-only credit/debit to the Accounts
+        // Receivable/Payable CONTROL account would silently desync from
+        // what this system actually treats as the real AR/AP subledger
+        // total (the live sum of Invoice/Bill rows, not a ledger
+        // balance). Nothing previously stopped a user from picking that
+        // exact control account from the dropdown anyway, creating
+        // precisely the inconsistency the docblock warns about with no
+        // feedback at all. Rejecting it here, rather than silently
+        // accepting a number that can never reconcile, until customer/
+        // supplier opening balances get their own real design.
+        $controlAccountIds = array_filter([
+            AccountMapping::resolve($companyId, 'ACCOUNTS_RECEIVABLE')?->id,
+            AccountMapping::resolve($companyId, 'ACCOUNTS_PAYABLE')?->id,
+        ]);
+
+        if ($controlAccountIds && $lines->whereIn('account_id', $controlAccountIds)->isNotEmpty()) {
+            return back()->withInput()->withErrors(['lines' => __('Accounts Receivable and Accounts Payable cannot be set here — this form only balances the General Ledger, and a balance entered directly here would never match the real customer/supplier totals this system tracks from actual invoices and bills. Record each customer or supplier\'s opening balance as a backdated invoice or bill instead.')]);
         }
 
         $totalDebit = round($lines->sum('debit'), 2);

@@ -14,6 +14,7 @@ use App\Models\TaxRate;
 use App\Models\User;
 use App\Support\RecordRetentionPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -45,8 +46,34 @@ class RecordRetentionPolicyTest extends TestCase
     {
         $this->assertTrue(RecordRetentionPolicy::isWithinRetentionWindow(now()));
         $this->assertTrue(RecordRetentionPolicy::isWithinRetentionWindow(now()->subYears(5)->subMonths(11)));
-        $this->assertFalse(RecordRetentionPolicy::isWithinRetentionWindow(now()->subYears(6)->subDay()));
         $this->assertFalse(RecordRetentionPolicy::isWithinRetentionWindow(now()->subYears(10)));
+    }
+
+    /**
+     * Audit finding COMP-01: the window counts 6 years from the END of
+     * the tax quarter containing the document's date, per Article 66 —
+     * not from the document's own date directly. With "now" fixed at
+     * 2026-10-25: a document dated 2020-10-20 is barely over 6 raw years
+     * old (old, incorrect logic would already call it expired), but it
+     * falls in Q4 2020 (ends 2020-12-31) — and 2020-12-31 is still under
+     * 6 years before 2026-10-25, so Article 66 actually still protects
+     * it. A document dated 2020-01-02 (Q1 2020, ends 2020-03-31 — well
+     * over 6 years before 2026-10-25 either way) is correctly expired
+     * under both the old and the corrected logic.
+     */
+    public function test_the_window_counts_from_the_end_of_the_tax_quarter_not_the_raw_document_date(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 10, 25));
+
+        try {
+            $this->assertTrue(
+                RecordRetentionPolicy::isWithinRetentionWindow(Carbon::create(2020, 10, 20)),
+                'A document dated just past the raw 6-year mark must still be protected once its quarter end is under 6 years old.'
+            );
+            $this->assertFalse(RecordRetentionPolicy::isWithinRetentionWindow(Carbon::create(2020, 1, 2)));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_a_recent_approved_expense_cannot_be_deleted(): void

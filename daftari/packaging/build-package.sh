@@ -41,6 +41,14 @@ mkdir -p "$STAGE" "$DIST_DIR"
 # 1. Copy application source, excluding everything that must never ship
 #    (see docs/codecanyon/PACKAGING.md for the reasoning behind each
 #    line — this list is the authoritative "do not include" checklist).
+#
+#    Audit finding SEC-07: storage/app/private/* (BackupDatabase's own
+#    real database + public-storage dumps under backups/, and any real
+#    support-ticket attachments under ticket-attachments/) was never
+#    excluded here the way storage/app/public/* already was — a developer
+#    who ever ran the backup command, or exercised the ticket-attachment
+#    flow, locally before building a release would have shipped those
+#    real dumps/files straight into the CodeCanyon zip.
 # ---------------------------------------------------------------------
 rsync -a "$ROOT_DIR/" "$STAGE/" \
     --exclude ".git" \
@@ -64,6 +72,7 @@ rsync -a "$ROOT_DIR/" "$STAGE/" \
     --exclude "storage/framework/views/*" \
     --exclude "storage/framework/testing/*" \
     --exclude "storage/app/public/*" \
+    --exclude "storage/app/private/*" \
     --exclude "public/storage" \
     --exclude "public/build" \
     --exclude ".idea" \
@@ -77,7 +86,7 @@ rsync -a "$ROOT_DIR/" "$STAGE/" \
 # to exist at boot (storage/framework/{cache,sessions,views}, etc.) —
 # rsync's excludes above stripped their contents but Laravel still needs
 # the directories themselves to be present and writable.
-for d in storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/app/public storage/logs; do
+for d in storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/app/public storage/app/private/backups storage/app/private/ticket-attachments storage/logs; do
     mkdir -p "$STAGE/$d"
     touch "$STAGE/$d/.gitignore"
 done

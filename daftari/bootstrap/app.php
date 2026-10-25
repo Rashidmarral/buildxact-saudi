@@ -6,6 +6,7 @@ use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureAdminTwoFactorEnabled;
 use App\Http\Middleware\EnsureApiCompanyActive;
+use App\Http\Middleware\EnsureApiFeatureEnabled;
 use App\Http\Middleware\EnsureCompanyActive;
 use App\Http\Middleware\EnsureImpersonationNotExpired;
 use App\Http\Middleware\EnsureModuleEnabled;
@@ -26,6 +27,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Request;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Sentry\Laravel\Integration;
 
@@ -46,7 +48,22 @@ return Application::configure(basePath: dirname(__DIR__))
         // fixed deployment topology can't hardcode a specific proxy IP,
         // so trust them all; buyers on a known, fixed infra can narrow
         // this to their load balancer's address if they want to.
-        $middleware->trustProxies(at: '*');
+        //
+        // Audit finding SEC-08: trusting '*' for every X-Forwarded-*
+        // header by default — Laravel's own default set when none is
+        // given — included X-Forwarded-For, which nothing here actually
+        // needs (only Proto/Host/Port, for scheme/URL generation). That
+        // let ANY client spoof its own reported IP (request()->ip(),
+        // used by audit logging and anything IP-based) just by setting
+        // that header on a direct request — trusting '*' for the proxy's
+        // address but still trusting whatever client IP it hands us is
+        // the part that was never actually required. Explicitly leaving
+        // X-Forwarded-For out of the trusted set closes that while
+        // keeping the documented HTTPS-detection need intact.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+        );
 
         $middleware->web(prepend: [
             PrepareInstallerEnvironment::class,
@@ -71,6 +88,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureRole::class,
             'company.active' => EnsureCompanyActive::class,
             'api.company.active' => EnsureApiCompanyActive::class,
+            'api.feature' => EnsureApiFeatureEnabled::class,
             'company.member' => EnsureUserBelongsToCompany::class,
             'permission' => EnsurePermission::class,
             'admin.permission' => EnsureAdminPermission::class,

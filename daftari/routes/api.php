@@ -15,8 +15,13 @@ use Illuminate\Support\Facades\Route;
 // when the user explicitly creates a read-write token (see
 // App\Http\Controllers\User\ApiTokenController). 'api.limit' meters and
 // enforces the company's "API calls" plan limit (Module 07) once here,
-// rather than in each controller action below.
-Route::middleware(['auth:sanctum', 'api.company.active', 'throttle:api', 'api.limit', 'abilities:read'])->prefix('v1')->name('api.v1.')->group(function () {
+// rather than in each controller action below. 'api.feature:api'
+// (audit finding API-01) re-checks the company's own plan entitlement to
+// the API on every request — ApiTokenController::store() only ever
+// checked this once, when the token was first issued, so a plan
+// downgrade (or an admin revoking the override) never actually stopped
+// an already-issued token from working.
+Route::middleware(['auth:sanctum', 'api.company.active', 'api.feature:api', 'throttle:api', 'api.limit', 'abilities:read'])->prefix('v1')->name('api.v1.')->group(function () {
     Route::get('/me', function (Request $request) {
         $user = $request->user();
 

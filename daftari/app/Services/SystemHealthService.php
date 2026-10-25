@@ -80,7 +80,11 @@ class SystemHealthService
             $oldestPendingAge = DB::table('jobs')
                 ->whereNull('reserved_at')
                 ->min('available_at');
-            $oldestPendingMinutes = $oldestPendingAge ? now()->diffInMinutes(\Carbon\Carbon::createFromTimestamp($oldestPendingAge)) : 0;
+            // Same sign bug as the scheduler check below (found
+            // alongside OPS-03) — diffInMinutes() returns negative once
+            // $oldestPendingAge is in the past, which silently defeated
+            // both threshold checks a few lines down.
+            $oldestPendingMinutes = $oldestPendingAge ? abs(now()->diffInMinutes(\Carbon\Carbon::createFromTimestamp($oldestPendingAge))) : 0;
 
             if ($failedLast24h >= 10 || $oldestPendingMinutes >= 60) {
                 return $this->result('queue', __('Queue'), self::STATUS_FAILED, __(':count failed in the last 24h, oldest pending job :minutes min old.', ['count' => $failedLast24h, 'minutes' => $oldestPendingMinutes]));
@@ -110,7 +114,13 @@ class SystemHealthService
             return $this->result('scheduler', __('Scheduler / Cron'), self::STATUS_WARNING, __('No heartbeat recorded yet — the server cron entry for schedule:run may not be configured.'));
         }
 
-        $minutesAgo = now()->diffInMinutes(\Carbon\Carbon::parse($heartbeat));
+        // Found alongside OPS-03 (identical root cause): diffInMinutes()
+        // here returns a NEGATIVE number once the heartbeat is actually
+        // in the past (as it always is) — every negative number passes
+        // "<= 3", so this reported "healthy" unconditionally regardless
+        // of how long ago cron actually last ran, the one case this
+        // check exists to catch.
+        $minutesAgo = abs(now()->diffInMinutes(\Carbon\Carbon::parse($heartbeat)));
 
         return match (true) {
             $minutesAgo <= 3 => $this->result('scheduler', __('Scheduler / Cron'), self::STATUS_HEALTHY, __('Last heartbeat :minutes min ago.', ['minutes' => $minutesAgo])),
@@ -171,12 +181,34 @@ class SystemHealthService
     }
 
     /**
-     * No backup mechanism exists in this application yet — reported
-     * honestly as "not configured" rather than a fabricated timestamp.
+     * Audit finding OPS-03: this unconditionally reported "no backup
+     * system is configured," regardless of whether one actually was —
+     * stale the moment BackupDatabase/BackupController shipped (see
+     * Admin\BackupController::index(), which already reads these exact
+     * same Setting keys to build its own "Last run" status). A failed
+     * or silently-stalled backup run looked identical to a healthy one
+     * on the one dashboard meant to surface it.
      */
     private function backup(): array
     {
-        return $this->result('backup', __('Last backup'), self::STATUS_WARNING, __('No backup system is configured for this installation.'));
+        $lastRunAt = Setting::get('backup_last_run_at');
+
+        if (! $lastRunAt) {
+            return $this->result('backup', __('Last backup'), self::STATUS_WARNING, __('No backup has ever run on this installation.'));
+        }
+
+        $lastStatus = Setting::get('backup_last_status');
+        $hoursAgo = abs(now()->diffInHours(\Carbon\Carbon::parse($lastRunAt)));
+
+        if ($lastStatus === 'failed') {
+            return $this->result('backup', __('Last backup'), self::STATUS_FAILED, __('The last backup run failed (:when).', ['when' => \Carbon\Carbon::parse($lastRunAt)->diffForHumans()]));
+        }
+
+        return match (true) {
+            $hoursAgo <= 26 => $this->result('backup', __('Last backup'), self::STATUS_HEALTHY, __('Last backup succeeded :when.', ['when' => \Carbon\Carbon::parse($lastRunAt)->diffForHumans()])),
+            $hoursAgo <= 72 => $this->result('backup', __('Last backup'), self::STATUS_WARNING, __('Last successful backup was :when — the schedule may have stopped running.', ['when' => \Carbon\Carbon::parse($lastRunAt)->diffForHumans()])),
+            default => $this->result('backup', __('Last backup'), self::STATUS_FAILED, __('Last successful backup was :when — the schedule has likely stopped running.', ['when' => \Carbon\Carbon::parse($lastRunAt)->diffForHumans()])),
+        };
     }
 
     private function result(string $key, string $label, string $status, string $detail): array

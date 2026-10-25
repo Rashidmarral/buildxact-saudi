@@ -391,6 +391,83 @@ Targeted sweep (`--filter="Zatca|DemoMode|FailureNotifications|Invoice"`): **529
 
 Targeted sweep (`--filter="Billing|Coupon|DemoMode|Pos|Restaurant|Repair|Voucher|WithholdingTax"`): **331 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
 
-## Batch H
+## Batch H — Medium/low ops & compliance cleanup
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| GL-06 | Medium | Opening-balance entry can desync Accounts Receivable/Payable from the real subledger | **Fixed** |
+| COMP-01 | Medium | Record retention counts from the document date, not the tax-period end | **Fixed** |
+| SEC-07 | Medium | The CodeCanyon packaging script can ship real backup dumps/attachments | **Fixed** |
+| SEC-08 | Medium | All proxies are trusted for every forwarded header, including client IP | **Fixed** |
+| API-01 | Medium | An API token's plan entitlement is checked only at issue time, never per-request | **Fixed** |
+| OPS-03 | Low | The System Health "Last backup" check is hardcoded and the scheduler/queue checks have an inverted threshold | **Fixed** |
+| OPS-02 | Low | Backups are local-disk only, with no off-site replication or DR runbook | **Open — operational, not a code defect** |
+
+### GL-06 — Opening balance can desync AR/AP from the real subledger
+
+**Confirmed.** `OpeningBalanceController`'s own docblock already explains why customer/supplier opening balances were deliberately left out of this GL-only form: this system treats Accounts Receivable/Payable's real balance as the live sum of actual `Invoice`/`Bill` rows, not a ledger field — a balance posted straight to the AR/AP control account here would never match that sum, with no way to ever reconcile it. Nothing stopped a user from picking that exact control account from the dropdown anyway.
+
+**Fix:** `store()` now resolves the company's AR/AP accounts (via `AccountMapping::resolve()`, so a company that has remapped either account is still caught) and rejects any submitted line against either one, directing the user to record that balance as a backdated invoice or bill per customer/supplier instead — the mechanism this system actually uses to build up those totals.
+
+**Files:** `app/Http/Controllers/User/OpeningBalanceController.php`
+**Tests:** `tests/Feature/OpeningBalanceControlAccountGuardTest.php` (3 tests) — an AR line and an AP line are both rejected with nothing posted; an ordinary GL account is unaffected.
+**Not done:** customer/supplier opening balances still have no dedicated mechanism of their own — exactly the gap this class's docblock already named as needing its own, separate design.
+
+### COMP-01 — Retention counted from the document date, not the tax-period end
+
+**Confirmed.** `RecordRetentionPolicy`'s own docblock already states the correct rule (Saudi VAT Implementing Regulations Article 66: 6 years *from the end of the tax period*), but the implementation compared `now()` against the document's own date directly — a document dated early in a quarter became legally deletable up to ~3 months before Article 66 actually permits it.
+
+**Fix:** the window now counts from the end of the calendar quarter containing the document's date (via the same `VatPeriods` helper the VAT return tracker already uses), not the raw date. This is correct for a company that files quarterly, and a deliberately safe, conservative over-approximation for one that files monthly — a quarter always ends on or after the month containing the same date, so this never retains for *less* time than the law requires for either filing frequency, without this document-agnostic check needing to know which one a given company actually uses.
+
+**Files:** `app/Support/RecordRetentionPolicy.php`
+**Tests:** `tests/Feature/RecordRetentionPolicyTest.php` — new case with a fixed "now" showing a document just past the old, incorrect 6-raw-year cutoff is still correctly protected once its quarter-end is accounted for, while one genuinely outside the window either way is still correctly expired.
+
+### SEC-07 — Packaging script can ship real backup dumps and attachments
+
+**Confirmed.** `packaging/build-package.sh` (builds the CodeCanyon release zip) carefully excludes `.env`, `.git`, sqlite databases, logs, and `storage/app/public/*` — but never excluded `storage/app/private/*`, where `BackupDatabase` (Batch H/GL-adjacent feature, see OPS-03 below) writes real database + public-storage dumps under `backups/`, and where real support-ticket attachments land under `ticket-attachments/`. A developer who ever ran the backup command, or exercised the ticket-attachment flow, locally before building a release would have shipped those real files straight into the distributed zip.
+
+**Fix:** added `storage/app/private/*` to the rsync exclude list, and extended the placeholder-directory recreation loop so the staged copy still has empty, writable `backups/`/`ticket-attachments/` directories at boot.
+
+**Files:** `packaging/build-package.sh`
+**Verification:** a dry-run `rsync --dry-run -v` against this checkout (with a real file manually placed under `storage/app/private/backups/`) confirmed the exclude now suppresses everything under `storage/app/private/` from the file listing. The full build script itself (`composer install --no-dev` + `npm run build` + two zips) was not executed end-to-end in this pass — that's a multi-minute build with real side effects on a throwaway staged copy, not something worth running just to prove an `rsync --exclude` pattern, which the dry-run already verified directly.
+
+### SEC-08 — All proxies trusted for every forwarded header
+
+**Confirmed.** `bootstrap/app.php` calls `trustProxies(at: '*')` with no `headers` argument, which defaults to Laravel's full set — including `X-Forwarded-For`. The documented reason for trusting `'*'` at all (a packaged product with no fixed deployment topology, needing `X-Forwarded-Proto` for correct HTTPS detection behind an unknown reverse proxy) never actually required trusting the client's reported IP — but trusting `'*'` for the proxy's address while also trusting whatever `X-Forwarded-For` it hands over let *any* direct client spoof its own reported IP (`request()->ip()`, used by audit logging and anything else IP-based) just by setting that header itself.
+
+**Fix:** narrowed the trusted header set to `X-Forwarded-Host | X-Forwarded-Port | X-Forwarded-Proto` — explicitly excluding `X-Forwarded-For` — while keeping the documented, genuinely-needed HTTPS-detection behavior fully intact.
+
+**Files:** `bootstrap/app.php`
+
+### API-01 — API token entitlement checked only at issue time
+
+**Confirmed.** `ApiTokenController::store()` already refuses to *issue* a new token when the company's plan doesn't include the `'api'` feature (`FeatureAccessService`), but nothing on the actual `routes/api.php` middleware stack re-checked that on each request — a token minted while on an API-enabled plan kept working against every v1 endpoint indefinitely after the company downgraded to a plan without API access, or had an admin's per-company override revoked.
+
+**Fix:** new `EnsureApiFeatureEnabled` middleware (API-side sibling of the existing `EnsurePlanFeature`/`EnsureApiCompanyActive` pattern — a JSON 403 instead of a web redirect) aliased as `api.feature` and added to the `v1` route group alongside the existing `api.company.active`/`api.limit` checks, using the exact same `FeatureAccessService` the token-issuance check already relies on — so a plan downgrade or a revoked override takes effect on the very next API request, not just on the next token someone tries to create.
+
+**Files:** `app/Http/Middleware/EnsureApiFeatureEnabled.php` (new), `bootstrap/app.php`, `routes/api.php`
+**Tests:** `tests/Feature/ApiFeatureEntitlementTest.php` (5 tests) — a token is rejected once the plan lacks `has_api`; still works while the plan includes it; a company with no active subscription at all stays unrestricted (matching `FeatureAccessService`'s existing default); a per-company override correctly wins in both directions (re-enabling a lacking plan, revoking an otherwise-included one).
+**Fixture note:** two pre-existing tests (`FeatureLimitManagementTest`'s API-limit cases) constructed a plan with no `has_api` set at all and then exercised a real `/api/v1/me` call — an accidental gap this fix now correctly catches. Both updated to set `has_api: true`, since they're testing the call-limit middleware specifically, not entitlement.
+
+### OPS-03 — Health report's backup status is hardcoded; scheduler/queue thresholds inverted
+
+**Confirmed, and found to be two separate bugs in the same file.** `SystemHealthService::backup()` unconditionally returned "No backup system is configured for this installation," regardless of whether one actually existed — stale the moment `BackupDatabase`/`BackupController` shipped (both already maintain the exact `backup_last_run_at`/`backup_last_status` Setting keys this check could have read). A failed or silently-stalled backup schedule looked identical to a healthy one on the one dashboard meant to catch it.
+
+**While fixing that, found a second, more serious bug in the same class:** `scheduler()` and `queue()` both compute "how long ago" via `now()->diffInHours()`/`diffInMinutes()` against a timestamp that is always in the past — which this installed Carbon version returns as a **negative** number. Every "elapsed time ≤ N" threshold in both checks is trivially true for any negative number, so the scheduler check silently reported "healthy" no matter how long cron had actually stopped running, and the queue check's "oldest pending job" staleness threshold never fired either. Neither bug was named in the original report; found incidentally while implementing the backup fix, and fixed identically (`abs()` around each diff) since it's the exact same root cause.
+
+**Fix:** `backup()` now reads the real last-run timestamp/status and reports healthy/warning/failed based on recency and outcome, the same pattern `scheduler()` already used (now correctly). `scheduler()` and `queue()`'s elapsed-time calculations are wrapped in `abs()`.
+
+**Files:** `app/Services/SystemHealthService.php`
+**Tests:** `tests/Feature/SystemHealthBackupStatusTest.php` (6 tests) — backup: never-run (warning), recent success (healthy), failed run (failed), stale schedule (warning, then failed as it gets older); scheduler: a 2-hour-old heartbeat is now correctly reported failed (it silently reported healthy before this fix), a fresh one still reports healthy.
+
+### OPS-02 — Backups have no off-site replication or DR runbook
+
+**Confirmed, and deliberately not attempted as a code fix.** `BackupDatabase`'s own docblock already acknowledges this directly: dumps land on the same server's local disk (`storage/app/private/backups`) unless the public-storage disk has separately been switched to S3, and even then "S3's own durability/versioning is the operator's responsibility to configure, not this command's." A server-loss disaster destroys the application and its only backup copy together. This is a genuine, correctly-self-documented operational gap, not a narrow bug — closing it needs an off-site storage target (S3/remote disk export), delivery failure alerting, and a written disaster-recovery runbook, which is new infrastructure/product scope well beyond this response's remit. Left open and reported honestly as such, rather than fabricating a partial fix.
+
+### Batch H regression
+
+Targeted sweep (`--filter="Api|OpeningBalance|RecordRetention|SystemHealth|AdminDashboard|DatabaseBackup|Suspended"`): **84 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
+
+## Final summary
 
 Not started. See the task list for scope; this file will be extended per batch as each lands.
