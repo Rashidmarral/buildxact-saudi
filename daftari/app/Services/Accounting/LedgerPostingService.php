@@ -5,6 +5,7 @@ namespace App\Services\Accounting;
 use App\Exceptions\PeriodLockedException;
 use App\Models\Account;
 use App\Models\AccountMapping;
+use App\Models\BankAccount;
 use App\Models\BankTransfer;
 use App\Models\Bill;
 use App\Models\BillPayment;
@@ -749,6 +750,38 @@ class LedgerPostingService
         }
 
         return $this->post($company, 'payroll_run', $payrollRun->id, __('Payroll run :number', ['number' => $payrollRun->run_number]), $payrollRun->pay_date, $lines);
+    }
+
+    /**
+     * Audit finding PAYROLL-01: marking a run "paid" only flipped its
+     * status — postPayrollRun() above credits SALARIES_PAYABLE at
+     * approval, but nothing ever debited it back down when salaries were
+     * actually paid out, and no bank/cash account was ever relieved
+     * either. Salaries Payable sat on the books as a permanently
+     * outstanding liability forever, the same class of bug GL-03 fixed
+     * for document posting — except here there was no settlement call
+     * at all, not just a mis-ordered one. Mirrors how postExpense()/
+     * BillPayment already settle ACCOUNTS_PAYABLE against a chosen
+     * bank/cash account.
+     */
+    public function postPayrollRunSettlement(PayrollRun $payrollRun, BankAccount $bankAccount): ?JournalEntry
+    {
+        $company = $payrollRun->company;
+        $salariesPayable = $this->account($company, 'SALARIES_PAYABLE');
+        $funding = $this->bankOrCashAccount($company, $bankAccount->type);
+
+        $this->requireAccounts(['SALARIES_PAYABLE' => $salariesPayable, 'funding account' => $funding], 'payroll run settlement');
+
+        if ((float) $payrollRun->total_net <= 0) {
+            return null;
+        }
+
+        $lines = [
+            ['account_id' => $salariesPayable->id, 'debit' => $payrollRun->total_net, 'memo' => $payrollRun->run_number],
+            ['account_id' => $funding->id, 'credit' => $payrollRun->total_net],
+        ];
+
+        return $this->post($company, 'payroll_run_settlement', $payrollRun->id, __('Salaries paid for :number', ['number' => $payrollRun->run_number]), $payrollRun->paid_at ?? now(), $lines);
     }
 
     public function postEndOfServiceSettlement(EndOfServiceSettlement $settlement): ?JournalEntry

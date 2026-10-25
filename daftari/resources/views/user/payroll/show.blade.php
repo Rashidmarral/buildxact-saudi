@@ -16,8 +16,14 @@
             </form>
         @endif
         @if ($payrollRun->status === 'approved')
-            <form method="POST" action="{{ route('app.payroll.mark-paid', $payrollRun) }}">
+            <form method="POST" action="{{ route('app.payroll.mark-paid', $payrollRun) }}" class="flex items-center gap-2">
                 @csrf
+                <select name="bank_account_id" required class="rounded-lg border border-slate-200 text-sm py-2 px-2">
+                    <option value="">{{ __('Paid from...') }}</option>
+                    @foreach ($bankAccounts as $account)
+                        <option value="{{ $account->id }}">{{ $account->name }}</option>
+                    @endforeach
+                </select>
                 <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">{{ __('Mark as paid') }}</button>
             </form>
             <a href="{{ route('app.payroll.wps', $payrollRun) }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download WPS file') }}</a>

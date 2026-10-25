@@ -257,6 +257,42 @@ Targeted sweep (`--filter="ManualJournal|CreditNote|DebitNote|PurchaseReturn|Emp
 
 Targeted sweep (`--filter="InventoryCosting|BillGoodsReceipt|PurchaseReturn|Inventory|Pos|RecurringInvoice|CreditDebitNote"`): **189 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
 
-## Batches E–H
+## Batch E — Payroll correctness
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| PAYROLL-01 | High | Marking a payroll run "paid" never settles salaries payable or a bank account | **Fixed** |
+| PAYROLL-02 | Medium | Saudi GOSI/EOS/WPS regime controls | **Corrected — WPS export gap fixed, GOSI/EOS already correct** |
+
+### PAYROLL-01 — Marking a run paid never settles anything
+
+**Confirmed.** `postPayrollRun()` (run at approval) credits `SALARIES_PAYABLE` (plus `GOSI_PAYABLE` and, when applicable, `PAYROLL_DEDUCTIONS_PAYABLE`) for the run's net/gosi/deductions totals. `PayrollRunController::markPaid()` then did nothing but `$payrollRun->update(['status' => 'paid', 'paid_at' => now()])` — no settlement journal entry, no bank/cash account ever touched. Every paid payroll run left Salaries Payable permanently outstanding on the balance sheet, exactly as if the company had approved paying its staff but never actually transferred the money — forever, with no code path to ever correct it.
+
+**Fix:** `markPaid()` now requires a funding bank/cash account (a new `payroll_runs.bank_account_id` column, mirroring how `postExpense()`/`BillPayment` already require one to settle `ACCOUNTS_PAYABLE`) and posts a new `postPayrollRunSettlement()` entry debiting `SALARIES_PAYABLE` and crediting that account for the run's `total_net`, inside the same transaction as the status change.
+
+**Scope note:** this settles `SALARIES_PAYABLE` only — the liability actually named in the finding. `GOSI_PAYABLE` (remitted to GOSI) and `PAYROLL_DEDUCTIONS_PAYABLE` (e.g. loan repayments owed to a third party) are genuinely separate remittance obligations with their own timing, not something a single "mark paid" action should assume happens simultaneously with payroll. Settling those is not attempted here and remains open — tracked below, not silently folded into this fix.
+
+**Files:** `app/Http/Controllers/User/PayrollRunController.php`, `app/Services/Accounting/LedgerPostingService.php`, `app/Models/PayrollRun.php`, `resources/views/user/payroll/show.blade.php`
+**Migrations:** `2026_10_25_060000_add_bank_account_id_to_payroll_runs_table.php`
+**Tests:** `tests/Feature/Payroll/PayrollRunSettlementTest.php` (4 tests) — marking a run paid settles Salaries Payable against the chosen bank account; the same from a cash-type account credits the cash account instead; marking paid with no bank account chosen is rejected and posts nothing; a bank account belonging to another company is rejected.
+**Not done:** GOSI and other-deductions remittance settlement (see scope note above) — those liabilities still have no settlement action anywhere in the app, exactly as before this fix.
+
+### PAYROLL-02 — Saudi GOSI/EOS/WPS regime controls
+
+**GOSI and EOS calculators re-verified directly against this engagement's own existing, already-passing test coverage (`GosiCalculatorTest`, `EndOfServiceCalculatorTest`) and against the Saudi Labor Law articles and GOSI contribution structure each calculator's own docblock cites — both are correctly implemented: GOSI's contributory-wage ceiling, the Saudi/non-Saudi contribution split, and Article 84/85's resignation-tenure gratuity scaling all compute correctly. No defect was found in either calculator.**
+
+**The real, concrete, fixable gap found on inspection was in `WpsSifExporter`, not GOSI or EOS:** every WPS detail record emitted `$employee->iban ?? ''` and `$employee->national_id ?? ''` with a silent blank fallback — an employee who hadn't completed onboarding (a common, ordinary state) produced a WPS SIF file with a blank IBAN or national ID for that row. A real bank/MHRSD submission with a blank mandatory field either gets the whole file rejected, or — worse, on a more lenient parser — risks a payment that can't be correctly matched back to the employee it's meant to pay. Nothing in the app ever surfaced this as an error; the broken file was simply handed to the user to upload to their bank.
+
+**Fix:** `WpsSifExporter::export()` now checks every employee on the run for a present `iban` and `national_id` before generating anything, and throws a clear, named-employee error instead of a silently incomplete file. `PayrollRunController::downloadWps()` catches it and returns a validation error instead of a broken download.
+
+**Files:** `app/Services/Payroll/WpsSifExporter.php`, `app/Http/Controllers/User/PayrollRunController.php`
+**Tests:** `tests/Feature/Payroll/WpsExportIntegrityTest.php` (4 tests) — export is refused for an employee missing an IBAN; refused for an employee missing a national ID; succeeds once every employee has both; a run mixing one complete and one incomplete employee is refused entirely, and the error names only the incomplete one.
+**Not done:** this validates data completeness, not field *format* (e.g. a malformed IBAN checksum) — and, as the exporter's own pre-existing docblock already states, the SIF's exact field order/delimiter has not been validated against any real bank's current WPS portal. Both remain genuinely unverified from this environment.
+
+### Batch E regression
+
+Targeted sweep (`--filter="WpsExportIntegrityTest|PayrollRunSettlementTest|Payroll"`): **50 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
+
+## Batches F–H
 
 Not started. See the task list for scope; this file will be extended per batch as each lands.

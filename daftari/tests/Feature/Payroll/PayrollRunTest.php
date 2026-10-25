@@ -212,7 +212,7 @@ class PayrollRunTest extends TestCase
     {
         $company = $this->makeCompanyWithPayroll();
         $owner = $this->makeOwner($company);
-        $this->makeEmployee($company, ['iban' => 'SA0000000000000000000000', 'bank_name' => 'Test Bank']);
+        $this->makeEmployee($company, ['iban' => 'SA0000000000000000000000', 'bank_name' => 'Test Bank', 'national_id' => '1234567890']);
 
         $this->actingAs($owner)->post(route('app.payroll.store'), [
             'period_month' => now()->month, 'period_year' => now()->year, 'pay_date' => now()->toDateString(),

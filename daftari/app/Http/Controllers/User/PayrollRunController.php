@@ -7,6 +7,7 @@ use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\AuditLog;
+use App\Models\BankAccount;
 use App\Models\Employee;
 use App\Models\PayrollRun;
 use App\Models\PayrollRunItem;
@@ -17,6 +18,7 @@ use App\Services\Payroll\WpsSifExporter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PayrollRunController extends Controller
 {
@@ -117,9 +119,12 @@ class PayrollRunController extends Controller
 
     public function show(PayrollRun $payrollRun)
     {
-        $payrollRun->load('items.employee', 'creator', 'approver');
+        $payrollRun->load('items.employee', 'creator', 'approver', 'bankAccount');
 
-        return view('user.payroll.show', compact('payrollRun'));
+        return view('user.payroll.show', [
+            'payrollRun' => $payrollRun,
+            'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+        ]);
     }
 
     /**
@@ -174,13 +179,30 @@ class PayrollRunController extends Controller
         return back()->with('status', __('Payroll run approved and posted to the ledger.'));
     }
 
-    public function markPaid(PayrollRun $payrollRun)
+    /**
+     * Audit finding PAYROLL-01: this used to just flip the status column
+     * — SALARIES_PAYABLE (credited when the run was approved) stayed on
+     * the books forever as an outstanding liability, and no bank/cash
+     * account was ever relieved for what was actually paid out. Now
+     * requires the funding account and posts the settlement — the exact
+     * liability-vs-bank pattern every other "pay this off" action in the
+     * app (BillPayment, InvoicePayment, PaymentVoucher) already follows.
+     */
+    public function markPaid(Request $request, PayrollRun $payrollRun, LedgerPostingService $ledger)
     {
         if ($payrollRun->status !== 'approved') {
             return back()->withErrors(['payroll_run' => __('Only an approved run can be marked as paid.')]);
         }
 
-        $payrollRun->update(['status' => 'paid', 'paid_at' => now()]);
+        $data = $request->validate([
+            'bank_account_id' => ['required', Rule::exists('bank_accounts', 'id')->where('company_id', Auth::user()->company_id)->where('is_active', true)],
+        ]);
+
+        DB::transaction(function () use ($payrollRun, $data, $ledger) {
+            $payrollRun->update(['status' => 'paid', 'paid_at' => now(), 'bank_account_id' => $data['bank_account_id']]);
+
+            $ledger->postPayrollRunSettlement($payrollRun, BankAccount::findOrFail($data['bank_account_id']));
+        });
 
         AuditLog::record('payroll_run.paid', $payrollRun, __('Marked payroll run :number as paid', ['number' => $payrollRun->run_number]));
 
@@ -208,7 +230,11 @@ class PayrollRunController extends Controller
 
     public function downloadWps(PayrollRun $payrollRun, WpsSifExporter $exporter)
     {
-        $sif = $exporter->export($payrollRun->company, $payrollRun);
+        try {
+            $sif = $exporter->export($payrollRun->company, $payrollRun);
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['wps' => $e->getMessage()]);
+        }
 
         return response($sif, 200, [
             'Content-Type' => 'text/plain',

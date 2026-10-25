@@ -12,7 +12,7 @@ class PayrollRun extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'run_number', 'period_month', 'period_year', 'pay_date', 'status',
+        'company_id', 'run_number', 'period_month', 'period_year', 'pay_date', 'bank_account_id', 'status',
         'total_gross', 'total_gosi_employee', 'total_gosi_employer', 'total_other_deductions', 'total_net',
         'notes', 'created_by', 'approved_by', 'approved_at', 'paid_at',
     ];
@@ -44,6 +44,11 @@ class PayrollRun extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
     }
 
     public function recalculateTotals(): void

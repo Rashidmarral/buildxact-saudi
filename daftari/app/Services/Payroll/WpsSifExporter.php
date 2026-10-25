@@ -18,9 +18,29 @@ use App\Models\PayrollRun;
  */
 class WpsSifExporter
 {
+    /**
+     * Audit finding PAYROLL-02: every detail record used to emit
+     * $employee->iban/national_id with a silent '' fallback when either
+     * was missing — a bank/MHRSD WPS submission with a blank IBAN or
+     * national ID either gets the whole file rejected, or (worse, on a
+     * lenient parser) risks a payment record that can't be matched back
+     * to the employee it's meant to pay. Refusing to generate the file at
+     * all for an incomplete run surfaces the gap as an immediate,
+     * actionable error instead of a silently malformed government
+     * compliance file going out the door.
+     */
     public function export(Company $company, PayrollRun $payrollRun): string
     {
         $payrollRun->loadMissing('items.employee');
+
+        $incomplete = $payrollRun->items
+            ->filter(fn ($item) => blank($item->employee?->iban) || blank($item->employee?->national_id))
+            ->map(fn ($item) => $item->employee?->full_name ?? __('Unknown employee'))
+            ->values();
+
+        if ($incomplete->isNotEmpty()) {
+            throw new \RuntimeException(__('The WPS file cannot be generated — these employees are missing the IBAN and/or national ID required for a WPS submission: :names.', ['names' => $incomplete->implode(', ')]));
+        }
 
         $lines = [];
         $lines[] = $this->headerRecord($company, $payrollRun);
