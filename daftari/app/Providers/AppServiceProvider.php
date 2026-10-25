@@ -169,7 +169,26 @@ class AppServiceProvider extends ServiceProvider
                     'endpoint' => Setting::get('storage_s3_endpoint') ?: null,
                     'url' => Setting::get('storage_s3_url') ?: null,
                     'use_path_style_endpoint' => (bool) Setting::get('storage_s3_endpoint'),
-                    'visibility' => 'public',
+                    // Security audit finding SEC-04: this is the SAME disk
+                    // genuinely public branding (logos/stamps/letterheads)
+                    // and private tenant business documents (receipts,
+                    // bank statements, CR/VAT certificates) are both
+                    // uploaded to — FileServeController is the only thing
+                    // standing between a private document and anyone with
+                    // its path. 'public' visibility told the S3 driver to
+                    // set a public-read ACL on every object by default,
+                    // which — on a bucket that honors object ACLs — makes
+                    // the direct S3 URL fetchable with no authorization at
+                    // all, completely bypassing that controller. 'private'
+                    // does not break FileServeController's own access: it
+                    // streams objects server-side using these same stored
+                    // credentials regardless of object ACL, so an
+                    // authorized request still works identically — only
+                    // the public-without-auth path is removed. The actual
+                    // branding assets under FileServeController's
+                    // PUBLIC_PREFIXES allowlist are still served to guests
+                    // through that controller, same as on the local disk.
+                    'visibility' => 'private',
                     'throw' => false,
                     'report' => false,
                 ],

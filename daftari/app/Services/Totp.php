@@ -37,25 +37,42 @@ class Totp
      * Verifies a submitted code, tolerating one time-step of clock drift
      * in either direction — a real device's clock is rarely perfectly in
      * sync, and without this a valid code entered right at a 30s boundary
-     * would wrongly fail.
+     * would wrongly fail. Stateless by design — used at 2FA enrollment,
+     * where the same code being accepted twice carries no risk (the user
+     * is already authenticated; this only flips on `two_factor_confirmed_at`).
+     * The login-time challenge must not use this directly — see
+     * matchedStep() below.
      */
     public static function verify(string $secret, string $code, int $window = 1): bool
+    {
+        return self::matchedStep($secret, $code, $window) !== null;
+    }
+
+    /**
+     * Security audit finding SEC-09: a login-time TOTP check has no
+     * persisted state on its own, so the same valid code could be
+     * replayed (resubmitted, or submitted concurrently) and would keep
+     * authenticating until it naturally expired. Returns the absolute
+     * time-step the code matched (not just true/false) so a caller can
+     * persist it and reject anything at or before the last-accepted step.
+     */
+    public static function matchedStep(string $secret, string $code, int $window = 1): ?int
     {
         $code = trim($code);
 
         if (! preg_match('/^\d{6}$/', $code)) {
-            return false;
+            return null;
         }
 
         $timestamp = (int) floor(time() / self::PERIOD);
 
         for ($offset = -$window; $offset <= $window; $offset++) {
             if (hash_equals(self::codeAt($secret, $timestamp + $offset), $code)) {
-                return true;
+                return $timestamp + $offset;
             }
         }
 
-        return false;
+        return null;
     }
 
     private static function codeAt(string $secret, int $counter): string

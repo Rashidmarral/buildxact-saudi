@@ -43,6 +43,12 @@ class FileServeController extends Controller
     private const PUBLIC_PREFIXES = [
         'logos/', 'stamps/', 'letterheads/', 'footers/', 'watermarks/', 'platform-documents/',
         'platform/', 'branding/', 'cms/',
+        // Audit finding UX-01: favicons are uploaded to 'favicons/'
+        // (SettingsController::update()) but this list omitted that
+        // prefix, so even the owning company's own logged-in users got a
+        // 404 on their own favicon — the same public-branding treatment
+        // already given to logos/ and stamps/ was simply missing here.
+        'favicons/',
     ];
 
     public function show(string $filepath): Response
@@ -56,16 +62,30 @@ class FileServeController extends Controller
         if (! Str::startsWith($filepath, self::PUBLIC_PREFIXES)) {
             abort_unless(Auth::check(), 404);
 
-            $attachment = Attachment::where('path', $filepath)->first();
-            abort_unless($attachment || Item::where('image_path', $filepath)->exists(), 404);
+            $user = Auth::user();
 
-            // Audit finding SEC-03: the tenant-isolation check above already
-            // blocks cross-company access (it was addressed under CRIT-01,
-            // before this audit) — what was still missing was any record of
-            // *who* viewed a sensitive attachment (receipts, contracts,
-            // bank statements) and *when*. Item images (product photos)
-            // aren't sensitive in the same way, so only Attachment downloads
-            // are logged here.
+            // Security audit finding SEC-03: this route sits outside the
+            // normal auth/company-membership/active-company middleware
+            // group entirely (it's a bare top-level route — see
+            // routes/web.php), so Auth::check() alone used to be the only
+            // gate. A tenantless platform account (now denied by
+            // BelongsToCompany's global scope — see that trait) or a
+            // staff member suspended mid-session (status flips are only
+            // enforced at login, not on every request) must not reach a
+            // document lookup at all. Checking company_id/status
+            // explicitly here, rather than only through the model scope,
+            // is deliberate defense in depth for exactly this route: it
+            // keeps working even if a future query on this path is ever
+            // written with withoutGlobalScopes() by mistake.
+            abort_unless($user->company_id && $user->status === 'active', 404);
+
+            $attachment = Attachment::where('path', $filepath)->where('company_id', $user->company_id)->first();
+            $itemMatch = Item::where('image_path', $filepath)->where('company_id', $user->company_id)->exists();
+            abort_unless($attachment || $itemMatch, 404);
+
+            // Attachment downloads are audit-logged (receipts, contracts,
+            // bank statements are sensitive); Item images (product photos)
+            // aren't, so only Attachment downloads are logged here.
             if ($attachment) {
                 AuditLog::record('attachment.download', $attachment, __('Downloaded attachment :name', ['name' => $attachment->original_name]));
             }

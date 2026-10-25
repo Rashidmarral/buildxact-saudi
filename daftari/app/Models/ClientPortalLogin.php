@@ -50,19 +50,28 @@ class ClientPortalLogin extends Model
         return $token;
     }
 
+    /**
+     * Security audit finding SEC-09: the previous read-then-update let two
+     * concurrent requests with the same valid token both pass the
+     * whereNull('used_at') check before either write landed, consuming it
+     * twice. The UPDATE itself is the atomic check-and-set here — its WHERE
+     * clause (including used_at IS NULL) only matches, and only updates,
+     * for one of two concurrent identical requests; a losing request's
+     * UPDATE simply affects zero rows.
+     */
     public static function consume(string $token): ?Client
     {
-        $login = self::where('token_hash', hash('sha256', $token))
+        $hash = hash('sha256', $token);
+
+        $updated = self::where('token_hash', $hash)
             ->whereNull('used_at')
             ->where('expires_at', '>=', now())
-            ->first();
+            ->update(['used_at' => now()]);
 
-        if (! $login) {
+        if ($updated !== 1) {
             return null;
         }
 
-        $login->update(['used_at' => now()]);
-
-        return $login->client;
+        return self::where('token_hash', $hash)->first()?->client;
     }
 }

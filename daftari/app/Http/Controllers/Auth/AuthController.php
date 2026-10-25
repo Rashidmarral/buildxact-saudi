@@ -84,6 +84,9 @@ class AuthController extends Controller
             Auth::logout();
             $request->session()->put('two_factor_user_id', $user->id);
             $request->session()->put('two_factor_remember', $remember);
+            // Security audit finding SEC-09: the pending challenge used to
+            // have no expiry at all — see TwoFactorChallengeController.
+            $request->session()->put('two_factor_challenge_expires_at', now()->addMinutes(5));
 
             return redirect()->route('two-factor.challenge');
         }
@@ -302,13 +305,31 @@ class AuthController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
+        // Security audit finding SEC-01/SEC-02: this used to pass a
+        // callback that only captured the reset URL — Laravel's
+        // PasswordBroker returns immediately after calling a supplied
+        // callback (see PasswordBroker::sendResetLink()), so the real
+        // sendPasswordResetNotification() call NEVER ran. Combined with
+        // exposing that captured URL to the browser whenever
+        // config('mail.default') === 'log' — Laravel's own out-of-box
+        // MAIL_MAILER default, not something unique to local dev — any
+        // unauthenticated requester could take over any account with zero
+        // access to the victim's mailbox on a misconfigured production
+        // deployment. Fixed by never passing a callback outside
+        // local/testing, so the real notification always fires on every
+        // other environment regardless of mail configuration; the dev
+        // convenience link below only exists where there is no real
+        // victim to protect.
         $resetUrl = null;
 
         $status = PasswordBroker::sendResetLink(
             $request->only('email'),
-            function ($user, $token) use (&$resetUrl) {
-                $resetUrl = route('password.reset', ['token' => $token, 'email' => $user->email]);
-            }
+            app()->environment(['local', 'testing'])
+                ? function ($user, $token) use (&$resetUrl) {
+                    $user->sendPasswordResetNotification($token);
+                    $resetUrl = route('password.reset', ['token' => $token, 'email' => $user->email]);
+                }
+                : null
         );
 
         if ($status !== PasswordBroker::RESET_LINK_SENT) {
@@ -317,12 +338,7 @@ class AuthController extends Controller
             return back()->with('status', __('If an account exists for that email, a password reset link has been sent.'));
         }
 
-        // No real mail transport is configured out of the box (MAIL_MAILER
-        // defaults to "log"), so in local/testing — or whenever mail isn't
-        // actually going anywhere — surface the real link directly instead
-        // of silently stranding the user, the same convenience already used
-        // for team invite passwords.
-        if (app()->environment(['local', 'testing']) || config('mail.default') === 'log') {
+        if (app()->environment(['local', 'testing']) && $resetUrl) {
             return back()->with('status', __('If an account exists for that email, a password reset link has been sent.'))
                 ->with('dev_reset_url', $resetUrl);
         }
