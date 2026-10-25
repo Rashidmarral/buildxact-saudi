@@ -204,6 +204,59 @@ While investigating, re-checked `PurchaseReturnController::store()` against this
 
 Targeted sweep (`--filter="ManualJournal|CreditNote|DebitNote|PurchaseReturn|Employee|LedgerPosting|VoucherAndBillApprovalThreshold|ApprovalCreatorSeparation"`): **109 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
 
-## Batches D–H
+## Batch D — Inventory costing correctness
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| INV-01 | High | Stock adjustments are valued at the item's selling price, not its cost | **Fixed** |
+| INV-02 | High | POS sales deduct stock but never post a matching COGS entry | **Fixed** |
+| INV-03 | High | Purchase returns don't reverse the stock the original bill received | **Fixed** |
+| INV-04 | Medium | Margin/profitability reports use the item's current price, not its historical cost | **Fixed** |
+
+### INV-01 — Stock adjustments valued at selling price
+
+**Confirmed.** `LedgerPostingService::postStockAdjustment()` computed the adjustment's GL value as `$adjustment->quantity * $item->unit_price` — `unit_price` is what the item **sells** for, not what it **costs**. Inventory Asset is a cost-basis account; every other inventory-costing posting in this same file (bill receipt, invoice COGS) already keys off `purchase_price`. A stock increase inflated Inventory Asset (and its offsetting adjustment account) by the item's whole margin; a decrease understated a write-off's real cost by the same amount.
+
+**Fix:** one-line change — `unit_price` to `purchase_price`.
+
+**Files:** `app/Services/Accounting/LedgerPostingService.php`
+**Tests:** `tests/Feature/InventoryCostingGapsTest.php::test_a_stock_increase_is_valued_at_cost_not_the_selling_price` — an item priced at 100 but costing 40 posts a 10-unit increase at 400, not 1000.
+
+### INV-02 — POS sales never posted COGS
+
+**Confirmed.** `PosSaleService::checkout()` deducts `ItemStock` for every tracked-inventory line sold through the till, but `LedgerPostingService::postPosSale()` only ever posted the payment/revenue/VAT lines — no COGS debit, no Inventory Asset credit. Every POS sale of tracked inventory left Inventory Asset permanently overstated by that sale's cost and contributed zero cost of goods sold to the income statement, even though the exact same sale made through the ordinary Invoice flow (`postInvoiceIssued()`) already gets this right.
+
+**Fix:** added the identical COGS block `postInvoiceIssued()` already uses — standard cost (`purchase_price`), summed only over lines whose item is `track_inventory` and only when the sale actually has a warehouse (mirroring the same precondition `checkout()` itself uses before deducting stock at all).
+
+**Files:** `app/Services/Accounting/LedgerPostingService.php`
+**Tests:** `tests/Feature/InventoryCostingGapsTest.php` — a POS sale of a tracked item posts COGS and relieves Inventory Asset at standard cost, and the stock deduction and the GL credit agree; a sale through a register with no warehouse posts zero COGS (nothing to relieve, matching that it never touched stock either).
+
+### INV-03 — Purchase returns never reversed stock
+
+**Confirmed.** `PurchaseReturnController::store()` created the return, posted its ledger entry, and recalculated totals — but never touched `ItemStock` at all. Goods physically going back to the supplier left recorded stock exactly as if they were still on hand; every purchase return against a bill that had received tracked inventory left that warehouse's system quantity silently overstated by the returned quantity, with no code path to ever correct it.
+
+**Fix:** new private `applyStock()` (mirroring `BillController`'s own method of the same name/shape) decrements `ItemStock` at the originating bill's warehouse for each returned line resolvable back to a tracked-inventory item via its `bill_item_id`, and `void()` reverses it back. Only runs when the originating bill actually received stock in the first place (`$bill->warehouse_id` and `$bill->stock_received` both set) — a return against a bill that was never received into a warehouse has no stock to give back, and a freeform return line with no `bill_item_id` (a deliberately supported case — see `PurchaseReturnReasonTypeAndFreeformLineTest`) has no item to resolve and is silently skipped, exactly as `BillController::applyStock()` already skips a non-tracked item.
+
+**Files:** `app/Http/Controllers/User/PurchaseReturnController.php`
+**Tests:** `tests/Feature/InventoryCostingGapsTest.php` — issuing a purchase return against a bill that received stock reduces that warehouse's quantity, and voiding the return gives it back; a return against a bill that never received stock (no warehouse) touches no `ItemStock` row at all.
+
+### INV-04 — Margin reports use today's cost, not the sale's actual cost
+
+**Confirmed.** `InventoryController::profitability()` computed each item's cost for a historical period as `$quantity * $item->purchase_price` — the item's **current** cost, recomputed fresh every time the report runs, applied retroactively to sales from however far back the report's period reaches. If the item's cost has changed since a given sale (the normal case over any real reporting horizon), a profitability report for last month silently shows a different margin today than it would have shown the day after that sale — and never matches what the GL actually recorded.
+
+**Fix:** new nullable `invoice_items.unit_cost` column, frozen at the moment an invoice line is created (`InvoiceController::syncItems()`, `RecurringInvoice::generateInvoice()`) — the same per-line snapshot pattern already used for `name_ar`/`item_description` on this exact table. `profitability()` now sums each line's own frozen `unit_cost` instead of recomputing from the item's live price, falling back to the item's current price only for a line that predates this column (an explicitly documented, unavoidable approximation for historical data with no snapshot ever taken).
+
+**Scope note:** this intentionally does not change `LedgerPostingService::postInvoiceIssued()`'s own COGS calculation, which still uses the item's cost *at the moment stock is actually deducted* (send time) — that is the economically correct moment for the GL entry itself (the physical stock leaves at send time, not whenever the draft was first typed up), and changing it would risk relitigating an already-tested, already-correct posting. The bug here was specifically the *report* re-deriving a number that should simply be read back from what already happened, not the GL posting itself.
+
+**Files:** `app/Http/Controllers/User/InventoryController.php`, `app/Http/Controllers/User/InvoiceController.php`, `app/Models/InvoiceItem.php`, `app/Models/RecurringInvoice.php`
+**Migrations:** `2026_10_25_050000_add_unit_cost_to_invoice_items_table.php`
+**Tests:** `tests/Feature/InventoryCostingGapsTest.php` — a line's `unit_cost` is frozen at creation time; the profitability report for a sale still shows that sale's true margin after the item's cost later changes (600, not the 100 a live recompute at the new cost would show); a line with no frozen cost (created before this migration) falls back to the item's current price.
+**Not done:** `MachineryInvoiceDraftingService` and `PlatformInvoiceService` (the SaaS platform's own subscription billing) create `InvoiceItem` rows with no `item_id` at all (free-text lines) — there is no cost to freeze for either, and neither was touched.
+
+### Batch D regression
+
+Targeted sweep (`--filter="InventoryCosting|BillGoodsReceipt|PurchaseReturn|Inventory|Pos|RecurringInvoice|CreditDebitNote"`): **189 passed**, 0 failed. Full application suite re-run after this batch; see the top-level summary once all batches land for the final combined count.
+
+## Batches E–H
 
 Not started. See the task list for scope; this file will be extended per batch as each lands.

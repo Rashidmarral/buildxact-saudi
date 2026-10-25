@@ -1062,6 +1062,12 @@ class InvoiceController extends Controller
                 'item_description' => $item?->description,
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
+                // Audit finding INV-04: freeze this item's cost as of right
+                // now, the same way name_ar/item_description above are
+                // frozen — so a profitability report for this sale later
+                // reads back what it actually cost at the time, not
+                // whatever the item's cost has since changed to.
+                'unit_cost' => $item?->purchasePriceForUnit($row['unit_id'] ?? null),
                 'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($invoice->company_id),
                 'tax_rate_id' => $row['tax_rate_id'] ?? null,
                 'sort_order' => $sort,

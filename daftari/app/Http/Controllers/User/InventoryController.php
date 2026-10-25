@@ -48,9 +48,15 @@ class InventoryController extends Controller
 
     /**
      * Margin per item sold in the period: revenue from invoice lines
-     * against cost at the item's current purchase price (the same cost
-     * basis the Valuation tab already uses) — the profitability view
-     * that was missing next to plain quantity/value reporting.
+     * against each line's own frozen cost at the time it was created
+     * (InvoiceController::syncItems()'s unit_cost snapshot — audit
+     * finding INV-04) rather than the item's CURRENT purchase price. A
+     * report for a past period must reflect what that sale actually cost
+     * back then; recomputing from today's live cost silently shows a
+     * different margin than the books actually recorded if the item's
+     * cost has since changed. A line created before this snapshot
+     * existed has no unit_cost on file and falls back to the item's
+     * current price — a known approximation for pre-migration data only.
      */
     public function profitability(Request $request)
     {
@@ -66,7 +72,11 @@ class InventoryController extends Controller
                 $item = $lines->first()->item;
                 $quantity = (float) $lines->sum('quantity');
                 $revenue = (float) $lines->sum(fn (InvoiceItem $l) => $l->quantity * $l->unit_price);
-                $cost = $quantity * (float) ($item->purchase_price ?? 0);
+                $cost = (float) $lines->sum(function (InvoiceItem $l) use ($item) {
+                    $unitCost = $l->unit_cost !== null ? (float) $l->unit_cost : (float) ($item->purchase_price ?? 0);
+
+                    return (float) $l->quantity * $unitCost;
+                });
                 $margin = $revenue - $cost;
 
                 return [

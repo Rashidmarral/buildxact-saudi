@@ -803,6 +803,31 @@ class LedgerPostingService
             $lines[] = ['account_id' => $vatOutput->id, 'credit' => $sale->vat_total];
         }
 
+        // Audit finding INV-02: a POS sale deducts stock for every
+        // tracked-inventory line (PosSaleService::checkout()) but never
+        // posted a matching COGS/Inventory Asset entry — Inventory Asset
+        // stayed permanently overstated by the cost of every item ever
+        // sold through the till, and POS sales silently contributed zero
+        // cost of goods sold to the income statement. Mirrors
+        // postInvoiceIssued()'s identical COGS block: standard cost
+        // (purchase_price), only for lines whose stock was actually
+        // deducted (track_inventory and a warehouse on the sale).
+        if ($sale->warehouse_id) {
+            $sale->loadMissing('items.item');
+            $cogsAmount = round((float) $sale->items
+                ->filter(fn ($line) => $line->item?->track_inventory)
+                ->sum(fn ($line) => $line->item->baseQuantityFor((float) $line->quantity, $line->unit_id) * (float) ($line->item->purchase_price ?? 0)), 2);
+
+            if ($cogsAmount > 0) {
+                $cogs = $this->account($company, 'COGS_DEFAULT');
+                $inventoryAsset = $this->account($company, 'INVENTORY_ASSET');
+                $this->requireAccounts(['COGS_DEFAULT' => $cogs, 'INVENTORY_ASSET' => $inventoryAsset], 'POS sale (COGS)');
+
+                $lines[] = ['account_id' => $cogs->id, 'debit' => $cogsAmount, 'memo' => __('Cost of goods sold for :number', ['number' => $sale->sale_number])];
+                $lines[] = ['account_id' => $inventoryAsset->id, 'credit' => $cogsAmount];
+            }
+        }
+
         return $this->post($company, 'pos_sale', $sale->id, __('POS sale :number', ['number' => $sale->sale_number]), $sale->created_at, $lines);
     }
 
@@ -945,7 +970,14 @@ class LedgerPostingService
 
         $this->requireAccounts(['INVENTORY_ASSET' => $inventory, 'INVENTORY_ADJUSTMENT' => $adjustmentAccount], 'stock adjustment');
 
-        $value = round((float) $adjustment->quantity * (float) ($adjustment->item->unit_price ?? 0), 2);
+        // Audit finding INV-01: this valued the adjustment at the item's
+        // SELLING price (unit_price) — inflating Inventory Asset (and the
+        // offsetting adjustment account) by the item's whole margin on
+        // every increase, and understating a write-off's real cost on
+        // every decrease. Inventory is carried at cost; purchase_price is
+        // the same standard-cost figure the Valuation report and every
+        // other inventory-costing posting in this file already use.
+        $value = round((float) $adjustment->quantity * (float) ($adjustment->item->purchase_price ?? 0), 2);
 
         if ($value <= 0) {
             return null;

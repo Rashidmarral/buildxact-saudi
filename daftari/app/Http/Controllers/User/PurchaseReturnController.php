@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\AuditLog;
 use App\Models\Bill;
+use App\Models\ItemStock;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Services\Accounting\LedgerPostingService;
@@ -178,6 +179,13 @@ class PurchaseReturnController extends Controller
 
             $purchaseReturn->recalculateTotals();
 
+            // Audit finding INV-03: a purchase return previously never
+            // touched stock at all — goods physically going back to the
+            // supplier left ItemStock exactly as if they were still on
+            // hand, so recorded stock silently drifted above what was
+            // actually in the warehouse every time one was issued.
+            $this->applyStock($purchaseReturn, $bill, -1);
+
             // Audit finding GL-03: posting used to commit outside this
             // transaction — a ledger-posting failure left a fully issued,
             // numbered purchase return permanently on the books with no
@@ -243,10 +251,50 @@ class PurchaseReturnController extends Controller
         }
 
         DB::transaction(function () use ($purchaseReturn, $ledger) {
+            // Audit finding INV-03: voiding must give the stock back, the
+            // same way reversing the ledger entry gives the GL impact back.
+            $this->applyStock($purchaseReturn, $purchaseReturn->bill, 1);
+
             $ledger->reverse($purchaseReturn->company, 'purchase_return', $purchaseReturn->id, __('Purchase return :number voided', ['number' => $purchaseReturn->return_number]));
             $purchaseReturn->update(['status' => 'void']);
         });
 
         return back()->with('status', __('Purchase return voided.'));
+    }
+
+    /**
+     * Audit finding INV-03: a purchase return has no warehouse of its own
+     * — it ships stock back out of wherever the original bill received it
+     * into, so this only moves anything when that bill actually put stock
+     * on hand in the first place ($bill->warehouse_id set and
+     * $bill->stock_received true). A freeform return line with no
+     * bill_item_id (see the "freeform line" support in store()) has no
+     * item to resolve and is silently skipped, same as BillController's
+     * own applyStock() skips a non-tracked item.
+     */
+    private function applyStock(PurchaseReturn $purchaseReturn, Bill $bill, int $direction): void
+    {
+        if (! $bill->warehouse_id || ! $bill->stock_received) {
+            return;
+        }
+
+        $purchaseReturn->loadMissing('items.billItem.item');
+
+        foreach ($purchaseReturn->items as $line) {
+            $item = $line->billItem?->item;
+
+            if (! $item || ! $item->track_inventory) {
+                continue;
+            }
+
+            $stock = ItemStock::firstOrCreate(
+                ['item_id' => $item->id, 'warehouse_id' => $bill->warehouse_id],
+                ['quantity' => 0]
+            );
+
+            $baseQuantity = $item->baseQuantityFor((float) $line->quantity, $line->unit_id);
+
+            $stock->increment('quantity', $baseQuantity * $direction);
+        }
     }
 }

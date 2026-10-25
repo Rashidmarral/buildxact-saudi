@@ -137,6 +137,10 @@ class RecurringInvoice extends Model
                     'item_description' => $item?->description,
                     'quantity' => $templateItem->quantity,
                     'unit_price' => $templateItem->unit_price,
+                    // Audit finding INV-04: same cost snapshot as
+                    // InvoiceController::syncItems() — frozen at the moment
+                    // the real invoice is generated.
+                    'unit_cost' => $item?->purchasePriceForUnit($templateItem->unit_id),
                     'vat_rate' => $templateItem->vat_rate,
                     'sort_order' => $sort,
                 ]);
