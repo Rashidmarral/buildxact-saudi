@@ -3,6 +3,7 @@
 namespace App\Services\Payments\Drivers;
 
 use App\Models\PaymentGateway;
+use App\Models\PaymentTransaction;
 use App\Services\Payments\PaymentGatewayDriver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -77,8 +78,23 @@ class HyperPayDriver implements PaymentGatewayDriver
      * to (shopperResultUrl). We don't trust the redirect itself — we call
      * HyperPay's status endpoint server-to-server using the resourcePath
      * it gave us, which only a real HyperPay checkout could have produced.
+     *
+     * Audit finding PAY-02: resourcePath and the "reference" query param
+     * both come straight off this unverified GET request. Within one
+     * merchant account, a second genuinely-paid checkout's real
+     * resourcePath could be submitted here paired with a DIFFERENT,
+     * attacker-chosen reference — the old code would fetch (and trust)
+     * the real successful status for the first checkout, but then credit
+     * it to whatever PaymentTransaction the chosen reference resolved to.
+     * Fixed by cross-checking the authoritative response's own
+     * merchantTransactionId (which only HyperPay's server can set, inside
+     * a response we only reach after a verified HTTP round trip using our
+     * own access token) against $transaction->reference — the exact value
+     * WE sent as merchantTransactionId when creating this specific
+     * checkout. A mismatch means this resourcePath belongs to some other
+     * checkout, genuine or not, and must be rejected outright.
      */
-    public function verifyWebhook(PaymentGateway $gateway, Request $request): ?array
+    public function verifyWebhook(PaymentGateway $gateway, PaymentTransaction $transaction, Request $request): ?array
     {
         $resourcePath = $request->query('resourcePath');
 
@@ -95,6 +111,10 @@ class HyperPayDriver implements PaymentGatewayDriver
             ->throw()
             ->json();
 
+        if (($response['merchantTransactionId'] ?? null) !== $transaction->reference) {
+            return null;
+        }
+
         $code = (string) ($response['result']['code'] ?? '');
         // HyperPay's documented "successful" result-code families.
         $success = (bool) preg_match('/^(000\.000\.|000\.100\.1|000\.[36])/', $code);
@@ -103,6 +123,8 @@ class HyperPayDriver implements PaymentGatewayDriver
             'status' => $success ? 'paid' : 'failed',
             'provider_reference' => $response['id'] ?? null,
             'reference' => $this->extractReference($request),
+            'amount' => $response['amount'] ?? null,
+            'currency' => $response['currency'] ?? null,
             'raw' => $response,
         ];
     }

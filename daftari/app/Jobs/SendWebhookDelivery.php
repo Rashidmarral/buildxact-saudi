@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 use App\Notifications\GenericNotification;
+use App\Rules\PublicHttpUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -36,6 +37,24 @@ class SendWebhookDelivery implements ShouldQueue
             return;
         }
 
+        // Audit finding SEC-05: the SSRF check on this URL previously
+        // only ran once, when it was saved — see PublicHttpUrl::isSafe()
+        // for why that's not enough on its own. A URL that was safe then
+        // is not guaranteed to still be safe now.
+        if (! PublicHttpUrl::isSafe($webhook->url)) {
+            WebhookDelivery::create([
+                'webhook_id' => $webhook->id,
+                'event' => $this->event,
+                'payload' => ['event' => $this->event, 'data' => $this->payload, 'sent_at' => now()->toIso8601String()],
+                'response_status' => null,
+                'success' => false,
+                'error' => 'Delivery blocked: webhook URL no longer resolves to a public address.',
+                'created_at' => now(),
+            ]);
+
+            return;
+        }
+
         $body = [
             'event' => $this->event,
             'data' => $this->payload,
@@ -46,11 +65,15 @@ class SendWebhookDelivery implements ShouldQueue
         $signature = hash_hmac('sha256', $json, $webhook->secret);
 
         try {
+            // Audit finding SEC-05: a validated host could otherwise
+            // redirect the connection to an internal target with no
+            // further check at all — Guzzle follows redirects by default.
             $response = Http::withBody($json, 'application/json')
                 ->withHeaders([
                     'X-Daftari-Event' => $this->event,
                     'X-Daftari-Signature' => 'sha256='.$signature,
                 ])
+                ->withOptions(['allow_redirects' => false])
                 ->timeout(10)
                 ->post($webhook->url);
         } catch (\Throwable $e) {

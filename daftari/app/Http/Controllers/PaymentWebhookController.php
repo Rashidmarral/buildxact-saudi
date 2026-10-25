@@ -11,6 +11,7 @@ use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Payments\PaymentSettlementService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Public, unauthenticated endpoint every gateway driver posts (or, for
@@ -43,7 +44,7 @@ class PaymentWebhookController extends Controller
         if ($alreadyProcessed) {
             PaymentGatewayWebhookEvent::create([
                 'provider' => $provider, 'fingerprint' => $fingerprint, 'status' => 'duplicate',
-                'payload' => $request->all(), 'ip_address' => $request->ip(),
+                'payload' => $this->redactedPayload($request), 'ip_address' => $request->ip(),
             ]);
 
             return new Response('OK', 200);
@@ -59,7 +60,7 @@ class PaymentWebhookController extends Controller
         if (! $transaction) {
             PaymentGatewayWebhookEvent::create([
                 'provider' => $provider, 'fingerprint' => $fingerprint, 'status' => 'rejected',
-                'payload' => $request->all(), 'ip_address' => $request->ip(),
+                'payload' => $this->redactedPayload($request), 'ip_address' => $request->ip(),
             ]);
 
             abort(404);
@@ -68,10 +69,10 @@ class PaymentWebhookController extends Controller
         $event = PaymentGatewayWebhookEvent::create([
             'provider' => $provider, 'fingerprint' => $fingerprint, 'status' => 'received',
             'payment_gateway_id' => $transaction->payment_gateway_id, 'payment_transaction_id' => $transaction->id,
-            'payload' => $request->all(), 'ip_address' => $request->ip(),
+            'payload' => $this->redactedPayload($request), 'ip_address' => $request->ip(),
         ]);
 
-        $result = $driver->verifyWebhook($transaction->gateway, $request);
+        $result = $driver->verifyWebhook($transaction->gateway, $transaction, $request);
 
         if (! $result) {
             $event->update(['status' => 'rejected']);
@@ -79,26 +80,53 @@ class PaymentWebhookController extends Controller
             abort(400, 'Invalid payment notification.');
         }
 
-        $event->update(['status' => 'verified']);
+        // Audit finding PAY-04: a verified-signature "paid" result was
+        // previously settled with no check that it was actually paying
+        // for THIS transaction's amount/currency. Only enforced for a
+        // 'paid' result — not for 'failed'/'cancelled', where the amount
+        // reported genuinely doesn't matter to us.
+        if ($result['status'] === 'paid' && ! $this->amountMatches($result, $transaction)) {
+            $event->update(['status' => 'rejected']);
 
-        $transaction->raw_webhook = $result['raw'];
-
-        if (! $transaction->isPaid()) {
-            $transaction->status = $result['status'];
-            $transaction->provider_reference = $result['provider_reference'] ?? $transaction->provider_reference;
-            $transaction->save();
-
-            if ($result['status'] === 'paid') {
-                $settlement->settle($transaction);
-            } elseif (in_array($result['status'], ['failed', 'cancelled'], true)) {
-                Payment::withoutGlobalScopes()->where('payment_transaction_id', $transaction->id)
-                    ->where('status', 'pending')
-                    ->update(['status' => $result['status']]);
-            }
-        } else {
-            $transaction->save();
+            abort(400, 'Payment amount or currency does not match the expected transaction.');
         }
 
+        $event->update(['status' => 'verified']);
+
+        // Audit finding PAY-01: marking the transaction paid and settling
+        // the invoice/subscription used to be two separate, unlocked
+        // writes. A crash between them left isPaid() permanently true
+        // with settlement never applied — and a retry then skipped
+        // settlement entirely, since the unpaid branch below never
+        // re-entered. Two concurrent deliveries could also both read
+        // isPaid() === false before either write landed, double-settling.
+        // Locking the row and doing both writes in one DB transaction
+        // fixes both: a mid-way failure rolls back the status save too
+        // (so a retry correctly redoes everything), and the lock
+        // serializes concurrent deliveries so the second one sees the
+        // already-paid status and does nothing.
+        DB::transaction(function () use ($transaction, $result, $settlement) {
+            $locked = PaymentTransaction::where('id', $transaction->id)->lockForUpdate()->first();
+            $locked->raw_webhook = $result['raw'];
+
+            if (! $locked->isPaid()) {
+                $locked->status = $result['status'];
+                $locked->provider_reference = $result['provider_reference'] ?? $locked->provider_reference;
+                $locked->save();
+
+                if ($result['status'] === 'paid') {
+                    $settlement->settle($locked);
+                } elseif (in_array($result['status'], ['failed', 'cancelled'], true)) {
+                    Payment::withoutGlobalScopes()->where('payment_transaction_id', $locked->id)
+                        ->where('status', 'pending')
+                        ->update(['status' => $result['status']]);
+                }
+            } else {
+                $locked->save();
+            }
+        });
+
+        $transaction->refresh();
         $event->update(['status' => 'processed']);
 
         if ($request->isMethod('get')) {
@@ -106,6 +134,53 @@ class PaymentWebhookController extends Controller
         }
 
         return new Response('OK', 200);
+    }
+
+    /**
+     * Audit finding PAY-04: Moyasar's webhook payload carries the shared
+     * secret_token the caller is proving it knows — logging it verbatim
+     * into PaymentGatewayWebhookEvent would mean every stored delivery
+     * (including rejected/duplicate ones logged before any driver-level
+     * handling runs) permanently persists that secret in plaintext.
+     * Stripped unconditionally, at whatever depth it appears, since
+     * nothing legitimate ever needs to read it back out of storage.
+     */
+    private function redactedPayload(Request $request): array
+    {
+        $payload = $request->all();
+        array_walk_recursive($payload, function (&$value, $key) {
+            if ($key === 'secret_token') {
+                $value = '[redacted]';
+            }
+        });
+
+        if (isset($payload['secret_token'])) {
+            $payload['secret_token'] = '[redacted]';
+        }
+
+        return $payload;
+    }
+
+    /**
+     * A driver that can't determine amount/currency (returns null for
+     * either) is treated as matching — not every driver's authoritative
+     * source necessarily echoes both back, and withholding settlement
+     * entirely for those would be a worse outcome than this check simply
+     * not applying. Currency is compared case-insensitively (providers
+     * are inconsistent about 'SAR' vs 'sar'); amount allows the same 0.01
+     * tolerance used throughout this app's own ledger comparisons.
+     */
+    private function amountMatches(array $result, PaymentTransaction $transaction): bool
+    {
+        if (isset($result['currency']) && strcasecmp((string) $result['currency'], (string) $transaction->currency) !== 0) {
+            return false;
+        }
+
+        if (isset($result['amount']) && abs((float) $result['amount'] - (float) $transaction->amount) > 0.01) {
+            return false;
+        }
+
+        return true;
     }
 
     private function redirectToLandingPage(PaymentTransaction $transaction)

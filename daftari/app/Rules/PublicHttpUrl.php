@@ -15,30 +15,45 @@ class PublicHttpUrl implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $url = trim((string) $value);
+        if (! self::isSafe((string) $value)) {
+            $fail(__('The :attribute must be a valid http:// or https:// URL that does not point to a private or internal address.'));
+        }
+    }
+
+    /**
+     * Audit finding SEC-05: this check previously only ran once, when the
+     * webhook URL was first saved — a DNS record a host resolves to is
+     * not fixed at save time. SendWebhookDelivery now calls this same
+     * logic again immediately before every actual delivery attempt
+     * (DNS-rebinding window shrunk from "the lifetime of the webhook" to
+     * "between this check and the connection a few milliseconds later" —
+     * full protection would need the resolved IP pinned for the
+     * connection itself, e.g. via CURLOPT_RESOLVE, which this does not
+     * attempt). Exposed as a static method, not just the validation-rule
+     * entry point, specifically so both callers share one implementation.
+     */
+    public static function isSafe(string $url): bool
+    {
+        $url = trim($url);
         $parts = parse_url($url);
 
         if (! $parts || empty($parts['scheme']) || empty($parts['host']) || ! in_array($parts['scheme'], ['http', 'https'], true)) {
-            $fail(__('The :attribute must be a valid http:// or https:// URL.'));
-
-            return;
+            return false;
         }
 
         $host = $parts['host'];
         $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : (gethostbynamel($host) ?: []);
 
         if (empty($ips)) {
-            $fail(__('The :attribute host could not be resolved.'));
-
-            return;
+            return false;
         }
 
         foreach ($ips as $ip) {
             if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                $fail(__('The :attribute must not point to a private or internal address.'));
-
-                return;
+                return false;
             }
         }
+
+        return true;
     }
 }

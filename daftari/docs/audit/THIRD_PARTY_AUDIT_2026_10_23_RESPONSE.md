@@ -77,6 +77,67 @@ Tracks remediation of the 38 findings in the uploaded third-party review (`Dafta
 **Files:** `app/Http/Controllers/FileServeController.php`
 **Tests:** covered by `TenantlessAccountCannotReachCompanyDataTest::test_an_unauthenticated_guest_can_still_reach_a_public_favicon`.
 
-## Batches B–H
+## Batch B — Payment gateway integrity
+
+| ID | Severity | Finding | Status |
+|---|---|---|---|
+| PAY-01 | High | Payment status and business settlement are not atomic or durably idempotent | **Fixed** |
+| PAY-02 | High | HyperPay status response is not bound to the expected checkout | **Fixed** |
+| PAY-03 | High | Tap webhook HMAC uses the wrong signed message | **Hardened — unverifiable from this environment** |
+| PAY-04 | High | Gateway settlement never checks the paid amount and currency | **Fixed** |
+| SEC-05 | High | Webhook SSRF defense is checked only when saving the URL | **Hardened — partial** |
+
+### PAY-01 — Non-atomic, non-idempotent settlement
+
+**Confirmed.** `PaymentWebhookController::handle()` saved `$transaction->status = 'paid'` and called `PaymentSettlementService::settle()` as two separate, unlocked writes. A crash between them left `isPaid()` permanently true with settlement never applied — and a retry then skipped settlement entirely, since the "unpaid" branch never re-entered. Two concurrent deliveries could also both read `isPaid() === false` before either write landed, each calling `settleInvoice()`, which unconditionally created a new `InvoicePayment` with no idempotency check of any kind.
+
+**Fix:** the status-save and `settle()` call now run inside one `DB::transaction()` with `PaymentTransaction::lockForUpdate()`. A failure mid-way rolls back the status save too, so a retry correctly redoes the whole sequence; the lock serializes concurrent deliveries so a second one sees the already-paid status and does nothing. Added a belt-and-suspenders idempotency anchor independent of the lock: a new `invoice_payments.payment_transaction_id` column (mirroring `payments.payment_transaction_id`, added earlier for the same reason on the subscription side) lets `settleInvoice()` refuse to create a second `InvoicePayment` for a transaction it's already settled, even if ever reached twice through some other path.
+
+**Files:** `app/Http/Controllers/PaymentWebhookController.php`, `app/Services/Payments/PaymentSettlementService.php`, `app/Models/InvoicePayment.php`
+**Migrations:** `2026_10_25_030000_add_payment_transaction_id_to_invoice_payments_table.php`
+**Tests:** `tests/Feature/PaymentWebhookIntegrityTest.php` — a payment settles the invoice exactly once; a duplicate webhook delivery never double-settles; calling `settle()` directly twice never creates a second `InvoicePayment`.
+
+### PAY-02 — HyperPay status not bound to the expected checkout
+
+**Confirmed.** `resourcePath` and `reference` both come from the unverified GET redirect. Within one merchant account, a genuinely-paid checkout's real `resourcePath` could be submitted paired with a *different*, attacker-chosen `reference` — the old code fetched (and trusted) the real successful status for the first checkout, then credited it to whatever `PaymentTransaction` the chosen reference resolved to.
+
+**Fix:** after the authoritative server-to-server status fetch, the response's own `merchantTransactionId` (set only by HyperPay, inside a response only reachable via our own access token) is cross-checked against `$transaction->reference` — the exact value *we* sent as `merchantTransactionId` when creating that specific checkout. A mismatch is rejected outright, regardless of how successful the underlying charge was.
+
+**Files:** `app/Services/Payments/Drivers/HyperPayDriver.php`, `app/Services/Payments/PaymentGatewayDriver.php` (interface now passes `$transaction` to `verifyWebhook()`)
+**Tests:** a resourcePath belonging to a different transaction's reference is rejected and settles nothing; a resourcePath matching its own transaction's reference is accepted.
+
+### PAY-03 — Tap webhook HMAC canonicalization
+
+**Confirmed a real discrepancy exists, could not confirm which side is correct.** This file's own code history already shows a previous switch between two candidate schemes (raw-JSON-body HMAC vs. a concatenated-field string), and public sources disagree on which Tap actually documents. Outbound access to `developers.tap.company` is blocked from this sandboxed environment (confirmed: direct `curl` returns `connect_rejected` from the egress proxy), so Tap's own documentation could not be read to settle this directly, and `WebSearch` turned up conflicting secondary sources.
+
+**Fix, deliberately conservative given the uncertainty:** rather than guess again and risk silently rejecting every real payment notification a second time, the signature check now accepts *either* canonicalization — the existing raw-JSON-body HMAC, or a concatenated-field string (charge id, amount, currency, gateway reference, payment reference, status, creation time) built from the best candidate found. This does not weaken security (both still require the real secret key) and maximizes the chance a legitimate webhook succeeds under whichever scheme Tap actually uses.
+
+**This must be confirmed against a real Tap sandbox callback before production reliance** — exactly the acceptance check the original audit itself specifies, and exactly what this response cannot execute. Tracked as a genuinely open item, not closed by this hardening.
+
+**Files:** `app/Services/Payments/Drivers/TapDriver.php`
+
+### PAY-04 — Gateway settlement never verified the paid amount/currency
+
+**Confirmed.** No driver's result was ever cross-checked against what the transaction actually expected. Moyasar was the most severe instance of this: it trusted the shared `secret_token` match alone and never independently retrieved the payment at all — meaning the webhook *body itself* (amount, status, everything) was fully attacker-controlled once the static secret was known. The same unredacted secret was also being persisted verbatim into every logged webhook payload.
+
+**Fix, two parts:**
+1. **Generic amount/currency check**: `PaymentGatewayDriver::verifyWebhook()` now returns `amount`/`currency` (from the authoritative source, not blindly the request body) for every driver; the controller rejects a `'paid'` result whose amount/currency don't match the `PaymentTransaction` it's about to settle (0.01 tolerance on amount, case-insensitive currency match). A driver that can't determine one is treated as matching, rather than blocking settlement entirely.
+2. **Moyasar specifically**: the webhook body is now used only as a lookup key (its `id`) to drive a real, secret-key-authenticated `GET` to Moyasar's own invoice endpoint — settlement is based entirely on *that* authoritative response, never on anything from the unauthenticated webhook body. The shared `secret_token` is now stripped (at whatever nesting depth) from every stored webhook payload, in both the driver's own `raw` result and the controller's `PaymentGatewayWebhookEvent.payload` audit trail.
+
+**Files:** `app/Services/Payments/PaymentGatewayDriver.php`, `app/Services/Payments/Drivers/{Tap,PayTabs,HyperPay,Moyasar}Driver.php`, `app/Http/Controllers/PaymentWebhookController.php`
+**Tests:** a correctly-signed Tap webhook claiming the wrong amount is rejected and never settles; Moyasar settlement reflects the fetched invoice's status, not the body's (body says `'initiated'`, fetched invoice says `'paid'` → settles as paid); the shared secret never appears in a stored, processed webhook event's payload.
+
+### SEC-05 — Webhook SSRF defense checked only at save time
+
+**Confirmed.** `PublicHttpUrl` ran once, at validation time; `SendWebhookDelivery::handle()` called `Http::post($webhook->url)` directly with no re-check — a DNS record a URL's host resolves to is not fixed for the lifetime of that webhook.
+
+**Fix, partial, scope deliberately bounded:** `PublicHttpUrl`'s IP-range check is now also run immediately before every actual delivery attempt (shrinks the DNS-rebinding window from "the webhook's entire lifetime" to "between this check and the connection a few milliseconds later" — not eliminated, since full protection needs the resolved IP pinned for the connection itself, e.g. via `CURLOPT_RESOLVE`, which this does not attempt). Automatic redirect-following is disabled (`allow_redirects => false`), closing the separate "a validated host 302s to an internal target" gap entirely.
+
+**Not done:** true DNS pinning (connect to the exact IP validated, while still presenting the correct Host/SNI) and per-redirect-hop validation, both named in the original recommendation — a meaningfully larger change (low-level cURL option wiring through Laravel's HTTP client) not attempted in this pass. An egress-level network policy blocking internal/metadata ranges at the infrastructure layer (also named in the recommendation) is outside what application code can provide at all.
+
+**Files:** `app/Rules/PublicHttpUrl.php` (exposed reusable `isSafe()`), `app/Jobs/SendWebhookDelivery.php`
+**Tests:** a delivery to a URL that now resolves to a private address is blocked before any HTTP call is attempted (asserted via `Http::assertNothingSent()`); a delivery to a genuinely public address still sends normally.
+
+## Batches C–H
 
 Not started. See the task list for scope; this file will be extended per batch as each lands.

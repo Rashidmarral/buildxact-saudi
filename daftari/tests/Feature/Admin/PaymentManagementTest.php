@@ -485,6 +485,12 @@ class PaymentManagementTest extends TestCase
     {
         ['transaction' => $transaction, 'subscription' => $subscription, 'payment' => $payment] = $this->makeMoyasarSetup();
 
+        // Audit finding PAY-04: the webhook body's status is no longer
+        // trusted — MoyasarDriver fetches the authoritative invoice via a
+        // real, secret-key-authenticated GET, using the body only as a
+        // lookup key for which invoice id to fetch.
+        Http::fake(['api.moyasar.com/v1/invoices/moy_1' => Http::response(['id' => 'moy_1', 'status' => 'paid', 'amount' => 10000, 'currency' => 'SAR'], 200)]);
+
         $response = $this->postJson('/payments/webhook/moyasar', [
             'secret_token' => 'whsec-123',
             'data' => ['id' => 'moy_1', 'status' => 'paid', 'metadata' => ['reference' => $transaction->reference]],
@@ -503,6 +509,8 @@ class PaymentManagementTest extends TestCase
     {
         ['transaction' => $transaction, 'payment' => $payment] = $this->makeMoyasarSetup();
 
+        Http::fake(['api.moyasar.com/v1/invoices/moy_1' => Http::response(['id' => 'moy_1', 'status' => 'failed', 'amount' => 10000, 'currency' => 'SAR'], 200)]);
+
         $this->postJson('/payments/webhook/moyasar', [
             'secret_token' => 'whsec-123',
             'data' => ['id' => 'moy_1', 'status' => 'failed', 'metadata' => ['reference' => $transaction->reference]],
@@ -515,6 +523,8 @@ class PaymentManagementTest extends TestCase
     public function test_webhook_detects_and_logs_an_exact_duplicate_delivery_without_reprocessing(): void
     {
         ['transaction' => $transaction] = $this->makeMoyasarSetup();
+
+        Http::fake(['api.moyasar.com/v1/invoices/moy_1' => Http::response(['id' => 'moy_1', 'status' => 'paid', 'amount' => 10000, 'currency' => 'SAR'], 200)]);
 
         $body = [
             'secret_token' => 'whsec-123',

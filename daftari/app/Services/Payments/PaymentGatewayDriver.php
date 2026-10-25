@@ -9,6 +9,15 @@ use Illuminate\Http\Request;
 interface PaymentGatewayDriver
 {
     /**
+     * Fields a normalized verifyWebhook() result must carry, beyond the
+     * minimum of status/provider_reference/reference/raw: 'amount' and
+     * 'currency' (as reported by the authoritative source — the provider's
+     * own status-check response wherever one exists, not blindly the
+     * request body) so the caller can reject a result whose amount/
+     * currency don't match the transaction it's about to settle
+     * (audit finding PAY-04).
+     */
+    /**
      * Pull OUR OWN reference (the PaymentTransaction UUID we sent when
      * creating the checkout) back out of an unverified webhook payload, so
      * the caller can look up which PaymentGateway — and therefore which
@@ -40,7 +49,15 @@ interface PaymentGatewayDriver
      * if the signature is invalid or the payload isn't a recognized event
      * — the caller must never act on an unverified payload.
      *
-     * @return array{status: string, provider_reference: ?string, reference: ?string, raw: array}|null
+     * $transaction is OUR OWN PaymentTransaction row, already resolved by
+     * reference before this is called — implementations that have their
+     * own authoritative status-check call (HyperPay, Moyasar) should use
+     * $transaction->provider_reference / ->reference to drive that call
+     * and to cross-check the authoritative response, rather than trusting
+     * identifiers taken from the unverified request alone (audit findings
+     * PAY-02, PAY-04).
+     *
+     * @return array{status: string, provider_reference: ?string, reference: ?string, amount: ?float, currency: ?string, raw: array}|null
      */
-    public function verifyWebhook(PaymentGateway $gateway, Request $request): ?array;
+    public function verifyWebhook(PaymentGateway $gateway, PaymentTransaction $transaction, Request $request): ?array;
 }

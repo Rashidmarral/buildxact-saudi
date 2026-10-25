@@ -120,9 +120,20 @@ class PaymentSettlementService
             return;
         }
 
+        // Audit finding PAY-01: belt-and-suspenders idempotency, in
+        // addition to the row lock PaymentWebhookController::handle()
+        // takes around the whole settle() call — if this is ever reached
+        // twice for the same transaction (a future call site that doesn't
+        // lock, a retried job), it must not create a second InvoicePayment
+        // for money that was only ever paid once.
+        if ($invoice->invoicePayments()->where('payment_transaction_id', $transaction->id)->exists()) {
+            return;
+        }
+
         $wasPaid = $invoice->status === 'paid';
 
         $payment = $invoice->invoicePayments()->create([
+            'payment_transaction_id' => $transaction->id,
             'amount' => $transaction->amount,
             'paid_at' => now(),
             'method' => 'online_'.$transaction->provider,

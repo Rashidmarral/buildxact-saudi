@@ -3,6 +3,7 @@
 namespace App\Services\Payments\Drivers;
 
 use App\Models\PaymentGateway;
+use App\Models\PaymentTransaction;
 use App\Services\Payments\PaymentGatewayDriver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -60,7 +61,7 @@ class PayTabsDriver implements PaymentGatewayDriver
         return $request->input('cart_id');
     }
 
-    public function verifyWebhook(PaymentGateway $gateway, Request $request): ?array
+    public function verifyWebhook(PaymentGateway $gateway, PaymentTransaction $transaction, Request $request): ?array
     {
         $serverKey = $gateway->credentials['server_key'] ?? '';
         $providedSignature = $request->header('Signature');
@@ -78,6 +79,8 @@ class PayTabsDriver implements PaymentGatewayDriver
             'status' => $status,
             'provider_reference' => $request->input('tran_ref'),
             'reference' => $this->extractReference($request),
+            'amount' => $request->input('cart_amount'),
+            'currency' => $request->input('cart_currency'),
             'raw' => $request->all(),
         ];
     }
