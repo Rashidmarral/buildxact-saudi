@@ -843,6 +843,42 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Removes a payment recorded in error — e.g. the real cash arrived as
+     * several separate bank transfers but was first entered as one lump
+     * sum, or a row that was duplicated by mistake. updatePayment() alone
+     * can correct a row's own date/amount/reference, but can't reduce the
+     * invoice back to fewer rows than were actually recorded; this is the
+     * other half of that correction. Blocked for a payment carrying a
+     * real payment_transaction_id (an online-gateway payment confirmed by
+     * a provider webhook) — that trail belongs to the gateway's own
+     * record of what happened and isn't something a manual correction
+     * here should silently erase; reversing one of those goes through the
+     * gateway/refund flow instead.
+     */
+    public function destroyPayment(Invoice $invoice, InvoicePayment $payment, LedgerPostingService $ledger)
+    {
+        abort_unless($payment->invoice_id === $invoice->id, 404);
+
+        if ($payment->payment_transaction_id) {
+            return back()->withErrors(['payment' => __('This payment was confirmed by an online payment gateway and cannot be deleted here — it reflects a real, provider-confirmed transaction.')]);
+        }
+
+        DB::transaction(function () use ($invoice, $payment, $ledger) {
+            $ledger->deletePosting($invoice->company, 'invoice_payment', $payment->id);
+            $payment->delete();
+            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+            $invoice->status = $invoice->isFullyPaid() ? 'paid' : ($invoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+            $invoice->save();
+        });
+
+        AuditLog::record('invoice.payment_delete', $invoice, __('Deleted a payment of :amount :currency on invoice :number', [
+            'amount' => number_format((float) $payment->amount, 2), 'currency' => $invoice->currency, 'number' => $invoice->invoice_number,
+        ]));
+
+        return back()->with('status', __('Payment deleted.'));
+    }
+
+    /**
      * Audit finding MEDIUM-16: lets a company split an invoice's total
      * into a scheduled payment plan (e.g. deposit + balance, or monthly
      * installments) shown to the client on both the internal show page and

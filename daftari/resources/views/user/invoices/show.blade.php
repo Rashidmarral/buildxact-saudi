@@ -188,8 +188,15 @@
                         <td class="py-2">{{ $payment->bankAccount?->name ?: '—' }}</td>
                         <td class="py-2">{{ $payment->reference ?: '—' }}</td>
                         <td class="py-2 text-end">{{ \App\Support\Money::format($payment->amount) }}</td>
-                        <td class="py-2 text-end">
+                        <td class="py-2 text-end whitespace-nowrap">
                             <button type="button" @click="editingPayment = {{ $payment->id }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Edit') }}</button>
+                            @unless ($payment->payment_transaction_id)
+                                <form method="POST" action="{{ route('app.invoices.payments.destroy', [$invoice, $payment]) }}" class="inline" onsubmit="return confirm('{{ __('Delete this payment? This cannot be undone.') }}')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ms-2 text-xs font-semibold text-red-600 hover:underline">{{ __('Delete') }}</button>
+                                </form>
+                            @endunless
                         </td>
                     </tr>
                     <tr class="border-b border-slate-50 last:border-0 bg-slate-50" x-show="editingPayment === {{ $payment->id }}" x-cloak>
