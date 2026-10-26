@@ -880,7 +880,7 @@ class ReportController extends Controller
         $openingBalance = 0.0;
 
         $invoices = $client->invoices()->whereNotIn('status', ['draft', 'cancelled'])->get();
-        $payments = InvoicePayment::whereIn('invoice_id', $invoices->pluck('id'))->get();
+        $payments = InvoicePayment::with('invoice', 'receiptVoucher')->whereIn('invoice_id', $invoices->pluck('id'))->get();
 
         foreach ($invoices as $invoice) {
             if ($invoice->issue_date->lt($period['from'])) {
@@ -893,7 +893,7 @@ class ReportController extends Controller
             if ($payment->paid_at->lt($period['from'])) {
                 $openingBalance -= $payment->amount;
             } elseif ($payment->paid_at->lte($period['to'])) {
-                $lines->push((object) ['date' => $payment->paid_at, 'description' => __('Payment received'), 'debit' => 0, 'credit' => $payment->amount]);
+                $lines->push((object) ['date' => $payment->paid_at, 'description' => $this->paymentDescription(__('Payment received'), $payment->invoice?->invoice_number, $payment->reference, $payment->receiptVoucher?->voucher_number), 'debit' => 0, 'credit' => $payment->amount]);
             }
         }
 
@@ -910,7 +910,7 @@ class ReportController extends Controller
         $openingBalance = 0.0;
 
         $bills = $supplier->bills()->whereNotIn('status', ['draft', 'void'])->get();
-        $payments = BillPayment::whereIn('bill_id', $bills->pluck('id'))->get();
+        $payments = BillPayment::with('bill', 'paymentVoucher')->whereIn('bill_id', $bills->pluck('id'))->get();
 
         foreach ($bills as $bill) {
             if ($bill->bill_date->lt($period['from'])) {
@@ -923,11 +923,37 @@ class ReportController extends Controller
             if ($payment->paid_at->lt($period['from'])) {
                 $openingBalance -= $payment->amount;
             } elseif ($payment->paid_at->lte($period['to'])) {
-                $lines->push((object) ['date' => $payment->paid_at, 'description' => __('Payment made'), 'debit' => $payment->amount, 'credit' => 0]);
+                $lines->push((object) ['date' => $payment->paid_at, 'description' => $this->paymentDescription(__('Payment made'), $payment->bill?->bill_number, $payment->reference, $payment->paymentVoucher?->voucher_number), 'debit' => $payment->amount, 'credit' => 0]);
             }
         }
 
         return [$this->runningBalance($lines, $openingBalance), $openingBalance];
+    }
+
+    /**
+     * "I need to update account statement to show transaction ... with
+     * reference of transaction" — every payment line here used to read
+     * as a bare "Payment received"/"Payment made" with no way to tell,
+     * from the statement alone, which document it settled or which real
+     * bank transfer/cheque it corresponds to. Folds the settled
+     * document's number, the payer's own reference (bank transfer ref,
+     * cheque number, ...), and the internal voucher number — whichever
+     * of the three actually exist for this payment — into the one
+     * description column every output (web, PDF, CSV) already renders,
+     * so no view template needs to grow a new column for it.
+     */
+    private function paymentDescription(string $label, ?string $documentNumber, ?string $reference, ?string $voucherNumber): string
+    {
+        if ($documentNumber) {
+            $label .= ' — '.$documentNumber;
+        }
+
+        $details = array_filter([
+            $reference ? __('Ref').': '.$reference : null,
+            $voucherNumber,
+        ]);
+
+        return $details ? $label.' ('.implode(', ', $details).')' : $label;
     }
 
     private function runningBalance($lines, float $openingBalance)

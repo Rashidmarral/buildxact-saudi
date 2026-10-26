@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class InvoicePayment extends Model
 {
@@ -19,6 +20,19 @@ class InvoicePayment extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * The Receipt Voucher this payment was settled through, when it was
+     * recorded that way — ReceiptVoucherController sets
+     * invoice_payment_id back onto the voucher once it creates this row
+     * (see settleInvoiceAndPost()). Not every payment has one: the
+     * "Record Payment" button directly on an invoice creates one with
+     * no voucher at all.
+     */
+    public function receiptVoucher(): HasOne
+    {
+        return $this->hasOne(ReceiptVoucher::class, 'invoice_payment_id');
     }
 
     public function bankAccount(): BelongsTo
