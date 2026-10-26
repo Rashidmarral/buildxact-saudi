@@ -59,6 +59,19 @@
                 <input type="checkbox" id="paid_by_owner" name="paid_by_owner" value="1" @checked(old('paid_by_owner', $expense->paid_by_owner))>
                 {{ __('I paid this personally — the company owes me back') }}
             </label>
+            <div class="mt-2">
+                <label class="flex items-center gap-2 text-xs text-slate-600">
+                    <input type="checkbox" id="paid_from_custody" value="1" @checked(old('employee_id', $expense->employee_id))>
+                    {{ __('Paid out of an employee\'s own cash advance (petty cash already given to them)') }}
+                </label>
+                <select name="employee_id" id="employee_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" @disabled(! old('employee_id', $expense->employee_id))>
+                    <option value="">{{ __('— Select employee —') }}</option>
+                    @foreach ($employees as $employee)
+                        <option value="{{ $employee->id }}" @selected(old('employee_id', $expense->employee_id) == $employee->id)>{{ $employee->full_name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-slate-400 mt-1">{{ __('This settles against that employee\'s outstanding advance instead of a bank/cash account — that cash already left the company when the advance itself was paid out.') }}</p>
+            </div>
         </div>
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Expense account') }}</label>
@@ -162,11 +175,32 @@
 
     const paidByOwner = document.getElementById('paid_by_owner');
     const bankAccountSelect = document.getElementById('bank_account_id');
-    paidByOwner.addEventListener('change', () => {
-        if (paidByOwner.checked) {
+    const paidFromCustody = document.getElementById('paid_from_custody');
+    const employeeSelect = document.getElementById('employee_id');
+
+    function syncPaidFrom() {
+        bankAccountSelect.disabled = paidByOwner.checked || paidFromCustody.checked;
+        employeeSelect.disabled = ! paidFromCustody.checked;
+        if (paidByOwner.checked || paidFromCustody.checked) {
             bankAccountSelect.value = '';
         }
-        bankAccountSelect.disabled = paidByOwner.checked;
+        if (! paidFromCustody.checked) {
+            employeeSelect.value = '';
+        }
+    }
+
+    paidByOwner.addEventListener('change', () => {
+        if (paidByOwner.checked) {
+            paidFromCustody.checked = false;
+        }
+        syncPaidFrom();
+    });
+
+    paidFromCustody.addEventListener('change', () => {
+        if (paidFromCustody.checked) {
+            paidByOwner.checked = false;
+        }
+        syncPaidFrom();
     });
 
     const scanInput = document.getElementById('receipt-scan-input');

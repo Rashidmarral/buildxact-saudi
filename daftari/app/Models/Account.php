@@ -35,6 +35,7 @@ class Account extends Model
             ['code' => '1150', 'name' => 'POS Card Clearing', 'name_ar' => 'حساب وسيط تحصيل نقاط البيع', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1200', 'name' => 'Accounts Receivable', 'name_ar' => 'الذمم المدينة', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1250', 'name' => 'AR – Retentions Receivable', 'name_ar' => 'ذمم مدينة - محتجزات', 'type' => 'asset', 'normal_balance' => 'debit'],
+            ['code' => '1260', 'name' => 'Due from Employees (Advances)', 'name_ar' => 'ذمم موظفين (سلف)', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1300', 'name' => 'VAT Input', 'name_ar' => 'ضريبة القيمة المضافة المدخلات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1310', 'name' => 'VAT Input – Imports', 'name_ar' => 'ضريبة مدخلات - الواردات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1400', 'name' => 'Inventory', 'name_ar' => 'المخزون', 'type' => 'asset', 'normal_balance' => 'debit'],

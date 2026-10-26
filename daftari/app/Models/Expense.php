@@ -15,7 +15,7 @@ class Expense extends Model
     public const TAX_CATEGORIES = ['standard_15', 'zero_rated', 'exempt'];
 
     protected $fillable = [
-        'company_id', 'expense_category_id', 'project_id', 'machinery_asset_id', 'machinery_hire_in_contract_id', 'bank_account_id', 'paid_by_owner', 'account_id', 'created_by',
+        'company_id', 'expense_category_id', 'project_id', 'machinery_asset_id', 'machinery_hire_in_contract_id', 'bank_account_id', 'employee_id', 'paid_by_owner', 'account_id', 'created_by',
         'vendor_name', 'description', 'amount', 'gross_amount', 'vat_amount', 'tax_category',
         'reference', 'expense_date', 'receipt_path',
         'status', 'approved_by', 'approved_at', 'rejection_reason',
@@ -58,6 +58,12 @@ class Expense extends Model
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class);
+    }
+
+    /** Set when this expense was paid out of an employee's own cash advance rather than a real bank/cash account — see EMPLOYEE_ADVANCES in LedgerPostingService::postExpense(). */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     public function account(): BelongsTo

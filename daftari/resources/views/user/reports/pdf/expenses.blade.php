@@ -58,7 +58,7 @@
                 <td>{{ $row->vendor_name }}</td>
                 <td>{{ $row->category->name ?? '' }}</td>
                 <td>{{ $row->description }}</td>
-                <td>{{ $row->paid_by_owner ? __('Owed to owner') : ($row->bankAccount?->name ?? __('Unpaid (payable)')) }}</td>
+                <td>{{ $row->paid_by_owner ? __('Owed to owner') : ($row->employee ? __(":employee's custody", ['employee' => $row->employee->full_name]) : ($row->bankAccount?->name ?? __('Unpaid (payable)'))) }}</td>
                 <td class="num">{{ number_format($row->amount, 2) }}</td>
                 <td class="num">{{ number_format($row->vat_amount, 2) }}</td>
             </tr>

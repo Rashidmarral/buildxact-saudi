@@ -54,6 +54,8 @@
                         <td class="px-6 py-3">
                             @if ($expense->paid_by_owner)
                                 <span class="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-700">{{ __('Owed to owner') }}</span>
+                            @elseif ($expense->employee)
+                                <span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">{{ __(':employee\'s custody', ['employee' => $expense->employee->full_name]) }}</span>
                             @else
                                 {{ $expense->bankAccount?->name ?? __('Unpaid (payable)') }}
                             @endif

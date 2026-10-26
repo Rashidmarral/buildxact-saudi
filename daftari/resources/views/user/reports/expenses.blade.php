@@ -89,7 +89,15 @@
                     <td class="px-5 py-3">{{ $expense->vendor_name ?: '—' }}</td>
                     <td class="px-5 py-3">{{ $expense->category->name ?? '—' }}</td>
                     <td class="px-5 py-3">{{ $expense->description }}</td>
-                    <td class="px-5 py-3">{{ $expense->paid_by_owner ? __('Owed to owner') : ($expense->bankAccount?->name ?? __('Unpaid (payable)')) }}</td>
+                    <td class="px-5 py-3">
+                        @if ($expense->paid_by_owner)
+                            {{ __('Owed to owner') }}
+                        @elseif ($expense->employee)
+                            {{ __(":employee's custody", ['employee' => $expense->employee->full_name]) }}
+                        @else
+                            {{ $expense->bankAccount?->name ?? __('Unpaid (payable)') }}
+                        @endif
+                    </td>
                     <td class="px-5 py-3">{{ $expense->project?->name ?? '—' }}</td>
                     <td class="px-5 py-3 text-end">{{ \App\Support\Money::format($expense->amount) }}</td>
                     <td class="px-5 py-3 text-end">{{ \App\Support\Money::format($expense->vat_amount) }}</td>

@@ -32,6 +32,7 @@ class AccountMapping extends Model
             'ACCOUNTS_PAYABLE' => ['label' => 'Accounts payable (suppliers)', 'default_code' => '2000'],
             'ACCOUNTS_RECEIVABLE' => ['label' => 'Accounts receivable (customers)', 'default_code' => '1200'],
             'AR_RETENTION' => ['label' => 'AR — retention', 'default_code' => '1250'],
+            'EMPLOYEE_ADVANCES' => ['label' => 'Due from employees (advances)', 'default_code' => '1260'],
             'DEFAULT_BANK' => ['label' => 'Default bank', 'default_code' => '1100'],
             'DEFAULT_CASH' => ['label' => 'Default cash', 'default_code' => '1000'],
             'ACCUMULATED_DEPRECIATION_DEFAULT' => ['label' => 'Accumulated depreciation (default)', 'default_code' => '1550'],

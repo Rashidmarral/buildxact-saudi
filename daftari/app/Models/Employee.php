@@ -70,6 +70,12 @@ class Employee extends Model
         return $this->hasMany(ReceiptVoucher::class);
     }
 
+    /** Real company expenses actually paid for out of this employee's cash advance — the other settlement side (see Expense::employee_id). */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     public function totalAdvanced(): float
     {
         return (float) $this->paymentVouchers()->where('status', 'issued')->sum('amount');
@@ -80,9 +86,23 @@ class Employee extends Model
         return (float) $this->receiptVouchers()->where('status', 'issued')->sum('amount');
     }
 
+    public function totalSpent(): float
+    {
+        return (float) $this->expenses()->sum('gross_amount');
+    }
+
+    /**
+     * What this employee still holds (or owes back) out of every advance
+     * they've ever been given: given minus whatever they've either spent
+     * on real, itemized company expenses or physically returned unused.
+     * Previously only subtracted returned cash — an advance Khalid had
+     * genuinely spent on real purchases (recorded as Expense rows with
+     * employee_id set) still showed as fully outstanding even though it
+     * was no longer sitting in his pocket.
+     */
     public function outstandingAdvanceTotal(): float
     {
-        return round($this->totalAdvanced() - $this->totalSettled(), 2);
+        return round($this->totalAdvanced() - $this->totalSettled() - $this->totalSpent(), 2);
     }
 
     public function grossSalary(): float

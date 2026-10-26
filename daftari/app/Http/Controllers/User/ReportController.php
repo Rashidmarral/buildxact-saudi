@@ -367,7 +367,7 @@ class ReportController extends Controller
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
 
-        $expenses = Expense::with('category', 'bankAccount', 'project')
+        $expenses = Expense::with('category', 'bankAccount', 'employee', 'project')
             ->whereBetween('expense_date', [$period['from'], $period['to']])
             ->when($request->filled('category_id'), fn ($q) => $q->where('expense_category_id', $request->query('category_id')))
             ->when($request->filled('bank_account_id'), fn ($q) => $q->where('bank_account_id', $request->query('bank_account_id')))
@@ -382,7 +382,7 @@ class ReportController extends Controller
             return $this->csvResponse('expense-report.csv', [__('Date'), __('Vendor'), __('Category'), __('Description'), __('Account'), __('Project'), __('Amount'), __('VAT')],
                 $expenses->map(fn ($e) => [
                     $e->expense_date->format('Y-m-d'), $e->vendor_name, $e->category->name ?? '', $e->description,
-                    $e->paid_by_owner ? __('Owed to owner') : ($e->bankAccount?->name ?? __('Unpaid (payable)')),
+                    $this->expenseAccountLabel($e),
                     $e->project?->name ?? '',
                     number_format($e->amount, 2, '.', ''), number_format($e->vat_amount, 2, '.', ''),
                 ]));
@@ -393,11 +393,12 @@ class ReportController extends Controller
 
         // Same amount the table/PDF total row shows, split by whichever
         // account actually paid each expense — exactly "account wise"
-        // tracking, so an operating-vs-custody split is a glance away
-        // instead of re-running the filter once per account.
-        $byAccount = $expenses->groupBy(fn (Expense $e) => $e->paid_by_owner ? 'owner' : ($e->bank_account_id ?: 'unpaid'))
-            ->map(fn ($group, $key) => [
-                'label' => $key === 'owner' ? __('Owed to owner') : ($key === 'unpaid' ? __('Unpaid (payable)') : $group->first()->bankAccount?->name),
+        // tracking, so an operating-vs-custody split (or a custodian's
+        // own spend) is a glance away instead of re-running the filter
+        // once per account.
+        $byAccount = $expenses->groupBy(fn (Expense $e) => $e->paid_by_owner ? 'owner' : ($e->employee_id ? 'employee-'.$e->employee_id : ($e->bank_account_id ?: 'unpaid')))
+            ->map(fn ($group) => [
+                'label' => $this->expenseAccountLabel($group->first()),
                 'amount' => $group->sum('amount'),
                 'vat_amount' => $group->sum('vat_amount'),
                 'count' => $group->count(),
@@ -424,6 +425,20 @@ class ReportController extends Controller
             'vatTotal' => $vatTotal,
             'byAccount' => $byAccount,
         ]);
+    }
+
+    /** What actually paid this expense — a real financial account, the owner personally, or an employee's own cash advance (see Expense::employee_id). */
+    private function expenseAccountLabel(Expense $expense): string
+    {
+        if ($expense->paid_by_owner) {
+            return __('Owed to owner');
+        }
+
+        if ($expense->employee_id) {
+            return __(":employee's custody", ['employee' => $expense->employee?->full_name]);
+        }
+
+        return $expense->bankAccount?->name ?? __('Unpaid (payable)');
     }
 
     /**
@@ -797,10 +812,15 @@ class ReportController extends Controller
 
     /**
      * Audit finding CASH-02: every active employee's running cash-advance
-     * balance — what they've been given via Payment Vouchers minus what
-     * they've repaid via Receipt Vouchers. A running balance, not a
-     * period report, since an advance outstanding from last quarter is
-     * still owed today regardless of what date range someone picks.
+     * balance — what they've been given via Payment Vouchers, minus what
+     * they've repaid via Receipt Vouchers, minus what they've actually
+     * spent on real, itemized company expenses (Expense::employee_id —
+     * see LedgerPostingService::postExpense()). "spent" previously
+     * wasn't tracked at all: an advance Khalid genuinely spent on
+     * materials still showed as fully outstanding, as if he still held
+     * all of it in cash. A running balance, not a period report, since
+     * an advance outstanding from last quarter is still owed today
+     * regardless of what date range someone picks.
      */
     public function employeeAdvances(Request $request)
     {
@@ -809,30 +829,33 @@ class ReportController extends Controller
         $rows = Employee::query()
             ->withSum(['paymentVouchers as advanced_sum' => fn ($q) => $q->where('status', 'issued')], 'amount')
             ->withSum(['receiptVouchers as settled_sum' => fn ($q) => $q->where('status', 'issued')], 'amount')
+            ->withSum('expenses as spent_sum', 'gross_amount')
             ->orderBy('full_name')
             ->get()
             ->map(fn (Employee $employee) => [
                 'employee' => $employee,
                 'advanced' => (float) $employee->advanced_sum,
                 'settled' => (float) $employee->settled_sum,
-                'outstanding' => round((float) $employee->advanced_sum - (float) $employee->settled_sum, 2),
+                'spent' => (float) $employee->spent_sum,
+                'outstanding' => round((float) $employee->advanced_sum - (float) $employee->settled_sum - (float) $employee->spent_sum, 2),
             ])
-            ->filter(fn (array $row) => $row['advanced'] > 0 || $row['settled'] > 0)
+            ->filter(fn (array $row) => $row['advanced'] > 0 || $row['settled'] > 0 || $row['spent'] > 0)
             ->values();
 
         $summary = [
             'totalAdvanced' => $rows->sum('advanced'),
             'totalSettled' => $rows->sum('settled'),
+            'totalSpent' => $rows->sum('spent'),
             'totalOutstanding' => $rows->sum('outstanding'),
         ];
 
         if ($request->query('export') === 'csv') {
             return $this->csvResponse('employee-advances.csv',
-                [__('Employee'), __('Employee No.'), __('Advanced'), __('Settled'), __('Outstanding')],
+                [__('Employee'), __('Employee No.'), __('Advanced'), __('Settled'), __('Spent'), __('Outstanding')],
                 $rows->map(fn (array $r) => [
                     $r['employee']->full_name, $r['employee']->employee_number,
                     number_format($r['advanced'], 2, '.', ''), number_format($r['settled'], 2, '.', ''),
-                    number_format($r['outstanding'], 2, '.', ''),
+                    number_format($r['spent'], 2, '.', ''), number_format($r['outstanding'], 2, '.', ''),
                 ]));
         }
 

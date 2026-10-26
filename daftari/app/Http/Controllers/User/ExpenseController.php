@@ -7,6 +7,7 @@ use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\MachineryAsset;
@@ -28,7 +29,7 @@ class ExpenseController extends Controller
 
     public function index(Request $request)
     {
-        $expenses = Expense::with('category', 'bankAccount', 'account')->orderByDesc('expense_date')->paginate($this->resolvePerPage($request))->withQueryString();
+        $expenses = Expense::with('category', 'bankAccount', 'employee', 'account')->orderByDesc('expense_date')->paginate($this->resolvePerPage($request))->withQueryString();
         $categories = ExpenseCategory::orderBy('name')->get();
 
         return view('user.expenses.index', compact('expenses', 'categories'));
@@ -47,6 +48,7 @@ class ExpenseController extends Controller
             'machinery' => MachineryAsset::orderBy('name')->get(),
             'hireInContracts' => MachineryHireInContract::where('status', 'active')->orderBy('contract_number')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
             'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
             'ocrConfigured' => $ocr->isConfigured(),
         ]);
@@ -118,6 +120,16 @@ class ExpenseController extends Controller
 
     public function edit(Expense $expense)
     {
+        $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
+
+        // This expense's own employee may have since left — keep them
+        // selectable on the edit form even though they're excluded above,
+        // mirroring the same treatment ReceiptVoucherController::edit()
+        // already gives a voucher's own inactive employee.
+        if ($expense->employee_id && ! $employees->contains('id', $expense->employee_id)) {
+            $employees = $employees->push($expense->employee)->sortBy('full_name')->values();
+        }
+
         return view('user.expenses.form', [
             'expense' => $expense,
             'categories' => ExpenseCategory::orderBy('name')->get(),
@@ -125,6 +137,7 @@ class ExpenseController extends Controller
             'machinery' => MachineryAsset::orderBy('name')->get(),
             'hireInContracts' => MachineryHireInContract::where('status', 'active')->orderBy('contract_number')->get(),
             'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'employees' => $employees,
             'glAccounts' => Account::where('is_active', true)->orderBy('code')->get(),
         ]);
     }
@@ -311,6 +324,7 @@ class ExpenseController extends Controller
             'machinery_asset_id' => ['nullable', Rule::exists('machinery_assets', 'id')->where('company_id', $companyId)],
             'machinery_hire_in_contract_id' => ['nullable', Rule::exists('machinery_hire_in_contracts', 'id')->where('company_id', $companyId)],
             'bank_account_id' => ['nullable', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
+            'employee_id' => ['nullable', Rule::exists('employees', 'id')->where('company_id', $companyId)],
             'paid_by_owner' => ['sometimes', 'boolean'],
             'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'vendor_name' => ['nullable', 'string', 'max:255'],
@@ -330,6 +344,19 @@ class ExpenseController extends Controller
         $data['paid_by_owner'] = $request->boolean('paid_by_owner');
         if ($data['paid_by_owner']) {
             $data['bank_account_id'] = null;
+        }
+
+        // "paid to khalid 10000 then i have record expenses for that
+        // 10000 cash of khalid account" — an expense actually paid out
+        // of an employee's own cash advance (petty cash already handed
+        // to them via a Payment Voucher) didn't come out of a real
+        // company bank/cash account at the moment it was spent — that
+        // cash already left the company when the advance itself was
+        // paid out. Picking an employee here is mutually exclusive with
+        // both a financial account and the owner's own money.
+        if (! empty($data['employee_id'])) {
+            $data['bank_account_id'] = null;
+            $data['paid_by_owner'] = false;
         }
 
         return $data;

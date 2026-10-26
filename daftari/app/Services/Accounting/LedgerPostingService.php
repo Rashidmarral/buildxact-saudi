@@ -478,12 +478,18 @@ class LedgerPostingService
 
         // An explicit counter account on the voucher always wins (e.g. the
         // user knows this receipt should be credited to a specific account).
-        // Otherwise: linked to an invoice settles Accounts Receivable;
-        // anything else is a general receipt booked to Other Income.
+        // Otherwise: linked to an invoice settles Accounts Receivable; cash
+        // an employee hands back with nothing else attached is unused
+        // advance being returned — it relieves Due from Employees, not
+        // Other Income (the money was never ours to earn, it was simply
+        // handed back); anything else is a general receipt booked to
+        // Other Income.
         $counterpart = $voucher->counterAccount
             ?? ($voucher->invoice_id
                 ? $this->account($company, 'ACCOUNTS_RECEIVABLE')
-                : $this->account($company, 'OTHER_INCOME_DEFAULT'));
+                : ($voucher->party_type === 'employee'
+                    ? $this->account($company, 'EMPLOYEE_ADVANCES')
+                    : $this->account($company, 'OTHER_INCOME_DEFAULT')));
 
         $this->requireAccounts(['DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank, 'counterpart' => $counterpart], 'receipt voucher');
 
@@ -683,12 +689,20 @@ class LedgerPostingService
 
         // An explicit counter account on the voucher always wins. Otherwise:
         // linked to a bill or expense settles Accounts Payable (the bill or
-        // the expense already posted its own accrual); anything else is a
-        // direct, unaccrued payment booked straight to operating expenses.
+        // the expense already posted its own accrual); cash handed to an
+        // employee with nothing else attached is a cash advance — an
+        // asset the employee still owes back, not yet a real company cost
+        // — so it debits Due from Employees rather than being recognized
+        // as an expense the moment it's handed over (it becomes a real
+        // expense only when Expense::employee_id later settles it, see
+        // postExpense()); anything else is a direct, unaccrued payment
+        // booked straight to operating expenses.
         $counterpart = $voucher->counterAccount
             ?? (($voucher->bill_id || $voucher->expense_id)
                 ? $this->account($company, 'ACCOUNTS_PAYABLE')
-                : $this->account($company, 'DEFAULT_OPERATING_EXPENSES'));
+                : ($voucher->party_type === 'employee'
+                    ? $this->account($company, 'EMPLOYEE_ADVANCES')
+                    : $this->account($company, 'DEFAULT_OPERATING_EXPENSES')));
 
         $this->requireAccounts(['DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank, 'counterpart' => $counterpart], 'payment voucher');
 
@@ -871,12 +885,18 @@ class LedgerPostingService
         $vatInput = $this->account($company, 'VAT_INPUT');
 
         // Paid immediately from a financial account when one is chosen;
-        // otherwise recorded as an accrued payable, to be settled later by
-        // a Payment Voucher referencing this expense.
+        // out of an employee's own cash advance when employee_id is set
+        // (relieves Due from Employees instead of touching cash/bank
+        // again — that cash already left the company when the advance
+        // itself was paid out via postPaymentVoucher()); otherwise
+        // recorded as an accrued payable, to be settled later by a
+        // Payment Voucher referencing this expense.
         $bankAccount = $expense->bankAccount;
-        $counterpart = $bankAccount
-            ? $this->bankOrCashAccount($company, $bankAccount->type)
-            : $this->account($company, 'ACCOUNTS_PAYABLE');
+        $counterpart = $expense->employee_id
+            ? $this->account($company, 'EMPLOYEE_ADVANCES')
+            : ($bankAccount
+                ? $this->bankOrCashAccount($company, $bankAccount->type)
+                : $this->account($company, 'ACCOUNTS_PAYABLE'));
 
         $this->requireAccounts(['expense account' => $expenseAccount, 'counterpart' => $counterpart], 'expense');
 
