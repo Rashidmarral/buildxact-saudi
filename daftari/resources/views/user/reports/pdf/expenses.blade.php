@@ -18,6 +18,27 @@
     ['label_en' => __('VAT'), 'label_ar' => 'ضريبة القيمة المضافة', 'value' => \App\Support\Money::format($vatTotal), 'variant' => 'neutral'],
 ]])
 
+@if (isset($byAccount) && $byAccount->count() > 1)
+<table class="data-table" style="margin-top: 16px;">
+    <thead>
+        <tr>
+            <th>{{ __('Account') }}</th>
+            <th class="num">{{ __('Amount') }}</th>
+            <th class="num">{{ __('VAT') }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($byAccount as $row)
+            <tr>
+                <td>{{ $row['label'] }}</td>
+                <td class="num">{{ number_format($row['amount'], 2) }}</td>
+                <td class="num">{{ number_format($row['vat_amount'], 2) }}</td>
+            </tr>
+        @endforeach
+    </tbody>
+</table>
+@endif
+
 <table class="data-table" style="margin-top: 16px;">
     <thead>
         <tr>
@@ -25,6 +46,7 @@
             <th>{{ __('Vendor') }}</th>
             <th>{{ __('Category') }}</th>
             <th>{{ __('Description') }}</th>
+            <th>{{ __('Account') }}</th>
             <th class="num">{{ __('Amount') }}</th>
             <th class="num">{{ __('VAT') }}</th>
         </tr>
@@ -36,12 +58,13 @@
                 <td>{{ $row->vendor_name }}</td>
                 <td>{{ $row->category->name ?? '' }}</td>
                 <td>{{ $row->description }}</td>
+                <td>{{ $row->paid_by_owner ? __('Owed to owner') : ($row->bankAccount?->name ?? __('Unpaid (payable)')) }}</td>
                 <td class="num">{{ number_format($row->amount, 2) }}</td>
                 <td class="num">{{ number_format($row->vat_amount, 2) }}</td>
             </tr>
         @endforeach
         <tr class="total-row">
-            <td colspan="4">{{ __('TOTAL') }}</td>
+            <td colspan="5">{{ __('TOTAL') }}</td>
             <td class="num">{{ number_format($total, 2) }}</td>
             <td class="num">{{ number_format($vatTotal, 2) }}</td>
         </tr>

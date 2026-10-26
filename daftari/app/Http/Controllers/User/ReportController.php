@@ -7,6 +7,7 @@ use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesReportPeriod;
 use App\Models\Account;
 use App\Models\AdvanceCreditApplication;
+use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Client;
@@ -20,6 +21,7 @@ use App\Models\InvoicePayment;
 use App\Models\Item;
 use App\Models\PrepaymentInvoice;
 use App\Models\PrepaymentInvoiceApplication;
+use App\Models\Project;
 use App\Models\Salesperson;
 use App\Models\Supplier;
 use App\Models\Warehouse;
@@ -350,14 +352,26 @@ class ReportController extends Controller
         ] + $salesSummary);
     }
 
+    /**
+     * "i need to track project expenses from operating account" — an
+     * operator moving cash from an operating bank account into a
+     * separate custody/petty-cash account (both already modeled as
+     * BankAccount rows) had no way to see which of those two accounts
+     * actually paid a given expense, or to total that split by account.
+     * bank_account_id/project_id filters plus a per-account breakdown
+     * answer that without needing a new concept — Expense already
+     * records which BankAccount it was paid from.
+     */
     public function expenses(Request $request)
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
 
-        $expenses = Expense::with('category')
+        $expenses = Expense::with('category', 'bankAccount', 'project')
             ->whereBetween('expense_date', [$period['from'], $period['to']])
             ->when($request->filled('category_id'), fn ($q) => $q->where('expense_category_id', $request->query('category_id')))
+            ->when($request->filled('bank_account_id'), fn ($q) => $q->where('bank_account_id', $request->query('bank_account_id')))
+            ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->query('project_id')))
             ->when($request->filled('search'), fn ($q) => $q->where(fn ($q2) => $q2
                 ->where('vendor_name', 'like', '%'.$request->query('search').'%')
                 ->orWhere('description', 'like', '%'.$request->query('search').'%')))
@@ -365,16 +379,35 @@ class ReportController extends Controller
             ->get();
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse('expense-report.csv', [__('Date'), __('Vendor'), __('Category'), __('Description'), __('Amount'), __('VAT')],
-                $expenses->map(fn ($e) => [$e->expense_date->format('Y-m-d'), $e->vendor_name, $e->category->name ?? '', $e->description, number_format($e->amount, 2, '.', ''), number_format($e->vat_amount, 2, '.', '')]));
+            return $this->csvResponse('expense-report.csv', [__('Date'), __('Vendor'), __('Category'), __('Description'), __('Account'), __('Project'), __('Amount'), __('VAT')],
+                $expenses->map(fn ($e) => [
+                    $e->expense_date->format('Y-m-d'), $e->vendor_name, $e->category->name ?? '', $e->description,
+                    $e->paid_by_owner ? __('Owed to owner') : ($e->bankAccount?->name ?? __('Unpaid (payable)')),
+                    $e->project?->name ?? '',
+                    number_format($e->amount, 2, '.', ''), number_format($e->vat_amount, 2, '.', ''),
+                ]));
         }
 
         $total = $expenses->sum('amount');
         $vatTotal = $expenses->sum('vat_amount');
 
+        // Same amount the table/PDF total row shows, split by whichever
+        // account actually paid each expense — exactly "account wise"
+        // tracking, so an operating-vs-custody split is a glance away
+        // instead of re-running the filter once per account.
+        $byAccount = $expenses->groupBy(fn (Expense $e) => $e->paid_by_owner ? 'owner' : ($e->bank_account_id ?: 'unpaid'))
+            ->map(fn ($group, $key) => [
+                'label' => $key === 'owner' ? __('Owed to owner') : ($key === 'unpaid' ? __('Unpaid (payable)') : $group->first()->bankAccount?->name),
+                'amount' => $group->sum('amount'),
+                'vat_amount' => $group->sum('vat_amount'),
+                'count' => $group->count(),
+            ])
+            ->sortByDesc('amount')
+            ->values();
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.expenses', [
-                'company' => $company, 'period' => $period, 'expenses' => $expenses, 'total' => $total, 'vatTotal' => $vatTotal,
+                'company' => $company, 'period' => $period, 'expenses' => $expenses, 'total' => $total, 'vatTotal' => $vatTotal, 'byAccount' => $byAccount,
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="expense-report.pdf"']);
@@ -385,8 +418,11 @@ class ReportController extends Controller
             'period' => $period,
             'expenses' => $expenses,
             'categories' => ExpenseCategory::orderBy('name')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'projects' => Project::orderBy('name')->get(),
             'total' => $total,
             'vatTotal' => $vatTotal,
+            'byAccount' => $byAccount,
         ]);
     }
 
