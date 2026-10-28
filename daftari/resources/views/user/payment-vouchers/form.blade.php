@@ -262,7 +262,13 @@
         billsById[bill.id] = bill;
         const opt = document.createElement('option');
         opt.value = bill.id;
-        opt.textContent = bill.bill_number + ' — SAR ' + bill.balance;
+        // A bill already settled to zero (or less) can still be
+        // selected — e.g. to correct a misallocated voucher, or to
+        // attach one more real transfer discovered after the fact —
+        // the "(fully paid)" suffix is just so it's obvious why its
+        // balance reads SAR 0.00 instead of hiding it from the list.
+        const settled = parseFloat(bill.balance) <= 0;
+        opt.textContent = bill.bill_number + ' — SAR ' + bill.balance + (settled ? ' ' + @json(__('(fully paid)')) : '');
         billSelect.appendChild(opt);
     }
 

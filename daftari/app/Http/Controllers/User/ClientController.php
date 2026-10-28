@@ -140,10 +140,26 @@ class ClientController extends Controller
         ];
     }
 
+    /**
+     * "once the invoice linked to voucher it's not available to another
+     * voucher" — this used to exclude any invoice whose status wasn't
+     * sent/partially_paid/overdue, so the moment one Receipt Voucher's
+     * payment pushed an invoice to 'paid' (including a large advance
+     * covering most of it, or simply the invoice being genuinely
+     * settled), it vanished from every future voucher's picker —
+     * blocking the exact "several separate real-world transfers settle
+     * one invoice" workflow the voucher-to-invoice link exists for, and
+     * any later correction (e.g. a misallocated voucher needs to be
+     * re-pointed at an invoice that already looks paid). Now includes
+     * 'paid' invoices too (still excluding draft — not yet sent, so
+     * nothing to pay — and cancelled), sorted with a real remaining
+     * balance first so the common case (an invoice still owed) isn't
+     * buried under a long list of already-settled ones.
+     */
     public function outstandingInvoices(Client $client)
     {
         $invoices = $client->invoices()
-            ->whereIn('status', ['sent', 'partially_paid', 'overdue'])
+            ->whereIn('status', ['sent', 'partially_paid', 'overdue', 'paid'])
             ->with('items')
             ->get()
             ->map(fn ($invoice) => [
@@ -152,12 +168,14 @@ class ClientController extends Controller
                 'date' => $invoice->issue_date->format('Y-m-d'),
                 'total' => number_format((float) $invoice->total, 2),
                 'balance' => number_format($invoice->balanceDue(), 2),
+                'balance_raw' => $invoice->balanceDue(),
                 'project_id' => $invoice->project_id,
                 'items' => $invoice->items->map(fn ($line) => [
                     'description' => $line->description,
                     'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),
                 ])->values(),
             ])
+            ->sortByDesc(fn ($row) => $row['balance_raw'] > 0 ? 1 : 0)
             ->values();
 
         return response()->json($invoices);

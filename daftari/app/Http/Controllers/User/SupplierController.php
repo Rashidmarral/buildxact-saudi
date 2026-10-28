@@ -51,25 +51,33 @@ class SupplierController extends Controller
         ]);
     }
 
+    /**
+     * See ClientController::outstandingInvoices()'s own doc block — the
+     * exact same bug, on the payables side: a bill that balanceDue()
+     * had already brought to zero used to disappear from every future
+     * Payment Voucher's picker, blocking more than one voucher from
+     * ever settling (or correcting) the same bill.
+     */
     public function outstandingBills(Supplier $supplier)
     {
         $bills = $supplier->bills()
             ->where('status', 'posted')
             ->with('items')
             ->get()
-            ->filter(fn ($bill) => $bill->balanceDue() > 0)
             ->map(fn ($bill) => [
                 'id' => $bill->id,
                 'bill_number' => $bill->bill_number,
                 'date' => $bill->bill_date->format('Y-m-d'),
                 'total' => number_format((float) $bill->total, 2),
                 'balance' => number_format($bill->balanceDue(), 2),
+                'balance_raw' => $bill->balanceDue(),
                 'project_id' => $bill->project_id,
                 'items' => $bill->items->map(fn ($line) => [
                     'description' => $line->description,
                     'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),
                 ])->values(),
             ])
+            ->sortByDesc(fn ($row) => $row['balance_raw'] > 0 ? 1 : 0)
             ->values();
 
         return response()->json($bills);

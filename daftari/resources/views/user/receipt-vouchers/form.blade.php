@@ -253,7 +253,13 @@
         invoicesById[invoice.id] = invoice;
         const opt = document.createElement('option');
         opt.value = invoice.id;
-        opt.textContent = invoice.invoice_number + ' — SAR ' + invoice.balance;
+        // An invoice already settled to zero (or less) can still be
+        // selected — e.g. to correct a misallocated voucher, or to
+        // attach one more real transfer discovered after the fact —
+        // the "(fully paid)" suffix is just so it's obvious why its
+        // balance reads SAR 0.00 instead of hiding it from the list.
+        const settled = parseFloat(invoice.balance) <= 0;
+        opt.textContent = invoice.invoice_number + ' — SAR ' + invoice.balance + (settled ? ' ' + @json(__('(fully paid)')) : '');
         invoiceSelect.appendChild(opt);
     }
 
