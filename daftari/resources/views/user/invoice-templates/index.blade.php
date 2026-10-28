@@ -14,6 +14,7 @@
         'payment_voucher' => __('Payment vouchers'),
         'voucher_summary' => __('Voucher summaries'),
         'client_statement' => __('Client statements'),
+        'account_statement' => __('Account Statement (Reports)'),
         'project_cash_flow' => __('Project Cash Flow'),
         'letter' => __('Letters & Agreements'),
         'machinery_statement' => __('Machinery Statement'),

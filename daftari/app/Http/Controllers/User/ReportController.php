@@ -565,6 +565,7 @@ class ReportController extends Controller
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.account-statement', [
                 'company' => $company, 'period' => $period, 'party' => $party, 'type' => $type,
                 'lines' => $lines, 'openingBalance' => $openingBalance, 'closingBalance' => $closingBalance,
+                'template' => $company->defaultTemplateFor('account_statement'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="account-statement.pdf"']);

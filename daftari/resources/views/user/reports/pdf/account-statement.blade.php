@@ -3,10 +3,21 @@
     shared, bilingual, branded report-PDF design. Replaces the old
     separate monolingual pdf-ar/pdf-en exports: the shared design
     already shows both languages side by side, so one PDF covers both.
+
+    A company's own Invoice Templates design (document_type =
+    'account_statement') can swap the standard navy header band for a
+    full-bleed letterhead image, and/or add a footer banner image —
+    the exact same mechanism letter-pdf.blade.php and
+    client-statement-pdf.blade.php already offer, registered as mPDF's
+    own repeating <htmlpageheader>/<htmlpagefooter> so either image
+    repeats on every page a long statement spans, not just the first.
 --}}
 @php
     $logoData = $embed($company->logo_path ?? null);
     $isCustomer = $type === 'customer';
+    $letterheadData = $embed($template->letterhead_path ?? null);
+    $footerData = $embed($template->footer_path ?? null);
+    $layout = $template->layout ?? null;
 @endphp
 <!DOCTYPE html>
 <html>
@@ -18,7 +29,21 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('ACCOUNT STATEMENT'), 'titleAr' => 'كشف حساب'])
+@if ($layout === 'custom_letterhead' && $letterheadData)
+    <htmlpageheader name="statement-letterhead">
+        <img src="{{ $letterheadData }}" style="width: 100%;" alt="">
+    </htmlpageheader>
+    <sethtmlpageheader name="statement-letterhead" page="ALL" show-this-page="1" />
+@else
+    @include('documents.print.partials.report.header', ['titleEn' => __('ACCOUNT STATEMENT'), 'titleAr' => 'كشف حساب'])
+@endif
+
+@if ($footerData)
+    <htmlpagefooter name="statement-footer">
+        <img src="{{ $footerData }}" style="width: 100%;" alt="">
+    </htmlpagefooter>
+    <sethtmlpagefooter name="statement-footer" page="ALL" />
+@endif
 
 <table class="party-box">
     <tr>
