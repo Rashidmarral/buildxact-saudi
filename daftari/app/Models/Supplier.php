@@ -64,6 +64,11 @@ class Supplier extends Model
         return $this->hasMany(CustomsDeclaration::class);
     }
 
+    public function subcontracts(): HasMany
+    {
+        return $this->hasMany(Subcontract::class);
+    }
+
     public function fullAddress(): string
     {
         return collect([

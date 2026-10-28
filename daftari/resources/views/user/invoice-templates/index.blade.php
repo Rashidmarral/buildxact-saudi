@@ -34,6 +34,7 @@
         'cash_tracker_report' => __('Cash Tracker Report'),
         'kafeel_payments_statement' => __('Kafeel Payments Statement'),
         'owner_reimbursements_report' => __('Owner Reimbursements'),
+        'subcontractor_receiving_report' => __('Subcontractor Receiving Payments Report'),
     ];
     $fontFamilyLabels = [
         'cairo' => __('Cairo (default)'),

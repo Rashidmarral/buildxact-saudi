@@ -67,6 +67,7 @@ use App\Http\Controllers\User\ClientController;
 use App\Http\Controllers\User\CollectionNoteController;
 use App\Http\Controllers\User\ClientStatementController;
 use App\Http\Controllers\User\KafeelPaymentController;
+use App\Http\Controllers\User\SubcontractController;
 use App\Http\Controllers\User\CompanyAuditController;
 use App\Http\Controllers\User\CostCenterController;
 use App\Http\Controllers\User\FixedAssetController;
@@ -723,6 +724,22 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::delete('{kafeelPayment}', [KafeelPaymentController::class, 'destroy'])->name('destroy');
         Route::post('{kafeelPayment}/attachments', [KafeelPaymentController::class, 'storeAttachment'])->name('attachments.store');
         Route::delete('{kafeelPayment}/attachments/{attachment}', [KafeelPaymentController::class, 'destroyAttachment'])->name('attachments.destroy');
+    });
+
+    Route::middleware('permission:subcontractor_payments')->prefix('subcontracts')->name('subcontracts.')->group(function () {
+        Route::get('/', [SubcontractController::class, 'index'])->name('index');
+        Route::get('create', [SubcontractController::class, 'create'])->name('create');
+        Route::post('/', [SubcontractController::class, 'store'])->name('store');
+        Route::get('{subcontract}', [SubcontractController::class, 'show'])->name('show');
+        Route::get('{subcontract}/edit', [SubcontractController::class, 'edit'])->name('edit');
+        Route::put('{subcontract}', [SubcontractController::class, 'update'])->name('update');
+        Route::delete('{subcontract}', [SubcontractController::class, 'destroy'])->name('destroy');
+        Route::get('{subcontract}/report/pdf', [SubcontractController::class, 'reportPdf'])->middleware('throttle:pdf')->name('report.pdf');
+        Route::post('{subcontract}/payments', [SubcontractController::class, 'storePayment'])->name('payments.store');
+        Route::put('{subcontract}/payments/{payment}', [SubcontractController::class, 'updatePayment'])->name('payments.update');
+        Route::delete('{subcontract}/payments/{payment}', [SubcontractController::class, 'destroyPayment'])->name('payments.destroy');
+        Route::post('{subcontract}/link-voucher', [SubcontractController::class, 'linkVoucher'])->name('link-voucher');
+        Route::delete('{subcontract}/payments/{payment}/unlink', [SubcontractController::class, 'unlinkVoucher'])->name('payments.unlink');
     });
 
     Route::middleware(['permission:machinery_equipment', 'module:machinery_equipment'])->prefix('machinery')->name('machinery.')->group(function () {

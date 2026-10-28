@@ -26,6 +26,7 @@ class InvoiceTemplateController extends Controller
         'sales_report', 'expense_report', 'wht_return', 'cash_flow_statement',
         'customer_report', 'supplier_report', 'aging_report',
         'cash_custody_report', 'cash_tracker_report', 'kafeel_payments_statement', 'owner_reimbursements_report',
+        'subcontractor_receiving_report',
     ];
 
     private const LAYOUTS = [

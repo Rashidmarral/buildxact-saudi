@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -78,6 +79,17 @@ class PaymentVoucher extends Model
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    /**
+     * Set when this voucher has been linked into a Subcontract's payment
+     * ledger (see SubcontractController::linkVoucher()) — lets the
+     * voucher form/show warn before a linked voucher's amount is
+     * changed out from under the subcontract's totals.
+     */
+    public function subcontractPayment(): HasOne
+    {
+        return $this->hasOne(SubcontractPayment::class);
     }
 
     /**

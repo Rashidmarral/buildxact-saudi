@@ -75,6 +75,11 @@ class Project extends Model
         return $this->hasMany(PurchaseOrder::class);
     }
 
+    public function subcontracts(): HasMany
+    {
+        return $this->hasMany(Subcontract::class);
+    }
+
     public function bills(): HasMany
     {
         return $this->hasMany(Bill::class);

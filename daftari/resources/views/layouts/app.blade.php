@@ -151,6 +151,7 @@
                     @include('partials.nav-item', ['route' => 'app.kafeel-payments.index', 'label' => __('Kafeel Payments'), 'icon' => 'team'])
                 @endif
                 @include('partials.nav-item', ['route' => 'app.projects.index', 'label' => __('Projects'), 'icon' => 'projects'])
+                @include('partials.nav-item', ['route' => 'app.subcontracts.index', 'label' => __('Subcontractor Payments'), 'icon' => 'team'])
 
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'payroll'))
                     @php($payrollActive = request()->routeIs('app.employees.*') || request()->routeIs('app.payroll.*') || request()->routeIs('app.leave-requests.*'))
