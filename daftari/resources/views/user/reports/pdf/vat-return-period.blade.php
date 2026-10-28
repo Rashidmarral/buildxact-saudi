@@ -22,7 +22,9 @@
 @include('documents.print.partials.report.header', [
     'titleEn' => __('VAT RETURN FILING SUMMARY'),
     'titleAr' => 'ملخص إقرار ضريبة القيمة المضافة',
+    'template' => $template ?? null,
 ])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.period-banner', [
     'period' => $periodRange,

@@ -17,7 +17,9 @@
     'titleEn' => $type === 'receivables' ? __('AGED RECEIVABLES') : __('AGED PAYABLES'),
     'titleAr' => $type === 'receivables' ? 'أعمار الذمم المدينة' : 'أعمار الذمم الدائنة',
     'subtitleEn' => __('As of :date', ['date' => now()->format('d M Y')]),
+    'template' => $template ?? null,
 ])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.summary-cards', ['cards' => [
     ['label_en' => __('Current'), 'label_ar' => 'جارٍ', 'value' => \App\Support\Money::format($totals['current']), 'variant' => 'good'],

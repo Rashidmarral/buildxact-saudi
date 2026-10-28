@@ -27,7 +27,8 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('Kafeel Payments Statement'), 'titleAr' => 'كشف دفعات الكفيل'])
+@include('documents.print.partials.report.header', ['titleEn' => __('Kafeel Payments Statement'), 'titleAr' => 'كشف دفعات الكفيل', 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.period-banner', ['period' => $period])
 

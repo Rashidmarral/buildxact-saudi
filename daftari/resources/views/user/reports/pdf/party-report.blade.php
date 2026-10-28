@@ -17,7 +17,8 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => $titleEn, 'titleAr' => $titleAr])
+@include('documents.print.partials.report.header', ['titleEn' => $titleEn, 'titleAr' => $titleAr, 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.period-banner', ['period' => $period])
 

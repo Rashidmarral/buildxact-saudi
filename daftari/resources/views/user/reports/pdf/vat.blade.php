@@ -16,7 +16,8 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('TAX REPORT'), 'titleAr' => 'التقرير الضريبي'])
+@include('documents.print.partials.report.header', ['titleEn' => __('TAX REPORT'), 'titleAr' => 'التقرير الضريبي', 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.period-banner', ['period' => $period, 'labelEn' => __('TAX PERIOD'), 'labelAr' => 'الفترة الضريبية'])
 

@@ -22,6 +22,10 @@ class InvoiceTemplateController extends Controller
         'all', 'invoice', 'quotation', 'proforma', 'bill', 'purchase_order',
         'receipt_voucher', 'payment_voucher', 'voucher_summary', 'client_statement',
         'account_statement', 'project_cash_flow', 'letter', 'machinery_statement',
+        'vat_return', 'vat_return_filing', 'trial_balance', 'balance_sheet', 'income_statement',
+        'sales_report', 'expense_report', 'wht_return', 'cash_flow_statement',
+        'customer_report', 'supplier_report', 'aging_report',
+        'cash_custody_report', 'cash_tracker_report', 'kafeel_payments_statement', 'owner_reimbursements_report',
     ];
 
     private const LAYOUTS = [

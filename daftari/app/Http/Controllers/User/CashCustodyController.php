@@ -88,6 +88,7 @@ class CashCustodyController extends Controller
                 'returned' => $rows->sum('returned'),
                 'balance' => $rows->sum('balance'),
             ],
+            'template' => Auth::user()->company->defaultTemplateFor('cash_custody_report'),
         ]);
 
         return response($pdf, 200, [

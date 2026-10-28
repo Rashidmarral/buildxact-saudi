@@ -9,7 +9,8 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('CASH FLOW STATEMENT'), 'titleAr' => 'قائمة التدفقات النقدية'])
+@include('documents.print.partials.report.header', ['titleEn' => __('CASH FLOW STATEMENT'), 'titleAr' => 'قائمة التدفقات النقدية', 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.period-banner', ['period' => $period])
 

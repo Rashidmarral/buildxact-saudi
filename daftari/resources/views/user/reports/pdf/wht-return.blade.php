@@ -9,7 +9,8 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('WITHHOLDING TAX RETURN'), 'titleAr' => 'إقرار ضريبة الاستقطاع'])
+@include('documents.print.partials.report.header', ['titleEn' => __('WITHHOLDING TAX RETURN'), 'titleAr' => 'إقرار ضريبة الاستقطاع', 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.period-banner', ['period' => $period])
 

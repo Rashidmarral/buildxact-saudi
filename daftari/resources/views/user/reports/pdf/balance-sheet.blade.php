@@ -17,7 +17,8 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('BALANCE SHEET'), 'titleAr' => 'قائمة المركز المالي', 'subtitleEn' => __('As of :date', ['date' => $asOf->format('d M Y')]), 'subtitleAr' => 'كما في '.$asOf->format('d M Y')])
+@include('documents.print.partials.report.header', ['titleEn' => __('BALANCE SHEET'), 'titleAr' => 'قائمة المركز المالي', 'subtitleEn' => __('As of :date', ['date' => $asOf->format('d M Y')]), 'subtitleAr' => 'كما في '.$asOf->format('d M Y'), 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.summary-cards', ['cards' => [
     ['label_en' => __('Total assets'), 'label_ar' => 'إجمالي الأصول', 'value' => \App\Support\Money::format($totalAssets), 'variant' => 'neutral'],

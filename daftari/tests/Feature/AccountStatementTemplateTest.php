@@ -55,8 +55,8 @@ class AccountStatementTemplateTest extends TestCase
             'embed' => fn ($path) => $path ? 'data:image/png;base64,fake' : null,
         ])->render();
 
-        $this->assertStringContainsString('<htmlpageheader name="statement-letterhead">', $html);
-        $this->assertStringContainsString('<sethtmlpageheader name="statement-letterhead" page="ALL"', $html);
+        $this->assertStringContainsString('<htmlpageheader name="report-letterhead">', $html);
+        $this->assertStringContainsString('<sethtmlpageheader name="report-letterhead" page="ALL"', $html);
         // The custom letterhead replaces the standard navy header band
         // entirely — printing both would duplicate the company name/title.
         $this->assertStringNotContainsString('ACCOUNT STATEMENT', $html);
@@ -77,8 +77,8 @@ class AccountStatementTemplateTest extends TestCase
             'embed' => fn ($path) => $path ? 'data:image/png;base64,fake' : null,
         ])->render();
 
-        $this->assertStringContainsString('<htmlpagefooter name="statement-footer">', $html);
-        $this->assertStringContainsString('<sethtmlpagefooter name="statement-footer" page="ALL"', $html);
+        $this->assertStringContainsString('<htmlpagefooter name="report-footer">', $html);
+        $this->assertStringContainsString('<sethtmlpagefooter name="report-footer" page="ALL"', $html);
         // The standard navy header band is unaffected by a footer-only template.
         $this->assertStringContainsString('ACCOUNT STATEMENT', $html);
     }

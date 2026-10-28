@@ -197,6 +197,7 @@ class VatReturnPeriodController extends Controller
         $pdf = $renderer->render('user.reports.pdf.vat-return-period', [
             'company' => $company,
             'period' => $vatReturn,
+            'template' => $company->defaultTemplateFor('vat_return_filing'),
         ]);
 
         return response($pdf, 200, [

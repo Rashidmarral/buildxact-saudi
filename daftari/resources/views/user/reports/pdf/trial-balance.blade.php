@@ -9,7 +9,8 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('TRIAL BALANCE'), 'titleAr' => 'ميزان المراجعة'])
+@include('documents.print.partials.report.header', ['titleEn' => __('TRIAL BALANCE'), 'titleAr' => 'ميزان المراجعة', 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.period-banner', ['period' => $period])
 

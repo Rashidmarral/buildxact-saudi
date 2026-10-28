@@ -105,6 +105,7 @@ class CashTrackerController extends Controller
             'company' => Auth::user()->company,
             'tracker' => $cashTracker,
             'summary' => $this->summarizeByParty($cashTracker),
+            'template' => Auth::user()->company->defaultTemplateFor('cash_tracker_report'),
         ]);
 
         return response($pdf, 200, [

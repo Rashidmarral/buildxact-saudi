@@ -57,6 +57,7 @@ class KafeelPaymentController extends Controller
             $pdf = app(MpdfRenderer::class)->render('user.kafeel-payments.pdf', [
                 'company' => Auth::user()->company, 'period' => $period, 'payments' => $payments->get(),
                 'total' => $total, 'byCategory' => $byCategory,
+                'template' => Auth::user()->company->defaultTemplateFor('kafeel_payments_statement'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="kafeel-payments.pdf"']);

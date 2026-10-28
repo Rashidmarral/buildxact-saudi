@@ -54,6 +54,7 @@ class OwnerReimbursementController extends Controller
             'company' => Auth::user()->company,
             'expenses' => $expenses,
             'totalOutstanding' => $outstanding->sum(fn (Expense $e) => $e->gross_amount ?? ($e->amount + $e->vat_amount)),
+            'template' => Auth::user()->company->defaultTemplateFor('owner_reimbursements_report'),
         ]);
 
         return response($pdf, 200, [

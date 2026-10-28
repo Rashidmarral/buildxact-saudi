@@ -125,6 +125,7 @@ class ReportController extends Controller
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.vat', [
                 'company' => $company, 'period' => $period, 'tab' => $tab,
                 'salesRows' => $salesRows, 'purchaseRows' => $purchaseRows, 'expenseRows' => $expenseRows,
+                'template' => $company->defaultTemplateFor('vat_return'),
             ] + $summary);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="tax-report-'.$tab.'.pdf"']);
@@ -199,6 +200,7 @@ class ReportController extends Controller
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.trial-balance', [
                 'company' => $company, 'period' => $period, 'rows' => $rows, 'totalDebit' => $totalDebit, 'totalCredit' => $totalCredit,
+                'template' => $company->defaultTemplateFor('trial_balance'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="trial-balance.pdf"']);
@@ -230,7 +232,7 @@ class ReportController extends Controller
         }
 
         if ($request->query('export') === 'pdf') {
-            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.balance-sheet', ['company' => $company, 'asOf' => $asOf] + $data);
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.balance-sheet', ['company' => $company, 'asOf' => $asOf, 'template' => $company->defaultTemplateFor('balance_sheet')] + $data);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="balance-sheet.pdf"']);
         }
@@ -263,6 +265,7 @@ class ReportController extends Controller
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.income-statement', [
                 'company' => $company, 'period' => $period, 'revenueLines' => $revenueLines, 'expenseLines' => $expenseLines,
                 'netSales' => $netSales, 'grossProfit' => $grossProfit, 'operatingProfit' => $operatingProfit, 'netProfit' => $netProfit,
+                'template' => $company->defaultTemplateFor('income_statement'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="income-statement.pdf"']);
@@ -337,6 +340,7 @@ class ReportController extends Controller
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.sales', [
                 'company' => $company, 'period' => $period, 'items' => $items,
+                'template' => $company->defaultTemplateFor('sales_report'),
             ] + $salesSummary);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="sales-report.pdf"']);
@@ -409,6 +413,7 @@ class ReportController extends Controller
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.expenses', [
                 'company' => $company, 'period' => $period, 'expenses' => $expenses, 'total' => $total, 'vatTotal' => $vatTotal, 'byAccount' => $byAccount,
+                'template' => $company->defaultTemplateFor('expense_report'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="expense-report.pdf"']);
@@ -478,6 +483,7 @@ class ReportController extends Controller
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.wht-return', [
                 'company' => $company, 'period' => $period, 'vouchers' => $vouchers, 'total' => $whtTotal,
+                'template' => $company->defaultTemplateFor('wht_return'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="withholding-tax-report.pdf"']);
@@ -520,7 +526,7 @@ class ReportController extends Controller
         }
 
         if ($request->query('export') === 'pdf') {
-            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.cash-flow', ['company' => $company, 'period' => $period] + $data);
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.cash-flow', ['company' => $company, 'period' => $period, 'template' => $company->defaultTemplateFor('cash_flow_statement')] + $data);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="cash-flow.pdf"']);
         }
@@ -629,6 +635,7 @@ class ReportController extends Controller
                 'company' => $company, 'period' => $period, 'rows' => $rows, 'summary' => $summary,
                 'titleEn' => __('CUSTOMER REPORT'), 'titleAr' => 'تقرير العملاء',
                 'partyLabelEn' => __('Customer'), 'partyLabelAr' => 'العميل',
+                'template' => $company->defaultTemplateFor('customer_report'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="customer-report.pdf"']);
@@ -679,6 +686,7 @@ class ReportController extends Controller
                 'company' => $company, 'period' => $period, 'rows' => $rows, 'summary' => $summary,
                 'titleEn' => __('SUPPLIER REPORT'), 'titleAr' => 'تقرير الموردين',
                 'partyLabelEn' => __('Supplier'), 'partyLabelAr' => 'المورد',
+                'template' => $company->defaultTemplateFor('supplier_report'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="supplier-report.pdf"']);
@@ -798,6 +806,7 @@ class ReportController extends Controller
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.aging', [
                 'company' => $company, 'type' => $type, 'rows' => $rows, 'totals' => $totals,
+                'template' => $company->defaultTemplateFor('aging_report'),
             ]);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="aged-'.$type.'.pdf"']);

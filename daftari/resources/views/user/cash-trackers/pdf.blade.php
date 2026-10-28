@@ -21,7 +21,9 @@
     'titleEn' => $tracker->name, 'titleAr' => $tracker->name,
     'subtitleEn' => __('Cash tracker report — as of :date', ['date' => \App\Support\PlatformFormat::date(now())]),
     'subtitleAr' => 'تقرير متابعة النقدية — كما في '.now()->format('d M Y'),
+    'template' => $template ?? null,
 ])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.summary-cards', ['cards' => [
     ['label_en' => __('Total deposited'), 'label_ar' => 'إجمالي الإيداع', 'value' => \App\Support\Money::format($tracker->totalDeposited(), $tracker->currency), 'variant' => 'neutral'],

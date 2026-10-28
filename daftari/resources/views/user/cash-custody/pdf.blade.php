@@ -21,7 +21,9 @@
     'titleEn' => __('Custody Report'), 'titleAr' => 'تقرير العهدة',
     'subtitleEn' => __('As of :date', ['date' => \App\Support\PlatformFormat::date(now())]),
     'subtitleAr' => 'كما في '.now()->format('d M Y'),
+    'template' => $template ?? null,
 ])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @include('documents.print.partials.report.summary-cards', ['cards' => [
     ['label_en' => __('Total advanced'), 'label_ar' => 'إجمالي السُلف', 'value' => \App\Support\Money::format($totals['advanced']), 'variant' => 'neutral'],
