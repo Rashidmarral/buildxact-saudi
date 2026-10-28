@@ -163,7 +163,6 @@ class ReceiptVoucherMultiInvoiceAllocationTest extends TestCase
                 ['invoice_id' => $inv5->id, 'amount' => 84522.11],
             ],
         ]);
-        $voucher = ReceiptVoucher::first();
 
         // The CSV export is the precise, structured way to check this —
         // the on-screen page can legitimately print "72,477.89" too, as
@@ -180,7 +179,6 @@ class ReceiptVoucherMultiInvoiceAllocationTest extends TestCase
         $this->assertCount(1, $paymentRows);
         $description = array_values($paymentRows)[0][1];
         $this->assertStringContainsString('FT262999XYZQ', $description);
-        $this->assertStringContainsString($voucher->voucher_number, $description);
         $this->assertStringContainsString('INV-00003', $description);
         $this->assertStringContainsString('INV-2026-00005', $description);
         $this->assertEmpty(array_filter($rows, fn ($row) => isset($row[3]) && in_array($row[3], ['72477.89', '84522.11'], true)));

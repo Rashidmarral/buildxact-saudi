@@ -965,7 +965,7 @@ class ReportController extends Controller
             ->get();
         $allocatedPaymentIds = $allocations->pluck('invoice_payment_id');
 
-        $payments = InvoicePayment::with('invoice', 'receiptVoucher')
+        $payments = InvoicePayment::with('invoice')
             ->whereIn('invoice_id', $invoiceIds)
             ->whereNotIn('id', $allocatedPaymentIds)
             ->get();
@@ -981,7 +981,7 @@ class ReportController extends Controller
             if ($payment->paid_at->lt($period['from'])) {
                 $openingBalance -= $payment->amount;
             } elseif ($payment->paid_at->lte($period['to'])) {
-                $lines->push((object) ['date' => $payment->paid_at, 'description' => $this->paymentDescription(__('Payment received'), $payment->invoice?->invoice_number, $payment->reference, $payment->receiptVoucher?->voucher_number), 'debit' => 0, 'credit' => $payment->amount]);
+                $lines->push((object) ['date' => $payment->paid_at, 'description' => $this->paymentDescription(__('Payment received'), $payment->invoice?->invoice_number, $payment->reference), 'debit' => 0, 'credit' => $payment->amount]);
             }
         }
         foreach ($allocations->groupBy('receipt_voucher_id') as $group) {
@@ -993,7 +993,7 @@ class ReportController extends Controller
             if ($date->lt($period['from'])) {
                 $openingBalance -= $amount;
             } elseif ($date->lte($period['to'])) {
-                $lines->push((object) ['date' => $date, 'description' => $this->paymentDescription(__('Payment received'), $invoiceNumbers, $voucher?->reference, $voucher?->voucher_number), 'debit' => 0, 'credit' => $amount]);
+                $lines->push((object) ['date' => $date, 'description' => $this->paymentDescription(__('Payment received'), $invoiceNumbers, $voucher?->reference), 'debit' => 0, 'credit' => $amount]);
             }
         }
 
@@ -1010,7 +1010,7 @@ class ReportController extends Controller
         $openingBalance = 0.0;
 
         $bills = $supplier->bills()->whereNotIn('status', ['draft', 'void'])->get();
-        $payments = BillPayment::with('bill', 'paymentVoucher')->whereIn('bill_id', $bills->pluck('id'))->get();
+        $payments = BillPayment::with('bill')->whereIn('bill_id', $bills->pluck('id'))->get();
 
         foreach ($bills as $bill) {
             if ($bill->bill_date->lt($period['from'])) {
@@ -1023,7 +1023,7 @@ class ReportController extends Controller
             if ($payment->paid_at->lt($period['from'])) {
                 $openingBalance -= $payment->amount;
             } elseif ($payment->paid_at->lte($period['to'])) {
-                $lines->push((object) ['date' => $payment->paid_at, 'description' => $this->paymentDescription(__('Payment made'), $payment->bill?->bill_number, $payment->reference, $payment->paymentVoucher?->voucher_number), 'debit' => $payment->amount, 'credit' => 0]);
+                $lines->push((object) ['date' => $payment->paid_at, 'description' => $this->paymentDescription(__('Payment made'), $payment->bill?->bill_number, $payment->reference), 'debit' => $payment->amount, 'credit' => 0]);
             }
         }
 
@@ -1036,24 +1036,25 @@ class ReportController extends Controller
      * as a bare "Payment received"/"Payment made" with no way to tell,
      * from the statement alone, which document it settled or which real
      * bank transfer/cheque it corresponds to. Folds the settled
-     * document's number, the payer's own reference (bank transfer ref,
-     * cheque number, ...), and the internal voucher number — whichever
-     * of the three actually exist for this payment — into the one
-     * description column every output (web, PDF, CSV) already renders,
-     * so no view template needs to grow a new column for it.
+     * document's number and the payer's own reference (bank transfer
+     * ref, cheque number, ...) into the one description column every
+     * output (web, PDF, CSV) already renders, so no view template needs
+     * to grow a new column for it.
+     *
+     * "i think we don't need receipt voucher reference" — the internal
+     * RV-xxxxx/PV-xxxxx voucher number this previously also appended
+     * meant nothing to the client reading their own copy of the
+     * statement (it's bookkeeping, not something on their bank
+     * statement); the real bank/cheque reference above is what actually
+     * lets them recognize their own payment.
      */
-    private function paymentDescription(string $label, ?string $documentNumber, ?string $reference, ?string $voucherNumber): string
+    private function paymentDescription(string $label, ?string $documentNumber, ?string $reference): string
     {
         if ($documentNumber) {
             $label .= ' — '.$documentNumber;
         }
 
-        $details = array_filter([
-            $reference ? __('Ref').': '.$reference : null,
-            $voucherNumber,
-        ]);
-
-        return $details ? $label.' ('.implode(', ', $details).')' : $label;
+        return $reference ? $label.' ('.__('Ref').': '.$reference.')' : $label;
     }
 
     private function runningBalance($lines, float $openingBalance)

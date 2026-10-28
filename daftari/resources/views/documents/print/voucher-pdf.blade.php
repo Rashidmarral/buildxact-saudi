@@ -21,6 +21,8 @@
     $logoData = $embed($company->logo_path ?? null);
     $stampData = $embed($company->stamp_path ?? null);
     $footerData = $embed($template->footer_path ?? null);
+    $letterheadData = $embed($template->letterhead_path ?? null);
+    $layout = $template->layout ?? null;
     $accent = $template->accent_color ?? '#0f766e';
     $partyNameEn = $isReceipt ? $voucher->payer_name : $voucher->payee_name;
     $partyNameAr = $voucher->party_name_ar;
@@ -73,25 +75,50 @@
     <sethtmlpagefooter name="footer-banner" page="ALL" />
 @endif
 
-<table class="header-table">
-    <tr>
-        <td style="width: 60%;">
-            @if ($logoData)<img src="{{ $logoData }}" style="height: 56px; margin-bottom: 8px;" alt="">@endif
-            <div class="company-name">{{ $company->name }}</div>
-            @if ($company->name_ar)<div class="company-name-ar">{{ $company->name_ar }}</div>@endif
-            <div class="company-detail">
-                @if ($company->address || $company->city)<div>{{ $company->address }}{{ $company->address && $company->city ? ', ' : '' }}{{ $company->city }}</div>@endif
-                @if ($company->phone || $company->email)<div>{{ $company->phone }}{{ $company->phone && $company->email ? '  ·  ' : '' }}{{ $company->email }}</div>@endif
-                @if ($company->vat_number)<div>{{ __('VAT') }}: {{ $company->vat_number }}@if ($company->cr_number)&nbsp;&nbsp;·&nbsp;&nbsp;{{ __('CR') }}: {{ $company->cr_number }}@endif</div>@endif
-            </div>
-        </td>
-        <td style="width: 40%;">
-            <div class="doc-title">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
-            <div class="muted" style="text-align: right;">{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
-            <div class="muted" style="text-align: right;">{{ __('Date') }}: {{ \App\Support\PlatformFormat::date($voucher->date) }}</div>
-        </td>
-    </tr>
-</table>
+{{--
+    "i have already assign letter head template to receipt voucher but
+    it's not applied to pdf" — this file only ever embedded
+    $template->footer_path; unlike pdf.blade.php/letter-pdf.blade.php,
+    it never checked for the 'custom_letterhead' layout at all, so a
+    company's own uploaded header image could never replace the
+    standard company-info block below, on either voucher type.
+--}}
+@if ($layout === 'custom_letterhead' && $letterheadData)
+    <htmlpageheader name="voucher-letterhead">
+        <img src="{{ $letterheadData }}" style="width: 100%;" alt="">
+    </htmlpageheader>
+    <sethtmlpageheader name="voucher-letterhead" page="ALL" show-this-page="1" />
+    <table class="header-table">
+        <tr>
+            <td style="width: 60%;"></td>
+            <td style="width: 40%;">
+                <div class="doc-title">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
+                <div class="muted" style="text-align: right;">{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
+                <div class="muted" style="text-align: right;">{{ __('Date') }}: {{ \App\Support\PlatformFormat::date($voucher->date) }}</div>
+            </td>
+        </tr>
+    </table>
+@else
+    <table class="header-table">
+        <tr>
+            <td style="width: 60%;">
+                @if ($logoData)<img src="{{ $logoData }}" style="height: 56px; margin-bottom: 8px;" alt="">@endif
+                <div class="company-name">{{ $company->name }}</div>
+                @if ($company->name_ar)<div class="company-name-ar">{{ $company->name_ar }}</div>@endif
+                <div class="company-detail">
+                    @if ($company->address || $company->city)<div>{{ $company->address }}{{ $company->address && $company->city ? ', ' : '' }}{{ $company->city }}</div>@endif
+                    @if ($company->phone || $company->email)<div>{{ $company->phone }}{{ $company->phone && $company->email ? '  ·  ' : '' }}{{ $company->email }}</div>@endif
+                    @if ($company->vat_number)<div>{{ __('VAT') }}: {{ $company->vat_number }}@if ($company->cr_number)&nbsp;&nbsp;·&nbsp;&nbsp;{{ __('CR') }}: {{ $company->cr_number }}@endif</div>@endif
+                </div>
+            </td>
+            <td style="width: 40%;">
+                <div class="doc-title">{{ $isReceipt ? __('Receipt Voucher') : __('Payment Voucher') }}</div>
+                <div class="muted" style="text-align: right;">{{ __('No.') }}: {{ $voucher->voucher_number }}</div>
+                <div class="muted" style="text-align: right;">{{ __('Date') }}: {{ \App\Support\PlatformFormat::date($voucher->date) }}</div>
+            </td>
+        </tr>
+    </table>
+@endif
 <div class="accent-rule"></div>
 
 <div class="box">

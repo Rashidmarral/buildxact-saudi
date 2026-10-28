@@ -148,7 +148,9 @@ class MpdfRenderer
      *
      * The top margin only needs this for the 'custom_letterhead' layout
      * (the only one with a full-width header image, used by letter-pdf.
-     * blade.php and pdf.blade.php). The bottom margin needs it whenever
+     * blade.php, pdf.blade.php, voucher-pdf.blade.php, and every other
+     * report PDF via documents/print/partials/report/header.blade.php).
+     * The bottom margin needs it whenever
      * footer_path is set at all, independent of layout — pdf.blade.php,
      * project-cash-flow-pdf.blade.php, voucher-pdf.blade.php and
      * voucher-summary-pdf.blade.php all offer a footer banner on every

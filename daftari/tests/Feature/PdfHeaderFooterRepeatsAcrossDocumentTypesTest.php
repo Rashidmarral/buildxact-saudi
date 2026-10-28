@@ -131,6 +131,40 @@ class PdfHeaderFooterRepeatsAcrossDocumentTypesTest extends TestCase
         $this->assertStringContainsString('<sethtmlpagefooter name="footer-banner" page="ALL"', $html);
     }
 
+    /**
+     * "i have already assign letter head template to receipt voucher
+     * but it's not applied to pdf" — voucher-pdf.blade.php embedded
+     * $template->footer_path but never checked for the 'custom_letterhead'
+     * layout at all, so a company's own uploaded header image could
+     * never replace the standard company-info block on either voucher
+     * type, even though every other document type with the same
+     * layout option (invoices, letters) already honored it.
+     */
+    public function test_voucher_pdf_custom_letterhead_header_is_registered_as_a_repeating_page_header(): void
+    {
+        $company = Company::create(['name' => 'Dynamic Core Contracting', 'slug' => 'vch-hdr-'.uniqid(), 'status' => 'active', 'currency' => 'SAR']);
+        Account::seedSystemAccounts($company->id);
+        AccountMapping::seedDefaults($company->id);
+        $account = BankAccount::create(['company_id' => $company->id, 'name' => 'Main', 'bank_name' => 'A Bank', 'type' => 'bank', 'is_active' => true]);
+        $voucher = ReceiptVoucher::create(['company_id' => $company->id, 'bank_account_id' => $account->id, 'party_type' => 'manual', 'voucher_number' => 'RV-1', 'date' => now()->toDateString(), 'payer_name' => 'A Payer', 'amount' => 100, 'method' => 'cash', 'status' => 'issued']);
+        $voucher->loadMissing('bankAccount', 'counterAccount');
+
+        $html = view('documents.print.voucher-pdf', [
+            'voucher' => $voucher,
+            'type' => 'receipt',
+            'company' => $company,
+            'template' => new InvoiceTemplate(['layout' => 'custom_letterhead', 'letterhead_path' => 'letterheads/fake.png']),
+            'embed' => fn ($path) => $path ? 'data:image/png;base64,fake' : null,
+        ])->render();
+
+        $this->assertStringContainsString('<htmlpageheader name="voucher-letterhead">', $html);
+        $this->assertStringContainsString('<sethtmlpageheader name="voucher-letterhead" page="ALL"', $html);
+        // The letterhead image replaces the standard company-info block
+        // entirely — printing both would duplicate the company's own
+        // name/logo/address.
+        $this->assertStringNotContainsString('class="company-name"', $html);
+    }
+
     public function test_voucher_summary_pdf_footer_is_registered_as_a_repeating_page_footer(): void
     {
         $company = Company::create(['name' => 'Dynamic Core Contracting', 'slug' => 'vsm-ftr-'.uniqid(), 'status' => 'active', 'currency' => 'SAR']);
