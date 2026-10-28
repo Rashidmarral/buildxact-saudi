@@ -233,4 +233,40 @@ class PdfHeaderFooterRepeatsAcrossDocumentTypesTest extends TestCase
 
         $response->assertOk();
     }
+
+    public function test_subcontract_receiving_report_custom_letterhead_header_is_registered_as_a_repeating_page_header(): void
+    {
+        $company = Company::create(['name' => 'Dynamic Core Contracting', 'slug' => 'sub-hdr-'.uniqid(), 'status' => 'active', 'currency' => 'SAR']);
+        $project = \App\Models\Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
+        $supplier = \App\Models\Supplier::create(['company_id' => $company->id, 'name' => 'Al Fahad Subcontracting']);
+        $subcontract = \App\Models\Subcontract::create(['company_id' => $company->id, 'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 100000, 'retention_percent' => 5, 'status' => 'active']);
+
+        $html = view('user.subcontracts.pdf.receiving-report', [
+            'company' => $company,
+            'subcontract' => $subcontract,
+            'template' => new InvoiceTemplate(['layout' => 'custom_letterhead', 'letterhead_path' => 'letterheads/fake.png']),
+            'embed' => fn ($path) => $path ? 'data:image/png;base64,fake' : null,
+        ])->render();
+
+        $this->assertStringContainsString('<htmlpageheader name="report-letterhead">', $html);
+        $this->assertStringContainsString('<sethtmlpageheader name="report-letterhead" page="ALL"', $html);
+        $this->assertStringNotContainsString('Receiving Payments Report', $html);
+    }
+
+    public function test_subcontract_receiving_report_default_template_is_picked_up_end_to_end(): void
+    {
+        $company = Company::create(['name' => 'Dynamic Core Contracting', 'slug' => 'sub-tpl-'.uniqid(), 'status' => 'active', 'currency' => 'SAR']);
+        Account::seedSystemAccounts($company->id);
+        AccountMapping::seedDefaults($company->id);
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+        $project = \App\Models\Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
+        $supplier = \App\Models\Supplier::create(['company_id' => $company->id, 'name' => 'Al Fahad Subcontracting']);
+        $subcontract = \App\Models\Subcontract::create(['company_id' => $company->id, 'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 100000, 'retention_percent' => 5, 'status' => 'active']);
+        InvoiceTemplate::create(['company_id' => $company->id, 'document_type' => 'subcontractor_receiving_report', 'name' => 'Letterhead', 'layout' => 'custom_letterhead', 'is_default' => true, 'letterhead_path' => 'letterheads/fake.png']);
+
+        $response = $this->actingAs($owner)->get(route('app.subcontracts.report.pdf', $subcontract));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+    }
 }
