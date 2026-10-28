@@ -10,6 +10,7 @@
 @php
     $logoData = $embed($company->logo_path ?? null);
     $totalPaid = $subcontract->totalPaid();
+    $totalGross = $subcontract->totalReceivedGross();
     $balanceBeforeRetention = $subcontract->balanceBeforeRetention();
     $retentionAmount = $subcontract->retentionAmount();
     $balanceAfterRetention = $subcontract->balanceAfterRetention();
@@ -118,38 +119,45 @@
             <th>{{ __('Date') }}</th>
             <th>{{ __('Milestone') }}</th>
             <th>{{ __('Reference') }}</th>
-            <th class="num">{{ __('Amount') }}</th>
+            <th class="num">{{ __('Applied (net)') }}</th>
+            <th class="num">{{ __('Cash (incl. VAT)') }}</th>
         </tr>
     </thead>
     <tbody>
         @forelse ($subcontract->payments->sortBy('paid_at') as $payment)
             <tr>
                 <td>{{ $payment->paid_at->format('Y-m-d') }}</td>
-                <td>{{ $payment->milestone->name ?? '—' }}</td>
+                <td>{{ $payment->milestone->name ?? __('Unassigned') }}</td>
                 <td>{{ $payment->reference ?: ($payment->paymentVoucher->voucher_number ?? '—') }}</td>
                 <td class="num">{{ number_format((float) $payment->amount, 2) }}</td>
+                <td class="num">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
             </tr>
         @empty
-            <tr><td colspan="4" style="text-align: center; color: #94a3b8;">{{ __('No payments recorded yet.') }}</td></tr>
+            <tr><td colspan="5" style="text-align: center; color: #94a3b8;">{{ __('No payments recorded yet.') }}</td></tr>
         @endforelse
         <tr class="total-row">
-            <td colspan="3">{{ __('TOTAL RECEIVED') }}</td>
+            <td colspan="3">{{ __('TOTAL') }}</td>
             <td class="num">{{ number_format($totalPaid, 2) }}</td>
+            <td class="num">{{ abs($totalGross - $totalPaid) > 0.004 ? number_format($totalGross, 2) : '—' }}</td>
         </tr>
     </tbody>
 </table>
 
 <table class="summary-table" style="margin-top: 14px;">
     <tr>
-        <td style="width: 33.33%;">
+        <td style="width: 25%;">
             <div class="k">{{ __('Total contract value') }}</div>
             <div class="v v-neutral">{{ number_format((float) $subcontract->contract_value, 2) }}</div>
         </td>
-        <td style="width: 33.33%;">
-            <div class="k">{{ __('Total received to date') }}</div>
+        <td style="width: 25%;">
+            <div class="k">{{ __('Applied to contract (net)') }}</div>
             <div class="v v-good">{{ number_format($totalPaid, 2) }}</div>
         </td>
-        <td style="width: 33.33%;">
+        <td style="width: 25%;">
+            <div class="k">{{ __('Cash received (incl. VAT)') }}</div>
+            <div class="v v-neutral">{{ number_format($totalGross, 2) }}</div>
+        </td>
+        <td style="width: 25%;">
             <div class="k">{{ __('Balance before retention') }}</div>
             <div class="v v-neutral">{{ number_format($balanceBeforeRetention, 2) }}</div>
         </td>
@@ -187,8 +195,9 @@
     </tr>
 </table>
 <p style="font-size: 9px; color: #94a3b8; margin-top: 10px;">
-    {{ __('By signing above, the subcontractor acknowledges having received a total of :total to date against this contract, and agrees the remaining balance due is :balance (before release of the retention held per the terms above).', [
-        'total' => number_format($totalPaid, 2),
+    {{ __('By signing above, the subcontractor acknowledges having received a total of :total in cash to date, :net of which is applied against this contract, and agrees the remaining balance due is :balance (before release of the retention held per the terms above).', [
+        'total' => number_format($totalGross, 2),
+        'net' => number_format($totalPaid, 2),
         'balance' => number_format($balanceBeforeRetention, 2),
     ]) }}
 </p>

@@ -65,9 +65,28 @@ class Subcontract extends Model
         return $this->hasMany(SubcontractPayment::class)->orderByDesc('paid_at')->orderByDesc('id');
     }
 
+    /**
+     * The net total applied toward the contract/milestone schedule —
+     * what drives balanceBeforeRetention()/percentComplete() against
+     * the (VAT-exclusive) contract_value. See the subcontract_payments
+     * migration docblock for why this can differ from the real cash
+     * received (totalReceivedGross()).
+     */
     public function totalPaid(): float
     {
         return (float) $this->payments()->sum('amount');
+    }
+
+    /**
+     * The real cash received to date, VAT included where it was
+     * recorded — "i have paid the same amount with tax but i am paying
+     * my supplier this amount without tax". Equal to totalPaid() unless
+     * one or more payments recorded a gross_amount different from the
+     * net amount applied to the contract.
+     */
+    public function totalReceivedGross(): float
+    {
+        return (float) $this->payments()->get()->sum(fn (SubcontractPayment $p) => $p->displayGross());
     }
 
     public function balanceBeforeRetention(): float

@@ -5,7 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -85,11 +85,15 @@ class PaymentVoucher extends Model
      * Set when this voucher has been linked into a Subcontract's payment
      * ledger (see SubcontractController::linkVoucher()) — lets the
      * voucher form/show warn before a linked voucher's amount is
-     * changed out from under the subcontract's totals.
+     * changed out from under the subcontract's totals. A hasMany, not
+     * hasOne: one real payment can waterfall across several milestones,
+     * which SubcontractController::allocateAcrossMilestones() splits
+     * into several subcontract_payments rows all pointing at this same
+     * voucher.
      */
-    public function subcontractPayment(): HasOne
+    public function subcontractPayments(): HasMany
     {
-        return $this->hasOne(SubcontractPayment::class);
+        return $this->hasMany(SubcontractPayment::class);
     }
 
     /**

@@ -54,7 +54,10 @@
         // real recipients named only in the reference text" case — just
         // starting points for the search box above, not a fixed list:
         // anyone can type their own term instead.
-        $quickPayees = [__('Shahid') => 'shahid', __('Ashraf') => 'ashraf', __('Al Jazeera') => 'gazaierih'];
+        $quickPayees = [
+            __('Shahid') => 'shahid', __('Ashraf') => 'ashraf', __('Al Jazeera') => 'gazaierih',
+            __('Asphalt (Dar Al Anajim)') => 'anajim', __('Machine Rental') => 'machine',
+        ];
     @endphp
     <div class="flex flex-wrap items-center gap-2 mb-6 px-1">
         <span class="text-xs font-semibold uppercase text-slate-400">{{ __('Quick filter') }}:</span>

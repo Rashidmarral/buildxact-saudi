@@ -100,7 +100,7 @@ class SubcontractController extends Controller
 
         $linkableVouchers = PaymentVoucher::where('supplier_id', $subcontract->supplier_id)
             ->where('status', 'issued')
-            ->whereDoesntHave('subcontractPayment')
+            ->whereDoesntHave('subcontractPayments')
             ->when($subcontract->project_id, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('project_id')->orWhere('project_id', $subcontract->project_id)))
             ->orderByDesc('date')
             ->get();
@@ -149,21 +149,36 @@ class SubcontractController extends Controller
         return redirect()->route('app.subcontracts.index')->with('status', __('Subcontract deleted.'));
     }
 
+    /**
+     * "the payments i have made clear them as milestone total milestone
+     * paid move to next" — when no milestone is picked explicitly, the
+     * net amount is applied to fill whichever milestone is first still
+     * short, in sequence order, spilling any remainder into the next
+     * one(s) rather than sitting unassigned.
+     */
     public function storePayment(Request $request, Subcontract $subcontract)
     {
         $data = $request->validate([
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
             'amount' => ['required', 'numeric', 'min:0.01'],
+            'gross_amount' => ['nullable', 'numeric', 'min:0.01'],
             'paid_at' => ['required', 'date'],
             'method' => ['nullable', 'string', 'max:30'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $subcontract->payments()->create([
-            ...$data,
-            'created_by' => Auth::id(),
-        ]);
+        $common = array_intersect_key($data, array_flip(['paid_at', 'method', 'reference', 'notes']));
+        $common['created_by'] = Auth::id();
+
+        if (! empty($data['milestone_id'])) {
+            $subcontract->payments()->create([
+                ...$common, 'milestone_id' => $data['milestone_id'],
+                'amount' => $data['amount'], 'gross_amount' => $data['gross_amount'] ?? null,
+            ]);
+        } else {
+            $this->createAllocatedPayments($subcontract, (float) $data['amount'], $common, $data['gross_amount'] ?? null);
+        }
 
         return back()->with('status', __('Payment recorded.'));
     }
@@ -172,19 +187,21 @@ class SubcontractController extends Controller
     {
         abort_unless($payment->subcontract_id === $subcontract->id, 404);
 
+        // The net amount/milestone (what this slice counts toward) is
+        // always editable, voucher-linked or not — that's exactly the
+        // "paid with tax, applied without tax" correction. Only method
+        // stays tied to the voucher's real transfer when linked, since
+        // that's where the cash actually moved, not a judgment call.
         $rules = [
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'gross_amount' => ['nullable', 'numeric', 'min:0.01'],
             'paid_at' => ['required', 'date'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
 
-        // A voucher-linked payment's amount/method always come from the
-        // voucher itself (edited there, not here) so the two can never
-        // silently disagree — see defaultPurpose()-style reasoning on
-        // PaymentVoucher.
         if (! $payment->payment_voucher_id) {
-            $rules['amount'] = ['required', 'numeric', 'min:0.01'];
             $rules['method'] = ['nullable', 'string', 'max:30'];
         }
 
@@ -193,6 +210,49 @@ class SubcontractController extends Controller
         $payment->update($data);
 
         return back()->with('status', __('Payment updated.'));
+    }
+
+    /**
+     * Splits $netAmount across $subcontract's milestones in sequence
+     * order, filling each one's remaining balance before spilling into
+     * the next, and creates one SubcontractPayment row per milestone it
+     * touches. The real cash figure ($grossAmount, when different from
+     * the net total) is recorded on only the first row so
+     * Subcontract::totalReceivedGross() never double-counts it. Any
+     * amount left over once every milestone is fully funded (no
+     * milestones defined, or an overpayment) lands in a final
+     * milestone_id=null row rather than being silently dropped.
+     */
+    private function createAllocatedPayments(Subcontract $subcontract, float $netAmount, array $common, ?float $grossAmount): void
+    {
+        $remaining = round($netAmount, 2);
+        $rows = [];
+
+        foreach ($subcontract->milestones as $milestone) {
+            if ($remaining <= 0.004) {
+                break;
+            }
+
+            $milestoneRemaining = $milestone->balance();
+            if ($milestoneRemaining <= 0.004) {
+                continue;
+            }
+
+            $apply = round(min($remaining, $milestoneRemaining), 2);
+            $rows[] = ['milestone_id' => $milestone->id, 'amount' => $apply];
+            $remaining = round($remaining - $apply, 2);
+        }
+
+        if ($remaining > 0.004) {
+            $rows[] = ['milestone_id' => null, 'amount' => $remaining];
+        }
+
+        foreach ($rows as $i => $row) {
+            $subcontract->payments()->create([
+                ...$common, ...$row,
+                'gross_amount' => $i === 0 ? $grossAmount : 0,
+            ]);
+        }
     }
 
     public function destroyPayment(Subcontract $subcontract, SubcontractPayment $payment)
@@ -209,23 +269,35 @@ class SubcontractController extends Controller
         $data = $request->validate([
             'payment_voucher_id' => ['required', Rule::exists('payment_vouchers', 'id')],
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
+            // "i have paid the same amount with tax but i am paying my
+            // supplier this amount without tax" — defaults to the
+            // voucher's real transfer when left blank (the common case:
+            // nothing to adjust), but can be set lower to apply only the
+            // VAT-exclusive portion toward the contract/milestones while
+            // the voucher itself keeps recording the real cash moved.
+            'net_amount' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
         $voucher = PaymentVoucher::where('supplier_id', $subcontract->supplier_id)->findOrFail($data['payment_voucher_id']);
 
-        if ($voucher->subcontractPayment()->exists()) {
+        if ($voucher->subcontractPayments()->exists()) {
             return back()->with('status', __('That voucher is already linked to a subcontract.'));
         }
 
-        $subcontract->payments()->create([
-            'milestone_id' => $data['milestone_id'] ?? null,
-            'payment_voucher_id' => $voucher->id,
-            'amount' => $voucher->amount,
-            'paid_at' => $voucher->date,
-            'method' => $voucher->method,
-            'reference' => $voucher->reference,
-            'created_by' => Auth::id(),
-        ]);
+        $netAmount = (float) ($data['net_amount'] ?? $voucher->amount);
+        $common = [
+            'payment_voucher_id' => $voucher->id, 'paid_at' => $voucher->date,
+            'method' => $voucher->method, 'reference' => $voucher->reference, 'created_by' => Auth::id(),
+        ];
+
+        if (! empty($data['milestone_id'])) {
+            $subcontract->payments()->create([
+                ...$common, 'milestone_id' => $data['milestone_id'],
+                'amount' => $netAmount, 'gross_amount' => (float) $voucher->amount,
+            ]);
+        } else {
+            $this->createAllocatedPayments($subcontract, $netAmount, $common, (float) $voucher->amount);
+        }
 
         return back()->with('status', __('Voucher :number linked to this subcontract.', ['number' => $voucher->voucher_number]));
     }

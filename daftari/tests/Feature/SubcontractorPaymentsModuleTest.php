@@ -128,6 +128,7 @@ class SubcontractorPaymentsModuleTest extends TestCase
         $this->actingAs($owner)->post(route('app.subcontracts.store'), [
             'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 200000,
             'retention_percent' => 5, 'status' => 'active',
+            'milestones' => [['name' => 'Full', 'percentage' => 100, 'requires_handover_approval' => false]],
         ]);
         $subcontract = Subcontract::first();
 
@@ -136,11 +137,87 @@ class SubcontractorPaymentsModuleTest extends TestCase
 
         $this->assertDatabaseCount('subcontract_payments', 1);
         $this->assertEquals(50000.0, $subcontract->totalPaid());
+        $this->assertEquals(50000.0, $subcontract->totalReceivedGross());
         $this->assertDatabaseCount('journal_entries', 0);
 
         // Can't double-link the same voucher.
         $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), ['payment_voucher_id' => $voucher->id]);
         $this->assertDatabaseCount('subcontract_payments', 1);
+    }
+
+    public function test_a_vat_inclusive_voucher_can_apply_only_its_net_amount_to_the_contract_while_the_voucher_itself_keeps_the_real_cash_figure(): void
+    {
+        // "i have paid the same amount with tax but i am paying my
+        // supplier this amount without tax" — the voucher (real bank
+        // transfer) stays untouched at the VAT-inclusive figure; only
+        // the VAT-exclusive portion counts toward the contract.
+        [$company, $owner] = $this->makeOwner();
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
+        $supplier = Supplier::create(['company_id' => $company->id, 'name' => 'Dar Al Anajim']);
+        $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Main Account', 'type' => 'bank', 'is_active' => true]);
+        $voucher = PaymentVoucher::create([
+            'company_id' => $company->id, 'bank_account_id' => $bank->id, 'supplier_id' => $supplier->id, 'project_id' => $project->id,
+            'voucher_number' => 'PAY-00002', 'date' => now(), 'payee_name' => $supplier->name, 'amount' => 123454.60,
+            'method' => 'bank_transfer', 'status' => 'issued',
+        ]);
+
+        $this->actingAs($owner)->post(route('app.subcontracts.store'), [
+            'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 373650,
+            'retention_percent' => 5, 'status' => 'active',
+            'milestones' => [['name' => 'Full', 'percentage' => 100, 'requires_handover_approval' => false]],
+        ]);
+        $subcontract = Subcontract::first();
+
+        $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), [
+            'payment_voucher_id' => $voucher->id, 'net_amount' => 107352.20,
+        ]);
+
+        $this->assertEquals(107352.20, $subcontract->totalPaid());
+        $this->assertEquals(123454.60, $subcontract->totalReceivedGross());
+        $this->assertEquals(123454.60, $voucher->fresh()->amount);
+    }
+
+    public function test_a_payment_with_no_milestone_chosen_auto_fills_milestones_in_sequence_and_spills_into_the_next(): void
+    {
+        // "the payments i have made clear them as milestone total
+        // milestone paid move to next" — a waterfall allocation.
+        [$company, $owner] = $this->makeOwner();
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
+        $supplier = Supplier::create(['company_id' => $company->id, 'name' => 'Al Fahad Subcontracting']);
+
+        $this->actingAs($owner)->post(route('app.subcontracts.store'), [
+            'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 100000,
+            'retention_percent' => 5, 'status' => 'active',
+            'milestones' => [
+                ['name' => 'Advance', 'percentage' => 20, 'requires_handover_approval' => false],
+                ['name' => 'Milestone 2', 'percentage' => 30, 'requires_handover_approval' => false],
+                ['name' => 'Milestone 3', 'percentage' => 50, 'requires_handover_approval' => false],
+            ],
+        ]);
+        $subcontract = Subcontract::first();
+        $milestones = $subcontract->milestones;
+
+        // 25,000 fully funds the 20,000 Advance milestone and spills
+        // 5,000 into Milestone 2.
+        $this->actingAs($owner)->post(route('app.subcontracts.payments.store', $subcontract), [
+            'amount' => 25000, 'paid_at' => now()->toDateString(),
+        ]);
+
+        $this->assertDatabaseCount('subcontract_payments', 2);
+        $this->assertEquals(20000.0, $milestones[0]->fresh()->paidAmount());
+        $this->assertEquals(5000.0, $milestones[1]->fresh()->paidAmount());
+        $this->assertEquals(0.0, $milestones[2]->fresh()->paidAmount());
+        $this->assertEquals(25000.0, $subcontract->totalPaid());
+
+        // A second payment of 40,000 tops Milestone 2 up to its full
+        // 30,000 (needs 25,000 more) and spills the rest into Milestone 3.
+        $this->actingAs($owner)->post(route('app.subcontracts.payments.store', $subcontract), [
+            'amount' => 40000, 'paid_at' => now()->toDateString(),
+        ]);
+
+        $this->assertEquals(30000.0, $milestones[1]->fresh()->paidAmount());
+        $this->assertEquals(15000.0, $milestones[2]->fresh()->paidAmount());
+        $this->assertEquals(65000.0, $subcontract->totalPaid());
     }
 
     public function test_the_receiving_payments_report_pdf_renders_with_the_signature_lines(): void

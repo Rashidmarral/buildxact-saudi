@@ -13,15 +13,27 @@ class SubcontractPayment extends Model
 
     protected $fillable = [
         'company_id', 'subcontract_id', 'milestone_id', 'payment_voucher_id',
-        'amount', 'paid_at', 'method', 'reference', 'notes', 'created_by',
+        'amount', 'gross_amount', 'paid_at', 'method', 'reference', 'notes', 'created_by',
     ];
 
     protected function casts(): array
     {
         return [
             'amount' => 'decimal:2',
+            'gross_amount' => 'decimal:2',
             'paid_at' => 'date',
         ];
+    }
+
+    /**
+     * The real cash figure for this payment ("i have paid the same
+     * amount with tax but i am paying my supplier this amount without
+     * tax") — gross_amount when a VAT difference was recorded, amount
+     * otherwise (the common case: no difference to track).
+     */
+    public function displayGross(): float
+    {
+        return (float) ($this->gross_amount ?? $this->amount);
     }
 
     public function subcontract(): BelongsTo

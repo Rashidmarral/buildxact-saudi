@@ -5,6 +5,7 @@
 @section('content')
 @php
     $totalPaid = $subcontract->totalPaid();
+    $totalGross = $subcontract->totalReceivedGross();
     $balanceBeforeRetention = $subcontract->balanceBeforeRetention();
     $retentionAmount = $subcontract->retentionAmount();
     $balanceAfterRetention = $subcontract->balanceAfterRetention();
@@ -31,8 +32,11 @@
         <p class="text-xl font-semibold text-slate-900 mt-1">{{ number_format((float) $subcontract->contract_value, 2) }}</p>
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
-        <p class="text-xs font-semibold uppercase text-slate-500">{{ __('Received to date') }}</p>
+        <p class="text-xs font-semibold uppercase text-slate-500">{{ __('Applied to contract (net)') }}</p>
         <p class="text-xl font-semibold text-teal-700 mt-1">{{ number_format($totalPaid, 2) }}</p>
+        @if (abs($totalGross - $totalPaid) > 0.004)
+            <p class="text-xs text-slate-400 mt-1">{{ __('Cash received (incl. VAT)') }}: {{ number_format($totalGross, 2) }}</p>
+        @endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs font-semibold uppercase text-slate-500">{{ __('Retention held') }} ({{ number_format((float) $subcontract->retention_percent, 2) }}%)</p>
@@ -112,14 +116,15 @@
             <th class="px-5 py-2.5 font-medium">{{ __('Milestone') }}</th>
             <th class="px-5 py-2.5 font-medium">{{ __('Source') }}</th>
             <th class="px-5 py-2.5 font-medium">{{ __('Reference') }}</th>
-            <th class="px-5 py-2.5 font-medium text-end">{{ __('Amount') }}</th>
+            <th class="px-5 py-2.5 font-medium text-end">{{ __('Applied (net)') }}</th>
+            <th class="px-5 py-2.5 font-medium text-end">{{ __('Cash (gross)') }}</th>
             <th class="px-5 py-2.5 font-medium"></th>
         </tr></thead>
         <tbody>
             @forelse ($subcontract->payments as $payment)
                 <tr class="border-b border-slate-50 last:border-0">
                     <td class="px-5 py-2.5">{{ $payment->paid_at->format('Y-m-d') }}</td>
-                    <td class="px-5 py-2.5">{{ $payment->milestone->name ?? '—' }}</td>
+                    <td class="px-5 py-2.5">{{ $payment->milestone->name ?? __('Unassigned') }}</td>
                     <td class="px-5 py-2.5">
                         @if ($payment->payment_voucher_id)
                             <a href="{{ route('app.payment-vouchers.show', $payment->payment_voucher_id) }}" class="text-brand-700 hover:underline">{{ $payment->paymentVoucher->voucher_number }}</a>
@@ -129,6 +134,7 @@
                     </td>
                     <td class="px-5 py-2.5">{{ $payment->reference ?: '—' }}</td>
                     <td class="px-5 py-2.5 text-end font-medium">{{ number_format((float) $payment->amount, 2) }}</td>
+                    <td class="px-5 py-2.5 text-end text-slate-500">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
                     <td class="px-5 py-2.5 text-end">
                         <form method="POST" action="{{ route('app.subcontracts.payments.destroy', [$subcontract, $payment]) }}" onsubmit="return confirm('{{ __('Remove this payment from the tracker? The underlying voucher, if any, is not affected.') }}')">
                             @csrf @method('DELETE')
@@ -137,7 +143,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="px-5 py-8 text-center text-slate-400">{{ __('No payments recorded yet.') }}</td></tr>
+                <tr><td colspan="7" class="px-5 py-8 text-center text-slate-400">{{ __('No payments recorded yet.') }}</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -149,21 +155,22 @@
         @if ($linkableVouchers->isEmpty())
             <p class="text-sm text-slate-400">{{ __('No unlinked, issued payment vouchers found for this subcontractor.') }}</p>
         @else
-            <form method="POST" action="{{ route('app.subcontracts.link-voucher', $subcontract) }}" class="flex flex-wrap items-center gap-2">
+            <form method="POST" action="{{ route('app.subcontracts.link-voucher', $subcontract) }}" class="grid grid-cols-2 gap-2">
                 @csrf
-                <select name="payment_voucher_id" required class="rounded-lg border border-slate-200 text-sm min-w-[14rem]">
+                <select name="payment_voucher_id" required class="col-span-2 rounded-lg border border-slate-200 text-sm">
                     @foreach ($linkableVouchers as $v)
                         <option value="{{ $v->id }}">{{ $v->voucher_number }} — {{ $v->date->format('Y-m-d') }} — {{ number_format((float) $v->amount, 2) }}</option>
                     @endforeach
                 </select>
-                <select name="milestone_id" class="rounded-lg border border-slate-200 text-sm">
-                    <option value="">{{ __('No milestone') }}</option>
+                <input type="number" step="0.01" min="0.01" name="net_amount" placeholder="{{ __('Amount to apply, if different (ex. VAT)') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                <select name="milestone_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                    <option value="">{{ __('Auto-fill milestones in order') }}</option>
                     @foreach ($subcontract->milestones as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach
                 </select>
-                <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Link') }}</button>
+                <button type="submit" class="col-span-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Link') }}</button>
             </form>
         @endif
-        <p class="text-xs text-slate-400 mt-3">{{ __('Need to correct an amount or date on a linked voucher? Edit it directly from Cash & Banks > Payment Vouchers — this tracker follows it automatically.') }}</p>
+        <p class="text-xs text-slate-400 mt-3">{{ __('Leave the applied amount blank to apply the full voucher amount. Leave milestone blank to fill whichever milestone is next due, spilling any remainder into the one after it. Need to correct the real voucher amount or date itself? Edit it from Cash & Banks > Payment Vouchers.') }}</p>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -172,9 +179,10 @@
         <form method="POST" action="{{ route('app.subcontracts.payments.store', $subcontract) }}" class="grid grid-cols-2 gap-2">
             @csrf
             <input type="date" name="paid_at" required value="{{ now()->toDateString() }}" class="rounded-lg border border-slate-200 text-sm">
-            <input type="number" step="0.01" min="0.01" name="amount" required placeholder="{{ __('Amount') }}" class="rounded-lg border border-slate-200 text-sm">
+            <input type="number" step="0.01" min="0.01" name="amount" required placeholder="{{ __('Amount to apply (ex. VAT)') }}" class="rounded-lg border border-slate-200 text-sm">
+            <input type="number" step="0.01" min="0.01" name="gross_amount" placeholder="{{ __('Cash paid, if different (incl. VAT)') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
             <select name="milestone_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
-                <option value="">{{ __('No milestone') }}</option>
+                <option value="">{{ __('Auto-fill milestones in order') }}</option>
                 @foreach ($subcontract->milestones as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach
             </select>
             <input type="text" name="reference" placeholder="{{ __('Reference') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
