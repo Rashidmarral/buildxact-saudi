@@ -17,24 +17,63 @@ use Illuminate\Support\Facades\Schema;
  * several milestones (see SubcontractController::allocateAcrossMilestones()),
  * which splits it into several rows sharing one voucher link, with the
  * gross recorded on exactly one of them so it isn't double-counted.
+ *
+ * Every step is guarded with an existence check: on MySQL this first
+ * failed partway through on the operator's real database (error 1553 —
+ * dropping the unique index while it was still the only index covering
+ * the payment_voucher_id foreign key), which left gross_amount already
+ * added but the index swap undone, and — since MySQL DDL isn't
+ * transactional — the migration unrecorded as run. Re-running it from
+ * scratch has to tolerate that exact half-applied state as cleanly as a
+ * fully fresh table.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('subcontract_payments', function (Blueprint $table) {
-            $table->decimal('gross_amount', 14, 2)->nullable()->after('amount');
-            $table->dropUnique(['payment_voucher_id']);
-            $table->index('payment_voucher_id');
-        });
+        if (! Schema::hasColumn('subcontract_payments', 'gross_amount')) {
+            Schema::table('subcontract_payments', function (Blueprint $table) {
+                $table->decimal('gross_amount', 14, 2)->nullable()->after('amount');
+            });
+        }
+
+        // The replacement plain index must exist BEFORE the unique one
+        // is dropped — MySQL requires some index covering a foreign key
+        // column at all times, and each of these runs as its own
+        // separate ALTER TABLE statement, not one combined statement.
+        if (! Schema::hasIndex('subcontract_payments', 'subcontract_payments_payment_voucher_id_index')) {
+            Schema::table('subcontract_payments', function (Blueprint $table) {
+                $table->index('payment_voucher_id', 'subcontract_payments_payment_voucher_id_index');
+            });
+        }
+
+        if (Schema::hasIndex('subcontract_payments', 'subcontract_payments_payment_voucher_id_unique')) {
+            Schema::table('subcontract_payments', function (Blueprint $table) {
+                $table->dropUnique('subcontract_payments_payment_voucher_id_unique');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('subcontract_payments', function (Blueprint $table) {
-            $table->dropIndex(['payment_voucher_id']);
-            $table->unique('payment_voucher_id');
-            $table->dropColumn('gross_amount');
-        });
+        // Same ordering constraint in reverse: add the unique index
+        // before dropping the plain one, so the FK always has coverage.
+        if (! Schema::hasIndex('subcontract_payments', 'subcontract_payments_payment_voucher_id_unique')) {
+            Schema::table('subcontract_payments', function (Blueprint $table) {
+                $table->unique('payment_voucher_id');
+            });
+        }
+
+        if (Schema::hasIndex('subcontract_payments', 'subcontract_payments_payment_voucher_id_index')) {
+            Schema::table('subcontract_payments', function (Blueprint $table) {
+                $table->dropIndex('subcontract_payments_payment_voucher_id_index');
+            });
+        }
+
+        if (Schema::hasColumn('subcontract_payments', 'gross_amount')) {
+            Schema::table('subcontract_payments', function (Blueprint $table) {
+                $table->dropColumn('gross_amount');
+            });
+        }
     }
 };
