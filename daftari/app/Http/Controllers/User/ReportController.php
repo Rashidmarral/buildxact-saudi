@@ -561,18 +561,25 @@ class ReportController extends Controller
             return $this->csvResponse('account-statement.csv', [__('Date'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
         }
 
-        // A single bilingual PDF replaces the old separate pdf-ar/pdf-en
-        // exports (each monolingual, on the old plain layout) — the
-        // shared report-PDF design shows both languages side by side
-        // already, so there's no longer a reason to pick one. Both
-        // export values are still accepted so any saved/bookmarked link
-        // keeps working.
-        if (in_array($request->query('export'), ['pdf', 'pdf-ar', 'pdf-en']) && $party) {
-            $closingBalance = $lines->last()->balance ?? $openingBalance;
+        // "add if we are missing anything" — what every client statement
+        // from a mature accounting system carries beyond a bare ledger:
+        // totals for the period shown, which documents are *currently*
+        // outstanding (an "open item" view — always as-of-today, not
+        // bound to the chosen period, since an overdue invoice from last
+        // quarter is still overdue today regardless of what range someone
+        // picks to view history for), and the same aging buckets the
+        // standalone Aged Receivables/Payables report already uses.
+        $totalInvoiced = (float) $lines->sum('debit');
+        $totalReceived = (float) $lines->sum('credit');
+        $closingBalance = $lines->last()->balance ?? $openingBalance;
+        [$outstandingRows, $agingBuckets] = $this->partyOutstandingSummary($party, $type);
 
+        if (in_array($request->query('export'), ['pdf', 'pdf-ar', 'pdf-en']) && $party) {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.account-statement', [
                 'company' => $company, 'period' => $period, 'party' => $party, 'type' => $type,
                 'lines' => $lines, 'openingBalance' => $openingBalance, 'closingBalance' => $closingBalance,
+                'totalInvoiced' => $totalInvoiced, 'totalReceived' => $totalReceived,
+                'outstandingRows' => $outstandingRows, 'agingBuckets' => $agingBuckets,
                 'template' => $company->defaultTemplateFor('account_statement'),
             ]);
 
@@ -588,7 +595,36 @@ class ReportController extends Controller
             'party' => $party,
             'lines' => $lines,
             'openingBalance' => $openingBalance,
+            'closingBalance' => $closingBalance,
+            'totalInvoiced' => $totalInvoiced,
+            'totalReceived' => $totalReceived,
+            'outstandingRows' => $outstandingRows,
+            'agingBuckets' => $agingBuckets,
         ]);
+    }
+
+    /**
+     * @return array{0: \Illuminate\Support\Collection, 1: array<string, float>}
+     */
+    private function partyOutstandingSummary(Client|Supplier|null $party, string $type): array
+    {
+        $empty = ['current' => 0.0, 'days_1_30' => 0.0, 'days_31_60' => 0.0, 'days_61_90' => 0.0, 'days_over_90' => 0.0];
+
+        if (! $party) {
+            return [collect(), $empty];
+        }
+
+        if ($type === 'customer') {
+            $docs = $party->invoices()->whereNotIn('status', ['draft', 'cancelled'])->get()->filter(fn (Invoice $i) => $i->balanceDue() > 0.004);
+            $rows = $docs->map(fn (Invoice $i) => ['number' => $i->invoice_number, 'date' => $i->issue_date, 'due_date' => $i->due_date, 'total' => (float) $i->total, 'balance' => $i->balanceDue()])->values();
+            $buckets = $this->bucketBalances($docs, fn (Invoice $i) => $i->due_date ?? $i->issue_date, fn (Invoice $i) => $i->balanceDue());
+        } else {
+            $docs = $party->bills()->whereNotIn('status', ['draft', 'void'])->get()->filter(fn (Bill $b) => $b->balanceDue() > 0.004);
+            $rows = $docs->map(fn (Bill $b) => ['number' => $b->bill_number, 'date' => $b->bill_date, 'due_date' => $b->due_date, 'total' => (float) $b->total, 'balance' => $b->balanceDue()])->values();
+            $buckets = $this->bucketBalances($docs, fn (Bill $b) => $b->due_date ?? $b->bill_date, fn (Bill $b) => $b->balanceDue());
+        }
+
+        return [$rows->sortBy('due_date')->values(), $buckets];
     }
 
     /**

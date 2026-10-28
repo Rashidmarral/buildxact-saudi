@@ -49,6 +49,74 @@
 </form>
 
 @if ($party)
+    @php
+        $isCustomer = $type === 'customer';
+        $agingTotal = array_sum($agingBuckets ?? []);
+    @endphp
+
+    <div class="grid sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <p class="text-xs font-semibold uppercase text-slate-500">{{ $isCustomer ? __('Total invoiced') : __('Total billed') }}</p>
+            <p class="text-xl font-semibold text-slate-900 mt-1">{{ \App\Support\Money::format($totalInvoiced) }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <p class="text-xs font-semibold uppercase text-slate-500">{{ $isCustomer ? __('Total received') : __('Total paid') }}</p>
+            <p class="text-xl font-semibold text-teal-700 mt-1">{{ \App\Support\Money::format($totalReceived) }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <p class="text-xs font-semibold uppercase text-slate-500">{{ $isCustomer ? __('Balance due') : __('Amount owed') }}</p>
+            <p class="text-xl font-semibold {{ $closingBalance > 0 ? 'text-amber-600' : 'text-slate-900' }} mt-1">{{ \App\Support\Money::format($closingBalance) }}</p>
+        </div>
+    </div>
+
+    @if ($agingTotal > 0.004)
+        <div class="bg-white rounded-xl border border-slate-100 mb-6 p-5">
+            <p class="text-xs font-semibold uppercase text-slate-500 mb-3">{{ __('Aging (as of today)') }}</p>
+            <div class="grid grid-cols-5 gap-3 text-center">
+                <div><p class="text-[11px] text-slate-400 uppercase">{{ __('Current') }}</p><p class="text-sm font-semibold text-teal-700 mt-1">{{ \App\Support\Money::format($agingBuckets['current']) }}</p></div>
+                <div><p class="text-[11px] text-slate-400 uppercase">{{ __('1-30 days') }}</p><p class="text-sm font-semibold text-slate-900 mt-1">{{ \App\Support\Money::format($agingBuckets['days_1_30']) }}</p></div>
+                <div><p class="text-[11px] text-slate-400 uppercase">{{ __('31-60 days') }}</p><p class="text-sm font-semibold text-slate-900 mt-1">{{ \App\Support\Money::format($agingBuckets['days_31_60']) }}</p></div>
+                <div><p class="text-[11px] text-slate-400 uppercase">{{ __('61-90 days') }}</p><p class="text-sm font-semibold text-slate-900 mt-1">{{ \App\Support\Money::format($agingBuckets['days_61_90']) }}</p></div>
+                <div><p class="text-[11px] text-slate-400 uppercase">{{ __('90+ days') }}</p><p class="text-sm font-semibold text-red-600 mt-1">{{ \App\Support\Money::format($agingBuckets['days_over_90']) }}</p></div>
+            </div>
+        </div>
+    @endif
+
+    @if ($outstandingRows->isNotEmpty())
+        <div class="bg-white rounded-xl border border-slate-100 mb-6">
+            <div class="px-5 py-3 border-b border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-900">{{ $isCustomer ? __('Outstanding invoices') : __('Outstanding bills') }}</h3>
+                <p class="text-xs text-slate-400 mt-0.5">{{ __('As of today — independent of the period filter above.') }}</p>
+            </div>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-5 py-2.5 font-medium">{{ $isCustomer ? __('Invoice No.') : __('Bill No.') }}</th>
+                        <th class="px-5 py-2.5 font-medium">{{ __('Date') }}</th>
+                        <th class="px-5 py-2.5 font-medium">{{ __('Due date') }}</th>
+                        <th class="px-5 py-2.5 font-medium text-end">{{ __('Total') }}</th>
+                        <th class="px-5 py-2.5 font-medium text-end">{{ __('Balance due') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($outstandingRows as $row)
+                        @php $overdue = $row['due_date'] && $row['due_date']->lt(now()->startOfDay()); @endphp
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-5 py-2.5 font-medium text-slate-800">{{ $row['number'] }}</td>
+                            <td class="px-5 py-2.5 text-slate-500">{{ $row['date']->format('Y-m-d') }}</td>
+                            <td class="px-5 py-2.5 text-slate-500">
+                                {{ $row['due_date']?->format('Y-m-d') ?? '—' }}
+                                @if ($overdue)<span class="ms-1 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">{{ __('OVERDUE') }}</span>@endif
+                            </td>
+                            <td class="px-5 py-2.5 text-end">{{ number_format($row['total'], 2) }}</td>
+                            <td class="px-5 py-2.5 text-end font-semibold">{{ number_format($row['balance'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
     <div class="bg-white rounded-xl border border-slate-100">
         <table class="w-full text-sm">
             <thead>
