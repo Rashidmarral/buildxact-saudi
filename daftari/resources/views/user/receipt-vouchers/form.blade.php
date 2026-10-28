@@ -71,6 +71,28 @@
                         <span>{{ __('Balance due') }}: <span id="invoice-summary-balance" class="font-semibold"></span></span>
                     </div>
                 </div>
+                <div>
+                    <label class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                        <input type="checkbox" id="split-toggle">
+                        {{ __('This one payment settles more than one invoice') }}
+                    </label>
+                    <p class="mt-1 text-xs text-slate-400">{{ __('Use this when one real transfer needs to be applied across several invoices — the statement will still show it as a single payment, with its own date and reference, matching exactly what the client sent.') }}</p>
+                </div>
+                <div id="allocations-section" class="hidden rounded-lg border border-slate-200 p-3">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="text-left text-slate-500">
+                                <th class="py-1 font-medium">{{ __('Invoice') }}</th>
+                                <th class="py-1 font-medium w-28 text-end">{{ __('Amount') }}</th>
+                                <th class="py-1"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="allocations-body"></tbody>
+                    </table>
+                    <button type="button" id="add-allocation-row" class="mt-2 text-xs font-semibold text-brand-700 hover:underline">{{ __('+ Add invoice') }}</button>
+                    <p class="mt-2 text-xs text-slate-500">{{ __('Allocated') }}: <span id="allocations-total" class="font-semibold">0.00</span> {{ __('of') }} <span id="allocations-voucher-amount" class="font-semibold">0.00</span></p>
+                    @error('allocations')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
             </div>
 
             <div id="panel-supplier" class="party-panel hidden mb-4">
@@ -282,6 +304,9 @@
                     invoiceSelect.value = preselectId;
                     applyInvoiceSelection();
                 }
+                if (typeof refreshAllocationRowOptions === 'function') {
+                    refreshAllocationRowOptions();
+                }
             });
     }
 
@@ -334,7 +359,89 @@
 
     clientSelect.addEventListener('change', () => loadInvoices());
     invoiceSelect.addEventListener('change', () => applyInvoiceSelection());
-    if (clientSelect.value) loadInvoices(initialInvoiceId);
+
+    // "how can i allocate same invoice for different receipt voucher" /
+    // "there is one transfer reference how can i deal with it" — lets
+    // this one voucher's real amount settle more than one invoice,
+    // instead of being recorded as several separate vouchers that no
+    // longer match what the client actually sent.
+    const splitToggle = document.getElementById('split-toggle');
+    const allocationsSection = document.getElementById('allocations-section');
+    const allocationsBody = document.getElementById('allocations-body');
+    const addAllocationRowBtn = document.getElementById('add-allocation-row');
+    const allocationsTotalEl = document.getElementById('allocations-total');
+    const allocationsVoucherAmountEl = document.getElementById('allocations-voucher-amount');
+    const existingAllocations = @json(old('allocations') ? array_values(old('allocations')) : ($existingAllocations ?? []));
+    let allocationRowIndex = 0;
+
+    function invoiceOptionsHtml(selectedId) {
+        let html = '<option value="">' + @json(__('Select invoice')) + '</option>';
+        Object.values(invoicesById).forEach(invoice => {
+            const settled = parseFloat(invoice.balance) <= 0;
+            const label = invoice.invoice_number + ' — SAR ' + invoice.balance + (settled ? ' ' + @json(__('(fully paid)')) : '');
+            html += '<option value="' + invoice.id + '"' + (String(selectedId) === String(invoice.id) ? ' selected' : '') + '>' + label + '</option>';
+        });
+        return html;
+    }
+
+    function refreshAllocationRowOptions() {
+        allocationsBody.querySelectorAll('select').forEach(select => {
+            const current = select.value;
+            select.innerHTML = invoiceOptionsHtml(current);
+        });
+    }
+
+    function recalcAllocationsTotal() {
+        let sum = 0;
+        allocationsBody.querySelectorAll('input[type="number"]').forEach(input => {
+            sum += parseFloat(input.value) || 0;
+        });
+        allocationsTotalEl.textContent = sum.toFixed(2);
+        allocationsVoucherAmountEl.textContent = (parseFloat(amountInput.value) || 0).toFixed(2);
+    }
+
+    function addAllocationRow(prefill) {
+        const i = allocationRowIndex++;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="py-1 pe-2"><select name="allocations[${i}][invoice_id]" class="w-full rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">${invoiceOptionsHtml(prefill ? prefill.invoice_id : '')}</select></td>
+            <td class="py-1 pe-2"><input type="number" step="0.01" min="0.01" name="allocations[${i}][amount]" value="${prefill ? prefill.amount : ''}" class="w-full rounded-lg border border-slate-200 text-xs text-end focus:border-brand-500 focus:ring-brand-500"></td>
+            <td class="py-1 text-end"><button type="button" class="remove-allocation-row text-xs text-slate-400 hover:text-red-600">${@json(__('Remove'))}</button></td>
+        `;
+        allocationsBody.appendChild(row);
+        row.querySelector('input[type="number"]').addEventListener('input', recalcAllocationsTotal);
+        row.querySelector('.remove-allocation-row').addEventListener('click', () => { row.remove(); recalcAllocationsTotal(); });
+        recalcAllocationsTotal();
+    }
+
+    function setSplitMode(on) {
+        allocationsSection.classList.toggle('hidden', !on);
+        invoiceSelect.closest('div').classList.toggle('hidden', on);
+        if (on) {
+            invoiceSelect.value = '';
+            summaryBox.classList.add('hidden');
+            if (allocationsBody.children.length === 0) {
+                addAllocationRow();
+            }
+        } else {
+            allocationsBody.innerHTML = '';
+        }
+    }
+
+    splitToggle.addEventListener('change', () => setSplitMode(splitToggle.checked));
+    addAllocationRowBtn.addEventListener('click', () => addAllocationRow());
+    amountInput.addEventListener('input', recalcAllocationsTotal);
+
+    if (existingAllocations.length) {
+        splitToggle.checked = true;
+        setSplitMode(true);
+        allocationsBody.innerHTML = '';
+        existingAllocations.forEach(a => addAllocationRow(a));
+    }
+
+    if (clientSelect.value) {
+        loadInvoices(initialInvoiceId);
+    }
 })();
 </script>
 @endsection

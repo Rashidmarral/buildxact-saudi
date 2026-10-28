@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -68,6 +69,12 @@ class ReceiptVoucher extends Model
     public function invoicePayment(): BelongsTo
     {
         return $this->belongsTo(InvoicePayment::class);
+    }
+
+    /** This voucher's real amount split across more than one invoice — see ReceiptVoucherAllocation's own doc block. Empty for an ordinary single-invoice (or no-invoice) voucher. */
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(ReceiptVoucherAllocation::class);
     }
 
     public function attachments(): MorphMany

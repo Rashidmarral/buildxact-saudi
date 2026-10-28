@@ -22,6 +22,7 @@ use App\Models\Item;
 use App\Models\PrepaymentInvoice;
 use App\Models\PrepaymentInvoiceApplication;
 use App\Models\Project;
+use App\Models\ReceiptVoucherAllocation;
 use App\Models\Salesperson;
 use App\Models\Supplier;
 use App\Models\Warehouse;
@@ -949,7 +950,25 @@ class ReportController extends Controller
         $openingBalance = 0.0;
 
         $invoices = $client->invoices()->whereNotIn('status', ['draft', 'cancelled'])->get();
-        $payments = InvoicePayment::with('invoice', 'receiptVoucher')->whereIn('invoice_id', $invoices->pluck('id'))->get();
+        $invoiceIds = $invoices->pluck('id');
+
+        // "there is one transfer reference how can i deal with it" — a
+        // single real deposit split across several invoices (see
+        // ReceiptVoucherAllocation) must still read back as the one real
+        // payment the client actually sent, not as several smaller lines
+        // that don't match their own bank statement. Pull those out
+        // first so the plain per-InvoicePayment loop below never
+        // double-lists them.
+        $allocations = ReceiptVoucherAllocation::with('invoicePayment', 'invoice', 'receiptVoucher')
+            ->whereNotNull('invoice_payment_id')
+            ->whereHas('invoice', fn ($q) => $q->whereIn('id', $invoiceIds))
+            ->get();
+        $allocatedPaymentIds = $allocations->pluck('invoice_payment_id');
+
+        $payments = InvoicePayment::with('invoice', 'receiptVoucher')
+            ->whereIn('invoice_id', $invoiceIds)
+            ->whereNotIn('id', $allocatedPaymentIds)
+            ->get();
 
         foreach ($invoices as $invoice) {
             if ($invoice->issue_date->lt($period['from'])) {
@@ -963,6 +982,18 @@ class ReportController extends Controller
                 $openingBalance -= $payment->amount;
             } elseif ($payment->paid_at->lte($period['to'])) {
                 $lines->push((object) ['date' => $payment->paid_at, 'description' => $this->paymentDescription(__('Payment received'), $payment->invoice?->invoice_number, $payment->reference, $payment->receiptVoucher?->voucher_number), 'debit' => 0, 'credit' => $payment->amount]);
+            }
+        }
+        foreach ($allocations->groupBy('receipt_voucher_id') as $group) {
+            $voucher = $group->first()->receiptVoucher;
+            $date = $group->first()->invoicePayment->paid_at;
+            $amount = $group->sum('amount');
+            $invoiceNumbers = $group->map(fn (ReceiptVoucherAllocation $a) => $a->invoice?->invoice_number)->filter()->implode(', ');
+
+            if ($date->lt($period['from'])) {
+                $openingBalance -= $amount;
+            } elseif ($date->lte($period['to'])) {
+                $lines->push((object) ['date' => $date, 'description' => $this->paymentDescription(__('Payment received'), $invoiceNumbers, $voucher?->reference, $voucher?->voucher_number), 'debit' => 0, 'credit' => $amount]);
             }
         }
 

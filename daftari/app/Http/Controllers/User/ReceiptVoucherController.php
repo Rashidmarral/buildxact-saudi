@@ -160,12 +160,26 @@ class ReceiptVoucherController extends Controller
         $data = $this->validated($request);
         $company = Auth::user()->company;
 
+        $allocations = $this->cleanAllocations($request);
+
+        if ($allocations) {
+            $clientId = $data['party_type'] === 'customer' ? ($data['client_id'] ?? null) : null;
+
+            if ($error = $this->validateAllocations($allocations, $company->id, $clientId, (float) $data['amount'])) {
+                return back()->withErrors(['allocations' => $error])->withInput();
+            }
+
+            // Allocations win over the single-invoice field — a voucher
+            // settling several invoices has no one "the" invoice.
+            $data['invoice_id'] = null;
+        }
+
         // Audit finding CASH-06: at/above the threshold, nothing here
         // happens yet — no invoice payment recorded, no GL posting —
         // until approvePending() explicitly runs it.
         $requiresApproval = $company->receiptVoucherRequiresApproval((float) $data['amount']);
 
-        $voucher = DB::transaction(function () use ($data, $ledger, $company, $requiresApproval) {
+        $voucher = DB::transaction(function () use ($data, $allocations, $ledger, $company, $requiresApproval) {
             $voucher = ReceiptVoucher::create([
                 'bank_account_id' => $data['bank_account_id'],
                 'project_id' => $data['project_id'] ?? null,
@@ -192,6 +206,14 @@ class ReceiptVoucherController extends Controller
                 'notes_ar' => $data['notes_ar'] ?? null,
                 'status' => $requiresApproval ? 'pending_approval' : 'issued',
             ]);
+
+            foreach ($allocations as $row) {
+                $voucher->allocations()->create([
+                    'company_id' => $company->id,
+                    'invoice_id' => $row['invoice_id'],
+                    'amount' => $row['amount'],
+                ]);
+            }
 
             if ($requiresApproval) {
                 AuditLog::record('receipt_voucher.create_pending', $voucher, __('Submitted receipt voucher :number for approval (amount :amount)', ['number' => $voucher->voucher_number, 'amount' => $voucher->amount]));
@@ -227,10 +249,30 @@ class ReceiptVoucherController extends Controller
             $voucher->invoice_payment_id = $payment->id;
         }
 
+        // The multi-invoice counterpart of the block above — one
+        // InvoicePayment per allocation row, each dated/referenced
+        // exactly like the voucher itself (it's the same one real
+        // transfer), each settling its own invoice's own balance.
+        foreach ($voucher->allocations()->whereNull('invoice_payment_id')->get() as $allocation) {
+            $invoice = $allocation->invoice;
+            $payment = $invoice->invoicePayments()->create([
+                'amount' => $allocation->amount,
+                'paid_at' => $voucher->date,
+                'method' => $voucher->method,
+                'reference' => $voucher->reference,
+            ]);
+            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+            $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+            $invoice->save();
+
+            $allocation->invoice_payment_id = $payment->id;
+            $allocation->save();
+        }
+
         $voucher->status = 'issued';
         $voucher->save();
 
-        $ledger->postReceiptVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'invoice']));
+        $ledger->postReceiptVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'invoice', 'allocations']));
     }
 
     public function approvePending(ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)
@@ -271,7 +313,7 @@ class ReceiptVoucherController extends Controller
 
     public function show(ReceiptVoucher $receiptVoucher)
     {
-        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice.items', 'counterAccount', 'project', 'attachments');
+        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice.items', 'counterAccount', 'project', 'attachments', 'allocations.invoice');
 
         $template = $receiptVoucher->company->defaultTemplateFor('receipt_voucher');
 
@@ -288,7 +330,7 @@ class ReceiptVoucherController extends Controller
             return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
         }
 
-        $receiptVoucher->load('invoice.items');
+        $receiptVoucher->load('invoice.items', 'allocations.invoice');
 
         $company = Auth::user()->company;
         $clients = Client::orderBy('name')->get();
@@ -323,6 +365,11 @@ class ReceiptVoucherController extends Controller
                 'name_ar' => $e->full_name_ar, 'name' => $e->full_name, 'vat_number' => null,
                 'phone' => $e->mobile, 'email' => $e->email, 'address' => $e->address,
             ]]),
+            'existingAllocations' => $receiptVoucher->allocations->map(fn ($a) => [
+                'invoice_id' => $a->invoice_id,
+                'invoice_number' => $a->invoice?->invoice_number,
+                'amount' => (string) $a->amount,
+            ])->values(),
             // The invoice this voucher is already linked to may no longer
             // be "outstanding" (this very voucher's payment may have fully
             // settled it) and so would be missing from the fetched
@@ -354,8 +401,19 @@ class ReceiptVoucherController extends Controller
         }
 
         $data = $this->validated($request);
+        $allocations = $this->cleanAllocations($request);
 
-        DB::transaction(function () use ($data, $receiptVoucher, $ledger) {
+        if ($allocations) {
+            $clientId = $data['party_type'] === 'customer' ? ($data['client_id'] ?? null) : null;
+
+            if ($error = $this->validateAllocations($allocations, $receiptVoucher->company_id, $clientId, (float) $data['amount'])) {
+                return back()->withErrors(['allocations' => $error])->withInput();
+            }
+
+            $data['invoice_id'] = null;
+        }
+
+        DB::transaction(function () use ($data, $allocations, $receiptVoucher, $ledger) {
             // Undo the previous invoice linkage's side effects, mirroring
             // void() — amount_paid/status must reflect whatever the
             // voucher ends up looking like after this edit, not what it
@@ -366,6 +424,21 @@ class ReceiptVoucherController extends Controller
                 $oldInvoice->amount_paid = $oldInvoice->invoicePayments()->sum('amount');
                 $oldInvoice->status = $oldInvoice->isFullyPaid() ? 'paid' : ($oldInvoice->amount_paid > 0 ? 'partially_paid' : 'sent');
                 $oldInvoice->save();
+            }
+
+            // Same undo, for whichever invoices the old allocations (if
+            // any) had settled — then drop the rows entirely, since
+            // they're about to be rebuilt from this edit's own input.
+            foreach ($receiptVoucher->allocations as $oldAllocation) {
+                if ($oldAllocation->invoice_payment_id) {
+                    $oldInvoice = $oldAllocation->invoice;
+                    $oldInvoice->invoicePayments()->where('id', $oldAllocation->invoice_payment_id)->delete();
+                    $oldInvoice->amount_paid = $oldInvoice->invoicePayments()->sum('amount');
+                    $oldInvoice->status = $oldInvoice->isFullyPaid() ? 'paid' : ($oldInvoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+                    $oldInvoice->save();
+                }
+
+                $oldAllocation->delete();
             }
 
             // Rebuild the ledger posting from scratch rather than adjusting
@@ -388,6 +461,26 @@ class ReceiptVoucherController extends Controller
                 $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
                 $invoice->save();
                 $invoicePaymentId = $payment->id;
+            }
+
+            foreach ($allocations as $row) {
+                $invoice = Invoice::findOrFail($row['invoice_id']);
+                $payment = $invoice->invoicePayments()->create([
+                    'amount' => $row['amount'],
+                    'paid_at' => $data['date'],
+                    'method' => $data['method'],
+                    'reference' => $data['reference'] ?? null,
+                ]);
+                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+                $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+                $invoice->save();
+
+                $receiptVoucher->allocations()->create([
+                    'company_id' => $receiptVoucher->company_id,
+                    'invoice_id' => $row['invoice_id'],
+                    'amount' => $row['amount'],
+                    'invoice_payment_id' => $payment->id,
+                ]);
             }
 
             $receiptVoucher->update([
@@ -414,7 +507,7 @@ class ReceiptVoucherController extends Controller
                 'notes_ar' => $data['notes_ar'] ?? null,
             ]);
 
-            $ledger->postReceiptVoucher($receiptVoucher->fresh(['bankAccount', 'counterAccount', 'invoice']));
+            $ledger->postReceiptVoucher($receiptVoucher->fresh(['bankAccount', 'counterAccount', 'invoice', 'allocations']));
         });
 
         return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('Receipt voucher updated.'));
@@ -441,6 +534,18 @@ class ReceiptVoucherController extends Controller
             if ($receiptVoucher->invoice_payment_id && $receiptVoucher->invoice) {
                 $invoice = $receiptVoucher->invoice;
                 $invoice->invoicePayments()->where('id', $receiptVoucher->invoice_payment_id)->delete();
+                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+                $invoice->status = $invoice->isFullyPaid() ? 'paid' : ($invoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+                $invoice->save();
+            }
+
+            foreach ($receiptVoucher->allocations as $allocation) {
+                if (! $allocation->invoice_payment_id) {
+                    continue;
+                }
+
+                $invoice = $allocation->invoice;
+                $invoice->invoicePayments()->where('id', $allocation->invoice_payment_id)->delete();
                 $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
                 $invoice->status = $invoice->isFullyPaid() ? 'paid' : ($invoice->amount_paid > 0 ? 'partially_paid' : 'sent');
                 $invoice->save();
@@ -486,6 +591,59 @@ class ReceiptVoucherController extends Controller
         return back()->with('status', __('Attachment removed.'));
     }
 
+    /** Drops any blank row the repeatable allocations UI submits (an added-then-untouched row), keeping only ones with both an invoice and an amount. */
+    private function cleanAllocations(Request $request): array
+    {
+        return collect($request->input('allocations', []))
+            ->filter(fn ($row) => ! empty($row['invoice_id']) && ! empty($row['amount']))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Cross-field checks a single array-shape validation rule can't
+     * express: every allocated invoice must actually belong to this
+     * voucher's own customer, be sendable (not draft), share the
+     * company's base currency (postReceiptVoucher() posts the voucher's
+     * ->amount as a base-currency figure, same reasoning as the single-
+     * invoice check above), and the allocations can't add up to more
+     * than the voucher's own real amount — the whole point is that this
+     * one voucher never claims to have received more than it actually did.
+     */
+    private function validateAllocations(array $allocations, int $companyId, ?int $clientId, float $voucherAmount): ?string
+    {
+        $companyCurrency = Auth::user()->company->currency;
+        $sum = 0.0;
+
+        foreach ($allocations as $row) {
+            $invoice = Invoice::where('company_id', $companyId)->find($row['invoice_id']);
+
+            if (! $invoice) {
+                return __('One of the selected invoices could not be found.');
+            }
+
+            if (! $clientId || $invoice->client_id !== $clientId) {
+                return __('Invoice :number does not belong to the selected customer.', ['number' => $invoice->invoice_number]);
+            }
+
+            if ($invoice->status === 'draft') {
+                return __('Invoice :number hasn\'t been sent yet — send it first, then allocate a payment to it.', ['number' => $invoice->invoice_number]);
+            }
+
+            if ($invoice->currency !== $companyCurrency) {
+                return __('Invoice :number is in a foreign currency (:currency) — allocate this payment directly against it instead.', ['number' => $invoice->invoice_number, 'currency' => $invoice->currency]);
+            }
+
+            $sum += (float) $row['amount'];
+        }
+
+        if (round($sum, 2) > round($voucherAmount, 2) + 0.01) {
+            return __('The allocations add up to :sum, which is more than this voucher\'s amount of :amount.', ['sum' => number_format($sum, 2), 'amount' => number_format($voucherAmount, 2)]);
+        }
+
+        return null;
+    }
+
     private function validated(Request $request): array
     {
         $companyId = Auth::user()->company_id;
@@ -527,6 +685,14 @@ class ReceiptVoucherController extends Controller
                 }
             }],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
+            // One real transfer settling more than one invoice — see
+            // ReceiptVoucherAllocation's own doc block. Structural shape
+            // only here; validateAllocations() does the cross-field checks
+            // (same client, not draft, base currency, doesn't exceed the
+            // voucher's own amount) once the whole request is in hand.
+            'allocations' => ['nullable', 'array'],
+            'allocations.*.invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
+            'allocations.*.amount' => ['nullable', 'numeric', 'min:0'],
             'date' => ['required', 'date'],
             'payer_name' => ['required', 'string', 'max:255'],
             'party_name_ar' => ['nullable', 'string', 'max:255'],

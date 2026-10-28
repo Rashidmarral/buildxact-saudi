@@ -478,14 +478,18 @@ class LedgerPostingService
 
         // An explicit counter account on the voucher always wins (e.g. the
         // user knows this receipt should be credited to a specific account).
-        // Otherwise: linked to an invoice settles Accounts Receivable; cash
-        // an employee hands back with nothing else attached is unused
-        // advance being returned — it relieves Due from Employees, not
-        // Other Income (the money was never ours to earn, it was simply
-        // handed back); anything else is a general receipt booked to
-        // Other Income.
+        // Otherwise: linked to one invoice, OR split across several via
+        // ReceiptVoucherAllocation (see its own doc block — one real
+        // transfer settling more than one invoice), settles Accounts
+        // Receivable either way; cash an employee hands back with nothing
+        // else attached is unused advance being returned — it relieves Due
+        // from Employees, not Other Income (the money was never ours to
+        // earn, it was simply handed back); anything else is a general
+        // receipt booked to Other Income.
+        $settlesInvoices = $voucher->invoice_id || $voucher->allocations()->exists();
+
         $counterpart = $voucher->counterAccount
-            ?? ($voucher->invoice_id
+            ?? ($settlesInvoices
                 ? $this->account($company, 'ACCOUNTS_RECEIVABLE')
                 : ($voucher->party_type === 'employee'
                     ? $this->account($company, 'EMPLOYEE_ADVANCES')
