@@ -11,6 +11,7 @@ use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Client;
+use App\Models\CreditNote;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Company;
@@ -994,6 +995,51 @@ class ReportController extends Controller
                 $openingBalance -= $amount;
             } elseif ($date->lte($period['to'])) {
                 $lines->push((object) ['date' => $date, 'description' => $this->paymentDescription(__('Payment received'), $invoiceNumbers, $voucher?->reference), 'debit' => 0, 'credit' => $amount]);
+            }
+        }
+
+        // A credit note, an Advance Credit drawn down against an invoice,
+        // or a Prepayment Invoice applied to one all reduce that
+        // invoice's own balanceDue() exactly like a payment does — any
+        // one of them existing without a matching ledger line here would
+        // leave this statement's own closing balance disagreeing with
+        // the sum of every invoice's own (already correct) balance due.
+        foreach (CreditNote::where('client_id', $client->id)->where('status', 'issued')->with('invoice')->get() as $creditNote) {
+            if ($creditNote->issue_date->lt($period['from'])) {
+                $openingBalance -= $creditNote->total;
+            } elseif ($creditNote->issue_date->lte($period['to'])) {
+                $lines->push((object) ['date' => $creditNote->issue_date, 'description' => $this->paymentDescription(__('Credit note :number', ['number' => $creditNote->credit_note_number]), $creditNote->invoice?->invoice_number, null), 'debit' => 0, 'credit' => $creditNote->total]);
+            }
+        }
+        foreach (AdvanceCreditApplication::whereIn('invoice_id', $invoiceIds)->with('invoice')->get() as $application) {
+            $date = $application->created_at->toImmutable();
+
+            if ($date->lt($period['from'])) {
+                $openingBalance -= $application->total;
+            } elseif ($date->lte($period['to'])) {
+                $lines->push((object) ['date' => $date, 'description' => $this->paymentDescription(__('Advance credit applied'), $application->invoice?->invoice_number, null), 'debit' => 0, 'credit' => $application->total]);
+            }
+        }
+        foreach ($invoices as $invoice) {
+            if (! $invoice->appliesPrepaymentInvoice) {
+                continue;
+            }
+
+            $prepayment = $invoice->appliesPrepaymentInvoice;
+
+            if ($invoice->issue_date->lt($period['from'])) {
+                $openingBalance -= $prepayment->total;
+            } elseif ($invoice->issue_date->lte($period['to'])) {
+                $lines->push((object) ['date' => $invoice->issue_date, 'description' => $this->paymentDescription(__('Prepayment :number applied', ['number' => $prepayment->prepayment_number]), $invoice->invoice_number, null), 'debit' => 0, 'credit' => $prepayment->total]);
+            }
+        }
+        foreach (PrepaymentInvoiceApplication::whereIn('invoice_id', $invoiceIds)->with('invoice', 'prepaymentInvoice')->get() as $application) {
+            $date = $application->created_at->toImmutable();
+
+            if ($date->lt($period['from'])) {
+                $openingBalance -= $application->total;
+            } elseif ($date->lte($period['to'])) {
+                $lines->push((object) ['date' => $date, 'description' => $this->paymentDescription(__('Prepayment :number applied', ['number' => $application->prepaymentInvoice?->prepayment_number]), $application->invoice?->invoice_number, null), 'debit' => 0, 'credit' => $application->total]);
             }
         }
 
