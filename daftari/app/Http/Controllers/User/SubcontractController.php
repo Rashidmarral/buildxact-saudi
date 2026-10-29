@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\Subcontract;
 use App\Models\SubcontractMilestone;
 use App\Models\SubcontractPayment;
+use App\Models\SubcontractReportCategory;
 use App\Models\Supplier;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
@@ -136,7 +137,7 @@ class SubcontractController extends Controller
 
     public function show(Subcontract $subcontract, Request $request)
     {
-        $subcontract->load('project', 'supplier', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher');
+        $subcontract->load('project', 'supplier', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
 
         $linkableVouchers = PaymentVoucher::where('supplier_id', $subcontract->supplier_id)
             ->where('status', 'issued')
@@ -150,6 +151,7 @@ class SubcontractController extends Controller
             'linkableVouchers' => $linkableVouchers,
             'categoryGroups' => $this->categoryGroupsFromRequest($subcontract, $request),
             'defaultCategoryGroups' => self::DEFAULT_CATEGORY_GROUPS,
+            'reportCategoryRows' => $subcontract->reportCategories->isNotEmpty() ? $this->resolveReportCategories($subcontract) : null,
         ]);
     }
 
@@ -192,22 +194,7 @@ class SubcontractController extends Controller
                 continue;
             }
 
-            $matched = $remaining->filter(function (SubcontractPayment $payment) use ($keywords) {
-                $haystack = mb_strtolower(collect([
-                    $payment->reference, $payment->notes,
-                    $payment->paymentVoucher->reference ?? null,
-                    $payment->paymentVoucher->payee_name ?? null,
-                    $payment->paymentVoucher->notes ?? null,
-                ])->filter()->implode(' '));
-
-                foreach ($keywords as $term) {
-                    if ($term !== '' && str_contains($haystack, mb_strtolower($term))) {
-                        return true;
-                    }
-                }
-
-                return false;
-            });
+            $matched = $this->matchPayments($remaining, $keywords);
 
             $groups[] = ['label' => $label, 'payments' => $matched->values(), 'total' => round((float) $matched->sum('amount'), 2)];
             $remaining = $remaining->diffKeys($matched->all());
@@ -218,6 +205,145 @@ class SubcontractController extends Controller
         }
 
         return empty($groups) ? null : $groups;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, SubcontractPayment>  $pool
+     * @return \Illuminate\Support\Collection<int, SubcontractPayment>
+     */
+    private function matchPayments($pool, array $keywords)
+    {
+        return $pool->filter(function (SubcontractPayment $payment) use ($keywords) {
+            $haystack = mb_strtolower(collect([
+                $payment->reference, $payment->notes,
+                $payment->paymentVoucher->reference ?? null,
+                $payment->paymentVoucher->payee_name ?? null,
+                $payment->paymentVoucher->notes ?? null,
+            ])->filter()->implode(' '));
+
+            foreach ($keywords as $term) {
+                if ($term !== '' && str_contains($haystack, mb_strtolower($term))) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+    }
+
+    public function storeReportCategory(Request $request, Subcontract $subcontract)
+    {
+        $data = $this->validatedReportCategory($request);
+
+        $subcontract->reportCategories()->create([
+            ...$data,
+            'sort_order' => $subcontract->reportCategories()->max('sort_order') + 1,
+            'amount' => $this->resolveCategoryAmount($data),
+        ]);
+
+        return back()->with('status', __('Report category added.'));
+    }
+
+    public function updateReportCategory(Request $request, Subcontract $subcontract, SubcontractReportCategory $reportCategory)
+    {
+        abort_unless($reportCategory->subcontract_id === $subcontract->id, 404);
+
+        $data = $this->validatedReportCategory($request);
+
+        $reportCategory->update([
+            ...$data,
+            'amount' => $this->resolveCategoryAmount($data),
+        ]);
+
+        return back()->with('status', __('Report category updated.'));
+    }
+
+    public function destroyReportCategory(Subcontract $subcontract, SubcontractReportCategory $reportCategory)
+    {
+        abort_unless($reportCategory->subcontract_id === $subcontract->id, 404);
+
+        $reportCategory->delete();
+
+        return back()->with('status', __('Report category removed.'));
+    }
+
+    private function validatedReportCategory(Request $request): array
+    {
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'display_mode' => ['required', Rule::in([SubcontractReportCategory::ITEMIZED, SubcontractReportCategory::MEASURED])],
+            'match_terms' => ['nullable', 'string', 'max:255'],
+            'quantity' => ['nullable', 'numeric', 'min:0'],
+            'unit' => ['nullable', 'string', 'max:30'],
+            'rate' => ['nullable', 'numeric', 'min:0'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        if ($data['display_mode'] === SubcontractReportCategory::ITEMIZED && empty(trim((string) ($data['match_terms'] ?? '')))) {
+            throw ValidationException::withMessages(['match_terms' => [__('An itemized category needs at least one match keyword.')]]);
+        }
+
+        return $data;
+    }
+
+    /**
+     * "if i need to update quantities of item it will applied to whole
+     * like recalculate... maybe quantity increase or decrease at the
+     * end of project" — a measured category's amount is always
+     * quantity × rate when both are given, recalculated every time
+     * either changes, not a figure that can silently drift from them.
+     * With only one of the two (or neither — a flat lump-sum category
+     * like "Machine" or "Mubashir and Khalid"), the typed-in amount is
+     * authoritative. An itemized category's amount isn't stored at all
+     * — it's always computed live from its matching payments.
+     */
+    private function resolveCategoryAmount(array $data): float
+    {
+        if ($data['display_mode'] === SubcontractReportCategory::ITEMIZED) {
+            return 0.0;
+        }
+
+        if (($data['quantity'] ?? null) !== null && ($data['rate'] ?? null) !== null) {
+            return round((float) $data['quantity'] * (float) $data['rate'], 2);
+        }
+
+        return round((float) ($data['amount'] ?? 0), 2);
+    }
+
+    /**
+     * @return array<int, array{category: SubcontractReportCategory, payments: \Illuminate\Support\Collection, total: float}>
+     */
+    private function resolveReportCategories(Subcontract $subcontract): array
+    {
+        $remaining = $subcontract->payments()->with('paymentVoucher')->get()->keyBy('id');
+        $rows = [];
+
+        foreach ($subcontract->reportCategories as $category) {
+            // A measured category's own amount (quantity × rate, or a
+            // flat figure) is what's shown — never the sum of whatever
+            // it matches. But its match_terms, when given, still pull
+            // the real vouchers behind it (e.g. "Sub Base" covering the
+            // real Ashraf/Al Jazeera vouchers) out of the remaining
+            // pool, so that same money doesn't also surface a second
+            // time under "Other / Unmatched" below.
+            if ($category->isMeasured()) {
+                $remaining = $remaining->diffKeys($this->matchPayments($remaining, $category->keywords())->all());
+                $rows[] = ['category' => $category, 'payments' => collect(), 'total' => (float) $category->amount];
+
+                continue;
+            }
+
+            $matched = $this->matchPayments($remaining, $category->keywords());
+            $rows[] = ['category' => $category, 'payments' => $matched->values()->sortBy('paid_at')->values(), 'total' => round((float) $matched->sum('amount'), 2)];
+            $remaining = $remaining->diffKeys($matched->all());
+        }
+
+        if ($remaining->isNotEmpty()) {
+            $other = new SubcontractReportCategory(['label' => __('Other / Unmatched'), 'display_mode' => SubcontractReportCategory::ITEMIZED]);
+            $rows[] = ['category' => $other, 'payments' => $remaining->values()->sortBy('paid_at')->values(), 'total' => round((float) $remaining->sum('amount'), 2)];
+        }
+
+        return $rows;
     }
 
     public function edit(Subcontract $subcontract)
@@ -422,11 +548,12 @@ class SubcontractController extends Controller
 
     public function reportPdf(Subcontract $subcontract)
     {
-        $subcontract->load('project', 'supplier', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher');
+        $subcontract->load('project', 'supplier', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
 
         $pdf = app(MpdfRenderer::class)->render('user.subcontracts.pdf.receiving-report', [
             'company' => Auth::user()->company,
             'subcontract' => $subcontract,
+            'reportCategoryRows' => $subcontract->reportCategories->isNotEmpty() ? $this->resolveReportCategories($subcontract) : null,
             'template' => Auth::user()->company->defaultTemplateFor('subcontractor_receiving_report'),
         ]);
 

@@ -112,36 +112,105 @@
     </tbody>
 </table>
 
-@include('documents.print.partials.report.section-title', ['en' => __('PAYMENTS RECEIVED TO DATE'), 'ar' => 'الدفعات المستلمة حتى الآن'])
-<table class="data-table">
-    <thead>
-        <tr>
-            <th>{{ __('Date') }}</th>
-            <th>{{ __('Milestone') }}</th>
-            <th>{{ __('Reference') }}</th>
-            <th class="num">{{ __('Applied (net)') }}</th>
-            <th class="num">{{ __('Cash (incl. VAT)') }}</th>
-        </tr>
-    </thead>
-    <tbody>
-        @forelse ($subcontract->payments->sortBy('paid_at') as $payment)
+@if ($reportCategoryRows ?? null)
+    {{--
+        "shahid payment vouchers 124800 shows detail wise in report
+        other alhazera and ashraf payment shows as Sub Base 146.00 trip
+        500.00 unit price 73,000.00 total" — an itemized category still
+        lists every real payment underneath it (date/reference/amount);
+        a measured category collapses to one quantity × rate summary
+        line, like a site measurement sheet rather than a voucher list.
+    --}}
+    @include('documents.print.partials.report.section-title', ['en' => __('PAYMENTS RECEIVED TO DATE — BY CATEGORY'), 'ar' => 'الدفعات المستلمة حتى الآن — حسب الفئة'])
+    <table class="data-table">
+        <thead>
             <tr>
-                <td>{{ $payment->paid_at->format('Y-m-d') }}</td>
-                <td>{{ $payment->milestone->name ?? __('Unassigned') }}</td>
-                <td>{{ $payment->reference ?: ($payment->paymentVoucher->voucher_number ?? '—') }}</td>
-                <td class="num">{{ number_format((float) $payment->amount, 2) }}</td>
-                <td class="num">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
+                <th>{{ __('Category') }}</th>
+                <th class="num">{{ __('Quantity') }}</th>
+                <th>{{ __('Unit') }}</th>
+                <th class="num">{{ __('Rate') }}</th>
+                <th class="num">{{ __('Amount') }}</th>
             </tr>
-        @empty
-            <tr><td colspan="5" style="text-align: center; color: #94a3b8;">{{ __('No payments recorded yet.') }}</td></tr>
-        @endforelse
-        <tr class="total-row">
-            <td colspan="3">{{ __('TOTAL') }}</td>
-            <td class="num">{{ number_format($totalPaid, 2) }}</td>
-            <td class="num">{{ abs($totalGross - $totalPaid) > 0.004 ? number_format($totalGross, 2) : '—' }}</td>
-        </tr>
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @foreach ($reportCategoryRows as $row)
+                <tr>
+                    <td>{{ $row['category']->label }}</td>
+                    <td class="num">{{ $row['category']->quantity !== null ? number_format((float) $row['category']->quantity, 2) : '—' }}</td>
+                    <td>{{ $row['category']->unit ?: '—' }}</td>
+                    <td class="num">{{ $row['category']->rate !== null ? number_format((float) $row['category']->rate, 2) : '—' }}</td>
+                    <td class="num">{{ number_format($row['total'], 2) }}</td>
+                </tr>
+            @endforeach
+            <tr class="total-row">
+                <td colspan="4">{{ __('TOTAL') }}</td>
+                <td class="num">{{ number_format(collect($reportCategoryRows)->sum('total'), 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    @foreach ($reportCategoryRows as $row)
+        @if ($row['category']->display_mode === \App\Models\SubcontractReportCategory::ITEMIZED && $row['payments']->isNotEmpty())
+            @include('documents.print.partials.report.section-title', ['en' => strtoupper($row['category']->label), 'ar' => ''])
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>{{ __('Date') }}</th>
+                        <th>{{ __('Reference') }}</th>
+                        <th class="num">{{ __('Applied (net)') }}</th>
+                        <th class="num">{{ __('Cash (incl. VAT)') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($row['payments'] as $payment)
+                        <tr>
+                            <td>{{ $payment->paid_at->format('Y-m-d') }}</td>
+                            <td>{{ $payment->reference ?: ($payment->paymentVoucher->voucher_number ?? '—') }}</td>
+                            <td class="num">{{ number_format((float) $payment->amount, 2) }}</td>
+                            <td class="num">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
+                        </tr>
+                    @endforeach
+                    <tr class="total-row">
+                        <td colspan="2">{{ __('Subtotal') }}</td>
+                        <td class="num">{{ number_format($row['total'], 2) }}</td>
+                        <td class="num"></td>
+                    </tr>
+                </tbody>
+            </table>
+        @endif
+    @endforeach
+@else
+    @include('documents.print.partials.report.section-title', ['en' => __('PAYMENTS RECEIVED TO DATE'), 'ar' => 'الدفعات المستلمة حتى الآن'])
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>{{ __('Date') }}</th>
+                <th>{{ __('Milestone') }}</th>
+                <th>{{ __('Reference') }}</th>
+                <th class="num">{{ __('Applied (net)') }}</th>
+                <th class="num">{{ __('Cash (incl. VAT)') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($subcontract->payments->sortBy('paid_at') as $payment)
+                <tr>
+                    <td>{{ $payment->paid_at->format('Y-m-d') }}</td>
+                    <td>{{ $payment->milestone->name ?? __('Unassigned') }}</td>
+                    <td>{{ $payment->reference ?: ($payment->paymentVoucher->voucher_number ?? '—') }}</td>
+                    <td class="num">{{ number_format((float) $payment->amount, 2) }}</td>
+                    <td class="num">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="5" style="text-align: center; color: #94a3b8;">{{ __('No payments recorded yet.') }}</td></tr>
+            @endforelse
+            <tr class="total-row">
+                <td colspan="3">{{ __('TOTAL') }}</td>
+                <td class="num">{{ number_format($totalPaid, 2) }}</td>
+                <td class="num">{{ abs($totalGross - $totalPaid) > 0.004 ? number_format($totalGross, 2) : '—' }}</td>
+            </tr>
+        </tbody>
+    </table>
+@endif
 
 <table class="summary-table" style="margin-top: 14px;">
     <tr>

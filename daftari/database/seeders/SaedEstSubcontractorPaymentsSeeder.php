@@ -105,6 +105,7 @@ class SaedEstSubcontractorPaymentsSeeder extends Seeder
         }
 
         $this->seedBoqItems($subcontract);
+        $this->seedReportCategories($subcontract);
 
         $operating = BankAccount::firstOrCreate(
             ['company_id' => $company->id, 'name' => 'SNB — Operating Account'],
@@ -250,6 +251,47 @@ class SaedEstSubcontractorPaymentsSeeder extends Seeder
             ['description' => 'Sub base+ABC', 'quantity' => 1200, 'unit' => 'm2', 'rate' => 20.00, 'amount' => 24000.00],
         ] as $i => $item) {
             $subcontract->boqItems()->create([...$item, 'sort_order' => $i]);
+        }
+    }
+
+    /**
+     * "shahid payment vouchers 124800 shows detail wise in report
+     * other alhazera and ashraf payment shows as Sub Base 146.00 trip
+     * 500.00 unit price 73,000.00 total... asphalt transportation
+     * 17900 of 28 trucks... asphalt machine rent 11600... mubashir and
+     * khalid 800" — the real Receiving Payments Report categories.
+     * Shahid's cash stays itemized (every real voucher listed); the
+     * rest print as one measured quantity × rate line each.
+     *
+     * "124800" confirms Shahid's own category is only the vouchers
+     * actually naming him (the real 114,800 plus the new 10,000
+     * transfer) — the one real Ashraf-named voucher the operator had
+     * earlier called "really Shahid's" stays grouped under Sub Base
+     * here instead, which is where the most recent figures put it.
+     *
+     * Sub Base, Asphalt, Asphalt Transportation and Machine each carry
+     * the real match_terms behind their figure purely so those real
+     * vouchers leave the "Other / Unmatched" pool — never to recompute
+     * the category's own shown amount, which the operator gave
+     * directly. Mubashir and Khalid carries no match_terms: it's a note
+     * layered on top of money already inside Shahid's own cash total,
+     * not a deduction from it.
+     */
+    private function seedReportCategories(Subcontract $subcontract): void
+    {
+        if ($subcontract->reportCategories()->exists()) {
+            return;
+        }
+
+        foreach ([
+            ['label' => 'Shahid', 'display_mode' => 'itemized', 'match_terms' => 'shahid'],
+            ['label' => 'Sub Base', 'display_mode' => 'measured', 'match_terms' => 'ashraf,gazaierih', 'quantity' => 146, 'unit' => 'trip', 'rate' => 500.00, 'amount' => 73000.00],
+            ['label' => 'Asphalt', 'display_mode' => 'measured', 'match_terms' => 'anajim', 'quantity' => 646.70, 'unit' => 'ton', 'rate' => 166.00, 'amount' => 107352.20],
+            ['label' => 'Asphalt Transportation', 'display_mode' => 'measured', 'match_terms' => 'trailer rent', 'quantity' => 28, 'unit' => 'truck', 'amount' => 17900.00],
+            ['label' => 'Machine', 'display_mode' => 'measured', 'match_terms' => 'machine', 'amount' => 11600.00],
+            ['label' => 'Mubashir and Khalid', 'display_mode' => 'measured', 'amount' => 800.00],
+        ] as $i => $category) {
+            $subcontract->reportCategories()->create([...$category, 'sort_order' => $i]);
         }
     }
 

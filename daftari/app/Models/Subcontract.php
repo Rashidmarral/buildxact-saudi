@@ -65,6 +65,11 @@ class Subcontract extends Model
         return $this->hasMany(SubcontractPayment::class)->orderByDesc('paid_at')->orderByDesc('id');
     }
 
+    public function reportCategories(): HasMany
+    {
+        return $this->hasMany(SubcontractReportCategory::class)->orderBy('sort_order');
+    }
+
     /**
      * The net total applied toward the contract/milestone schedule —
      * what drives balanceBeforeRetention()/percentComplete() against

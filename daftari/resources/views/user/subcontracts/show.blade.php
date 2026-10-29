@@ -207,6 +207,98 @@ function categoryBreakdownForm(initialRows) {
 }
 </script>
 
+<div class="bg-white rounded-xl border border-slate-100 mb-6 p-5">
+    <div class="flex items-center justify-between mb-1">
+        <h3 class="text-sm font-semibold text-slate-900">{{ __('Receiving Payments Report categories') }}</h3>
+    </div>
+    <p class="text-xs text-slate-400 mb-3">{{ __('Controls how the printed Receiving Payments Report lists this contract\'s payments. An "Itemized" category still lists every matching real payment (like Shahid\'s cash); a "Measured" category collapses to one quantity × rate line, like a site measurement sheet (Sub Base, Asphalt). Leave empty to keep printing the plain milestone-by-milestone ledger.') }}</p>
+
+    @if ($subcontract->reportCategories->isNotEmpty())
+        <table class="w-full text-sm mb-4">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2 font-medium">{{ __('Label') }}</th>
+                    <th class="py-2 font-medium">{{ __('Mode') }}</th>
+                    <th class="py-2 font-medium">{{ __('Match keywords') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Quantity') }}</th>
+                    <th class="py-2 font-medium">{{ __('Unit') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Rate') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Amount') }}</th>
+                    <th class="py-2 font-medium"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($subcontract->reportCategories as $category)
+                    <tr class="border-b border-slate-50 last:border-0" x-data="{ mode: '{{ $category->display_mode }}' }">
+                        <form method="POST" action="{{ route('app.subcontracts.report-categories.update', [$subcontract, $category]) }}" class="contents">
+                            @csrf @method('PUT')
+                            <td class="py-2"><input type="text" name="label" value="{{ $category->label }}" required class="w-full rounded-lg border border-slate-200 text-sm"></td>
+                            <td class="py-2">
+                                <select name="display_mode" x-model="mode" class="rounded-lg border border-slate-200 text-sm">
+                                    <option value="measured" @selected($category->display_mode === 'measured')>{{ __('Measured') }}</option>
+                                    <option value="itemized" @selected($category->display_mode === 'itemized')>{{ __('Itemized') }}</option>
+                                </select>
+                            </td>
+                            <td class="py-2"><input type="text" name="match_terms" value="{{ $category->match_terms }}" placeholder="{{ __('e.g. shahid, mc1') }}" class="w-full rounded-lg border border-slate-200 text-sm"></td>
+                            <td class="py-2" x-show="mode === 'measured'"><input type="number" step="0.001" name="quantity" value="{{ $category->quantity }}" class="w-20 rounded-lg border border-slate-200 text-sm text-end"></td>
+                            <td class="py-2" x-show="mode === 'measured'"><input type="text" name="unit" value="{{ $category->unit }}" placeholder="{{ __('trip, ton…') }}" class="w-20 rounded-lg border border-slate-200 text-sm"></td>
+                            <td class="py-2" x-show="mode === 'measured'"><input type="number" step="0.01" name="rate" value="{{ $category->rate }}" class="w-20 rounded-lg border border-slate-200 text-sm text-end"></td>
+                            <td class="py-2" x-show="mode === 'measured'"><input type="number" step="0.01" name="amount" value="{{ $category->amount }}" placeholder="{{ __('flat amount') }}" class="w-24 rounded-lg border border-slate-200 text-sm text-end"></td>
+                            <td class="py-2 text-end" x-show="mode === 'itemized'" colspan="4">
+                                @php $liveRow = collect($reportCategoryRows ?? [])->first(fn ($r) => $r['category']->id === $category->id); @endphp
+                                <span class="text-slate-400 text-xs">{{ __('Live total') }}: {{ number_format($liveRow['total'] ?? 0, 2) }}</span>
+                            </td>
+                            <td class="py-2 text-end"><button type="submit" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Save') }}</button></td>
+                        </form>
+                        <form method="POST" action="{{ route('app.subcontracts.report-categories.destroy', [$subcontract, $category]) }}" onsubmit="return confirm('{{ __('Remove this report category?') }}')" class="contents">
+                            @csrf @method('DELETE')
+                            <td class="py-2 text-end"><button type="submit" class="text-xs text-red-500 hover:underline">{{ __('Remove') }}</button></td>
+                        </form>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    <form method="POST" action="{{ route('app.subcontracts.report-categories.store', $subcontract) }}" class="grid grid-cols-12 gap-2 items-end" x-data="{ mode: 'measured' }">
+        @csrf
+        <div class="col-span-3">
+            <label class="block text-[11px] text-slate-400">{{ __('Label') }}</label>
+            <input type="text" name="label" required placeholder="{{ __('e.g. Sub Base') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-2">
+            <label class="block text-[11px] text-slate-400">{{ __('Mode') }}</label>
+            <select name="display_mode" x-model="mode" class="w-full rounded-lg border border-slate-200 text-sm">
+                <option value="measured">{{ __('Measured') }}</option>
+                <option value="itemized">{{ __('Itemized') }}</option>
+            </select>
+        </div>
+        <div class="col-span-3">
+            <label class="block text-[11px] text-slate-400">{{ __('Match keywords') }}</label>
+            <input type="text" name="match_terms" placeholder="{{ __('comma-separated') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-1" x-show="mode === 'measured'">
+            <label class="block text-[11px] text-slate-400">{{ __('Qty') }}</label>
+            <input type="number" step="0.001" name="quantity" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-1" x-show="mode === 'measured'">
+            <label class="block text-[11px] text-slate-400">{{ __('Unit') }}</label>
+            <input type="text" name="unit" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-1" x-show="mode === 'measured'">
+            <label class="block text-[11px] text-slate-400">{{ __('Rate') }}</label>
+            <input type="number" step="0.01" name="rate" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-1" x-show="mode === 'measured'">
+            <label class="block text-[11px] text-slate-400">{{ __('Amount') }}</label>
+            <input type="number" step="0.01" name="amount" placeholder="{{ __('flat') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-12">
+            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Add category') }}</button>
+        </div>
+    </form>
+</div>
+
 <div class="grid sm:grid-cols-2 gap-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Link an existing Payment Voucher') }}</h3>

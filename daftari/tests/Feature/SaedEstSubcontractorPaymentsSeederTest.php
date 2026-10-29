@@ -179,4 +179,41 @@ class SaedEstSubcontractorPaymentsSeederTest extends TestCase
         $totalPaid = $subcontract->fresh()->totalPaid();
         $response->assertSee(number_format($totalPaid, 2));
     }
+
+    /**
+     * "shahid payment vouchers 124800 shows detail wise in report
+     * other alhazera and ashraf payment shows as Sub Base 146.00 trip
+     * 500.00 unit price 73,000.00 total... asphalt transportation
+     * 17900 of 28 trucks... asphalt machine rent 11600... mubashir and
+     * khalid 800" — the seeder's own stored report categories (not the
+     * ad-hoc, query-driven ones) must reproduce these exact figures
+     * against the real data, and Saad Riman's one real, still-unmatched
+     * voucher must not disappear or get double-counted.
+     */
+    public function test_the_seeded_report_categories_reproduce_the_operators_exact_figures(): void
+    {
+        [$company, $subcontract] = $this->seedCompanyWithRealSubcontract();
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        (new SaedEstSubcontractorPaymentsSeeder)->run();
+        (new \Database\Seeders\ShahidTransferOct29Seeder)->run();
+
+        $controller = app(\App\Http\Controllers\User\SubcontractController::class);
+        $this->actingAs($owner);
+        $method = new \ReflectionMethod($controller, 'resolveReportCategories');
+        $method->setAccessible(true);
+        $rows = collect($method->invoke($controller, $subcontract->fresh()))->keyBy(fn ($r) => $r['category']->label);
+
+        $this->assertEqualsWithDelta(124800.00, $rows['Shahid']['total'], 0.01);
+        $this->assertEqualsWithDelta(73000.00, $rows['Sub Base']['total'], 0.01);
+        $this->assertEqualsWithDelta(107352.20, $rows['Asphalt']['total'], 0.01);
+        $this->assertEqualsWithDelta(17900.00, $rows['Asphalt Transportation']['total'], 0.01);
+        $this->assertEqualsWithDelta(11600.00, $rows['Machine']['total'], 0.01);
+        $this->assertEqualsWithDelta(800.00, $rows['Mubashir and Khalid']['total'], 0.01);
+        $this->assertEqualsWithDelta(10200.00, $rows['Other / Unmatched']['total'], 0.01);
+
+        $response = $this->actingAs($owner)->get(route('app.subcontracts.report.pdf', $subcontract));
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+    }
 }

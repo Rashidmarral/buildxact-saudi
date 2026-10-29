@@ -741,6 +741,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::delete('{subcontract}/payments/{payment}', [SubcontractController::class, 'destroyPayment'])->name('payments.destroy');
         Route::post('{subcontract}/link-voucher', [SubcontractController::class, 'linkVoucher'])->name('link-voucher');
         Route::delete('{subcontract}/payments/{payment}/unlink', [SubcontractController::class, 'unlinkVoucher'])->name('payments.unlink');
+        Route::post('{subcontract}/report-categories', [SubcontractController::class, 'storeReportCategory'])->name('report-categories.store');
+        Route::put('{subcontract}/report-categories/{reportCategory}', [SubcontractController::class, 'updateReportCategory'])->name('report-categories.update');
+        Route::delete('{subcontract}/report-categories/{reportCategory}', [SubcontractController::class, 'destroyReportCategory'])->name('report-categories.destroy');
     });
 
     Route::middleware(['permission:machinery_equipment', 'module:machinery_equipment'])->prefix('machinery')->name('machinery.')->group(function () {

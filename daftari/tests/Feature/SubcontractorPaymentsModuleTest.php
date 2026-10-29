@@ -254,4 +254,94 @@ class SubcontractorPaymentsModuleTest extends TestCase
         $this->actingAs($owner)->get(route('app.subcontracts.index'))->assertOk()->assertSee('Jumum Yard Project');
         $this->actingAs($owner)->get(route('app.subcontracts.show', $subcontract))->assertOk()->assertSee('Al Fahad Subcontracting');
     }
+
+    /**
+     * "add functionality like if i need to update quantities of item
+     * it will applied to whole like recalculate percentage of
+     * milestone adjust payments due remaining etc maybe quantity
+     * increase or decrease at the end of project" — editing a BOQ
+     * item's quantity through the normal edit form already recomputes
+     * contract_value (the form's own JS totals the BOQ rows into it)
+     * and, since update() applies that new contract_value before
+     * syncMilestones() recalculates every milestone's amount from it,
+     * the whole schedule — and therefore balance due/remaining — moves
+     * with it automatically, with no separate "apply to whole" step
+     * needed. Confirmed both directions: a quantity increase, and a
+     * decrease severe enough to leave a milestone over-funded by what
+     * was already paid against it (must not error, just go negative).
+     */
+    public function test_increasing_a_boq_quantity_recalculates_contract_value_and_every_milestone_amount(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
+        $supplier = Supplier::create(['company_id' => $company->id, 'name' => 'Al Fahad Subcontracting']);
+
+        $this->actingAs($owner)->post(route('app.subcontracts.store'), [
+            'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 100000,
+            'retention_percent' => 5, 'status' => 'active',
+            'boq_items' => [['description' => 'Sub base', 'quantity' => 10000, 'unit' => 'm2', 'rate' => 10, 'amount' => 100000]],
+            'milestones' => [
+                ['name' => 'Milestone 1', 'percentage' => 50, 'requires_handover_approval' => false],
+                ['name' => 'Milestone 2', 'percentage' => 50, 'requires_handover_approval' => false],
+            ],
+        ]);
+        $subcontract = Subcontract::first();
+        $milestone1 = $subcontract->milestones()->orderBy('sequence')->first();
+        $subcontract->payments()->create(['company_id' => $company->id, 'milestone_id' => $milestone1->id, 'amount' => 30000, 'paid_at' => now()]);
+
+        // Final measurement at the end of the project: the real
+        // quantity was 12,000 m², not the originally estimated 10,000.
+        $this->actingAs($owner)->put(route('app.subcontracts.update', $subcontract), [
+            'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 120000,
+            'retention_percent' => 5, 'status' => 'active',
+            'boq_items' => [['description' => 'Sub base', 'quantity' => 12000, 'unit' => 'm2', 'rate' => 10, 'amount' => 120000]],
+            'milestones' => [
+                ['name' => 'Milestone 1', 'percentage' => 50, 'requires_handover_approval' => false],
+                ['name' => 'Milestone 2', 'percentage' => 50, 'requires_handover_approval' => false],
+            ],
+        ]);
+
+        $subcontract->refresh();
+        $this->assertEqualsWithDelta(120000.0, (float) $subcontract->contract_value, 0.01);
+        $this->assertEqualsWithDelta(60000.0, (float) $subcontract->milestones()->orderBy('sequence')->first()->amount, 0.01);
+        $this->assertEqualsWithDelta(60000.0, (float) $subcontract->milestones()->orderBy('sequence')->skip(1)->first()->amount, 0.01);
+        // The 30,000 already paid against Milestone 1 is untouched —
+        // it's now simply a smaller share of its larger 60,000 target.
+        $this->assertEqualsWithDelta(30000.0, $milestone1->fresh()->paidAmount(), 0.01);
+        $this->assertEqualsWithDelta(30000.0, $milestone1->fresh()->balance(), 0.01);
+    }
+
+    public function test_decreasing_a_boq_quantity_below_what_was_already_paid_leaves_a_negative_balance_instead_of_erroring(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
+        $supplier = Supplier::create(['company_id' => $company->id, 'name' => 'Al Fahad Subcontracting']);
+
+        $this->actingAs($owner)->post(route('app.subcontracts.store'), [
+            'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 100000,
+            'retention_percent' => 5, 'status' => 'active',
+            'boq_items' => [['description' => 'Sub base', 'quantity' => 10000, 'unit' => 'm2', 'rate' => 10, 'amount' => 100000]],
+            'milestones' => [['name' => 'Full', 'percentage' => 100, 'requires_handover_approval' => false]],
+        ]);
+        $subcontract = Subcontract::first();
+        $milestone = $subcontract->milestones->first();
+        $subcontract->payments()->create(['company_id' => $company->id, 'milestone_id' => $milestone->id, 'amount' => 80000, 'paid_at' => now()]);
+
+        // A revised, smaller final measurement — 7,000 m² instead of
+        // 10,000 — leaves more already paid than the new scope is worth.
+        $response = $this->actingAs($owner)->put(route('app.subcontracts.update', $subcontract), [
+            'project_id' => $project->id, 'supplier_id' => $supplier->id, 'contract_value' => 70000,
+            'retention_percent' => 5, 'status' => 'active',
+            'boq_items' => [['description' => 'Sub base', 'quantity' => 7000, 'unit' => 'm2', 'rate' => 10, 'amount' => 70000]],
+            'milestones' => [['name' => 'Full', 'percentage' => 100, 'requires_handover_approval' => false]],
+        ]);
+
+        $response->assertRedirect();
+        $subcontract->refresh();
+        $this->assertEqualsWithDelta(70000.0, (float) $subcontract->contract_value, 0.01);
+        $this->assertEqualsWithDelta(-10000.0, $milestone->fresh()->balance(), 0.01);
+
+        $this->actingAs($owner)->get(route('app.subcontracts.show', $subcontract))->assertOk();
+        $this->actingAs($owner)->get(route('app.subcontracts.report.pdf', $subcontract))->assertOk();
+    }
 }
