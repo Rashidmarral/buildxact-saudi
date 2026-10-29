@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\Company;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * balance of the total from aljazeera decreasing the vat amount the same
  * we have do for asphalt like dar al manajin give us asphalt with vat
  * 15% and the same amount we have add in balance to shahid supplier but
- * decreasing the vat" — Al Jazeera and Dar Al Anajim are NOT part of the
+ * decreasing the vat" — Al Jazeera and Dar Al Manajim are NOT part of the
  * Shahid/SAED EST subcontract at all. They are two separate, real,
  * VAT-registered material suppliers Dynamic Core paid directly; the
  * material was then treated as supplied to Shahid, crediting his
@@ -32,18 +33,18 @@ use Illuminate\Support\Facades\DB;
  * settling those 8 vouchers against the SAED EST bill at their net
  * figure instead of gross — a reasonable interim fix, but it left two
  * real problems: (1) no VAT-registered Bill ever existed for Al Jazeera
- * or Dar Al Anajim, so ~SAR 20,056.38 of real, recoverable input VAT was
- * never captured for the VAT return; (2) the full SAR 373,650.00 SAED
- * EST accrual still expensed this same material cost a second time, on
- * top of whatever these new bills would expense.
+ * or Dar Al Manajim, so ~SAR 20,159.35 of real, recoverable input VAT
+ * was never captured for the VAT return; (2) the full SAR 373,650.00
+ * SAED EST accrual still expensed this same material cost a second
+ * time, on top of whatever these new bills would expense.
  *
  * This seeder completes the correction:
  *   1. Creates the two real suppliers and a real, 15%-VAT Bill for each,
- *      fully settled by the SAME 8 real vouchers moved off the SAED EST
- *      bill (no new cash — it's the exact same real payments, now
- *      correctly attributed to who was actually paid).
+ *      settled by the SAME real vouchers moved off the SAED EST bill —
+ *      no new cash for those, just the exact same real payments, now
+ *      correctly attributed to who was actually paid.
  *   2. Issues a Purchase Return against the SAED EST bill for the
- *      combined net cost (SAR 133,709.22), crediting Shahid's balance
+ *      combined net cost (SAR 134,395.68), crediting Shahid's balance
  *      and reversing that same amount of the original Expense accrual —
  *      so the material is expensed exactly once, not twice.
  *
@@ -51,26 +52,30 @@ use Illuminate\Support\Facades\DB;
  * moves exactly as it did before (see the bank/cash invariant test).
  * Total Operating Expense recognized across all three suppliers combined
  * is still exactly SAR 373,650.00. The only real change is where that
- * expense and its VAT land: SAR 133,709.22 of it (plus SAR 20,056.38 of
+ * expense and its VAT land: SAR 134,395.68 of it (plus SAR 20,159.35 of
  * input VAT that was previously missed entirely) now sits correctly on
- * Al Jazeera's and Dar Al Anajim's own bills instead of buried inside
+ * Al Jazeera's and Dar Al Manajim's own bills instead of buried inside
  * SAED EST's.
  *
- * One figure changed from an earlier message: Dar Al Anajim's net cost
- * was previously approximated as SAR 107,352.20 (a rough proportional
- * estimate). A real VAT-registered supplier's bill has to tie to clean
- * 15% math, so this uses SAR 122,665.60 ÷ 1.15 = SAR 106,665.74 net /
- * SAR 15,999.86 VAT instead — SAR 686.46 different from the earlier
- * figure. Flag this to the operator before relying on it for the VAT
- * return; it's a judgment call made for internal consistency, not a
- * confirmed instruction.
+ * Dar Al Manajim's figures are now the REAL ones, straight off their own
+ * tax invoice (CRED-2568, 25-Oct-2026): Taxable Amount SAR 107,352.20,
+ * VAT SAR 16,102.83, Total SAR 123,455.03 — confirming the SAR 107,352.20
+ * net figure used since the very first pass was right all along (an
+ * earlier revision of this seeder second-guessed it down to SAR
+ * 106,665.74 based on the 3 vouchers' cash total alone; that was wrong,
+ * reverted here). "remaining 789 due is also paid" — their own SOA shows
+ * SAR 789.43 still open after those 3 vouchers (SAR 122,665.60 paid
+ * against a SAR 123,455.03 invoice); this seeder also records that
+ * 4th, real settlement as its own new voucher. It does not change what's
+ * credited to Shahid — that's fixed at the invoice's own net cost,
+ * independent of how/when Dynamic Core finishes paying Dar Al Manajim.
  *
  * Known, pre-existing limitation NOT fixed here (out of scope — it's how
  * every bill with a purchase return behaves in this codebase, not
  * something specific to this one): Bill::balanceDue() never nets out
  * issued Purchase Returns, only amount_paid. So after this runs, the
  * SAED EST bill's own balanceDue() will overstate what's really left to
- * settle by the full SAR 133,709.22 credited — the Subcontract module's
+ * settle by the full SAR 134,395.68 credited — the Subcontract module's
  * own totalPaid()/balanceAfterRetention() (unaffected by this seeder,
  * still net-adjusted correctly) remains the authoritative "what's left
  * to pay Shahid" figure, same as before.
@@ -94,14 +99,30 @@ class SaedEstMaterialSupplierCorrectionSeeder extends Seeder
             'vat_total' => 4056.52,
             'total' => 31100.00,
         ],
-        'dar_al_anajim' => [
-            'name' => 'DAR AL ANAJIM FOR MINING AND INDUSTRY CO',
-            'description' => 'Asphalt material supplied to Shahid — Jumum Yard Project',
+        'dar_al_manajim' => [
+            'name' => 'DAR AL MANAJIM COMPANY FOR MINING & INDUSTRY LTD',
+            'name_ar' => 'شركة دار المناجم للتعدين والتصنيع ذ م م',
+            'vat_number' => '300075266900003',
+            'cr_number' => '1010228923',
+            'city' => 'Jeddah',
+            'country' => 'Saudi Arabia',
+            'address_line_1' => 'Ali Al Khal St, Al Nakheel, Building 3242',
+            'postal_code' => '23241',
+            'description' => 'Asphalt Wearing Course Class C-SEC — supplied to Shahid, Jumum Yard Project (invoice CRED-2568)',
             'voucher_numbers' => ['PV-00029', 'PV-00032', 'PV-00033'],
             'bill_date' => '2026-10-20',
-            'subtotal' => 106665.74,
-            'vat_total' => 15999.86,
-            'total' => 122665.60,
+            'supplier_reference' => 'CRED-2568',
+            'subtotal' => 107352.20,
+            'vat_total' => 16102.83,
+            'total' => 123455.03,
+            // "remaining 789 due is also paid" — their own SOA (24-Oct-2026)
+            // shows SAR 789.43 still open after the 3 vouchers above
+            // (SAR 122,665.60 against the SAR 123,455.03 invoice total).
+            'remaining_payment' => [
+                'amount' => 789.43,
+                'date' => '2026-10-29',
+                'reference' => 'CRED-2568 remaining balance settled',
+            ],
         ],
     ];
 
@@ -139,11 +160,24 @@ class SaedEstMaterialSupplierCorrectionSeeder extends Seeder
             foreach (self::GROUPS as $group) {
                 $supplier = Supplier::firstOrCreate(
                     ['company_id' => $company->id, 'name' => $group['name']],
-                    ['type' => 'company', 'country' => 'Saudi Arabia']
+                    [
+                        'type' => 'company',
+                        'name_ar' => $group['name_ar'] ?? null,
+                        'vat_number' => $group['vat_number'] ?? null,
+                        'cr_number' => $group['cr_number'] ?? null,
+                        'city' => $group['city'] ?? null,
+                        'country' => $group['country'] ?? 'Saudi Arabia',
+                        'address_line_1' => $group['address_line_1'] ?? null,
+                        'postal_code' => $group['postal_code'] ?? null,
+                    ]
                 );
 
                 $bill = $this->createAndPostMaterialBill($company, $project, $supplier, $group);
                 $this->reassignVouchers($company, $ledger, $saedBill, $bill, $supplier, $group);
+
+                if (isset($group['remaining_payment'])) {
+                    $this->payRemainingBalance($company, $project, $ledger, $bill, $supplier, $group);
+                }
             }
 
             $this->issuePurchaseReturn($company, $saedBill);
@@ -166,7 +200,7 @@ class SaedEstMaterialSupplierCorrectionSeeder extends Seeder
             'project_id' => $project->id,
             'branch_id' => $company->default_branch_id,
             'bill_number' => $company->nextBillNumber(),
-            'supplier_reference' => $group['description'],
+            'supplier_reference' => $group['supplier_reference'] ?? $group['description'],
             'status' => 'draft',
             'bill_date' => $group['bill_date'],
             'currency' => $company->currency ?? 'SAR',
@@ -238,6 +272,88 @@ class SaedEstMaterialSupplierCorrectionSeeder extends Seeder
         $materialBill->save();
     }
 
+    /**
+     * "remaining 789 due is also paid" — a real, new settlement that
+     * isn't among the original 28 vouchers at all. Posted through the
+     * normal voucher/GL path, same as ShahidTransferOct29Seeder's own
+     * one-off real transfer.
+     */
+    private function payRemainingBalance(Company $company, Project $project, LedgerPostingService $ledger, Bill $materialBill, Supplier $supplier, array $group): void
+    {
+        $remaining = $group['remaining_payment'];
+
+        $alreadyRecorded = PaymentVoucher::where('company_id', $company->id)
+            ->where('supplier_id', $supplier->id)
+            ->where('amount', $remaining['amount'])
+            ->where('reference', $remaining['reference'])
+            ->exists();
+
+        if ($alreadyRecorded) {
+            return;
+        }
+
+        $operating = BankAccount::where('company_id', $company->id)->where('name', 'SNB — Operating Account')->first();
+
+        if (! $operating) {
+            $this->command?->error('SNB — Operating Account bank account not found — skipping the remaining balance payment.');
+
+            return;
+        }
+
+        $voucher = PaymentVoucher::create([
+            'company_id' => $company->id,
+            'bank_account_id' => $operating->id,
+            'project_id' => $project->id,
+            'bill_id' => $materialBill->id,
+            'party_type' => 'supplier',
+            'supplier_id' => $supplier->id,
+            'payee_name' => $supplier->name,
+            'party_name_ar' => $supplier->name_ar,
+            'voucher_number' => $this->nextFreeVoucherNumber($company),
+            'date' => $remaining['date'],
+            'amount' => $remaining['amount'],
+            'method' => 'bank_transfer',
+            'reference' => $remaining['reference'],
+            'notes' => $remaining['reference'],
+            'status' => 'issued',
+        ]);
+
+        $payment = $materialBill->billPayments()->create([
+            'amount' => $remaining['amount'],
+            'paid_at' => $voucher->date,
+            'method' => $voucher->method,
+            'reference' => $voucher->reference,
+        ]);
+
+        $voucher->update(['bill_payment_id' => $payment->id]);
+        $ledger->postPaymentVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense']));
+
+        $materialBill->amount_paid = $materialBill->billPayments()->sum('amount');
+        $materialBill->save();
+
+        $this->command?->info("Voucher {$voucher->voucher_number} created and posted — SAR ".number_format((float) $remaining['amount'], 2)." remaining balance to {$supplier->name}.");
+    }
+
+    /**
+     * The original 28-voucher backfill (SaedEstSubcontractorPaymentsSeeder)
+     * creates vouchers with their real, already-used numbers directly,
+     * without ever advancing company->next_payment_voucher_number — on
+     * the real production database that's harmless, since every one of
+     * those real numbers was already issued through the normal UI (which
+     * does advance the counter), so it's already well ahead. In a fresh
+     * seed/test database, though, the counter starts at 1 and would
+     * collide with one of those hardcoded real numbers. Skipping past
+     * anything already taken keeps this safe in both cases.
+     */
+    private function nextFreeVoucherNumber(Company $company): string
+    {
+        do {
+            $candidate = $company->nextPaymentVoucherNumber();
+        } while (PaymentVoucher::where('company_id', $company->id)->where('voucher_number', $candidate)->exists());
+
+        return $candidate;
+    }
+
     private function issuePurchaseReturn(Company $company, Bill $saedBill): void
     {
         $purchaseReturn = PurchaseReturn::create([
@@ -246,8 +362,8 @@ class SaedEstMaterialSupplierCorrectionSeeder extends Seeder
             'supplier_id' => $saedBill->supplier_id,
             'branch_id' => $saedBill->branch_id,
             'return_number' => $company->nextPurchaseReturnNumber(),
-            'issue_date' => '2026-10-23',
-            'reason' => 'Base course and asphalt material purchased directly from Al Jazeera and Dar Al Anajim, supplied to the subcontractor — net cost credited against the contract balance.',
+            'issue_date' => '2026-10-29',
+            'reason' => 'Base course and asphalt material purchased directly from Al Jazeera and Dar Al Manajim, supplied to the subcontractor — net cost credited against the contract balance.',
             'reason_type' => 'other',
             'status' => 'issued',
             'currency' => $company->currency ?? 'SAR',
