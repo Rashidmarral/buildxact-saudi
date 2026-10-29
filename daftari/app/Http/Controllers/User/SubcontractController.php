@@ -106,10 +106,17 @@ class SubcontractController extends Controller
      * because the match source is a SubcontractPayment, falling back to
      * its linked voucher's own reference/payee_name/notes.
      */
+    /**
+     * "ashraf and aljazeera payments will merge into 73000 payment like
+     * we have purchase material from these and give to shahid the only
+     * 1760 remaining to add on ashraf as it's remaining" — Ashraf and Al
+     * Jazeera were really paid for subbase material (delivered on to
+     * Shahid's work), so both merge under one "Sub Base" category by
+     * default rather than staying split by name.
+     */
     private const DEFAULT_CATEGORY_GROUPS = [
         'Cash/Transfer' => 'shahid',
-        'Ashraf' => 'ashraf',
-        'Al Jazeera' => 'gazaierih',
+        'Sub Base' => 'ashraf,gazaierih',
         'Asphalt' => 'anajim',
         'MC1' => 'mc1',
         'Machine' => 'machine',
