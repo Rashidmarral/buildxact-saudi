@@ -104,6 +104,8 @@ class SaedEstSubcontractorPaymentsSeeder extends Seeder
             return;
         }
 
+        $this->seedBoqItems($subcontract);
+
         $operating = BankAccount::firstOrCreate(
             ['company_id' => $company->id, 'name' => 'SNB — Operating Account'],
             ['bank_name' => 'Saudi National Bank (SNB)', 'type' => 'bank', 'currency' => 'SAR', 'is_active' => true]
@@ -226,6 +228,31 @@ class SaedEstSubcontractorPaymentsSeeder extends Seeder
     /**
      * @return array<int, array{voucher_number: string, date: string, bank_account: BankAccount, method: string, reference: string, amount: float, group: string}>
      */
+    /**
+     * The refined 4-line BOQ breakdown the operator shared — Sub base
+     * 10,000 m² @ 6.00, Base Course 10,000 m² @ 14.00, Asphalt 4,100 m²
+     * @ 36.50, Sub base+ABC 1,200 m² @ 20.00 — totalling the same SAR
+     * 373,650.00 the contract/milestones already use, so this only adds
+     * documentation behind that figure, it never changes it. Only seeded
+     * once: if the operator has since edited the BOQ themselves in the
+     * UI, re-running this must never overwrite that.
+     */
+    private function seedBoqItems(Subcontract $subcontract): void
+    {
+        if ($subcontract->boqItems()->exists()) {
+            return;
+        }
+
+        foreach ([
+            ['description' => 'Sub base', 'quantity' => 10000, 'unit' => 'm2', 'rate' => 6.00, 'amount' => 60000.00],
+            ['description' => 'Base Course', 'quantity' => 10000, 'unit' => 'm2', 'rate' => 14.00, 'amount' => 140000.00],
+            ['description' => 'Asphalt', 'quantity' => 4100, 'unit' => 'm2', 'rate' => 36.50, 'amount' => 149650.00],
+            ['description' => 'Sub base+ABC', 'quantity' => 1200, 'unit' => 'm2', 'rate' => 20.00, 'amount' => 24000.00],
+        ] as $i => $item) {
+            $subcontract->boqItems()->create([...$item, 'sort_order' => $i]);
+        }
+    }
+
     private function voucherRows(BankAccount $operating, BankAccount $pettyCash): array
     {
         return [

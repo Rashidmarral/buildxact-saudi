@@ -735,6 +735,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::put('{subcontract}', [SubcontractController::class, 'update'])->name('update');
         Route::delete('{subcontract}', [SubcontractController::class, 'destroy'])->name('destroy');
         Route::get('{subcontract}/report/pdf', [SubcontractController::class, 'reportPdf'])->middleware('throttle:pdf')->name('report.pdf');
+        Route::get('{subcontract}/category-report/pdf', [SubcontractController::class, 'categoryReportPdf'])->middleware('throttle:pdf')->name('category-report.pdf');
         Route::post('{subcontract}/payments', [SubcontractController::class, 'storePayment'])->name('payments.store');
         Route::put('{subcontract}/payments/{payment}', [SubcontractController::class, 'updatePayment'])->name('payments.update');
         Route::delete('{subcontract}/payments/{payment}', [SubcontractController::class, 'destroyPayment'])->name('payments.destroy');

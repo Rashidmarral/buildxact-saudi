@@ -149,6 +149,64 @@
     </table>
 </div>
 
+<div class="bg-white rounded-xl border border-slate-100 mb-6 p-5" x-data="categoryBreakdownForm({{ json_encode(request()->filled('group_label') ? collect(request('group_label'))->map(fn ($l, $i) => ['label' => $l, 'terms' => request('group_terms')[$i] ?? '']) ->values() : collect($defaultCategoryGroups)->map(fn ($terms, $label) => ['label' => $label, 'terms' => $terms])->values()) }})">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-slate-900">{{ __('Payment breakdown by category') }}</h3>
+        <p class="text-xs text-slate-400">{{ __('Group this contract\'s own payments however you think about the cost — who got paid, what it was for.') }}</p>
+    </div>
+    <form method="GET" action="{{ route('app.subcontracts.show', $subcontract) }}">
+        <template x-for="(row, i) in rows" :key="i">
+            <div class="grid grid-cols-12 gap-2 mb-2 items-center">
+                <input type="text" :name="`group_label[${i}]`" x-model="row.label" placeholder="{{ __('Category name, e.g. Sub Base') }}" class="col-span-4 rounded-lg border border-slate-200 text-sm">
+                <input type="text" :name="`group_terms[${i}]`" x-model="row.terms" placeholder="{{ __('Match keyword(s), comma-separated, e.g. subbase, trailer') }}" class="col-span-7 rounded-lg border border-slate-200 text-sm">
+                <button type="button" @click="removeRow(i)" class="col-span-1 text-red-500 text-xs">&times;</button>
+            </div>
+        </template>
+        <div class="flex items-center gap-3 mt-2">
+            <button type="button" @click="addRow()" class="text-xs font-semibold text-brand-700 hover:underline">+ {{ __('Add category') }}</button>
+            <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Show breakdown') }}</button>
+            @if ($categoryGroups)
+                <a href="{{ route('app.subcontracts.category-report.pdf', array_merge(['subcontract' => $subcontract->id], request()->only('group_label', 'group_terms'))) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Download PDF') }}</a>
+            @endif
+        </div>
+    </form>
+
+    @if ($categoryGroups)
+        <table class="w-full text-sm mt-4 border-t border-slate-100 pt-2">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2 font-medium">{{ __('Category') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Items') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Total') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($categoryGroups as $group)
+                    <tr class="border-b border-slate-50 last:border-0">
+                        <td class="py-2 font-medium text-slate-800">{{ $group['label'] }}</td>
+                        <td class="py-2 text-end text-slate-500">{{ $group['payments']->count() }}</td>
+                        <td class="py-2 text-end font-semibold">{{ number_format($group['total'], 2) }}</td>
+                    </tr>
+                @endforeach
+                <tr class="font-semibold">
+                    <td class="py-2" colspan="2">{{ __('Total') }}</td>
+                    <td class="py-2 text-end">{{ number_format(collect($categoryGroups)->sum('total'), 2) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    @endif
+</div>
+
+<script>
+function categoryBreakdownForm(initialRows) {
+    return {
+        rows: initialRows.length ? initialRows : [{ label: '', terms: '' }],
+        addRow() { this.rows.push({ label: '', terms: '' }); },
+        removeRow(i) { this.rows.splice(i, 1); },
+    };
+}
+</script>
+
 <div class="grid sm:grid-cols-2 gap-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Link an existing Payment Voucher') }}</h3>

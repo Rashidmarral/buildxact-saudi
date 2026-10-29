@@ -94,7 +94,28 @@ class SubcontractController extends Controller
         return redirect()->route('app.subcontracts.show', $subcontract)->with('status', __('Subcontract created.'));
     }
 
-    public function show(Subcontract $subcontract)
+    /**
+     * "make a report something like this 110800 cash we have paid to
+     * shahid shows that then subbase we have given them on 73000 same
+     * asphalt transportation something like this" — a free-text,
+     * user-defined breakdown of this subcontract's own payments by
+     * whatever cost category the operator is thinking in (who got paid,
+     * what the money was for), same group_label[]/group_terms[]
+     * mechanism GroupsVouchersByPayee already gives the plain Payment
+     * Vouchers summary — reimplemented here (not reused via the trait)
+     * because the match source is a SubcontractPayment, falling back to
+     * its linked voucher's own reference/payee_name/notes.
+     */
+    private const DEFAULT_CATEGORY_GROUPS = [
+        'Cash/Transfer' => 'shahid',
+        'Ashraf' => 'ashraf',
+        'Al Jazeera' => 'gazaierih',
+        'Asphalt' => 'anajim',
+        'MC1' => 'mc1',
+        'Machine' => 'machine',
+    ];
+
+    public function show(Subcontract $subcontract, Request $request)
     {
         $subcontract->load('project', 'supplier', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher');
 
@@ -108,7 +129,76 @@ class SubcontractController extends Controller
         return view('user.subcontracts.show', [
             'subcontract' => $subcontract,
             'linkableVouchers' => $linkableVouchers,
+            'categoryGroups' => $this->categoryGroupsFromRequest($subcontract, $request),
+            'defaultCategoryGroups' => self::DEFAULT_CATEGORY_GROUPS,
         ]);
+    }
+
+    public function categoryReportPdf(Request $request, Subcontract $subcontract)
+    {
+        $subcontract->load('project', 'supplier');
+
+        $groups = $this->categoryGroupsFromRequest($subcontract, $request) ?? [];
+
+        $pdf = app(MpdfRenderer::class)->render('user.subcontracts.pdf.category-breakdown', [
+            'company' => Auth::user()->company,
+            'subcontract' => $subcontract,
+            'groups' => $groups,
+            'template' => Auth::user()->company->defaultTemplateFor('subcontractor_receiving_report'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="payment-breakdown-'.$subcontract->id.'.pdf"',
+        ]);
+    }
+
+    private function categoryGroupsFromRequest(Subcontract $subcontract, Request $request): ?array
+    {
+        $labels = (array) $request->query('group_label', []);
+        $termLists = (array) $request->query('group_terms', []);
+
+        if (empty(array_filter($labels, fn ($l) => trim((string) $l) !== ''))) {
+            return null;
+        }
+
+        $remaining = $subcontract->payments()->with('paymentVoucher')->get()->keyBy('id');
+        $groups = [];
+
+        foreach ($labels as $i => $label) {
+            $label = trim((string) $label);
+            $keywords = array_values(array_filter(array_map('trim', explode(',', (string) ($termLists[$i] ?? '')))));
+
+            if ($label === '' || empty($keywords)) {
+                continue;
+            }
+
+            $matched = $remaining->filter(function (SubcontractPayment $payment) use ($keywords) {
+                $haystack = mb_strtolower(collect([
+                    $payment->reference, $payment->notes,
+                    $payment->paymentVoucher->reference ?? null,
+                    $payment->paymentVoucher->payee_name ?? null,
+                    $payment->paymentVoucher->notes ?? null,
+                ])->filter()->implode(' '));
+
+                foreach ($keywords as $term) {
+                    if ($term !== '' && str_contains($haystack, mb_strtolower($term))) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+
+            $groups[] = ['label' => $label, 'payments' => $matched->values(), 'total' => round((float) $matched->sum('amount'), 2)];
+            $remaining = $remaining->diffKeys($matched->all());
+        }
+
+        if ($remaining->isNotEmpty()) {
+            $groups[] = ['label' => __('Other / Unmatched'), 'payments' => $remaining->values(), 'total' => round((float) $remaining->sum('amount'), 2)];
+        }
+
+        return empty($groups) ? null : $groups;
     }
 
     public function edit(Subcontract $subcontract)
