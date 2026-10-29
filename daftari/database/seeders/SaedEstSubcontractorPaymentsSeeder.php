@@ -244,11 +244,17 @@ class SaedEstSubcontractorPaymentsSeeder extends Seeder
             return;
         }
 
+        // "shahud also do 1200 subabse and 1200 base course as extra" —
+        // the client PO's own quantity revision (Subbase and Base Course
+        // each up from 10,000 to 11,200 m², matching the client-side
+        // invoices INV-00001/00002/00003 exactly) carries straight
+        // through to Shahid's own scope at his contract rates. See
+        // SaedEstSubcontractBoqCorrectionSeeder for the one-time fix on
+        // a database that already has the old 4-line shape seeded.
         foreach ([
-            ['description' => 'Sub base', 'quantity' => 10000, 'unit' => 'm2', 'rate' => 6.00, 'amount' => 60000.00],
-            ['description' => 'Base Course', 'quantity' => 10000, 'unit' => 'm2', 'rate' => 14.00, 'amount' => 140000.00],
+            ['description' => 'Sub base', 'quantity' => 11200, 'unit' => 'm2', 'rate' => 6.00, 'amount' => 67200.00],
+            ['description' => 'Base Course', 'quantity' => 11200, 'unit' => 'm2', 'rate' => 14.00, 'amount' => 156800.00],
             ['description' => 'Asphalt', 'quantity' => 4100, 'unit' => 'm2', 'rate' => 36.50, 'amount' => 149650.00],
-            ['description' => 'Sub base+ABC', 'quantity' => 1200, 'unit' => 'm2', 'rate' => 20.00, 'amount' => 24000.00],
         ] as $i => $item) {
             $subcontract->boqItems()->create([...$item, 'sort_order' => $i]);
         }
