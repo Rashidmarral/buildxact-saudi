@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\PaymentVoucher;
 use App\Models\Project;
 use App\Models\Subcontract;
+use App\Models\SubcontractPayment;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Database\Seeder;
@@ -32,19 +33,41 @@ use Illuminate\Support\Facades\DB;
  *
  * THIS CHANGES REAL FINANCIAL STATEMENTS, not just a report's shape:
  *   - Bank/cash balances are exactly unchanged — every voucher still
- *     moves the same real money, on the same date, the same way.
+ *     moves the same real money, on the same date, the same way. The
+ *     journal entry's own Accounts Payable debit always equals the
+ *     voucher's full real (gross) amount, same as the bank credit —
+ *     that side can never be anything but gross, or the entry wouldn't
+ *     balance. So the GL's own Accounts Payable balance for this
+ *     supplier settles to SAR 11,584.40 (SAR 373,650.00 billed minus
+ *     SAR 362,065.60 real cash paid across all 29 vouchers) regardless
+ *     of what BillPayment.amount below is set to.
  *   - The Income Statement changes. Before this: ~SAR 362,065.60 of
  *     this subcontractor's cost was expensed piecemeal, voucher by
  *     voucher, as cash left the bank. After: the bill posts the FULL
  *     contract value (SAR 373,650.00) as Operating Expense in one
  *     entry, dated to the contract's start (2026-09-25) — proper
- *     accrual accounting (the cost is recognized when the work was
- *     done/committed, not only as cash was paid), appropriate here
- *     since the subcontracted work is complete. That moves the
- *     unpaid SAR 11,584.40 balance of this cost onto the books now
- *     instead of only when it's eventually paid.
- *   - Accounts Payable carries that same SAR 11,584.40 balance until
- *     it's settled by a future voucher/bill payment.
+ *     accrual accounting, appropriate since the work is complete.
+ *
+ * BillPayment.amount is NOT simply the voucher's real cash figure,
+ * though: "it added asphalt dar al anajim payment voucher listed with
+ * vat i need to list them without vat and same for aljazera" — the Dar
+ * Al Anajim and Al Jazeera vouchers settle this bill at the same net
+ * (ex-VAT) figure already worked out in the Subcontractor Payments
+ * module, not their real gross cash amount, so the statement lists
+ * what's actually applied against the SAR 373,650.00 (itself a net
+ * figure). Every other voucher has no such VAT difference, so its
+ * BillPayment is its own real amount either way.
+ *
+ * Known, accepted consequence: Bill::balanceDue() (SAR 373,650.00 minus
+ * the sum of these now-partly-net BillPayments, ≈ SAR 30,954.33) will
+ * read HIGHER than the GL's own true Accounts Payable balance above
+ * (SAR 11,584.40) — the SAR 19,369.93 gap is exactly the gross-vs-net
+ * difference on those two groups, cash that really left the bank and
+ * really relieved Accounts Payable in the GL, but was never counted
+ * toward the SAR 373,650.00 net contract value. Anything that reads
+ * Bill::balanceDue() (the Bill show page, Aged Payables) will reflect
+ * that same gap — only the GL's own ledger/trial balance stays the
+ * literal truth of what moved.
  *
  * Run it yourself, after taking a database backup:
  *   php artisan db:seed --class="Database\\Seeders\\SaedEstSubcontractorBillSeeder"
@@ -145,8 +168,20 @@ class SaedEstSubcontractorBillSeeder extends Seeder
         foreach ($vouchers as $voucher) {
             $ledger->deletePosting($company, 'payment_voucher', $voucher->id);
 
+            // "it added asphalt dar al anajim payment voucher listed
+            // with vat i need to list them without vat and same for
+            // aljazera" — this bill settles against the net (ex-VAT)
+            // value already worked out in the Subcontractor Payments
+            // module (see SaedEstSubcontractorPaymentsSeeder's own
+            // Al Jazeera ÷1.15 and Dar Al Anajim proportional-to-
+            // 107,352.20 corrections), not the voucher's real gross
+            // cash figure — falls back to the voucher's own amount for
+            // every other voucher, where no such VAT difference exists.
+            $netAmount = round((float) SubcontractPayment::where('payment_voucher_id', $voucher->id)->sum('amount'), 2);
+            $netAmount = $netAmount > 0.004 ? $netAmount : (float) $voucher->amount;
+
             $payment = $bill->billPayments()->create([
-                'amount' => $voucher->amount,
+                'amount' => $netAmount,
                 'paid_at' => $voucher->date,
                 'method' => $voucher->method,
                 'reference' => $voucher->reference,
@@ -155,7 +190,7 @@ class SaedEstSubcontractorBillSeeder extends Seeder
             $voucher->update(['bill_id' => $bill->id, 'bill_payment_id' => $payment->id]);
             $ledger->postPaymentVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense']));
 
-            $this->command?->info("Voucher {$voucher->voucher_number} (SAR ".number_format((float) $voucher->amount, 2).') reassigned to settle bill '.$bill->bill_number.'.');
+            $this->command?->info("Voucher {$voucher->voucher_number} (SAR ".number_format($netAmount, 2).' applied, SAR '.number_format((float) $voucher->amount, 2).' cash) reassigned to settle bill '.$bill->bill_number.'.');
         }
 
         $bill->amount_paid = $bill->billPayments()->sum('amount');

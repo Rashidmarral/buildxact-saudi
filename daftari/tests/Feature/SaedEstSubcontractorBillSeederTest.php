@@ -93,7 +93,7 @@ class SaedEstSubcontractorBillSeederTest extends TestCase
     public function test_every_real_voucher_is_reassigned_to_settle_the_bill(): void
     {
         $company = $this->seedCompany();
-        $this->seedFullSubcontract($company);
+        $subcontract = $this->seedFullSubcontract($company);
         (new SaedEstSubcontractorPaymentsSeeder)->run();
         (new ShahidTransferOct29Seeder)->run();
 
@@ -105,8 +105,11 @@ class SaedEstSubcontractorBillSeederTest extends TestCase
         $this->assertCount(29, $vouchers);
         $this->assertTrue($vouchers->every(fn (PaymentVoucher $v) => $v->bill_id === $bill->id && $v->bill_payment_id !== null));
 
-        $this->assertEqualsWithDelta(362065.60, (float) $bill->fresh()->amount_paid, 0.01);
-        $this->assertEqualsWithDelta(373650.00 - 362065.60, $bill->fresh()->balanceDue(), 0.01);
+        // Net, not gross: the Dar Al Anajim and Al Jazeera vouchers
+        // settle at their net (ex-VAT) applied amount, matching the
+        // Subcontractor Payments module — see the seeder's own docblock.
+        $this->assertEqualsWithDelta($subcontract->fresh()->totalPaid(), (float) $bill->fresh()->amount_paid, 0.01);
+        $this->assertEqualsWithDelta(373650.00 - $subcontract->fresh()->totalPaid(), $bill->fresh()->balanceDue(), 0.01);
     }
 
     /**
@@ -188,7 +191,7 @@ class SaedEstSubcontractorBillSeederTest extends TestCase
     public function test_a_later_voucher_added_after_the_first_run_gets_picked_up_on_a_second_run(): void
     {
         $company = $this->seedCompany();
-        $this->seedFullSubcontract($company);
+        $subcontract = $this->seedFullSubcontract($company);
         (new SaedEstSubcontractorPaymentsSeeder)->run();
 
         (new SaedEstSubcontractorBillSeeder)->run();
@@ -199,6 +202,35 @@ class SaedEstSubcontractorBillSeederTest extends TestCase
         $newVoucher = PaymentVoucher::where('company_id', $company->id)->latest('id')->first();
 
         $this->assertSame($bill->id, $newVoucher->bill_id);
-        $this->assertEqualsWithDelta(362065.60, (float) $bill->fresh()->amount_paid, 0.01);
+        $this->assertEqualsWithDelta($subcontract->fresh()->totalPaid(), (float) $bill->fresh()->amount_paid, 0.01);
+    }
+
+    /**
+     * "i need to list them without vat and same for aljazera" — the
+     * Dar Al Anajim and Al Jazeera BillPayments must carry their net
+     * (ex-VAT) applied amount, not their real gross cash figure, while
+     * every other voucher (no VAT difference) settles at its real amount.
+     */
+    public function test_the_asphalt_and_al_jazeera_bill_payments_are_net_of_vat_not_gross(): void
+    {
+        $company = $this->seedCompany();
+        $this->seedFullSubcontract($company);
+        (new SaedEstSubcontractorPaymentsSeeder)->run();
+
+        (new SaedEstSubcontractorBillSeeder)->run();
+
+        $asphaltVoucher = PaymentVoucher::where('voucher_number', 'PV-00029')->first();
+        $this->assertNotNull($asphaltVoucher->bill_payment_id);
+        $this->assertEqualsWithDelta(82965.60, (float) $asphaltVoucher->amount, 0.01, 'the real voucher keeps its full gross amount');
+        $this->assertEqualsWithDelta(72608.29, (float) $asphaltVoucher->billPayment->amount, 0.01, 'the bill settles at the net applied amount, not the 82,965.60 gross');
+
+        $alJazeeraVoucher = PaymentVoucher::where('voucher_number', 'PV-00013')->first();
+        $this->assertEqualsWithDelta(10000.00, (float) $alJazeeraVoucher->amount, 0.01);
+        $this->assertEqualsWithDelta(8695.65, (float) $alJazeeraVoucher->billPayment->amount, 0.01, 'the bill settles at the net applied amount, not the 10,000.00 gross');
+
+        // Shahid has no VAT adjustment at all — settles at its real amount either way.
+        $shahidVoucher = PaymentVoucher::where('voucher_number', 'PV-00002')->first();
+        $this->assertEqualsWithDelta(5000.00, (float) $shahidVoucher->amount, 0.01);
+        $this->assertEqualsWithDelta(5000.00, (float) $shahidVoucher->billPayment->amount, 0.01);
     }
 }
