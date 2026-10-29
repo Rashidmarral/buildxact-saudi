@@ -107,18 +107,30 @@ class SubcontractController extends Controller
      * its linked voucher's own reference/payee_name/notes.
      */
     /**
-     * "ashraf and aljazeera payments will merge into 73000 payment like
-     * we have purchase material from these and give to shahid the only
-     * 1760 remaining to add on ashraf as it's remaining" — Ashraf and Al
-     * Jazeera were really paid for subbase material (delivered on to
-     * Shahid's work), so both merge under one "Sub Base" category by
-     * default rather than staying split by name.
+     * "ashraf and aljazeera payments will merge into 73000 payment...
+     * because ashraf 7700 is trailer rent and one 5000 net cash paid by
+     * us that is payable of shahid and that 5000 is include in 110800
+     * in shahid payment" — two of Ashraf's 7 real vouchers aren't
+     * subbase material at all: the SAR 7,700 "Asphalt Trailer rent"
+     * transfer is really a transportation cost, and the SAR 5,000 "net
+     * cash paid... in terms of trailer rent" is really Shahid's own
+     * expense paid through Ashraf, so it's grouped with Shahid instead.
+     * Groups are matched in order, each claiming its payments before the
+     * next group even sees what's left — so the most specific match has
+     * to come first. The MC1 voucher's own text also says "Shahid", and
+     * the SAR 5,000 "net cash paid... trailer rent" voucher's text also
+     * says "trailer rent" the same way the SAR 7,700 one does, so both
+     * go ahead of the broader "Cash/Transfer"/"shahid" catch-all, and
+     * "Cash/Transfer" itself goes ahead of "Asphalt Transportation" so
+     * its longer, more specific phrase claims that one SAR 5,000 voucher
+     * first.
      */
     private const DEFAULT_CATEGORY_GROUPS = [
-        'Cash/Transfer' => 'shahid',
+        'MC1' => 'mc1',
+        'Cash/Transfer' => 'shahid,net cash paid to ashraf',
+        'Asphalt Transportation' => 'trailer rent',
         'Sub Base' => 'ashraf,gazaierih',
         'Asphalt' => 'anajim',
-        'MC1' => 'mc1',
         'Machine' => 'machine',
     ];
 

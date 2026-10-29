@@ -142,4 +142,41 @@ class SaedEstSubcontractorPaymentsSeederTest extends TestCase
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
     }
+
+    /**
+     * "because ashraf 7700 is trailer rent and one 5000 net cash paid
+     * by us that is payable of shahid and that 5000 is include in
+     * 110800 in shahid payment" — the default category breakdown must
+     * pull the MC1 voucher and the one reclassified SAR 5,000 "Ashraf"
+     * voucher out correctly despite their text also containing
+     * "Shahid"/"trailer rent", and the grand total must always
+     * reconcile exactly to the contract's own net total — nothing lost,
+     * nothing double-counted.
+     */
+    public function test_the_default_category_breakdown_reclassifies_the_two_ashraf_vouchers_correctly(): void
+    {
+        [$company, $subcontract] = $this->seedCompanyWithRealSubcontract();
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        (new SaedEstSubcontractorPaymentsSeeder)->run();
+
+        $defaults = [
+            'MC1' => 'mc1', 'Cash/Transfer' => 'shahid,net cash paid to ashraf',
+            'Asphalt Transportation' => 'trailer rent', 'Sub Base' => 'ashraf,gazaierih',
+            'Asphalt' => 'anajim', 'Machine' => 'machine',
+        ];
+
+        $response = $this->actingAs($owner)->get(route('app.subcontracts.show', [
+            'subcontract' => $subcontract, 'group_label' => array_keys($defaults), 'group_terms' => array_values($defaults),
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('4,000.00'); // MC1 kept separate from Cash/Transfer.
+        $response->assertSee('115,800.00'); // Cash/Transfer: 110,800 Shahid-named + the reclassified 5,000.
+        $response->assertSee('7,700.00'); // Asphalt Transportation: the one real trailer-rent voucher.
+        $response->assertSee('76,043.47'); // Sub Base: Ashraf's remaining 49,000 + Al Jazeera net.
+
+        $totalPaid = $subcontract->fresh()->totalPaid();
+        $response->assertSee(number_format($totalPaid, 2));
+    }
 }

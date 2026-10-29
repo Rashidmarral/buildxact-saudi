@@ -141,7 +141,7 @@ class SaedEstSubcontractorPaymentsSeeder extends Seeder
                         'amount' => $row['amount'],
                         'method' => $row['method'],
                         'reference' => $row['reference'],
-                        'notes' => $row['reference'],
+                        'notes' => $row['notes'] ?? $row['reference'],
                         'status' => 'issued',
                     ]
                 );
@@ -269,7 +269,7 @@ class SaedEstSubcontractorPaymentsSeeder extends Seeder
             ['voucher_number' => 'PV-00015', 'date' => '2026-10-11', 'bank_account' => $operating, 'method' => 'bank_transfer', 'reference' => 'Payment to MUHAMMED ASHRAF MUHAMMED AKRAM for project works', 'amount' => 10000.00, 'group' => 'plain'],
             ['voucher_number' => 'PV-00016', 'date' => '2026-10-11', 'bank_account' => $operating, 'method' => 'bank_transfer', 'reference' => 'Payment to SHAERIKAIH ALGAZAIERIH ALERIBAIH for project works', 'amount' => 10000.00, 'group' => 'al_jazeera'],
             ['voucher_number' => 'PV-00017', 'date' => '2026-10-11', 'bank_account' => $operating, 'method' => 'cash', 'reference' => 'Payment to MUHAMMED SHAHID for project works', 'amount' => 15000.00, 'group' => 'plain'],
-            ['voucher_number' => 'PV-00018', 'date' => '2026-10-12', 'bank_account' => $operating, 'method' => 'cash', 'reference' => 'Received 4500 (4000 Nasir 500 Khalid bhai  1000 + 800  Labortry Test khalid bhai se lye  500 more cash Total  6800 Total', 'amount' => 6800.00, 'group' => 'plain'],
+            ['voucher_number' => 'PV-00018', 'date' => '2026-10-12', 'bank_account' => $operating, 'method' => 'cash', 'reference' => 'Received 4500 (4000 Nasir 500 Khalid bhai  1000 + 800  Labortry Test khalid bhai se lye  500 more cash Total  6800 Total', 'notes' => 'Payment to MUHAMMED SHAHID for project works', 'amount' => 6800.00, 'group' => 'plain'],
             ['voucher_number' => 'PV-00019', 'date' => '2026-10-12', 'bank_account' => $operating, 'method' => 'bank_transfer', 'reference' => 'Payment to SHAERIKAIH ALGAZAIERIH ALERIBAIH for project works', 'amount' => 7500.00, 'group' => 'al_jazeera'],
             ['voucher_number' => 'PV-00020', 'date' => '2026-10-12', 'bank_account' => $operating, 'method' => 'bank_transfer', 'reference' => 'Payment to Muhammad Ashraf for project works', 'amount' => 20000.00, 'group' => 'plain'],
             ['voucher_number' => 'PV-00021', 'date' => '2026-10-13', 'bank_account' => $operating, 'method' => 'bank_transfer', 'reference' => 'Payment to SHAERIKAIH ALGAZAIERIH ALERIBAIH for project works', 'amount' => 2000.00, 'group' => 'al_jazeera'],
