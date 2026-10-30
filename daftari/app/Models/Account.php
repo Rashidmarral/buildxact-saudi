@@ -55,6 +55,11 @@ class Account extends Model
             ['code' => '2280', 'name' => 'End-of-Service Provision', 'name_ar' => 'مخصص مكافأة نهاية الخدمة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2290', 'name' => 'Other Payroll Deductions Payable', 'name_ar' => 'استقطاعات رواتب أخرى مستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '3000', 'name' => "Owner's Equity", 'name_ar' => 'حقوق الملكية', 'type' => 'equity', 'normal_balance' => 'credit'],
+            // Contra-equity: personal/non-business spending that went
+            // through a company account, or cash the owner simply drew
+            // out — reduces what the owner has invested in the company,
+            // it is never a deductible business Operating Expense.
+            ['code' => '3100', 'name' => "Owner's Drawings", 'name_ar' => 'مسحوبات المالك', 'type' => 'equity', 'normal_balance' => 'debit'],
             ['code' => '4000', 'name' => 'Sales Revenue', 'name_ar' => 'إيرادات المبيعات', 'type' => 'revenue', 'normal_balance' => 'credit'],
             ['code' => '4100', 'name' => 'Sales Discounts', 'name_ar' => 'خصومات المبيعات', 'type' => 'revenue', 'normal_balance' => 'debit'],
             ['code' => '4150', 'name' => 'Sales Returns', 'name_ar' => 'مردودات المبيعات', 'type' => 'revenue', 'normal_balance' => 'debit'],
