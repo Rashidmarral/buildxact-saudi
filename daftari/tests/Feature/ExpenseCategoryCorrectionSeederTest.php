@@ -18,8 +18,10 @@ use Tests\TestCase;
 
 /**
  * "i have mixed transaction and added expenses in wrong categories
- * please fix them all" — every real expense is checked against its
- * own description and set to the category it actually belongs to.
+ * please fix them all" / "remove the old fake categories please set
+ * all according to our account system in our app" — every real
+ * expense is checked against its own description and set to its
+ * correct category under the operator's final category list.
  *
  * Also covers a real bug a live run surfaced: a missing target
  * category (because the old unguarded destroy() deleted it, silently
@@ -38,7 +40,7 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         AccountMapping::seedDefaults($company->id);
         $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ_00001', 'name' => 'مشروع ساحة الجموم', 'status' => 'active']);
 
-        foreach (['Office supplies', 'Utilities', 'Rent', 'Bill', 'Salaries', 'Maintenance', 'Fuel', 'Management', 'Operating expense', 'Home Food', 'Home', 'VAT', 'Project'] as $name) {
+        foreach (['Office Supplies', 'Utilities', 'Rent', 'Bill', 'Salaries & Wages', 'Repairs & Maintenance', 'Fuel', 'Management', 'Operating expense', 'Home Food', 'Home', 'VAT', 'Project', 'Miscellaneous', 'Transportation'] as $name) {
             ExpenseCategory::create(['company_id' => $company->id, 'name' => $name]);
         }
 
@@ -76,7 +78,7 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         $this->assertSame(0, ExpenseCategory::count());
     }
 
-    public function test_it_moves_the_warsha_bill_from_bill_to_maintenance(): void
+    public function test_it_moves_the_warsha_bill_from_bill_to_repairs_and_maintenance(): void
     {
         [$company] = $this->seedCompany();
         $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
@@ -85,7 +87,7 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         (new ExpenseCategoryCorrectionSeeder)->run();
 
         $expense->refresh();
-        $this->assertSame('Maintenance', $expense->category->name);
+        $this->assertSame('Repairs & Maintenance', $expense->category->name);
     }
 
     public function test_it_recreates_a_missing_target_category_instead_of_aborting(): void
@@ -136,7 +138,7 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         $this->assertSame($otherProject->id, $expense->project_id);
     }
 
-    public function test_it_moves_the_gosi_salary_deduction_to_salaries(): void
+    public function test_it_moves_the_gosi_salary_deduction_to_salaries_and_wages(): void
     {
         [$company] = $this->seedCompany();
         $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
@@ -145,7 +147,31 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         (new ExpenseCategoryCorrectionSeeder)->run();
 
         $expense->refresh();
-        $this->assertSame('Salaries', $expense->category->name);
+        $this->assertSame('Salaries & Wages', $expense->category->name);
+    }
+
+    public function test_it_moves_fuel_to_transportation(): void
+    {
+        [$company] = $this->seedCompany();
+        $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
+        $expense = $this->seedExpense($company, $bank, 'Fuel', ['description' => 'Yaris Fuel for Masim Pump delivery and food', 'amount' => 60.00, 'gross_amount' => 60.00, 'expense_date' => '2026-10-17']);
+
+        (new ExpenseCategoryCorrectionSeeder)->run();
+
+        $expense->refresh();
+        $this->assertSame('Transportation', $expense->category->name);
+    }
+
+    public function test_it_moves_ambiguous_cash_handouts_to_miscellaneous(): void
+    {
+        [$company] = $this->seedCompany();
+        $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
+        $expense = $this->seedExpense($company, $bank, 'Operating expense', ['description' => 'Net Cash paid to sheraz', 'amount' => 500.00, 'gross_amount' => 500.00, 'expense_date' => '2026-09-28']);
+
+        (new ExpenseCategoryCorrectionSeeder)->run();
+
+        $expense->refresh();
+        $this->assertSame('Miscellaneous', $expense->category->name);
     }
 
     public function test_it_reposts_the_gl_only_for_expenses_it_actually_moves(): void
@@ -153,7 +179,7 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         [$company] = $this->seedCompany();
         $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
         $moved = $this->seedExpense($company, $bank, 'Operating expense', ['description' => 'purchase 2 silicone and bolt keys refrence Yahya', 'amount' => 40.00, 'gross_amount' => 40.00, 'expense_date' => '2026-10-14']);
-        $correct = $this->seedExpense($company, $bank, 'Office supplies', ['description' => 'Printer paper and toner', 'amount' => 449.57, 'gross_amount' => 449.57, 'expense_date' => '2026-08-17']);
+        $correct = $this->seedExpense($company, $bank, 'Office Supplies', ['description' => 'Printer paper and toner', 'amount' => 449.57, 'gross_amount' => 449.57, 'expense_date' => '2026-08-17']);
 
         (new ExpenseCategoryCorrectionSeeder)->run();
 
@@ -162,11 +188,11 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         $this->assertSame(1, JournalEntry::where('source_type', 'expense')->where('source_id', $correct->id)->count());
     }
 
-    public function test_it_leaves_an_ambiguous_operating_expense_row_alone(): void
+    public function test_it_leaves_an_expense_not_on_the_canonical_list_alone(): void
     {
         [$company] = $this->seedCompany();
         $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
-        $expense = $this->seedExpense($company, $bank, 'Operating expense', ['description' => 'Net Cash paid to sheraz', 'amount' => 500.00, 'gross_amount' => 500.00, 'expense_date' => '2026-09-28']);
+        $expense = $this->seedExpense($company, $bank, 'Operating expense', ['description' => 'Some unrelated real cost entered after this list was written', 'amount' => 777.00, 'gross_amount' => 777.00, 'expense_date' => '2026-11-01']);
 
         (new ExpenseCategoryCorrectionSeeder)->run();
 
@@ -185,6 +211,6 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
 
         $this->assertSame(1, JournalEntry::where('source_type', 'expense')->where('source_id', $expense->id)->count());
         $expense->refresh();
-        $this->assertSame('Maintenance', $expense->category->name);
+        $this->assertSame('Repairs & Maintenance', $expense->category->name);
     }
 }

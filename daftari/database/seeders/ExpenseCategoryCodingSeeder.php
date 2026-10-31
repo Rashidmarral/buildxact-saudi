@@ -11,41 +11,53 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * "add proper expenses categories with code recommended by zatca and
- * adjust transaction by that way" — ZATCA itself doesn't publish a
- * fixed numeric code list for expense sub-categories (that's an
- * internal chart-of-accounts matter); what actually matters for
- * ZATCA/Zakat compliance is exactly what Section 3 already
- * recommended: separating direct project cost from general
- * administrative expense, flagging which categories normally carry
- * recoverable input VAT, and giving every category a short stable
- * code for reporting/export. This seeder applies that recommendation
- * to the 13 real categories already in use (the duplicate "Rent" row
- * is coded the same as the real one and soft-disabled, never merged
- * or deleted), grouped under five parent categories mirroring a
- * standard Saudi SME/Zakat cost breakdown: Direct Project Costs,
- * General & Administrative, Payroll & Benefits, Owner/Personal, and
- * Tax & VAT.
+ * "please remove my added categories because i have create them
+ * randomly i don't know the accounts add these and assign transaction
+ * with matching categories remove the old fake categories please set
+ * all according to our account system in our app" — replaces the
+ * mnemonic codes this seeder used to assign with the operator's own
+ * requested list (Bank Charges 6180, Marketing & Advertising 6170,
+ * Miscellaneous 6900, Office Supplies 6140, Professional Fees 6190,
+ * Rent 6110, Repairs & Maintenance 6150, Salaries & Wages 6100,
+ * Telephone & Internet 6130, Transportation 6220, Travel 6160,
+ * Utilities 6120 — a standard SME expense chart), renaming the five
+ * real categories that already match one of these in meaning (Office
+ * supplies, Utilities, Rent, Salaries, Maintenance) rather than
+ * creating duplicates, and adding the seven the operator's real data
+ * never had a category for yet.
  *
- * Three categories get a real GL account other than the 5100 default
- * (Salaries -> 5350 Salaries & Wages Expense; Maintenance, Fuel and
- * Project -> 5000 Cost of Goods Sold, i.e. direct project cost) via
+ * Four more categories stay outside that list because real,
+ * already-corrected transactions depend on them and none of the 12
+ * fit: Home / Home Food (the owner's personal spending, posts to
+ * Owner's Drawings 3100), VAT (the real VAT settlement and the
+ * fake-invoice cost, posts to VAT Output 2100), and Project (direct
+ * project cash payments, posts to 5000 Cost of Goods Sold like
+ * Repairs & Maintenance and Transportation do).
+ *
+ * Grouped under five parents mirroring a standard Saudi SME/Zakat cost
+ * breakdown: Direct Project Costs, General & Administrative, Payroll &
+ * Benefits, Owner/Personal, Tax & VAT.
+ *
+ * "set all according to our account system": Salaries & Wages posts to
+ * 5350; Repairs & Maintenance and Transportation post to 5000 Cost of
+ * Goods Sold (real direct project cost, not generic overhead) via
  * ExpenseCategory.linked_account_id, which
- * LedgerPostingService::postExpense() now falls back to whenever a
- * transaction has no explicit account_id override of its own. "Adjust
- * transaction by that way": every already-posted expense in one of
- * those three categories that has no per-transaction override
- * (account_id still null) is reposted so its journal entry reflects
- * the new category default — an explicit override on any individual
- * expense (e.g. the owner-drawings or VAT reclassifications already
- * built) always wins and is never touched here.
+ * LedgerPostingService::postExpense() falls back to whenever a
+ * transaction has no explicit account_id override of its own. Every
+ * already-posted, un-overridden expense in a category whose linked
+ * account changes is reposted so its journal entry reflects the new
+ * account — an explicit override on any individual expense (e.g. the
+ * owner-drawings or VAT reclassifications already built) always wins
+ * and is never touched here.
  *
- * Run it yourself, after taking a database backup:
+ * Run this first, then ExpenseCategoryCorrectionSeeder (moves every
+ * real transaction to its correct category under these new names),
+ * then RetireLegacyExpenseCategoriesSeeder (removes whatever's left
+ * over once nothing real points at it anymore):
  *   php artisan db:seed --class="Database\\Seeders\\ExpenseCategoryCodingSeeder"
  *
- * Idempotent: skips any category whose code is already set, and any
- * expense whose journal entry is already posted to its category's
- * current linked account.
+ * Idempotent: safe to re-run — renames only where the old name is
+ * still in use, and an already-correct category is left untouched.
  */
 class ExpenseCategoryCodingSeeder extends Seeder
 {
@@ -58,23 +70,28 @@ class ExpenseCategoryCodingSeeder extends Seeder
     ];
 
     /**
-     * name => [code, group, linked_account_code (null = leave at the
-     * 5100 global default), is_direct_cost, requires_project, vat_eligible]
+     * [match name (the real category already in use, or null if this
+     * is a brand new one), final name, code, group, linked_account_code
+     * (null = leave at the 5100 global default), is_direct_cost,
+     * requires_project, vat_eligible]
      */
     private const CATEGORIES = [
-        'Office supplies' => ['ADMIN-OFFICE', 'General & Administrative', null, false, false, true],
-        'Utilities' => ['ADMIN-UTIL', 'General & Administrative', null, false, false, true],
-        'Rent' => ['ADMIN-RENT', 'General & Administrative', null, false, false, true],
-        'Bill' => ['ADMIN-BILL', 'General & Administrative', null, false, false, true],
-        'Management' => ['ADMIN-MGMT', 'General & Administrative', null, false, false, false],
-        'Operating expense' => ['ADMIN-OPEX', 'General & Administrative', null, false, false, false],
-        'Salaries' => ['PAYROLL-SALARY', 'Payroll & Benefits', '5350', false, false, false],
-        'Maintenance' => ['DIRECT-MAINT', 'Direct Project Costs', '5000', true, true, true],
-        'Fuel' => ['DIRECT-FUEL', 'Direct Project Costs', '5000', true, true, true],
-        'Project' => ['DIRECT-PROJECT', 'Direct Project Costs', '5000', true, true, false],
-        'Home' => ['OWNER-HOME', 'Owner / Personal', '3100', false, false, false],
-        'Home Food' => ['OWNER-HOMEFOOD', 'Owner / Personal', '3100', false, false, false],
-        'VAT' => ['TAX-VAT', 'Tax & VAT', '2100', false, false, false],
+        ['Salaries', 'Salaries & Wages', '6100', 'Payroll & Benefits', '5350', false, false, false],
+        ['Rent', 'Rent', '6110', 'General & Administrative', null, false, false, true],
+        ['Utilities', 'Utilities', '6120', 'General & Administrative', null, false, false, true],
+        [null, 'Telephone & Internet', '6130', 'General & Administrative', null, false, false, true],
+        ['Office supplies', 'Office Supplies', '6140', 'General & Administrative', null, false, false, true],
+        ['Maintenance', 'Repairs & Maintenance', '6150', 'Direct Project Costs', '5000', true, true, true],
+        [null, 'Travel', '6160', 'General & Administrative', null, false, false, true],
+        [null, 'Marketing & Advertising', '6170', 'General & Administrative', null, false, false, true],
+        [null, 'Bank Charges', '6180', 'General & Administrative', null, false, false, true],
+        [null, 'Professional Fees', '6190', 'General & Administrative', null, false, false, true],
+        [null, 'Transportation', '6220', 'Direct Project Costs', '5000', true, true, true],
+        [null, 'Miscellaneous', '6900', 'General & Administrative', null, false, false, false],
+        ['Home', 'Home', 'OWNER-HOME', 'Owner / Personal', '3100', false, false, false],
+        ['Home Food', 'Home Food', 'OWNER-HOMEFOOD', 'Owner / Personal', '3100', false, false, false],
+        ['VAT', 'VAT', 'TAX-VAT', 'Tax & VAT', '2100', false, false, false],
+        ['Project', 'Project', 'DIRECT-PROJECT', 'Direct Project Costs', '5000', true, true, false],
     ];
 
     public function run(): void
@@ -104,43 +121,36 @@ class ExpenseCategoryCodingSeeder extends Seeder
 
             $repostCategoryIds = [];
 
-            foreach (self::CATEGORIES as $name => [$code, $groupName, $linkedCode, $isDirect, $requiresProject, $vatEligible]) {
-                $rows = ExpenseCategory::withoutGlobalScope('company')
+            foreach (self::CATEGORIES as [$matchName, $finalName, $code, $groupName, $linkedCode, $isDirect, $requiresProject, $vatEligible]) {
+                // Prefer the real, already-in-use row (by its old name);
+                // fall back to one already renamed on an earlier run;
+                // create it fresh only if neither exists.
+                $category = ExpenseCategory::withoutGlobalScope('company')
                     ->where('company_id', $company->id)
-                    ->where('name', $name)
+                    ->when($matchName, fn ($q) => $q->whereIn('name', array_unique([$matchName, $finalName])), fn ($q) => $q->where('name', $finalName))
                     ->orderBy('id')
-                    ->get();
-
-                if ($rows->isEmpty()) {
-                    $this->command?->warn("Expense category \"{$name}\" not found — skipping.");
-
-                    continue;
-                }
+                    ->first()
+                    ?? ExpenseCategory::create(['company_id' => $company->id, 'name' => $finalName]);
 
                 $linkedAccount = $linkedCode
                     ? Account::where('company_id', $company->id)->where('code', $linkedCode)->first()
                     : null;
 
-                foreach ($rows as $i => $category) {
-                    $alreadyDone = $category->code === $code;
+                $alreadyDone = $category->code === $code && $category->name === $finalName;
 
-                    $category->update([
-                        'code' => $code,
-                        'parent_category_id' => $groups[$groupName]->id,
-                        'linked_account_id' => $linkedAccount?->id,
-                        'is_direct_cost' => $isDirect,
-                        'requires_project' => $requiresProject,
-                        'vat_eligible' => $vatEligible,
-                        // The first row (oldest id) is the real, in-use
-                        // category; any later row sharing the same name
-                        // is a duplicate — coded the same for reporting,
-                        // but soft-disabled rather than merged or deleted.
-                        'is_active' => $i === 0,
-                    ]);
+                $category->update([
+                    'name' => $finalName,
+                    'code' => $code,
+                    'parent_category_id' => $groups[$groupName]->id,
+                    'linked_account_id' => $linkedAccount?->id,
+                    'is_direct_cost' => $isDirect,
+                    'requires_project' => $requiresProject,
+                    'vat_eligible' => $vatEligible,
+                    'is_active' => true,
+                ]);
 
-                    if (! $alreadyDone && $linkedAccount) {
-                        $repostCategoryIds[] = $category->id;
-                    }
+                if (! $alreadyDone && $linkedAccount) {
+                    $repostCategoryIds[] = $category->id;
                 }
             }
 

@@ -16,11 +16,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * "add proper expenses categories with code recommended by zatca and
- * adjust transaction by that way" — codes the 14 real categories
- * (merging the duplicate "Rent" by code, not by deleting it), and
- * reposts the un-overridden Salaries/Maintenance/Fuel/Project
- * transactions to their new category-linked GL account.
+ * "please remove my added categories because i have create them
+ * randomly i don't know the accounts add these and assign transaction
+ * with matching categories... set all according to our account system
+ * in our app" — renames the real categories onto the operator's
+ * requested list (Salaries & Wages 6100, Repairs & Maintenance 6150,
+ * etc.), creates the ones not yet in use, and reposts the
+ * un-overridden transactions whose category's GL account changed.
  */
 class ExpenseCategoryCodingSeederTest extends TestCase
 {
@@ -73,43 +75,52 @@ class ExpenseCategoryCodingSeederTest extends TestCase
         $this->assertSame(0, ExpenseCategory::count());
     }
 
-    public function test_it_codes_every_real_category_and_groups_them(): void
+    public function test_it_renames_and_codes_the_real_categories_onto_the_requested_list(): void
     {
         $company = $this->seedCompany();
         $this->seedCategories($company);
 
         (new ExpenseCategoryCodingSeeder)->run();
 
-        $maintenance = ExpenseCategory::where('company_id', $company->id)->where('name', 'Maintenance')->first();
-        $this->assertSame('DIRECT-MAINT', $maintenance->code);
+        $this->assertNull(ExpenseCategory::where('company_id', $company->id)->where('name', 'Maintenance')->first());
+        $maintenance = ExpenseCategory::where('company_id', $company->id)->where('name', 'Repairs & Maintenance')->first();
+        $this->assertNotNull($maintenance);
+        $this->assertSame('6150', $maintenance->code);
         $this->assertTrue((bool) $maintenance->is_direct_cost);
         $this->assertTrue((bool) $maintenance->requires_project);
         $this->assertNotNull($maintenance->parent_category_id);
         $this->assertSame('Direct Project Costs', $maintenance->parent->name);
 
-        $salaries = ExpenseCategory::where('company_id', $company->id)->where('name', 'Salaries')->first();
-        $this->assertSame('PAYROLL-SALARY', $salaries->code);
+        $salaries = ExpenseCategory::where('company_id', $company->id)->where('name', 'Salaries & Wages')->first();
+        $this->assertSame('6100', $salaries->code);
         $linkedAccount = Account::where('company_id', $company->id)->where('code', '5350')->first();
         $this->assertSame($linkedAccount->id, $salaries->linked_account_id);
 
-        $office = ExpenseCategory::where('company_id', $company->id)->where('name', 'Office supplies')->first();
-        $this->assertSame('ADMIN-OFFICE', $office->code);
+        $office = ExpenseCategory::where('company_id', $company->id)->where('name', 'Office Supplies')->first();
+        $this->assertSame('6140', $office->code);
         $this->assertNull($office->linked_account_id);
+
+        $fuel = ExpenseCategory::where('company_id', $company->id)->where('name', 'Transportation')->first();
+        $this->assertNotNull($fuel);
+        $this->assertSame('6220', $fuel->code);
+        $this->assertTrue((bool) $fuel->is_direct_cost);
     }
 
-    public function test_it_codes_the_duplicate_rent_row_and_soft_disables_it(): void
+    public function test_it_creates_the_categories_the_real_data_never_had(): void
     {
         $company = $this->seedCompany();
         $this->seedCategories($company);
 
         (new ExpenseCategoryCodingSeeder)->run();
 
-        $rentRows = ExpenseCategory::where('company_id', $company->id)->where('name', 'Rent')->orderBy('id')->get();
-        $this->assertCount(2, $rentRows);
-        $this->assertSame('ADMIN-RENT', $rentRows[0]->code);
-        $this->assertSame('ADMIN-RENT', $rentRows[1]->code);
-        $this->assertTrue((bool) $rentRows[0]->is_active);
-        $this->assertFalse((bool) $rentRows[1]->is_active);
+        foreach ([
+            'Telephone & Internet' => '6130', 'Travel' => '6160', 'Marketing & Advertising' => '6170',
+            'Bank Charges' => '6180', 'Professional Fees' => '6190', 'Miscellaneous' => '6900',
+        ] as $name => $code) {
+            $category = ExpenseCategory::where('company_id', $company->id)->where('name', $name)->first();
+            $this->assertNotNull($category, "{$name} should have been created");
+            $this->assertSame($code, $category->code);
+        }
     }
 
     public function test_it_reposts_an_unoverridden_maintenance_expense_to_cost_of_goods_sold(): void
@@ -148,6 +159,18 @@ class ExpenseCategoryCodingSeederTest extends TestCase
         $journalEntry = JournalEntry::where('source_type', 'expense')->where('source_id', $expense->id)->first();
         $this->assertSame(1, JournalEntry::where('source_type', 'expense')->where('source_id', $expense->id)->count());
         $this->assertNotNull(JournalEntryLine::where('journal_entry_id', $journalEntry->id)->where('account_id', $drawings->id)->first());
+    }
+
+    public function test_it_leaves_the_duplicate_rent_row_for_the_retire_seeder_to_handle(): void
+    {
+        $company = $this->seedCompany();
+        $this->seedCategories($company);
+
+        (new ExpenseCategoryCodingSeeder)->run();
+
+        $rentRows = ExpenseCategory::where('company_id', $company->id)->where('name', 'Rent')->orderBy('id')->get();
+        $this->assertCount(2, $rentRows, 'merging/removing the duplicate is RetireLegacyExpenseCategoriesSeeder\'s job, not this one\'s');
+        $this->assertSame('6110', $rentRows[0]->code);
     }
 
     public function test_reseeding_does_not_reclassify_or_repost_twice(): void
