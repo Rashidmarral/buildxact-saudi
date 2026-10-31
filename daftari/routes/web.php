@@ -396,8 +396,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::resource('expenses', ExpenseController::class)->except(['show']);
         Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expenses.approve');
         Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
-        Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
-        Route::delete('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+        Route::resource('expense-categories', ExpenseCategoryController::class)->except(['show']);
         Route::get('owner-reimbursements', [OwnerReimbursementController::class, 'index'])->name('owner-reimbursements.index');
         Route::get('owner-reimbursements/pdf', [OwnerReimbursementController::class, 'pdf'])->middleware('throttle:pdf')->name('owner-reimbursements.pdf');
         Route::resource('recurring-expenses', RecurringExpenseController::class)->except(['show']);

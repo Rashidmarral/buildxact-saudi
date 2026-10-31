@@ -124,6 +124,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.purchase-returns.index', 'label' => __('Purchase returns')])
                         @include('partials.nav-subitem', ['route' => 'app.suppliers.index', 'label' => __('Suppliers')])
                         @include('partials.nav-subitem', ['route' => 'app.expenses.index', 'label' => __('Expenses')])
+                        @include('partials.nav-subitem', ['route' => 'app.expense-categories.index', 'label' => __('Expense Categories')])
                         @include('partials.nav-subitem', ['route' => 'app.recurring-expenses.index', 'label' => __('Recurring expenses')])
                     </div>
                 </details>

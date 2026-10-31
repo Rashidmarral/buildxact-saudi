@@ -8,26 +8,12 @@
     <a href="{{ route('app.expenses.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New expense') }}</a>
 </div>
 
-<div class="bg-white rounded-xl border border-slate-100 mb-6 p-5">
-    <h2 class="font-semibold text-slate-900 text-sm mb-3">{{ __('Categories') }}</h2>
-    <div class="flex flex-wrap gap-2 mb-4">
-        @forelse ($categories as $category)
-            <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                {{ $category->name }}
-                <form method="POST" action="{{ route('app.expense-categories.destroy', $category) }}" onsubmit="return confirm('{{ __('Delete this category?') }}')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="text-slate-400 hover:text-red-600">&times;</button>
-                </form>
-            </span>
-        @empty
-            <span class="text-xs text-slate-400">{{ __('No categories yet.') }}</span>
-        @endforelse
+<div class="bg-white rounded-xl border border-slate-100 mb-6 p-5 flex items-center justify-between">
+    <div>
+        <h2 class="font-semibold text-slate-900 text-sm">{{ __('Categories') }}</h2>
+        <p class="text-xs text-slate-400 mt-1">{{ __('Manage categories, codes and which GL account they post to.') }}</p>
     </div>
-    <form method="POST" action="{{ route('app.expense-categories.store') }}" class="flex gap-2">
-        @csrf
-        <input type="text" name="name" placeholder="{{ __('New category name') }}" required class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-        <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:border-brand-300">{{ __('Add') }}</button>
-    </form>
+    <a href="{{ route('app.expense-categories.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-brand-300">{{ __('Manage expense categories') }}</a>
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100">
