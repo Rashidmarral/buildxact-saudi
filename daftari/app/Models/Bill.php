@@ -94,6 +94,11 @@ class Bill extends Model
         return $this->hasMany(PurchaseReturn::class);
     }
 
+    public function subcontractorDeductions(): HasMany
+    {
+        return $this->hasMany(SubcontractorDeduction::class);
+    }
+
     public function returnedTotal(): float
     {
         return (float) $this->purchaseReturns()->where('status', 'issued')->sum('total');

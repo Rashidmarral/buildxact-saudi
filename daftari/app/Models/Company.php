@@ -36,6 +36,7 @@ class Company extends Model
         'credit_note_prefix', 'next_credit_note_number',
         'debit_note_prefix', 'next_debit_note_number',
         'purchase_return_prefix', 'next_purchase_return_number',
+        'subcontractor_deduction_prefix', 'next_subcontractor_deduction_number',
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number',
@@ -78,6 +79,8 @@ class Company extends Model
         'next_debit_note_number' => 1,
         'purchase_return_prefix' => 'PR',
         'next_purchase_return_number' => 1,
+        'subcontractor_deduction_prefix' => 'SD',
+        'next_subcontractor_deduction_number' => 1,
         'quotation_prefix' => 'QTN',
         'next_quotation_number' => 1,
         'proforma_prefix' => 'PRO',
@@ -442,6 +445,13 @@ class Company extends Model
         $number = $this->nextSequenceNumber('next_purchase_return_number');
 
         return $this->purchase_return_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function nextSubcontractorDeductionNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_subcontractor_deduction_number');
+
+        return $this->subcontractor_deduction_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextEmployeeNumber(): string

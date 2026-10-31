@@ -25,6 +25,7 @@ use App\Models\PosSale;
 use App\Models\PurchaseReturn;
 use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
+use App\Models\SubcontractorDeduction;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -683,6 +684,33 @@ class LedgerPostingService
         ];
 
         return $this->post($company, 'purchase_return', $purchaseReturn->id, __('Purchase return :number', ['number' => $purchaseReturn->return_number]), $purchaseReturn->issue_date, $lines);
+    }
+
+    /**
+     * Credits a subcontractor's own bill for materials the company
+     * bought from a third party and supplied to him — not a Purchase
+     * Return, and never itself VAT-bearing (the VAT belongs to the
+     * real third-party supplier's own bill, already captured there).
+     * Same Dr AP / Cr Expense shape as postPurchaseReturn(), one line
+     * instead of three since there's no subtotal/VAT split to make.
+     */
+    public function postSubcontractorDeduction(SubcontractorDeduction $deduction): ?JournalEntry
+    {
+        $company = $deduction->company;
+        $ap = $this->account($company, 'ACCOUNTS_PAYABLE');
+        $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
+
+        $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap, 'DEFAULT_OPERATING_EXPENSES' => $expenseAccount], 'subcontractor deduction');
+
+        $rate = (float) $deduction->exchange_rate ?: 1.0;
+        $amount = round((float) $deduction->amount * $rate, 2);
+
+        $lines = [
+            ['account_id' => $ap->id, 'debit' => $amount, 'memo' => $deduction->deduction_number],
+            ['account_id' => $expenseAccount->id, 'credit' => $amount],
+        ];
+
+        return $this->post($company, 'subcontractor_deduction', $deduction->id, __('Subcontractor deduction :number', ['number' => $deduction->deduction_number]), $deduction->issue_date, $lines);
     }
 
     public function postPaymentVoucher(PaymentVoucher $voucher): ?JournalEntry
