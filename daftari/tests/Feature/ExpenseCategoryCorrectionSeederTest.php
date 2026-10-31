@@ -18,9 +18,14 @@ use Tests\TestCase;
 
 /**
  * "i have mixed transaction and added expenses in wrong categories
- * please fix them all" — nine real expenses move to their real
- * category based on their own description, reposting the GL and
- * backfilling the project where it was missing.
+ * please fix them all" — every real expense is checked against its
+ * own description and set to the category it actually belongs to.
+ *
+ * Also covers a real bug a live run surfaced: a missing target
+ * category (because the old unguarded destroy() deleted it, silently
+ * nulling every expense that used it via nullOnDelete) used to abort
+ * the whole seeder partway through. Target categories are now
+ * firstOrCreate'd up front instead.
  */
 class ExpenseCategoryCorrectionSeederTest extends TestCase
 {
@@ -40,13 +45,15 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         return [$company, $project];
     }
 
-    private function seedExpense(Company $company, BankAccount $bank, string $categoryName, array $overrides = []): Expense
+    private function seedExpense(Company $company, BankAccount $bank, ?string $categoryName, array $overrides = []): Expense
     {
-        $category = ExpenseCategory::where('company_id', $company->id)->where('name', $categoryName)->first();
+        $categoryId = $categoryName
+            ? ExpenseCategory::where('company_id', $company->id)->where('name', $categoryName)->first()->id
+            : null;
 
         $expense = Expense::create(array_merge([
             'company_id' => $company->id,
-            'expense_category_id' => $category->id,
+            'expense_category_id' => $categoryId,
             'bank_account_id' => $bank->id,
             'description' => 'placeholder',
             'amount' => 1,
@@ -81,16 +88,25 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         $this->assertSame('Maintenance', $expense->category->name);
     }
 
-    public function test_it_moves_the_electric_bill_from_bill_to_utilities(): void
+    public function test_it_recreates_a_missing_target_category_instead_of_aborting(): void
     {
         [$company] = $this->seedCompany();
+        // Simulates the real bug: "Utilities" was deleted out from under its expenses.
+        ExpenseCategory::where('company_id', $company->id)->where('name', 'Utilities')->delete();
         $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
-        $expense = $this->seedExpense($company, $bank, 'Bill', ['description' => 'Nasir Bhai paid Minaraten Hosh Electric bill from his account', 'amount' => 327.00, 'gross_amount' => 327.00, 'expense_date' => '2026-09-30']);
+        // Orphaned by the deletion above (nullOnDelete), exactly like the real database.
+        $electric = $this->seedExpense($company, $bank, null, ['description' => 'Nasir Bhai paid Minaraten Hosh Electric bill from his account', 'amount' => 327.00, 'gross_amount' => 327.00, 'expense_date' => '2026-09-30']);
+        // A later row in the list — proves the run doesn't stop at the missing category.
+        $lab = $this->seedExpense($company, $bank, 'Operating expense', ['description' => 'this amount paid for lab by khalid shb', 'amount' => 500.00, 'gross_amount' => 500.00, 'expense_date' => '2026-10-12']);
 
         (new ExpenseCategoryCorrectionSeeder)->run();
 
-        $expense->refresh();
-        $this->assertSame('Utilities', $expense->category->name);
+        $electric->refresh();
+        $this->assertNotNull(ExpenseCategory::where('company_id', $company->id)->where('name', 'Utilities')->first(), 'the missing category is recreated');
+        $this->assertSame('Utilities', $electric->category->name, 'the orphaned expense is repaired, not left uncategorized');
+
+        $lab->refresh();
+        $this->assertSame('Project', $lab->category->name, 'processing continues past the missing category');
     }
 
     public function test_it_moves_project_transfers_to_project_and_backfills_the_project(): void
@@ -132,28 +148,18 @@ class ExpenseCategoryCorrectionSeederTest extends TestCase
         $this->assertSame('Salaries', $expense->category->name);
     }
 
-    public function test_it_reposts_the_gl_to_the_new_categorys_default_account(): void
+    public function test_it_reposts_the_gl_only_for_expenses_it_actually_moves(): void
     {
         [$company] = $this->seedCompany();
         $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Petty Cash', 'type' => 'cash', 'currency' => 'SAR', 'is_active' => true]);
-        $expense = $this->seedExpense($company, $bank, 'Operating expense', ['description' => 'purchase 2 silicone and bolt keys refrence Yahya', 'amount' => 40.00, 'gross_amount' => 40.00, 'expense_date' => '2026-10-14']);
-
-        $operatingExpense = Account::where('company_id', $company->id)->where('code', '5100')->first();
-        $journalBefore = JournalEntry::where('source_type', 'expense')->where('source_id', $expense->id)->first();
-        $this->assertNotNull(JournalEntryLine::where('journal_entry_id', $journalBefore->id)->where('account_id', $operatingExpense->id)->first());
+        $moved = $this->seedExpense($company, $bank, 'Operating expense', ['description' => 'purchase 2 silicone and bolt keys refrence Yahya', 'amount' => 40.00, 'gross_amount' => 40.00, 'expense_date' => '2026-10-14']);
+        $correct = $this->seedExpense($company, $bank, 'Office supplies', ['description' => 'Printer paper and toner', 'amount' => 449.57, 'gross_amount' => 449.57, 'expense_date' => '2026-08-17']);
 
         (new ExpenseCategoryCorrectionSeeder)->run();
 
-        // Code the categories first (as the real run order would), then verify the repost landed on Maintenance's GL account.
-        $cogs = Account::where('company_id', $company->id)->where('code', '5000')->first();
-        $maintenance = ExpenseCategory::where('company_id', $company->id)->where('name', 'Maintenance')->first();
-        $maintenance->update(['linked_account_id' => $cogs->id]);
-        // Repost again now that the category has a linked account, same as ExpenseCategoryCodingSeeder would do.
-        app(LedgerPostingService::class)->deletePosting($company, 'expense', $expense->id);
-        app(LedgerPostingService::class)->postExpense($expense->fresh(['account', 'category', 'bankAccount']));
-
-        $journalAfter = JournalEntry::where('source_type', 'expense')->where('source_id', $expense->id)->first();
-        $this->assertNotNull(JournalEntryLine::where('journal_entry_id', $journalAfter->id)->where('account_id', $cogs->id)->first());
+        $this->assertSame(1, JournalEntry::where('source_type', 'expense')->where('source_id', $moved->id)->count());
+        // Untouched: still exactly its original posting, never reposted.
+        $this->assertSame(1, JournalEntry::where('source_type', 'expense')->where('source_id', $correct->id)->count());
     }
 
     public function test_it_leaves_an_ambiguous_operating_expense_row_alone(): void

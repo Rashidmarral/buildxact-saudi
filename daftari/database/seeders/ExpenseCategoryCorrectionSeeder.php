@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * "i have mixed transaction and added expenses in wrong categories
- * please fix them all" — nine real expenses were sitting under the
- * wrong category, found by actually reading what each one says it
- * was for, not just its label:
+ * please fix them all" — every one of the 48 real expenses is checked
+ * against its own description and set to the category it actually
+ * belongs to, not just the 9 that were originally found wrong:
  *
  *  - Two "Bill" rows are a workshop repair invoice and an electricity
  *    bill in disguise — "Bill" was never a real category of spending,
@@ -31,40 +31,90 @@ use Illuminate\Support\Facades\DB;
  *
  * Every move here is grounded in the expense's own description —
  * nothing is guessed. Ambiguous rows with no specific signal (plain
- * "net cash paid to X" entries) are deliberately left alone rather
- * than reassigned on a guess.
+ * "net cash paid to X" entries) are deliberately left under whatever
+ * they're already correctly in rather than reassigned on a guess.
+ *
+ * On a real run this also found and fixes a second, real problem: the
+ * original ExpenseCategoryController::destroy() (before this
+ * engagement added a guard) deleted a category with no check for
+ * expenses still using it — and expense_category_id is nullOnDelete,
+ * so deleting "Utilities" silently set every expense that used it back
+ * to uncategorized rather than failing loudly. Covering all 48 real
+ * expenses here (not just the 9 that were wrong) means this also
+ * repairs any expense an accidentally-deleted category left stranded,
+ * and every category this seeder targets is firstOrCreate'd — a run
+ * never aborts partway through for a missing category again.
  *
  * Moving a category also moves where the transaction posts in the GL
  * whenever it has no per-transaction account_id override (see
- * ExpenseCategoryCodingSeeder) — every expense here is unoverridden,
- * so each one is reposted to reflect its corrected category's account.
- * The five rows moving into Maintenance or Project (both flagged
- * requires_project) that had no project_id yet are backfilled to the
- * real Jumum Yard project — the only real project, and exactly where
- * this spending actually happened.
+ * ExpenseCategoryCodingSeeder) — every expense actually moved here is
+ * unoverridden, so each one is reposted to reflect its category's
+ * account. The five rows moving into Maintenance or Project (both
+ * flagged requires_project) that had no project_id yet are backfilled
+ * to the real Jumum Yard project — the only real project, and exactly
+ * where this spending actually happened.
  *
- * Run it yourself, after taking a database backup, once
- * ExpenseCategoryCodingSeeder has already run:
+ * Run it yourself, after taking a database backup:
  *   php artisan db:seed --class="Database\\Seeders\\ExpenseCategoryCorrectionSeeder"
  *
- * Idempotent: skips any row that's no longer in the category it's
- * being moved FROM (already corrected, or changed by hand since).
+ * Idempotent: an expense already in its correct category is left
+ * completely alone (no repost, no write) — safe to re-run any time.
  */
 class ExpenseCategoryCorrectionSeeder extends Seeder
 {
     /**
-     * [from category, description, amount, date, to category, backfill project]
+     * [description, amount, date, correct category, backfill project]
+     * — every real expense, not just the ones that were wrong.
      */
-    private const MOVES = [
-        ['Bill', 'Paid Warsha Bill from company account', 345.00, '2026-09-28', 'Maintenance', false],
-        ['Bill', 'Nasir Bhai paid Minaraten Hosh Electric bill from his account', 327.00, '2026-09-30', 'Utilities', false],
-        ['Operating expense', 'payment cut for salaries', 10.00, '2026-10-01', 'Salaries', false],
-        ['Operating expense', 'Nasir bhai paid to MC1 from personal account', 1000.00, '2026-09-30', 'Project', true],
-        ['Operating expense', 'Nasir bhai sent to Mubashir account for MC1 works', 250.00, '2026-09-30', 'Project', true],
-        ['Operating expense', 'Nasir bhai online transfer to Azmat Six wala account', 500.00, '2026-09-29', 'Project', true],
-        ['Operating expense', 'this amount paid for lab by khalid shb', 500.00, '2026-10-12', 'Project', false],
-        ['Operating expense', 'Paid to Sheraz for food and spare parts balance', 50.00, '2026-10-12', 'Maintenance', true],
-        ['Operating expense', 'purchase 2 silicone and bolt keys refrence Yahya', 40.00, '2026-10-14', 'Maintenance', true],
+    private const CORRECT_CATEGORY = [
+        ['Printer paper and toner', 449.57, '2026-08-17', 'Office supplies', false],
+        ['Warehouse rent — this month', 20000.00, '2026-08-22', 'Rent', false],
+        ['Electricity — warehouse', 1840.00, '2026-08-20', 'Utilities', false],
+        ['hi this is our test expense', 260.87, '2026-09-04', 'Bill', false],
+        ['Paid salaries of Nasir bhai and Ishfaq from company account payments', 3800.00, '2026-09-27', 'Salaries', false],
+        ['Change Roller tyre and tube, online transfer through company account', 550.00, '2026-09-29', 'Maintenance', false],
+        ['Paid Warsha Bill from company account', 345.00, '2026-09-28', 'Maintenance', false],
+        ['Net Cash paid to sheraz', 500.00, '2026-09-28', 'Operating expense', false],
+        ['Net cash paid to Khalid shb Saudi', 2000.00, '2026-09-29', 'Operating expense', false],
+        ['Net cash paid to Rashid', 1000.00, '2026-09-30', 'Operating expense', false],
+        ['Net cash paid to Eng Khalid Shb', 10000.00, '2026-09-29', 'Operating expense', false],
+        ['Net cash paid for Roller tyre and tube replace', 1550.00, '2026-09-29', 'Maintenance', false],
+        ['Net cash paid to Electrician for roller electrical work', 350.00, '2026-09-29', 'Maintenance', false],
+        ['Net Cash paid to Rasheed for Hydrollic and roller tyre change', 500.00, '2026-09-28', 'Maintenance', false],
+        ['Home food and water Khazan at Nawariya', 400.00, '2026-09-30', 'Home', false],
+        ['Paid Company vat', 3113.41, '2026-10-06', 'VAT', false],
+        ['payment cut for salaries', 10.00, '2026-10-01', 'Salaries', false],
+        ['transfer salaries from company current account', 3800.00, '2026-10-01', 'Salaries', false],
+        ['Online transfer to Rashid account for daily food and fuel expenses', 300.00, '2026-10-08', 'Home', false],
+        ["Paid remaining vat amount of invoice: 240\r\nBobcat motors repairs: 1200", 1440.00, '2026-10-11', 'Maintenance', false],
+        ['Net cash paid to Mukhtabir by Khalid Sir', 1000.00, '2026-09-28', 'Project', false],
+        ['Eng Khalid paid net cash for invoice issuing from East West Establishment', 1800.00, '2026-09-30', 'VAT', false],
+        ['Net cash paid to Shahid by Eng Khalid', 500.00, '2026-10-13', 'Project', false],
+        ['Paid net cash to Sahhid for Labortry Test by Eng Khalid', 1800.00, '2026-10-12', 'Project', false],
+        ['Online transfer to Arif Bangali account for Bobcat motors payment 1200 and vat amount due 240', 1440.00, '2026-10-12', 'Maintenance', false],
+        ['Nasir bhai paid to MC1 from personal account', 1000.00, '2026-09-30', 'Project', true],
+        ['Nasir bhai sent to Mubashir account for MC1 works', 250.00, '2026-09-30', 'Project', true],
+        ['Nasir bhai online transfer to Azmat Six wala account', 500.00, '2026-09-29', 'Project', true],
+        ['Nasir bhai withdrawal cash from his account and Paid to Khalid Saudi Cash', 500.00, '2026-09-30', 'Management', false],
+        ['Nasir Bhai paid Minaraten Hosh Electric bill from his account', 327.00, '2026-09-30', 'Utilities', false],
+        ['This amount spend on home expenses Jamum', 123.00, '2026-09-30', 'Home', false],
+        ['Yaris fuel to purchase parts from Jeddah and also go to site to give net cash to shahid', 50.00, '2026-10-12', 'Fuel', false],
+        ['Paid to Sheraz for food and spare parts balance', 50.00, '2026-10-12', 'Maintenance', true],
+        ["Paid net cash for Gas refill Minaraten hosh: 40 and Yaris fuel: 20 \r\nalso take employee to leave at car rental place", 60.00, '2026-10-13', 'Home', false],
+        ['local food expense', 30.00, '2026-10-13', 'Home Food', false],
+        ['purchase 2 silicone and bolt keys refrence Yahya', 40.00, '2026-10-14', 'Maintenance', true],
+        ['Morning breakfast, Evening Shawarma 5 PCS, bottle, juices', 95.00, '2026-10-14', 'Home Food', false],
+        ['Murgi chawal with chicken and drink refrence Khalid shb at jamum', 40.00, '2026-10-15', 'Home Food', false],
+        ['Night shwarma ,burger, juices and bottle', 40.00, '2026-10-16', 'Home', false],
+        ['Shawarma, burger, juice and bottle', 40.00, '2026-10-15', 'Home', false],
+        ['Chicken and sabzi', 30.00, '2026-10-16', 'Home', false],
+        ['Coffee', 20.00, '2026-10-16', 'Home', false],
+        ['Yaris Fuel for Masim Pump delivery and food', 60.00, '2026-10-17', 'Fuel', false],
+        ['Home sabzi', 20.00, '2026-10-18', 'Home Food', false],
+        ['Burger, bottle and juice', 50.00, '2026-10-19', 'Home', false],
+        ['Roler pump maintenance paid net cash Masam', 600.00, '2026-10-18', 'Maintenance', false],
+        ['Paid net cash to nasir bhai 500+4600 and ashiq bhai : 3300', 8400.00, '2026-10-19', 'Management', false],
+        ['this amount paid for lab by khalid shb', 500.00, '2026-10-12', 'Project', false],
     ];
 
     public function run(): void
@@ -79,34 +129,50 @@ class ExpenseCategoryCorrectionSeeder extends Seeder
 
         $project = Project::where('company_id', $company->id)->where('code', 'PROJ_00001')->first();
         $ledger = app(LedgerPostingService::class);
-        $moved = 0;
-        $skipped = 0;
 
-        DB::transaction(function () use ($company, $project, $ledger, &$moved, &$skipped) {
-            foreach (self::MOVES as [$fromName, $description, $amount, $date, $toName, $backfillProject]) {
+        // Every target category is guaranteed to exist before any
+        // expense is touched — a category missing on this specific
+        // database (e.g. accidentally deleted before the destroy()
+        // guard existed) is simply recreated, never a reason to abort
+        // partway through leaving some expenses fixed and others not.
+        $categoryNames = array_unique(array_column(self::CORRECT_CATEGORY, 3));
+        $categories = [];
+        foreach ($categoryNames as $name) {
+            $categories[$name] = ExpenseCategory::where('company_id', $company->id)
+                ->where('name', $name)
+                ->orderByDesc('is_active')
+                ->orderBy('id')
+                ->first()
+                ?? ExpenseCategory::create(['company_id' => $company->id, 'name' => $name]);
+        }
+
+        $moved = 0;
+        $alreadyCorrect = 0;
+        $notFound = 0;
+
+        DB::transaction(function () use ($company, $project, $ledger, $categories, &$moved, &$alreadyCorrect, &$notFound) {
+            foreach (self::CORRECT_CATEGORY as [$description, $amount, $date, $correctName, $backfillProject]) {
                 $expense = Expense::where('company_id', $company->id)
-                    ->whereHas('category', fn ($q) => $q->where('name', $fromName))
                     ->where('description', $description)
                     ->where('amount', $amount)
                     ->whereDate('expense_date', $date)
                     ->first();
 
                 if (! $expense) {
-                    $skipped++;
-                    $this->command?->warn("Not found under \"{$fromName}\" (amount={$amount}, date={$date}) — already moved or changed, skipping.");
+                    $notFound++;
 
                     continue;
                 }
 
-                $toCategory = ExpenseCategory::where('company_id', $company->id)->where('name', $toName)->first();
+                $correctCategory = $categories[$correctName];
 
-                if (! $toCategory) {
-                    $this->command?->error("Target category \"{$toName}\" not found — aborting without writing anything.");
+                if ((int) $expense->expense_category_id === $correctCategory->id) {
+                    $alreadyCorrect++;
 
-                    return;
+                    continue;
                 }
 
-                $update = ['expense_category_id' => $toCategory->id];
+                $update = ['expense_category_id' => $correctCategory->id];
                 if ($backfillProject && ! $expense->project_id && $project) {
                     $update['project_id'] = $project->id;
                 }
@@ -118,6 +184,6 @@ class ExpenseCategoryCorrectionSeeder extends Seeder
             }
         });
 
-        $this->command?->info("Recategorized {$moved} expense(s) to their real category ({$skipped} already done or not found).");
+        $this->command?->info("Set {$moved} expense(s) to their correct category ({$alreadyCorrect} already correct, {$notFound} not found).");
     }
 }
