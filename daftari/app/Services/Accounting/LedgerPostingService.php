@@ -913,7 +913,13 @@ class LedgerPostingService
     public function postExpense(Expense $expense): ?JournalEntry
     {
         $company = $expense->company;
-        $expenseAccount = $expense->account ?? $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
+        // An explicit per-transaction override always wins; otherwise the
+        // expense's own category can carry its own default GL account
+        // (e.g. Salaries -> 5350, Maintenance/Fuel/Project -> 5000 Cost
+        // of Goods Sold/Direct Project Cost — see
+        // ExpenseCategory.linked_account_id); only when neither is set
+        // does it fall back to the global Operating Expenses default.
+        $expenseAccount = $expense->account ?? $expense->category?->linkedAccount ?? $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
         $vatInput = $this->account($company, 'VAT_INPUT');
 
         // Paid immediately from a financial account when one is chosen;
