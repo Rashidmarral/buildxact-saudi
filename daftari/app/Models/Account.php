@@ -72,6 +72,13 @@ class Account extends Model
             ['code' => '5350', 'name' => 'Salaries & Wages Expense', 'name_ar' => 'مصروف الرواتب والأجور', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5360', 'name' => 'GOSI Expense (Employer Share)', 'name_ar' => 'مصروف التأمينات الاجتماعية (حصة المنشأة)', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5370', 'name' => 'End-of-Service Expense', 'name_ar' => 'مصروف مكافأة نهاية الخدمة', 'type' => 'expense', 'normal_balance' => 'debit'],
+            // Real cash that genuinely left the company but can never be
+            // claimed as a deductible business cost (e.g. the price paid
+            // to acquire a fake invoice) — still a real loss to the
+            // owner, so it stays in the P&L, just separated from
+            // Operating Expenses so it's never swept into a VAT/Zakat
+            // deductible-expense figure.
+            ['code' => '5900', 'name' => 'Non-Deductible Expenses', 'name_ar' => 'مصاريف غير قابلة للخصم', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '9000', 'name' => 'Rounding', 'name_ar' => 'فروقات التقريب', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '9100', 'name' => 'FX Gain', 'name_ar' => 'أرباح فروقات العملة', 'type' => 'revenue', 'normal_balance' => 'credit'],
             ['code' => '9200', 'name' => 'FX Loss', 'name_ar' => 'خسائر فروقات العملة', 'type' => 'expense', 'normal_balance' => 'debit'],
