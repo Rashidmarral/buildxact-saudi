@@ -53,7 +53,7 @@ class OwnerPersonalExpenseReclassificationSeeder extends Seeder
     private const ROWS = [
         ['category' => 'Home', 'description' => 'Home food and water Khazan at Nawariya', 'amount' => 400.00, 'date' => '2026-09-30'],
         ['category' => 'Home', 'description' => 'Online transfer to Rashid account for daily food and fuel expenses', 'amount' => 300.00, 'date' => '2026-10-08'],
-        ['category' => 'Home Food', 'description' => 'This amount spend on home expenses Jamum', 'amount' => 123.00, 'date' => '2026-09-30'],
+        ['category' => 'Home', 'description' => 'This amount spend on home expenses Jamum', 'amount' => 123.00, 'date' => '2026-09-30'],
         ['category' => 'Home', 'description' => "Paid net cash for Gas refill Minaraten hosh: 40 and Yaris fuel: 20 \r\nalso take employee to leave at car rental place", 'amount' => 60.00, 'date' => '2026-10-13'],
         ['category' => 'Home Food', 'description' => 'local food expense', 'amount' => 30.00, 'date' => '2026-10-13'],
         ['category' => 'Home Food', 'description' => 'Morning breakfast, Evening Shawarma 5 PCS, bottle, juices', 'amount' => 95.00, 'date' => '2026-10-14'],
