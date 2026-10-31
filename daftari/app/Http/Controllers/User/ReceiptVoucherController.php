@@ -1,0 +1,710 @@
+<?php
+
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesApprovalSeparation;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
+use App\Models\Attachment;
+use App\Models\AuditLog;
+use App\Models\BankAccount;
+use App\Models\Client;
+use App\Models\Employee;
+use App\Models\Invoice;
+use App\Models\Project;
+use App\Models\ReceiptVoucher;
+use App\Models\Supplier;
+use App\Services\Accounting\LedgerPostingService;
+use App\Services\MpdfRenderer;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+
+class ReceiptVoucherController extends Controller
+{
+    use EnforcesApprovalSeparation, EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
+
+    public function downloadPdf(ReceiptVoucher $receiptVoucher, MpdfRenderer $renderer)
+    {
+        $receiptVoucher->loadMissing('bankAccount', 'invoice.items', 'counterAccount');
+
+        $pdf = $renderer->render('documents.print.voucher-pdf', [
+            'voucher' => $receiptVoucher,
+            'type' => 'receipt',
+            'company' => $receiptVoucher->company,
+            'template' => $receiptVoucher->company->defaultTemplateFor('receipt_voucher'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$receiptVoucher->voucher_number.'.pdf"',
+        ]);
+    }
+
+    /**
+     * See PaymentVoucherController::index()'s docblock — the same
+     * client/supplier/date filter and issued-only total, on the money-in
+     * side.
+     */
+    public function index(Request $request)
+    {
+        $search = trim((string) $request->query('q'));
+
+        $query = ReceiptVoucher::with('bankAccount', 'client', 'supplier')
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->when($search !== '', fn ($q) => $this->applyPayeeSearch($q, $search, 'payer_name'));
+
+        $total = (clone $query)->where('status', 'issued')->sum('amount');
+
+        $vouchers = $query->latest('date')->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
+
+        return view('user.receipt-vouchers.index', [
+            'vouchers' => $vouchers,
+            'total' => $total,
+            'clients' => Client::orderBy('name')->get(),
+            'suppliers' => Supplier::orderBy('name')->get(),
+            'filters' => $request->only('client_id', 'supplier_id', 'from', 'to', 'q'),
+        ]);
+    }
+
+    /**
+     * See PaymentVoucherController::summaryPdf()'s docblock — the
+     * money-in equivalent (e.g. every deposit a client has made across
+     * several receipt vouchers, bundled into one statement).
+     */
+    public function summaryPdf(Request $request, MpdfRenderer $renderer)
+    {
+        abort_unless($request->filled('client_id') || $request->filled('supplier_id'), 404);
+
+        $company = Auth::user()->company;
+        $search = trim((string) $request->query('q'));
+        $searchLabel = trim((string) $request->query('label')) ?: $search;
+
+        $vouchers = ReceiptVoucher::with('bankAccount')
+            ->where('status', 'issued')
+            ->when($request->filled('client_id'), fn ($q) => $q->where('client_id', $request->integer('client_id')))
+            ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('date', '>=', $request->query('from')))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('date', '<=', $request->query('to')))
+            ->when($search !== '', fn ($q) => $this->applyPayeeSearch($q, $search, 'payer_name'))
+            ->orderBy('date')
+            ->get();
+
+        $party = $request->filled('client_id') ? Client::find($request->integer('client_id')) : Supplier::find($request->integer('supplier_id'));
+        $groups = $this->buildVoucherGroups($request, $vouchers, 'payer_name');
+
+        $pdf = $renderer->render('documents.print.voucher-summary-pdf', [
+            'type' => 'receipt',
+            'company' => $company,
+            'party' => $party,
+            'vouchers' => $vouchers,
+            'total' => (float) $vouchers->sum('amount'),
+            'from' => $request->query('from'),
+            'to' => $request->query('to'),
+            'search' => $searchLabel,
+            'groups' => $groups,
+            'template' => $company->defaultTemplateFor('voucher_summary'),
+        ]);
+
+        $filenameSuffix = $search !== '' ? '-'.\Illuminate\Support\Str::slug($searchLabel) : ($groups !== null ? '-grouped' : '');
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.\Illuminate\Support\Str::slug($party?->name ?: 'receipt-summary').$filenameSuffix.'-receipt-summary.pdf"',
+        ]);
+    }
+
+    public function create(Request $request)
+    {
+        $company = Auth::user()->company;
+        $clients = Client::orderBy('name')->get();
+        $suppliers = Supplier::orderBy('name')->get();
+        $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
+
+        return view('user.receipt-vouchers.form', [
+            // Not a real $voucher — the form's isset($voucher) checks are
+            // how it tells "new" apart from "edit" (see store()/update()
+            // both sharing this view), so prefilling the project from a
+            // quick-link needs its own variable instead.
+            'prefillProjectId' => $request->integer('project_id') ?: null,
+            'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'clients' => $clients,
+            'suppliers' => $suppliers,
+            'employees' => $employees,
+            'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'projects' => Project::orderBy('name')->get(),
+            'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
+                'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
+                'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
+            ]]),
+            'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
+                'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
+                'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
+            ]]),
+            'employeesData' => $employees->mapWithKeys(fn (Employee $e) => [$e->id => [
+                'name_ar' => $e->full_name_ar, 'name' => $e->full_name, 'vat_number' => null,
+                'phone' => $e->mobile, 'email' => $e->email, 'address' => $e->address,
+            ]]),
+        ]);
+    }
+
+    public function store(Request $request, LedgerPostingService $ledger)
+    {
+        $data = $this->validated($request);
+        $company = Auth::user()->company;
+
+        $allocations = $this->cleanAllocations($request);
+
+        if ($allocations) {
+            $clientId = $data['party_type'] === 'customer' ? ($data['client_id'] ?? null) : null;
+
+            if ($error = $this->validateAllocations($allocations, $company->id, $clientId, (float) $data['amount'])) {
+                return back()->withErrors(['allocations' => $error])->withInput();
+            }
+
+            // Allocations win over the single-invoice field — a voucher
+            // settling several invoices has no one "the" invoice.
+            $data['invoice_id'] = null;
+        }
+
+        // Audit finding CASH-06: at/above the threshold, nothing here
+        // happens yet — no invoice payment recorded, no GL posting —
+        // until approvePending() explicitly runs it.
+        $requiresApproval = $company->receiptVoucherRequiresApproval((float) $data['amount']);
+
+        $voucher = DB::transaction(function () use ($data, $allocations, $ledger, $company, $requiresApproval) {
+            $voucher = ReceiptVoucher::create([
+                'bank_account_id' => $data['bank_account_id'],
+                'project_id' => $data['project_id'] ?? null,
+                'party_type' => $data['party_type'],
+                'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
+                'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
+                'employee_id' => $data['party_type'] === 'employee' ? $data['employee_id'] : null,
+                'counter_account_id' => $data['counter_account_id'] ?? null,
+                'invoice_id' => $data['invoice_id'] ?? null,
+                'invoice_payment_id' => null,
+                'created_by' => Auth::id(),
+                'voucher_number' => $company->nextReceiptNumber(),
+                'date' => $data['date'],
+                'payer_name' => $data['payer_name'],
+                'party_name_ar' => $data['party_name_ar'] ?? null,
+                'party_vat_number' => $data['party_vat_number'] ?? null,
+                'party_phone' => $data['party_phone'] ?? null,
+                'party_email' => $data['party_email'] ?? null,
+                'party_address' => $data['party_address'] ?? null,
+                'amount' => $data['amount'],
+                'method' => $data['method'],
+                'reference' => $data['reference'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'notes_ar' => $data['notes_ar'] ?? null,
+                'status' => $requiresApproval ? 'pending_approval' : 'issued',
+            ]);
+
+            foreach ($allocations as $row) {
+                $voucher->allocations()->create([
+                    'company_id' => $company->id,
+                    'invoice_id' => $row['invoice_id'],
+                    'amount' => $row['amount'],
+                ]);
+            }
+
+            if ($requiresApproval) {
+                AuditLog::record('receipt_voucher.create_pending', $voucher, __('Submitted receipt voucher :number for approval (amount :amount)', ['number' => $voucher->voucher_number, 'amount' => $voucher->amount]));
+            } else {
+                $this->settleInvoiceAndPost($voucher, $ledger);
+            }
+
+            return $voucher;
+        });
+
+        $status = $requiresApproval
+            ? __('This receipt is :amount, at or above your approval threshold — it has been submitted for approval instead of posted.', ['amount' => $voucher->amount])
+            : __('Receipt voucher created.');
+
+        return redirect()->route('app.receipt-vouchers.show', $voucher)->with('status', $status);
+    }
+
+    /** Mirrors PaymentVoucherController::settleBillAndPost() for the receipt side. */
+    private function settleInvoiceAndPost(ReceiptVoucher $voucher, LedgerPostingService $ledger): void
+    {
+        if ($voucher->invoice_id && ! $voucher->invoice_payment_id) {
+            $invoice = Invoice::findOrFail($voucher->invoice_id);
+            $payment = $invoice->invoicePayments()->create([
+                'amount' => $voucher->amount,
+                'paid_at' => $voucher->date,
+                'method' => $voucher->method,
+                'reference' => $voucher->reference,
+            ]);
+            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+            $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+            $invoice->save();
+
+            $voucher->invoice_payment_id = $payment->id;
+        }
+
+        // The multi-invoice counterpart of the block above — one
+        // InvoicePayment per allocation row, each dated/referenced
+        // exactly like the voucher itself (it's the same one real
+        // transfer), each settling its own invoice's own balance.
+        foreach ($voucher->allocations()->whereNull('invoice_payment_id')->get() as $allocation) {
+            $invoice = $allocation->invoice;
+            $payment = $invoice->invoicePayments()->create([
+                'amount' => $allocation->amount,
+                'paid_at' => $voucher->date,
+                'method' => $voucher->method,
+                'reference' => $voucher->reference,
+            ]);
+            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+            $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+            $invoice->save();
+
+            $allocation->invoice_payment_id = $payment->id;
+            $allocation->save();
+        }
+
+        $voucher->status = 'issued';
+        $voucher->save();
+
+        $ledger->postReceiptVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'invoice', 'allocations']));
+    }
+
+    public function approvePending(ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)
+    {
+        abort_unless($receiptVoucher->status === 'pending_approval', 404);
+
+        // Audit finding SEC-06: the preparer of this voucher must not also
+        // be its approver — see EnforcesApprovalSeparation.
+        if ($this->approvalBlockedBySelfApproval($receiptVoucher->created_by, $receiptVoucher->company_id)) {
+            return back()->withErrors(['approve' => __('You submitted this voucher — it must be approved by a different user.')]);
+        }
+
+        DB::transaction(function () use ($receiptVoucher, $ledger) {
+            $this->settleInvoiceAndPost($receiptVoucher, $ledger);
+            $receiptVoucher->update(['approved_by' => Auth::id(), 'approved_at' => now()]);
+        });
+
+        AuditLog::record('receipt_voucher.approve_pending', $receiptVoucher, __('Approved and posted receipt voucher :number', ['number' => $receiptVoucher->voucher_number]));
+
+        return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('Receipt voucher approved and posted.'));
+    }
+
+    public function rejectPending(Request $request, ReceiptVoucher $receiptVoucher)
+    {
+        abort_unless($receiptVoucher->status === 'pending_approval', 404);
+
+        $data = $request->validate(['rejection_reason' => ['nullable', 'string', 'max:1000']]);
+
+        $receiptVoucher->update([
+            'status' => 'rejected', 'approved_by' => Auth::id(), 'approved_at' => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        AuditLog::record('receipt_voucher.reject_pending', $receiptVoucher, __('Rejected pending receipt voucher :number', ['number' => $receiptVoucher->voucher_number]));
+
+        return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('Receipt voucher rejected.'));
+    }
+
+    public function show(ReceiptVoucher $receiptVoucher)
+    {
+        $receiptVoucher->load('bankAccount', 'client', 'supplier', 'invoice.items', 'counterAccount', 'project', 'attachments', 'allocations.invoice');
+
+        $template = $receiptVoucher->company->defaultTemplateFor('receipt_voucher');
+
+        return view('user.receipt-vouchers.show', ['voucher' => $receiptVoucher, 'template' => $template]);
+    }
+
+    public function edit(ReceiptVoucher $receiptVoucher)
+    {
+        if ($receiptVoucher->status === 'void') {
+            return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('A voided voucher cannot be edited.'));
+        }
+
+        if (in_array($receiptVoucher->status, ['pending_approval', 'rejected'], true)) {
+            return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
+        }
+
+        $receiptVoucher->load('invoice.items', 'allocations.invoice');
+
+        $company = Auth::user()->company;
+        $clients = Client::orderBy('name')->get();
+        $suppliers = Supplier::orderBy('name')->get();
+        $employees = Employee::where('status', 'active')->orderBy('full_name')->get();
+
+        // The voucher's own employee may be inactive/terminated — keep it
+        // selectable on the edit form even though it's excluded above,
+        // mirroring the same treatment already given to clients/suppliers
+        // via currentInvoice below.
+        if ($receiptVoucher->employee_id && ! $employees->contains('id', $receiptVoucher->employee_id)) {
+            $employees = $employees->push($receiptVoucher->employee)->sortBy('full_name')->values();
+        }
+
+        return view('user.receipt-vouchers.form', [
+            'voucher' => $receiptVoucher,
+            'accounts' => BankAccount::where('is_active', true)->orderBy('name')->get(),
+            'clients' => $clients,
+            'suppliers' => $suppliers,
+            'employees' => $employees,
+            'glAccounts' => $company->accounts()->where('is_active', true)->orderBy('code')->get(),
+            'projects' => Project::orderBy('name')->get(),
+            'clientsData' => $clients->mapWithKeys(fn (Client $c) => [$c->id => [
+                'name_ar' => $c->name_ar, 'name' => $c->name, 'vat_number' => $c->vat_number,
+                'phone' => $c->phone, 'email' => $c->email, 'address' => $c->fullAddress(),
+            ]]),
+            'suppliersData' => $suppliers->mapWithKeys(fn (Supplier $s) => [$s->id => [
+                'name_ar' => $s->name_ar, 'name' => $s->name, 'vat_number' => $s->vat_number,
+                'phone' => $s->phone, 'email' => $s->email, 'address' => $s->fullAddress(),
+            ]]),
+            'employeesData' => $employees->mapWithKeys(fn (Employee $e) => [$e->id => [
+                'name_ar' => $e->full_name_ar, 'name' => $e->full_name, 'vat_number' => null,
+                'phone' => $e->mobile, 'email' => $e->email, 'address' => $e->address,
+            ]]),
+            'existingAllocations' => $receiptVoucher->allocations->map(fn ($a) => [
+                'invoice_id' => $a->invoice_id,
+                'invoice_number' => $a->invoice?->invoice_number,
+                'amount' => (string) $a->amount,
+            ])->values(),
+            // The invoice this voucher is already linked to may no longer
+            // be "outstanding" (this very voucher's payment may have fully
+            // settled it) and so would be missing from the fetched
+            // outstanding-invoices list — pass it separately so the
+            // dropdown always keeps the currently linked invoice selectable.
+            'currentInvoice' => $receiptVoucher->invoice ? [
+                'id' => $receiptVoucher->invoice->id,
+                'invoice_number' => $receiptVoucher->invoice->invoice_number,
+                'date' => $receiptVoucher->invoice->issue_date->format('Y-m-d'),
+                'total' => number_format((float) $receiptVoucher->invoice->total, 2),
+                'balance' => number_format($receiptVoucher->invoice->balanceDue(), 2),
+                'project_id' => $receiptVoucher->invoice->project_id,
+                'items' => $receiptVoucher->invoice->items->map(fn ($line) => [
+                    'description' => $line->description,
+                    'quantity' => rtrim(rtrim(number_format((float) $line->quantity, 2), '0'), '.'),
+                ])->values(),
+            ] : null,
+        ]);
+    }
+
+    public function update(Request $request, ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)
+    {
+        if ($receiptVoucher->status === 'void') {
+            return back()->with('status', __('A voided voucher cannot be edited.'));
+        }
+
+        if (in_array($receiptVoucher->status, ['pending_approval', 'rejected'], true)) {
+            return back()->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
+        }
+
+        $data = $this->validated($request);
+        $allocations = $this->cleanAllocations($request);
+
+        if ($allocations) {
+            $clientId = $data['party_type'] === 'customer' ? ($data['client_id'] ?? null) : null;
+
+            if ($error = $this->validateAllocations($allocations, $receiptVoucher->company_id, $clientId, (float) $data['amount'])) {
+                return back()->withErrors(['allocations' => $error])->withInput();
+            }
+
+            $data['invoice_id'] = null;
+        }
+
+        DB::transaction(function () use ($data, $allocations, $receiptVoucher, $ledger) {
+            // Undo the previous invoice linkage's side effects, mirroring
+            // void() — amount_paid/status must reflect whatever the
+            // voucher ends up looking like after this edit, not what it
+            // looked like when it was first created.
+            if ($receiptVoucher->invoice_payment_id && $receiptVoucher->invoice) {
+                $oldInvoice = $receiptVoucher->invoice;
+                $oldInvoice->invoicePayments()->where('id', $receiptVoucher->invoice_payment_id)->delete();
+                $oldInvoice->amount_paid = $oldInvoice->invoicePayments()->sum('amount');
+                $oldInvoice->status = $oldInvoice->isFullyPaid() ? 'paid' : ($oldInvoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+                $oldInvoice->save();
+            }
+
+            // Same undo, for whichever invoices the old allocations (if
+            // any) had settled — then drop the rows entirely, since
+            // they're about to be rebuilt from this edit's own input.
+            foreach ($receiptVoucher->allocations as $oldAllocation) {
+                if ($oldAllocation->invoice_payment_id) {
+                    $oldInvoice = $oldAllocation->invoice;
+                    $oldInvoice->invoicePayments()->where('id', $oldAllocation->invoice_payment_id)->delete();
+                    $oldInvoice->amount_paid = $oldInvoice->invoicePayments()->sum('amount');
+                    $oldInvoice->status = $oldInvoice->isFullyPaid() ? 'paid' : ($oldInvoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+                    $oldInvoice->save();
+                }
+
+                $oldAllocation->delete();
+            }
+
+            // Rebuild the ledger posting from scratch rather than adjusting
+            // it in place — postReceiptVoucher() derives every line from
+            // the voucher's current state, so deleting the old entry first
+            // is the only way to avoid double-posting or stale amounts.
+            $ledger->deletePosting($receiptVoucher->company, 'receipt_voucher', $receiptVoucher->id);
+
+            $invoicePaymentId = null;
+
+            if (! empty($data['invoice_id'])) {
+                $invoice = Invoice::findOrFail($data['invoice_id']);
+                $payment = $invoice->invoicePayments()->create([
+                    'amount' => $data['amount'],
+                    'paid_at' => $data['date'],
+                    'method' => $data['method'],
+                    'reference' => $data['reference'] ?? null,
+                ]);
+                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+                $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+                $invoice->save();
+                $invoicePaymentId = $payment->id;
+            }
+
+            foreach ($allocations as $row) {
+                $invoice = Invoice::findOrFail($row['invoice_id']);
+                $payment = $invoice->invoicePayments()->create([
+                    'amount' => $row['amount'],
+                    'paid_at' => $data['date'],
+                    'method' => $data['method'],
+                    'reference' => $data['reference'] ?? null,
+                ]);
+                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+                $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
+                $invoice->save();
+
+                $receiptVoucher->allocations()->create([
+                    'company_id' => $receiptVoucher->company_id,
+                    'invoice_id' => $row['invoice_id'],
+                    'amount' => $row['amount'],
+                    'invoice_payment_id' => $payment->id,
+                ]);
+            }
+
+            $receiptVoucher->update([
+                'bank_account_id' => $data['bank_account_id'],
+                'project_id' => $data['project_id'] ?? null,
+                'party_type' => $data['party_type'],
+                'client_id' => $data['party_type'] === 'customer' ? $data['client_id'] : null,
+                'supplier_id' => $data['party_type'] === 'supplier' ? $data['supplier_id'] : null,
+                'employee_id' => $data['party_type'] === 'employee' ? $data['employee_id'] : null,
+                'counter_account_id' => $data['counter_account_id'] ?? null,
+                'invoice_id' => $data['invoice_id'] ?? null,
+                'invoice_payment_id' => $invoicePaymentId,
+                'date' => $data['date'],
+                'payer_name' => $data['payer_name'],
+                'party_name_ar' => $data['party_name_ar'] ?? null,
+                'party_vat_number' => $data['party_vat_number'] ?? null,
+                'party_phone' => $data['party_phone'] ?? null,
+                'party_email' => $data['party_email'] ?? null,
+                'party_address' => $data['party_address'] ?? null,
+                'amount' => $data['amount'],
+                'method' => $data['method'],
+                'reference' => $data['reference'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'notes_ar' => $data['notes_ar'] ?? null,
+            ]);
+
+            $ledger->postReceiptVoucher($receiptVoucher->fresh(['bankAccount', 'counterAccount', 'invoice', 'allocations']));
+        });
+
+        return redirect()->route('app.receipt-vouchers.show', $receiptVoucher)->with('status', __('Receipt voucher updated.'));
+    }
+
+    public function destroy(ReceiptVoucher $receiptVoucher)
+    {
+        if (! in_array($receiptVoucher->status, ['void', 'rejected'], true)) {
+            return back()->with('status', __('Void this voucher first so its ledger entries and any linked invoice payment are safely reversed, then delete it.'));
+        }
+
+        $receiptVoucher->delete();
+
+        return redirect()->route('app.receipt-vouchers.index')->with('status', __('Receipt voucher deleted.'));
+    }
+
+    public function void(ReceiptVoucher $receiptVoucher, LedgerPostingService $ledger)
+    {
+        if ($receiptVoucher->status === 'void') {
+            return back();
+        }
+
+        DB::transaction(function () use ($receiptVoucher, $ledger) {
+            if ($receiptVoucher->invoice_payment_id && $receiptVoucher->invoice) {
+                $invoice = $receiptVoucher->invoice;
+                $invoice->invoicePayments()->where('id', $receiptVoucher->invoice_payment_id)->delete();
+                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+                $invoice->status = $invoice->isFullyPaid() ? 'paid' : ($invoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+                $invoice->save();
+            }
+
+            foreach ($receiptVoucher->allocations as $allocation) {
+                if (! $allocation->invoice_payment_id) {
+                    continue;
+                }
+
+                $invoice = $allocation->invoice;
+                $invoice->invoicePayments()->where('id', $allocation->invoice_payment_id)->delete();
+                $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
+                $invoice->status = $invoice->isFullyPaid() ? 'paid' : ($invoice->amount_paid > 0 ? 'partially_paid' : 'sent');
+                $invoice->save();
+            }
+
+            $receiptVoucher->update(['status' => 'void']);
+
+            $ledger->reverse($receiptVoucher->company, 'receipt_voucher', $receiptVoucher->id, __('Receipt voucher :number voided', ['number' => $receiptVoucher->voucher_number]));
+        });
+
+        return back()->with('status', __('Receipt voucher voided.'));
+    }
+
+    public function storeAttachment(Request $request, ReceiptVoucher $receiptVoucher)
+    {
+        if ($rejected = $this->rejectIfStorageQuotaReached($receiptVoucher->company)) {
+            return $rejected;
+        }
+
+        $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
+
+        $file = $request->file('file');
+
+        $receiptVoucher->attachments()->create([
+            'company_id' => $receiptVoucher->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('receipt-voucher-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(ReceiptVoucher $receiptVoucher, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === ReceiptVoucher::class && $attachment->attachable_id === $receiptVoucher->id, 404);
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
+    }
+
+    /** Drops any blank row the repeatable allocations UI submits (an added-then-untouched row), keeping only ones with both an invoice and an amount. */
+    private function cleanAllocations(Request $request): array
+    {
+        return collect($request->input('allocations', []))
+            ->filter(fn ($row) => ! empty($row['invoice_id']) && ! empty($row['amount']))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Cross-field checks a single array-shape validation rule can't
+     * express: every allocated invoice must actually belong to this
+     * voucher's own customer, be sendable (not draft), share the
+     * company's base currency (postReceiptVoucher() posts the voucher's
+     * ->amount as a base-currency figure, same reasoning as the single-
+     * invoice check above), and the allocations can't add up to more
+     * than the voucher's own real amount — the whole point is that this
+     * one voucher never claims to have received more than it actually did.
+     */
+    private function validateAllocations(array $allocations, int $companyId, ?int $clientId, float $voucherAmount): ?string
+    {
+        $companyCurrency = Auth::user()->company->currency;
+        $sum = 0.0;
+
+        foreach ($allocations as $row) {
+            $invoice = Invoice::where('company_id', $companyId)->find($row['invoice_id']);
+
+            if (! $invoice) {
+                return __('One of the selected invoices could not be found.');
+            }
+
+            if (! $clientId || $invoice->client_id !== $clientId) {
+                return __('Invoice :number does not belong to the selected customer.', ['number' => $invoice->invoice_number]);
+            }
+
+            if ($invoice->status === 'draft') {
+                return __('Invoice :number hasn\'t been sent yet — send it first, then allocate a payment to it.', ['number' => $invoice->invoice_number]);
+            }
+
+            if ($invoice->currency !== $companyCurrency) {
+                return __('Invoice :number is in a foreign currency (:currency) — allocate this payment directly against it instead.', ['number' => $invoice->invoice_number, 'currency' => $invoice->currency]);
+            }
+
+            $sum += (float) $row['amount'];
+        }
+
+        if (round($sum, 2) > round($voucherAmount, 2) + 0.01) {
+            return __('The allocations add up to :sum, which is more than this voucher\'s amount of :amount.', ['sum' => number_format($sum, 2), 'amount' => number_format($voucherAmount, 2)]);
+        }
+
+        return null;
+    }
+
+    private function validated(Request $request): array
+    {
+        $companyId = Auth::user()->company_id;
+
+        return $request->validate([
+            'bank_account_id' => ['required', Rule::exists('bank_accounts', 'id')->where('company_id', $companyId)],
+            'party_type' => ['required', 'in:manual,customer,supplier,employee'],
+            'client_id' => ['nullable', 'required_if:party_type,customer', Rule::exists('clients', 'id')->where('company_id', $companyId)],
+            'supplier_id' => ['nullable', 'required_if:party_type,supplier', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
+            'employee_id' => ['nullable', 'required_if:party_type,employee', Rule::exists('employees', 'id')->where('company_id', $companyId)],
+            'counter_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
+            // "1 document(s) are marked posted but have no matching
+            // ledger entry" — linking a receipt voucher's payment to a
+            // still-draft invoice used to jump that invoice straight to
+            // paid/partially_paid with its revenue never posted to the
+            // GL at all (store()/update() only ever called
+            // postReceiptVoucher(), never postInvoiceIssued()). Rejecting
+            // it here is simpler and safer than silently auto-sending an
+            // invoice from inside an unrelated form.
+            'invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId), function ($attribute, $value, $fail) {
+                $invoice = $value ? Invoice::find($value) : null;
+
+                if ($invoice?->status === 'draft') {
+                    $fail(__('This invoice hasn\'t been sent yet — send it first, then record the payment against it.'));
+
+                    return;
+                }
+
+                // Audit finding GL-05: a ReceiptVoucher has no currency of
+                // its own — ->amount is always a base-currency figure,
+                // matching exactly what postReceiptVoucher() posts to the
+                // GL. settleInvoiceAndPost() increments the linked
+                // invoice's amount_paid by that same base-currency number
+                // directly, which is only correct when the invoice is
+                // ALSO in the base currency — see the identical
+                // PaymentVoucherController::validated() check for bills.
+                if ($invoice && $invoice->currency !== Auth::user()->company->currency) {
+                    $fail(__('This invoice is in a foreign currency (:currency) — receipt vouchers can only settle invoices in your base currency. Record this payment directly against the invoice instead.', ['currency' => $invoice->currency]));
+                }
+            }],
+            'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
+            // One real transfer settling more than one invoice — see
+            // ReceiptVoucherAllocation's own doc block. Structural shape
+            // only here; validateAllocations() does the cross-field checks
+            // (same client, not draft, base currency, doesn't exceed the
+            // voucher's own amount) once the whole request is in hand.
+            'allocations' => ['nullable', 'array'],
+            'allocations.*.invoice_id' => ['nullable', Rule::exists('invoices', 'id')->where('company_id', $companyId)],
+            'allocations.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'date' => ['required', 'date'],
+            'payer_name' => ['required', 'string', 'max:255'],
+            'party_name_ar' => ['nullable', 'string', 'max:255'],
+            'party_vat_number' => ['nullable', 'string', 'max:32'],
+            'party_phone' => ['nullable', 'string', 'max:30'],
+            'party_email' => ['nullable', 'email', 'max:255'],
+            'party_address' => ['nullable', 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'method' => ['required', 'in:cash,bank_transfer,card,cheque'],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'notes_ar' => ['nullable', 'string', 'max:2000'],
+        ]);
+    }
+}

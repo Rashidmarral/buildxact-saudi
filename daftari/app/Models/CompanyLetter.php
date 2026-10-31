@@ -1,0 +1,128 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\BelongsToCompany;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+
+/**
+ * A generated bilingual letter/agreement — a sale/purchase/rental
+ * agreement for a machine, a work handover letter, or any custom letter a
+ * company drafts. document_type is a free string (see App\Support\
+ * LetterPresets for the starter content shipped for each kind); content
+ * is a freely editable ordered array of {text_en, text_ar, is_heading}
+ * paragraph blocks the user can add/remove/edit — nothing about a
+ * letter's body is fixed once generated from a preset.
+ */
+class CompanyLetter extends Model
+{
+    use BelongsToCompany;
+
+    protected $fillable = [
+        'company_id', 'machinery_asset_id', 'machinery_rental_contract_id', 'machinery_hire_in_contract_id', 'project_id',
+        'document_type', 'reference_number', 'title', 'title_ar', 'letter_date', 'reference_details',
+        'party_a_role', 'party_a_name', 'party_b_role', 'party_b_name', 'party_b_details',
+        'client_id', 'supplier_id', 'language_mode', 'content', 'created_by',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'letter_date' => 'date',
+            'content' => 'array',
+        ];
+    }
+
+    public function machinery(): BelongsTo
+    {
+        return $this->belongsTo(MachineryAsset::class, 'machinery_asset_id');
+    }
+
+    public function rentalContract(): BelongsTo
+    {
+        return $this->belongsTo(MachineryRentalContract::class, 'machinery_rental_contract_id');
+    }
+
+    public function hireInContract(): BelongsTo
+    {
+        return $this->belongsTo(MachineryHireInContract::class, 'machinery_hire_in_contract_id');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    /**
+     * Existing Quotations/Purchase Orders referenced by this letter —
+     * see CompanyLetterLink and the company_letter_links migration.
+     * Ordered so the combined PDF download always folds them in the
+     * same order the user arranged them in.
+     */
+    public function links(): HasMany
+    {
+        return $this->hasMany(CompanyLetterLink::class)->orderBy('sort_order');
+    }
+
+    public function partyAName(): string
+    {
+        return $this->party_a_name ?: $this->company->name;
+    }
+
+    public function titleAr(): string
+    {
+        return $this->title_ar ?: $this->title;
+    }
+
+    /**
+     * What the PDF shows under Party B's name. Free-typed party_b_details
+     * always wins when set; otherwise it's built from whichever record
+     * (client or supplier) this letter is linked to — their VAT number,
+     * CR number, and address are already on file (entered once when the
+     * client/supplier was created), so a letter linked to one shouldn't
+     * need that typed out again by hand.
+     */
+    public function partyBDetails(): ?string
+    {
+        if (trim((string) $this->party_b_details) !== '') {
+            return $this->party_b_details;
+        }
+
+        $party = $this->client ?? $this->supplier;
+
+        if (! $party) {
+            return null;
+        }
+
+        $lines = collect([
+            $party->vat_number ? __('VAT number: :number', ['number' => $party->vat_number]) : null,
+            $party->cr_number ? __('CR Number: :number', ['number' => $party->cr_number]) : null,
+            $party->fullAddress() ?: null,
+        ])->filter();
+
+        return $lines->isNotEmpty() ? $lines->implode("\n") : null;
+    }
+}

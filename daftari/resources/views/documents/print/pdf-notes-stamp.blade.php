@@ -1,0 +1,45 @@
+{{-- Notes + template notes, then the QR and company stamp together as one
+     bottom-right unit — scanning and stamping both happen at the bottom of
+     a real paper invoice, not mixed in above the line items. No caption
+     under the QR (previously "Scan to verify invoice details") — it was
+     the last few points of height standing between a short 2-line
+     invoice and fitting on one page, tipping it onto an otherwise-blank
+     second page for just the footer. --}}
+@if (!empty($doc['notes']))
+    <div class="notes-block">
+        <strong>{{ $lbl('Notes') }}</strong>
+        @include('documents.print.pdf-notes-list', ['text' => $doc['notes'], 'accent' => $accent])
+    </div>
+@endif
+
+@if ($template && ($template->notes_en || $template->notes_ar))
+    @include('documents.print.pdf-template-notes', ['en' => $template->notes_en, 'ar' => $template->notes_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent, 'textStyle' => 'color: #64748b; font-size: 8.5pt;'])
+@endif
+
+@if ($template && ($template->terms_en || $template->terms_ar))
+    <div class="notes-block">
+        <strong>{{ $lbl('Terms & Conditions') }}</strong>
+        @include('documents.print.pdf-template-notes', ['en' => $template->terms_en, 'ar' => $template->terms_ar, 'primary' => $primary, 'secondary' => $secondary, 'accent' => $accent])
+    </div>
+@endif
+
+@php($showQr = ! ($hideQr ?? false) && ! empty($doc['qr_code']))
+@if ($showQr || $stampData)
+    <table style="margin-top: {{ $qrGap }}px;">
+        <tr>
+            <td style="width: {{ $showQr ? '50%' : '60%' }};"></td>
+            @if ($showQr)
+                <td style="width: 25%; text-align: center;">
+                    <img src="data:image/png;base64,{{ $doc['qr_code'] }}" class="qr-img" alt="">
+                </td>
+            @endif
+            @if ($stampData)
+                <td style="width: {{ $showQr ? '25%' : '40%' }}; text-align: center; vertical-align: bottom;">
+                    {{-- Width only — height omitted so a non-square stamp
+                         scales proportionally instead of stretching. --}}
+                    <img src="{{ $stampData }}" class="stamp-img" style="width: {{ $stampSize ?? 90 }}px;" alt="">
+                </td>
+            @endif
+        </tr>
+    </table>
+@endif
