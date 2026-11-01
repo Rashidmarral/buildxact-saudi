@@ -47,14 +47,16 @@ class ExpenseCategoryControllerTest extends TestCase
     public function test_the_index_page_can_be_searched(): void
     {
         $owner = $this->makeOwner();
-        ExpenseCategory::create(['company_id' => $owner->company_id, 'name' => 'Maintenance', 'code' => 'DIRECT-MAINT']);
+        // A name with no risk of colliding with sidebar nav text (unlike
+        // "Maintenance", which the Machinery & Equipment module nav also uses).
+        ExpenseCategory::create(['company_id' => $owner->company_id, 'name' => 'Printer Cartridges', 'code' => 'ADMIN-OFFICE']);
         ExpenseCategory::create(['company_id' => $owner->company_id, 'name' => 'Rent', 'code' => 'ADMIN-RENT']);
 
         $response = $this->actingAs($owner)->get(route('app.expense-categories.index', ['search' => 'Rent']));
 
         $response->assertOk();
         $response->assertSee('Rent');
-        $response->assertDontSee('Maintenance');
+        $response->assertDontSee('Printer Cartridges');
     }
 
     public function test_it_creates_a_category_with_a_code_and_gl_link(): void

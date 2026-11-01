@@ -24,7 +24,8 @@ class MachineryAsset extends Model
         'make', 'model', 'serial_number', 'plate_or_chassis_number', 'year_of_manufacture',
         'status', 'default_rental_rate', 'rental_rate_type', 'operator_employee_id',
         'registration_expiry_date', 'insurance_expiry_date',
-        'registration_reminder_sent_at', 'insurance_reminder_sent_at', 'notes', 'created_by',
+        'registration_reminder_sent_at', 'insurance_reminder_sent_at',
+        'next_maintenance_due_date', 'maintenance_reminder_sent_at', 'notes', 'created_by',
     ];
 
     protected function casts(): array
@@ -34,6 +35,8 @@ class MachineryAsset extends Model
             'insurance_expiry_date' => 'date',
             'registration_reminder_sent_at' => 'datetime',
             'insurance_reminder_sent_at' => 'datetime',
+            'next_maintenance_due_date' => 'date',
+            'maintenance_reminder_sent_at' => 'datetime',
             'default_rental_rate' => 'decimal:2',
         ];
     }
@@ -61,6 +64,21 @@ class MachineryAsset extends Model
     public function deployments(): HasMany
     {
         return $this->hasMany(MachineryProjectDeployment::class);
+    }
+
+    public function maintenanceLogs(): HasMany
+    {
+        return $this->hasMany(MachineryMaintenanceLog::class)->orderByDesc('performed_at');
+    }
+
+    public function tripLogs(): HasMany
+    {
+        return $this->hasMany(MachineryTripLog::class)->orderByDesc('trip_date');
+    }
+
+    public function isMaintenanceOverdue(): bool
+    {
+        return (bool) $this->next_maintenance_due_date?->isPast();
     }
 
     public function expenses(): HasMany

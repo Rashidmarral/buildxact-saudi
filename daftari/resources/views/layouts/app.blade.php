@@ -236,6 +236,8 @@
                             @include('partials.nav-subitem', ['route' => 'app.machinery.rental-contracts.index', 'label' => __('Rental Contracts')])
                             @include('partials.nav-subitem', ['route' => 'app.machinery.hire-in-contracts.index', 'label' => __('Hired-in Equipment')])
                             @include('partials.nav-subitem', ['route' => 'app.machinery.operators.index', 'label' => __('Operators')])
+                            @include('partials.nav-subitem', ['route' => 'app.machinery.maintenance.index', 'label' => __('Maintenance')])
+                            @include('partials.nav-subitem', ['route' => 'app.machinery.trips.index', 'label' => __('Trip Log')])
                         </div>
                     </details>
                 @endif

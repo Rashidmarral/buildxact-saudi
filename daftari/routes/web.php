@@ -109,9 +109,11 @@ use App\Http\Controllers\User\ProjectCashFlowController;
 use App\Http\Controllers\User\CompanyLetterController;
 use App\Http\Controllers\User\MachineryAssetController;
 use App\Http\Controllers\User\MachineryHireInContractController;
+use App\Http\Controllers\User\MachineryMaintenanceLogController;
 use App\Http\Controllers\User\MachineryOperatorController;
 use App\Http\Controllers\User\MachineryProjectDeploymentController;
 use App\Http\Controllers\User\MachineryRentalContractController;
+use App\Http\Controllers\User\MachineryTripLogController;
 use App\Http\Controllers\User\PurchaseOrderController;
 use App\Http\Controllers\User\PurchaseReturnController;
 use App\Http\Controllers\User\QuotationController;
@@ -763,6 +765,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
         Route::resource('hire-in-contracts', MachineryHireInContractController::class)->parameters(['hire-in-contracts' => 'hireInContract'])->only(['index', 'create', 'store', 'show']);
         Route::post('hire-in-contracts/{hireInContract}/end', [MachineryHireInContractController::class, 'end'])->name('hire-in-contracts.end');
+
+        Route::resource('maintenance', MachineryMaintenanceLogController::class)->only(['index', 'create', 'store']);
+        Route::resource('trips', MachineryTripLogController::class)->only(['index', 'create', 'store']);
     });
 
     // Letters & Agreements used to live entirely inside the Machinery &

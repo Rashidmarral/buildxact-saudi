@@ -11,28 +11,31 @@ use Illuminate\Support\Carbon;
 /**
  * A machine's Istimara (registration) and insurance both lapse on their
  * own renewal cycle, silently, unless someone happens to check the asset
- * page. This warns once per expiry, the same "notify once, clear the
- * guard once resolved" shape as CheckLowStock's low_stock_notified_at.
+ * page — same for its next scheduled service (next_maintenance_due_date,
+ * set by MachineryMaintenanceLogController when a service is logged).
+ * This warns once per due date, the same "notify once, clear the guard
+ * once resolved" shape as CheckLowStock's low_stock_notified_at.
  */
 class SendMachineryExpiryReminders extends Command
 {
     protected $signature = 'machinery:send-expiry-reminders';
 
-    protected $description = 'Notify users with Machinery & Equipment access once when a machine\'s registration or insurance is about to expire';
+    protected $description = 'Notify users with Machinery & Equipment access once when a machine\'s registration, insurance, or next scheduled maintenance is coming up';
 
     private const WINDOW_DAYS = 30;
 
     public function handle(): int
     {
         $notified = $this->remindForField('registration_expiry_date', 'registration_reminder_sent_at', __('Registration expiring soon'))
-            + $this->remindForField('insurance_expiry_date', 'insurance_reminder_sent_at', __('Insurance expiring soon'));
+            + $this->remindForField('insurance_expiry_date', 'insurance_reminder_sent_at', __('Insurance expiring soon'))
+            + $this->remindForField('next_maintenance_due_date', 'maintenance_reminder_sent_at', __('Maintenance due soon'), __('due'));
 
         $this->info("Sent {$notified} machinery expiry reminder(s).");
 
         return self::SUCCESS;
     }
 
-    private function remindForField(string $dateColumn, string $sentColumn, string $title): int
+    private function remindForField(string $dateColumn, string $sentColumn, string $title, string $verb = 'expires'): int
     {
         $horizon = now()->addDays(self::WINDOW_DAYS);
 
@@ -52,14 +55,14 @@ class SendMachineryExpiryReminders extends Command
             ->get();
 
         foreach ($assets as $asset) {
-            $this->notifyCompany($asset, $dateColumn, $title);
+            $this->notifyCompany($asset, $dateColumn, $title, $verb);
             $asset->update([$sentColumn => now()]);
         }
 
         return $assets->count();
     }
 
-    private function notifyCompany(MachineryAsset $asset, string $dateColumn, string $title): void
+    private function notifyCompany(MachineryAsset $asset, string $dateColumn, string $title, string $verb): void
     {
         /** @var Carbon $date */
         $date = $asset->{$dateColumn};
@@ -69,7 +72,7 @@ class SendMachineryExpiryReminders extends Command
             ->filter(fn (User $user) => $user->hasPermission('machinery_equipment'))
             ->each(fn (User $user) => $user->notify(new GenericNotification(
                 title: $title,
-                body: __(':asset (:code) — expires :date', ['asset' => $asset->name, 'code' => $asset->asset_code, 'date' => $date->format('Y-m-d')]),
+                body: __(':asset (:code) — :verb :date', ['asset' => $asset->name, 'code' => $asset->asset_code, 'verb' => $verb, 'date' => $date->format('Y-m-d')]),
                 url: route('app.machinery.assets.show', $asset),
                 icon: 'machinery',
             )));
