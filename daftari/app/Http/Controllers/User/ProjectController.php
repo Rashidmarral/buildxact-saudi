@@ -67,7 +67,8 @@ class ProjectController extends Controller
             'quotations.client', 'purchaseOrders.supplier', 'bills.supplier',
             'projectManager', 'businessLocation', 'costCenter', 'attachments.uploader',
             'boqItems.unit', 'budgetLines.creator', 'projectCosts.creator', 'tasks.assignee',
-            'timesheets.employee', 'materialIssues.item', 'machineryDeployments.machinery'
+            'timesheets.employee', 'materialIssues.item', 'machineryDeployments.machinery',
+            'subcontracts.supplier', 'changeOrders', 'siteDiaryEntries'
         );
 
         return view('user.projects.show', [

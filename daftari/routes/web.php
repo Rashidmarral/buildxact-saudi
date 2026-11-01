@@ -109,7 +109,9 @@ use App\Http\Controllers\User\ProjectBoqItemController;
 use App\Http\Controllers\User\ProjectBudgetLineController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCostController;
+use App\Http\Controllers\User\ProjectChangeOrderController;
 use App\Http\Controllers\User\ProjectMaterialIssueController;
+use App\Http\Controllers\User\ProjectSiteDiaryEntryController;
 use App\Http\Controllers\User\ProjectTaskController;
 use App\Http\Controllers\User\ProjectTimesheetController;
 use App\Http\Controllers\User\ProjectCashFlowController;
@@ -845,6 +847,14 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
         Route::post('projects/{project}/material-issues', [ProjectMaterialIssueController::class, 'store'])->name('projects.material-issues.store');
         Route::delete('projects/{project}/material-issues/{materialIssue}', [ProjectMaterialIssueController::class, 'destroy'])->name('projects.material-issues.destroy');
+
+        Route::post('projects/{project}/change-orders', [ProjectChangeOrderController::class, 'store'])->name('projects.change-orders.store');
+        Route::post('projects/{project}/change-orders/{changeOrder}/approve', [ProjectChangeOrderController::class, 'approve'])->name('projects.change-orders.approve');
+        Route::post('projects/{project}/change-orders/{changeOrder}/reject', [ProjectChangeOrderController::class, 'reject'])->name('projects.change-orders.reject');
+        Route::delete('projects/{project}/change-orders/{changeOrder}', [ProjectChangeOrderController::class, 'destroy'])->name('projects.change-orders.destroy');
+
+        Route::post('projects/{project}/site-diary', [ProjectSiteDiaryEntryController::class, 'store'])->name('projects.site-diary.store');
+        Route::delete('projects/{project}/site-diary/{siteDiaryEntry}', [ProjectSiteDiaryEntryController::class, 'destroy'])->name('projects.site-diary.destroy');
     });
 
     Route::middleware('role:owner')->group(function () {

@@ -283,4 +283,25 @@ class Project extends Model
     {
         return $this->hasMany(MachineryProjectDeployment::class);
     }
+
+    public function changeOrders(): HasMany
+    {
+        return $this->hasMany(ProjectChangeOrder::class)->orderByDesc('id');
+    }
+
+    public function siteDiaryEntries(): HasMany
+    {
+        return $this->hasMany(ProjectSiteDiaryEntry::class)->orderByDesc('entry_date');
+    }
+
+    /**
+     * contract_value stays the original signed figure; approved change
+     * orders adjust it here rather than mutating the stored value, so
+     * the contract's own history is never overwritten by a later
+     * variation.
+     */
+    public function effectiveContractValue(): float
+    {
+        return (float) $this->contract_value + (float) $this->changeOrders()->where('status', 'approved')->sum('amount');
+    }
 }

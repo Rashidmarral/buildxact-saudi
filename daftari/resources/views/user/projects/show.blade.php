@@ -39,6 +39,9 @@
     <button type="button" data-tab="timesheets" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Timesheets') }} ({{ $project->timesheets->count() }})</button>
     <button type="button" data-tab="materials" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Materials') }} ({{ $project->materialIssues->count() }})</button>
     <button type="button" data-tab="equipment" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Equipment') }} ({{ $project->machineryDeployments->count() }})</button>
+    <button type="button" data-tab="subcontracts" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Subcontracts') }} ({{ $project->subcontracts->count() }})</button>
+    <button type="button" data-tab="change-orders" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Change Orders') }} ({{ $project->changeOrders->count() }})</button>
+    <button type="button" data-tab="site-diary" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Site Diary') }} ({{ $project->siteDiaryEntries->count() }})</button>
     <button type="button" data-tab="documents" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Documents') }} ({{ $project->attachments->count() }})</button>
 </div>
 
@@ -83,7 +86,15 @@
         <h3 class="font-semibold text-slate-900 mb-4">{{ __('Billing & contract') }}</h3>
         <dl class="grid sm:grid-cols-4 gap-4 text-sm">
             <div><dt class="text-xs text-slate-400">{{ __('Billing type') }}</dt><dd class="text-slate-800 mt-0.5">{{ $billingTypeLabels[$project->billing_type] ?? $project->billing_type }}</dd></div>
-            <div><dt class="text-xs text-slate-400">{{ __('Contract value') }}</dt><dd class="text-slate-800 mt-0.5">{{ $project->contract_value ? \App\Support\Money::format($project->contract_value) : '—' }}</dd></div>
+            <div>
+                <dt class="text-xs text-slate-400">{{ __('Contract value') }}</dt>
+                <dd class="text-slate-800 mt-0.5">
+                    {{ $project->contract_value ? \App\Support\Money::format($project->contract_value) : '—' }}
+                    @if ($project->changeOrders->where('status', 'approved')->isNotEmpty())
+                        <span class="text-xs text-slate-400">({{ __('effective') }}: {{ \App\Support\Money::format($project->effectiveContractValue()) }})</span>
+                    @endif
+                </dd>
+            </div>
             <div><dt class="text-xs text-slate-400">{{ __('Retention') }}</dt><dd class="text-slate-800 mt-0.5">{{ $project->retention_percent ? $project->retention_percent.'% ('.($project->retention_calculated_on === 'including_vat' ? __('incl. VAT') : __('excl. VAT')).')' : '—' }}</dd></div>
             <div><dt class="text-xs text-slate-400">{{ __('Advance recovery') }}</dt><dd class="text-slate-800 mt-0.5">{{ $project->advance_recovery_percent ? $project->advance_recovery_percent.'%' : '—' }}</dd></div>
         </dl>
@@ -682,6 +693,181 @@
                 </tbody>
             </table>
         @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="subcontracts">
+    <div class="flex items-center justify-between mb-4">
+        <p class="text-sm text-slate-500">{{ __('Sub-vendor contracts raised against this project.') }}</p>
+        <a href="{{ route('app.subcontracts.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('New subcontract') }}</a>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->subcontracts->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No subcontracts raised against this project yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Contract #') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Supplier') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Title') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Value') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->subcontracts as $subcontract)
+                        <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.subcontracts.show', $subcontract) }}'">
+                            <td class="px-6 py-3 font-medium text-brand-700">{{ $subcontract->contract_number }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ $subcontract->supplier->display_name ?? '—' }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $subcontract->title }}</td>
+                            <td class="px-6 py-3 text-end font-medium">{{ \App\Support\Money::format($subcontract->contract_value) }}</td>
+                            <td class="px-6 py-3">{{ ucfirst($subcontract->status) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="change-orders">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Add a change order') }}</h3>
+        <form method="POST" action="{{ route('app.projects.change-orders.store', $project) }}" class="grid sm:grid-cols-6 gap-3 items-end">
+            @csrf
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Title') }}</label>
+                <input type="text" name="title" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Amount (+/-)') }}</label>
+                <input type="number" step="0.01" name="amount" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Cost impact') }}</label>
+                <input type="number" step="0.01" name="cost_impact" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Days impact') }}</label>
+                <input type="number" step="1" name="days_impact" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add') }}</button>
+            </div>
+            <div class="sm:col-span-6">
+                <label class="block text-xs text-slate-500">{{ __('Description') }}</label>
+                <textarea name="description" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm"></textarea>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->changeOrders->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No change orders yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('No.') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Title') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Amount') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Days') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->changeOrders as $changeOrder)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-500">{{ $changeOrder->change_order_number }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ $changeOrder->title }}</td>
+                            <td class="px-6 py-3 text-end {{ $changeOrder->amount < 0 ? 'text-red-600' : 'text-emerald-700' }}">{{ \App\Support\Money::format($changeOrder->amount) }}</td>
+                            <td class="px-6 py-3 text-end">{{ $changeOrder->days_impact ?? '—' }}</td>
+                            <td class="px-6 py-3">
+                                @if ($changeOrder->status === 'draft')
+                                    <form method="POST" action="{{ route('app.projects.change-orders.approve', [$project, $changeOrder]) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-xs font-semibold text-emerald-700 hover:underline">{{ __('Approve') }}</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('app.projects.change-orders.reject', [$project, $changeOrder]) }}" class="inline ms-2">
+                                        @csrf
+                                        <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Reject') }}</button>
+                                    </form>
+                                @else
+                                    <span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium {{ $changeOrder->status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($changeOrder->status) }}</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                @if ($changeOrder->status === 'draft')
+                                    <form method="POST" action="{{ route('app.projects.change-orders.destroy', [$project, $changeOrder]) }}" class="inline">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                    </form>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="site-diary">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Add a site diary entry') }}</h3>
+        <form method="POST" action="{{ route('app.projects.site-diary.store', $project) }}" class="grid sm:grid-cols-6 gap-3 items-end">
+            @csrf
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Date') }}</label>
+                <input type="date" name="entry_date" required value="{{ now()->toDateString() }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Weather') }}</label>
+                <input type="text" name="weather" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Manpower') }}</label>
+                <input type="number" min="0" name="manpower_count" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-3"></div>
+            <div class="sm:col-span-3">
+                <label class="block text-xs text-slate-500">{{ __('Work done') }}</label>
+                <textarea name="work_done" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm"></textarea>
+            </div>
+            <div class="sm:col-span-3">
+                <label class="block text-xs text-slate-500">{{ __('Materials received') }}</label>
+                <textarea name="materials_received" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm"></textarea>
+            </div>
+            <div class="sm:col-span-5">
+                <label class="block text-xs text-slate-500">{{ __('Issues / delays') }}</label>
+                <textarea name="issues_delays" rows="2" class="mt-1 w-full rounded-lg border border-slate-200 text-sm"></textarea>
+            </div>
+            <div>
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="space-y-3">
+        @forelse ($project->siteDiaryEntries as $entry)
+            <div class="bg-white rounded-xl border border-slate-100 p-5">
+                <div class="flex items-center justify-between">
+                    <p class="font-semibold text-slate-900">{{ $entry->entry_date->format('Y-m-d') }} @if ($entry->weather)<span class="text-slate-400 font-normal">— {{ $entry->weather }}</span>@endif</p>
+                    <form method="POST" action="{{ route('app.projects.site-diary.destroy', [$project, $entry]) }}" class="inline">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                    </form>
+                </div>
+                @if ($entry->manpower_count !== null)<p class="text-xs text-slate-400 mt-1">{{ __('Manpower') }}: {{ $entry->manpower_count }}</p>@endif
+                @if ($entry->work_done)<p class="text-sm text-slate-700 mt-2"><span class="font-medium">{{ __('Work done') }}:</span> {{ $entry->work_done }}</p>@endif
+                @if ($entry->materials_received)<p class="text-sm text-slate-700 mt-1"><span class="font-medium">{{ __('Materials received') }}:</span> {{ $entry->materials_received }}</p>@endif
+                @if ($entry->issues_delays)<p class="text-sm text-red-600 mt-1"><span class="font-medium">{{ __('Issues/delays') }}:</span> {{ $entry->issues_delays }}</p>@endif
+            </div>
+        @empty
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No site diary entries yet.') }}</p>
+        @endforelse
     </div>
 </div>
 

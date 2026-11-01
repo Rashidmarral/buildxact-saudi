@@ -40,6 +40,7 @@ class Company extends Model
         'quotation_prefix', 'next_quotation_number', 'proforma_prefix', 'next_proforma_number',
         'receipt_prefix', 'next_receipt_number', 'payment_voucher_prefix', 'next_payment_voucher_number',
         'bill_prefix', 'next_bill_number', 'po_prefix', 'next_po_number', 'pr_prefix', 'next_pr_number',
+        'change_order_prefix', 'next_change_order_number',
         'currency', 'locale', 'timezone', 'date_format', 'time_format', 'fiscal_year_start', 'document_numbering_resets_yearly',
         'status', 'is_demo', 'trial_ends_at', 'default_branch_id',
         'default_bank_account_id', 'alternative_seller_id_type', 'alternative_seller_id',
@@ -95,6 +96,8 @@ class Company extends Model
         'next_po_number' => 1,
         'pr_prefix' => 'PRQ',
         'next_pr_number' => 1,
+        'change_order_prefix' => 'CO',
+        'next_change_order_number' => 1,
         'journal_prefix' => 'JE',
         'next_journal_number' => 1,
         'project_prefix' => 'PROJ',
@@ -672,6 +675,13 @@ class Company extends Model
         $number = $this->nextSequenceNumber('next_pr_number');
 
         return $this->pr_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function nextChangeOrderNumber(): string
+    {
+        $number = $this->nextSequenceNumber('next_change_order_number');
+
+        return $this->change_order_prefix.'-'.str_pad((string) $number, 5, '0', STR_PAD_LEFT);
     }
 
     public function nextJournalNumber(): string
