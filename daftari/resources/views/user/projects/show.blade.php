@@ -42,6 +42,7 @@
     <button type="button" data-tab="subcontracts" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Subcontracts') }} ({{ $project->subcontracts->count() }})</button>
     <button type="button" data-tab="change-orders" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Change Orders') }} ({{ $project->changeOrders->count() }})</button>
     <button type="button" data-tab="site-diary" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Site Diary') }} ({{ $project->siteDiaryEntries->count() }})</button>
+    <button type="button" data-tab="work-orders" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Work Orders') }} ({{ $project->workOrders->count() }})</button>
     <button type="button" data-tab="documents" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Documents') }} ({{ $project->attachments->count() }})</button>
 </div>
 
@@ -868,6 +869,115 @@
         @empty
             <p class="px-6 py-8 text-sm text-slate-500">{{ __('No site diary entries yet.') }}</p>
         @endforelse
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="work-orders">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Create a work order') }}</h3>
+        <form method="POST" action="{{ route('app.projects.work-orders.store', $project) }}" class="grid sm:grid-cols-6 gap-3 items-end">
+            @csrf
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Title') }}</label>
+                <input type="text" name="title" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Kind') }}</label>
+                <select name="kind" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    @foreach (\App\Models\ProjectWorkOrder::KINDS as $kind)
+                        <option value="{{ $kind }}">{{ __(ucfirst($kind)) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Priority') }}</label>
+                <select name="priority" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    @foreach (\App\Models\ProjectWorkOrder::PRIORITIES as $priority)
+                        <option value="{{ $priority }}" @selected($priority === 'medium')>{{ __(ucfirst($priority)) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Machine (optional)') }}</label>
+                <select name="machinery_asset_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    <option value="">{{ __('—') }}</option>
+                    @foreach ($machineryAssets as $asset)
+                        <option value="{{ $asset->id }}">{{ $asset->name }} ({{ $asset->asset_code }})</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Technician') }}</label>
+                <select name="technician_employee_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    <option value="">{{ __('Unassigned') }}</option>
+                    @foreach ($employees as $employee)
+                        <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Raised date') }}</label>
+                <input type="date" name="raised_date" required value="{{ now()->toDateString() }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Scheduled for') }}</label>
+                <input type="datetime-local" name="scheduled_at" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Duration (min)') }}</label>
+                <input type="number" min="1" name="duration_minutes" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-6">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Create work order') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->workOrders->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No work orders yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('No.') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Title') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Technician') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Scheduled') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->workOrders as $workOrder)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-500">{{ $workOrder->work_order_number }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ $workOrder->title }} <span class="text-xs {{ $workOrder->priority === 'urgent' ? 'text-red-600' : 'text-slate-400' }}">({{ ucfirst($workOrder->priority) }})</span></td>
+                            <td class="px-6 py-3 text-slate-500">{{ $workOrder->technician?->full_name ?? '—' }}</td>
+                            <td class="px-6 py-3 {{ $workOrder->isOverdue() ? 'text-red-600' : 'text-slate-500' }}">{{ optional($workOrder->scheduled_at)->format('Y-m-d H:i') ?? '—' }}</td>
+                            <td class="px-6 py-3">
+                                <form method="POST" action="{{ route('app.projects.work-orders.update', [$project, $workOrder]) }}" class="inline">
+                                    @csrf @method('PUT')
+                                    <input type="hidden" name="technician_employee_id" value="{{ $workOrder->technician_employee_id }}">
+                                    <input type="hidden" name="scheduled_at" value="{{ $workOrder->scheduled_at }}">
+                                    <select name="status" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-xs">
+                                        @foreach (\App\Models\ProjectWorkOrder::STATUSES as $status)
+                                            <option value="{{ $status }}" @selected($workOrder->status === $status)>{{ __(ucfirst(str_replace('_', ' ', $status))) }}</option>
+                                        @endforeach
+                                    </select>
+                                </form>
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <form method="POST" action="{{ route('app.projects.work-orders.destroy', [$project, $workOrder]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
     </div>
 </div>
 

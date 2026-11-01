@@ -294,6 +294,11 @@ class Project extends Model
         return $this->hasMany(ProjectSiteDiaryEntry::class)->orderByDesc('entry_date');
     }
 
+    public function workOrders(): HasMany
+    {
+        return $this->hasMany(ProjectWorkOrder::class)->orderByDesc('id');
+    }
+
     /**
      * contract_value stays the original signed figure; approved change
      * orders adjust it here rather than mutating the stored value, so

@@ -109,11 +109,13 @@ use App\Http\Controllers\User\ProjectBoqItemController;
 use App\Http\Controllers\User\ProjectBudgetLineController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCostController;
+use App\Http\Controllers\User\DispatchBoardController;
 use App\Http\Controllers\User\ProjectChangeOrderController;
 use App\Http\Controllers\User\ProjectMaterialIssueController;
 use App\Http\Controllers\User\ProjectSiteDiaryEntryController;
 use App\Http\Controllers\User\ProjectTaskController;
 use App\Http\Controllers\User\ProjectTimesheetController;
+use App\Http\Controllers\User\ProjectWorkOrderController;
 use App\Http\Controllers\User\ProjectCashFlowController;
 use App\Http\Controllers\User\CompanyLetterController;
 use App\Http\Controllers\User\MachineryAssetController;
@@ -855,6 +857,12 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
         Route::post('projects/{project}/site-diary', [ProjectSiteDiaryEntryController::class, 'store'])->name('projects.site-diary.store');
         Route::delete('projects/{project}/site-diary/{siteDiaryEntry}', [ProjectSiteDiaryEntryController::class, 'destroy'])->name('projects.site-diary.destroy');
+
+        Route::post('projects/{project}/work-orders', [ProjectWorkOrderController::class, 'store'])->name('projects.work-orders.store');
+        Route::put('projects/{project}/work-orders/{workOrder}', [ProjectWorkOrderController::class, 'update'])->name('projects.work-orders.update');
+        Route::delete('projects/{project}/work-orders/{workOrder}', [ProjectWorkOrderController::class, 'destroy'])->name('projects.work-orders.destroy');
+
+        Route::get('dispatch-board', [DispatchBoardController::class, 'index'])->name('dispatch-board.index');
     });
 
     Route::middleware('role:owner')->group(function () {

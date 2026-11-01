@@ -68,7 +68,8 @@ class ProjectController extends Controller
             'projectManager', 'businessLocation', 'costCenter', 'attachments.uploader',
             'boqItems.unit', 'budgetLines.creator', 'projectCosts.creator', 'tasks.assignee',
             'timesheets.employee', 'materialIssues.item', 'machineryDeployments.machinery',
-            'subcontracts.supplier', 'changeOrders', 'siteDiaryEntries'
+            'subcontracts.supplier', 'changeOrders', 'siteDiaryEntries',
+            'workOrders.technician', 'workOrders.machinery'
         );
 
         return view('user.projects.show', [
@@ -77,6 +78,7 @@ class ProjectController extends Controller
             'employees' => \App\Models\Employee::where('status', 'active')->orderBy('full_name')->get(),
             'items' => \App\Models\Item::where('is_active', true)->orderBy('name')->get(),
             'warehouses' => \App\Models\Warehouse::orderBy('name')->get(),
+            'machineryAssets' => \App\Models\MachineryAsset::orderBy('name')->get(),
         ]);
     }
 
