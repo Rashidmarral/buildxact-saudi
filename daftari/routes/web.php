@@ -116,6 +116,7 @@ use App\Http\Controllers\User\MachineryProjectDeploymentController;
 use App\Http\Controllers\User\MachineryRentalContractController;
 use App\Http\Controllers\User\MachineryTripLogController;
 use App\Http\Controllers\User\PurchaseOrderController;
+use App\Http\Controllers\User\PurchaseRequisitionController;
 use App\Http\Controllers\User\PurchaseReturnController;
 use App\Http\Controllers\User\QuotationController;
 use App\Http\Controllers\User\ReceiptVoucherController;
@@ -426,6 +427,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::delete('{vatReturn}', [VatReturnPeriodController::class, 'destroy'])->name('destroy');
         });
         Route::get('sales', [ReportController::class, 'sales'])->name('sales');
+        Route::get('purchase-sale-summary', [ReportController::class, 'purchaseSaleSummary'])->name('purchase-sale-summary');
         Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement')->middleware('feature:financial_statements');
         Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
         Route::get('cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
@@ -591,6 +593,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::middleware('feature:purchase_orders')->group(function () {
             Route::get('reorder-suggestions', [ReorderSuggestionController::class, 'index'])->name('reorder-suggestions.index');
             Route::post('reorder-suggestions', [ReorderSuggestionController::class, 'store'])->name('reorder-suggestions.store');
+            Route::resource('purchase-requisitions', PurchaseRequisitionController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
+            Route::post('purchase-requisitions/{purchaseRequisition}/approve', [PurchaseRequisitionController::class, 'approve'])->name('purchase-requisitions.approve');
+            Route::post('purchase-requisitions/{purchaseRequisition}/reject', [PurchaseRequisitionController::class, 'reject'])->name('purchase-requisitions.reject');
+            Route::get('purchase-requisitions/{purchaseRequisition}/create-purchase-order', [PurchaseRequisitionController::class, 'createPurchaseOrder'])->name('purchase-requisitions.create-po');
             Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
             Route::post('purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
             Route::post('purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');

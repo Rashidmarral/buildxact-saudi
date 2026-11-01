@@ -5,7 +5,7 @@
 @section('content')
 @php
 $company = auth()->user()->company;
-$existingItems = $order->exists ? $order->items : collect();
+$existingItems = $order->exists ? $order->items : ($prefillItems ?? collect());
 @endphp
 
 <div class="flex items-center justify-between mb-6">
@@ -28,6 +28,13 @@ $existingItems = $order->exists ? $order->items : collect();
 <form method="POST" action="{{ $order->exists ? route('app.purchase-orders.update', $order) : route('app.purchase-orders.store') }}" id="po-form" class="space-y-6">
     @csrf
     @if ($order->exists) @method('PUT') @endif
+
+    @if (! empty($fromRequisition))
+        <input type="hidden" name="from_requisition_id" value="{{ $fromRequisition->id }}">
+        <div class="rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm text-brand-800">
+            {{ __('Created from purchase requisition :number — line items are prefilled; choose a supplier and enter prices below.', ['number' => $fromRequisition->requisition_number]) }}
+        </div>
+    @endif
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 flex items-center justify-between gap-6">
         <div class="flex items-center gap-3">

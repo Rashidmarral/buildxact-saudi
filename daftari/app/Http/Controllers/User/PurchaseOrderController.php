@@ -67,17 +67,38 @@ class PurchaseOrderController extends Controller
         return view('user.purchase-orders.index', compact('orders', 'counts'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $company = Auth::user()->company;
 
+        $fromRequisition = null;
+        $prefillItems = collect();
+
+        if ($requisitionId = $request->query('from_requisition')) {
+            $fromRequisition = \App\Models\PurchaseRequisition::where('status', 'approved')->with('items')->find($requisitionId);
+
+            if ($fromRequisition) {
+                $defaultVatRate = TaxRate::defaultRate($company->id);
+                $prefillItems = $fromRequisition->items->map(fn ($requisitionItem) => new PurchaseOrderItem([
+                    'item_id' => $requisitionItem->item_id,
+                    'unit_id' => $requisitionItem->unit_id,
+                    'description' => $requisitionItem->description,
+                    'quantity' => $requisitionItem->quantity,
+                    'unit_price' => 0,
+                    'vat_rate' => $defaultVatRate,
+                ]));
+            }
+        }
+
         return view('user.purchase-orders.form', [
-            'order' => new PurchaseOrder(['order_date' => now()->toDateString()]),
+            'order' => new PurchaseOrder(['order_date' => now()->toDateString(), 'project_id' => $fromRequisition?->project_id]),
             'suppliers' => Supplier::orderBy('name')->get(),
             'items' => Item::where('is_active', true)->with('baseUnit', 'itemUnits.unit')->orderBy('name')->get(),
             'units' => Unit::orderBy('name')->get(),
             'projects' => Project::orderBy('name')->get(),
             'nextNumberPreview' => $company->po_prefix.'-'.str_pad((string) $company->next_po_number, 5, '0', STR_PAD_LEFT),
+            'fromRequisition' => $fromRequisition,
+            'prefillItems' => $prefillItems,
         ]);
     }
 
@@ -106,6 +127,13 @@ class PurchaseOrderController extends Controller
 
             $this->syncItems($order, $data['items']);
             $order->recalculateTotals();
+
+            if ($requisitionId = $data['from_requisition_id'] ?? null) {
+                \App\Models\PurchaseRequisition::where('status', 'approved')->whereKey($requisitionId)->update([
+                    'status' => 'converted',
+                    'purchase_order_id' => $order->id,
+                ]);
+            }
 
             return $order;
         });
@@ -567,6 +595,7 @@ class PurchaseOrderController extends Controller
             'supplier_id' => ['required', Rule::exists('suppliers', 'id')->where('company_id', $companyId)],
             'project_id' => ['nullable', Rule::exists('projects', 'id')->where('company_id', $companyId)],
             'quotation_reference' => ['nullable', 'string', 'max:60'],
+            'from_requisition_id' => ['nullable', Rule::exists('purchase_requisitions', 'id')->where('company_id', $companyId)],
             'order_date' => ['required', 'date'],
             'expected_date' => ['nullable', 'date', 'after_or_equal:order_date'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],

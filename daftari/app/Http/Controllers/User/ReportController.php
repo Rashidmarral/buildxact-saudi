@@ -359,6 +359,65 @@ class ReportController extends Controller
     }
 
     /**
+     * "Hamly has a combined 'Purchase & Sale' summary report. Everything
+     * in it is already derivable from your existing reports ... just not
+     * combined on one page." Sales (Invoice) and purchase (Bill) totals,
+     * finalized documents only (issued invoices, posted bills — a draft
+     * was never really part of the books), side by side per month across
+     * the selected period, so the two sides of the business are read at
+     * a glance instead of flipping between the Sales Report and Bills.
+     */
+    public function purchaseSaleSummary(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+
+        $sales = Invoice::whereBetween('issue_date', [$period['from'], $period['to']])
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->get(['issue_date', 'total']);
+
+        $purchases = Bill::whereBetween('bill_date', [$period['from'], $period['to']])
+            ->where('status', 'posted')
+            ->get(['bill_date', 'total']);
+
+        $months = collect();
+        for ($cursor = $period['from']->copy()->startOfMonth(); $cursor->lte($period['to']); $cursor->addMonth()) {
+            $months->push($cursor->copy());
+        }
+
+        $rows = $months->map(function (Carbon $month) use ($sales, $purchases) {
+            $salesTotal = $sales->filter(fn ($i) => $i->issue_date->isSameMonth($month) && $i->issue_date->isSameYear($month))->sum('total');
+            $purchasesTotal = $purchases->filter(fn ($b) => $b->bill_date->isSameMonth($month) && $b->bill_date->isSameYear($month))->sum('total');
+
+            return [
+                'month' => $month,
+                'sales' => $salesTotal,
+                'purchases' => $purchasesTotal,
+                'net' => $salesTotal - $purchasesTotal,
+            ];
+        });
+
+        $summary = [
+            'salesTotal' => $sales->sum('total'),
+            'salesCount' => $sales->count(),
+            'purchasesTotal' => $purchases->sum('total'),
+            'purchasesCount' => $purchases->count(),
+        ];
+        $summary['net'] = $summary['salesTotal'] - $summary['purchasesTotal'];
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('purchase-sale-summary.csv', [__('Month'), __('Sales'), __('Purchases'), __('Net')],
+                $rows->map(fn ($r) => [$r['month']->format('Y-m'), number_format($r['sales'], 2, '.', ''), number_format($r['purchases'], 2, '.', ''), number_format($r['net'], 2, '.', '')]));
+        }
+
+        return view('user.reports.purchase-sale-summary', [
+            'company' => $company,
+            'period' => $period,
+            'rows' => $rows,
+        ] + $summary);
+    }
+
+    /**
      * "i need to track project expenses from operating account" — an
      * operator moving cash from an operating bank account into a
      * separate custody/petty-cash account (both already modeled as
