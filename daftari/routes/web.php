@@ -105,7 +105,11 @@ use App\Http\Controllers\User\OwnerReimbursementController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\AdvanceCreditController;
 use App\Http\Controllers\User\PrepaymentInvoiceController;
+use App\Http\Controllers\User\ProjectBoqItemController;
+use App\Http\Controllers\User\ProjectBudgetLineController;
 use App\Http\Controllers\User\ProjectController;
+use App\Http\Controllers\User\ProjectCostController;
+use App\Http\Controllers\User\ProjectTaskController;
 use App\Http\Controllers\User\ProjectCashFlowController;
 use App\Http\Controllers\User\CompanyLetterController;
 use App\Http\Controllers\User\MachineryAssetController;
@@ -817,6 +821,21 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:projects')->group(function () {
         Route::post('projects/{project}/attachments', [ProjectController::class, 'storeAttachment'])->name('projects.attachments.store');
         Route::delete('projects/{project}/attachments/{attachment}', [ProjectController::class, 'destroyAttachment'])->name('projects.attachments.destroy');
+
+        Route::post('projects/{project}/boq-items', [ProjectBoqItemController::class, 'store'])->name('projects.boq-items.store');
+        Route::put('projects/{project}/boq-items/{boqItem}', [ProjectBoqItemController::class, 'update'])->name('projects.boq-items.update');
+        Route::delete('projects/{project}/boq-items/{boqItem}', [ProjectBoqItemController::class, 'destroy'])->name('projects.boq-items.destroy');
+
+        Route::post('projects/{project}/budget-lines', [ProjectBudgetLineController::class, 'store'])->name('projects.budget-lines.store');
+        Route::post('projects/{project}/budget-lines/{budgetLine}/approve', [ProjectBudgetLineController::class, 'approve'])->name('projects.budget-lines.approve');
+        Route::delete('projects/{project}/budget-lines/{budgetLine}', [ProjectBudgetLineController::class, 'destroy'])->name('projects.budget-lines.destroy');
+
+        Route::post('projects/{project}/costs', [ProjectCostController::class, 'store'])->name('projects.costs.store');
+        Route::delete('projects/{project}/costs/{cost}', [ProjectCostController::class, 'destroy'])->name('projects.costs.destroy');
+
+        Route::post('projects/{project}/tasks', [ProjectTaskController::class, 'store'])->name('projects.tasks.store');
+        Route::put('projects/{project}/tasks/{task}', [ProjectTaskController::class, 'update'])->name('projects.tasks.update');
+        Route::delete('projects/{project}/tasks/{task}', [ProjectTaskController::class, 'destroy'])->name('projects.tasks.destroy');
     });
 
     Route::middleware('role:owner')->group(function () {

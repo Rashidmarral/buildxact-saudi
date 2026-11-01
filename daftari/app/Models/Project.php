@@ -17,6 +17,8 @@ class Project extends Model
 
     public const BILLING_TYPES = ['no_billing', 'fixed_price', 'time_and_material', 'milestones', 'progress_retention', 'recurring_amc', 'per_unit_sale'];
 
+    public const COST_HEADS = ['labour', 'materials', 'subcontracts', 'equipment', 'expenses', 'other'];
+
     protected $fillable = [
         'company_id', 'code', 'name', 'name_ar', 'type', 'status', 'client_id',
         'business_location_id', 'project_manager_id', 'billing_type', 'default_tax_rate_id',
@@ -165,7 +167,8 @@ class Project extends Model
     public function costs(): float
     {
         return (float) $this->expenses()->sum('amount')
-            + (float) $this->bills()->whereNotIn('status', ['draft', 'void'])->sum('total');
+            + (float) $this->bills()->whereNotIn('status', ['draft', 'void'])->sum('total')
+            + (float) $this->projectCosts()->sum('amount');
     }
 
     public function margin(): float
@@ -238,5 +241,31 @@ class Project extends Model
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    public function boqItems(): HasMany
+    {
+        return $this->hasMany(ProjectBoqItem::class)->orderBy('sort_order');
+    }
+
+    public function budgetLines(): HasMany
+    {
+        return $this->hasMany(ProjectBudgetLine::class)->orderBy('sort_order');
+    }
+
+    /**
+     * The project's own cost ledger (manual entries, machinery usage,
+     * timesheets, material issues — see the migration's docblock).
+     * Named projectCosts() to avoid colliding with costs() below, which
+     * is the total-project-cost calculation this ledger feeds into.
+     */
+    public function projectCosts(): HasMany
+    {
+        return $this->hasMany(ProjectCost::class)->orderByDesc('cost_date');
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(ProjectTask::class)->orderBy('sort_order');
     }
 }

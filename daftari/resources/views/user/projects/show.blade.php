@@ -32,6 +32,10 @@
 
 <div class="flex flex-wrap items-center gap-2 mb-6 text-sm" id="project-tabs">
     <button type="button" data-tab="overview" class="project-tab rounded-lg px-3 py-1.5 bg-slate-900 text-white">{{ __('Overview') }}</button>
+    <button type="button" data-tab="tasks" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Tasks') }} ({{ $project->tasks->count() }})</button>
+    <button type="button" data-tab="boq" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('BOQ') }} ({{ $project->boqItems->count() }})</button>
+    <button type="button" data-tab="budget" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Budget') }} ({{ $project->budgetLines->count() }})</button>
+    <button type="button" data-tab="costs" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Costs') }} ({{ $project->projectCosts->count() }})</button>
     <button type="button" data-tab="documents" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Documents') }} ({{ $project->attachments->count() }})</button>
 </div>
 
@@ -173,6 +177,307 @@
                 </table>
             @endif
         </div>
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="tasks">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Add a task') }}</h3>
+        <form method="POST" action="{{ route('app.projects.tasks.store', $project) }}" class="grid sm:grid-cols-4 gap-3 items-end">
+            @csrf
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Title') }}</label>
+                <input type="text" name="title" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Assignee') }}</label>
+                <select name="assignee_employee_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    <option value="">{{ __('Unassigned') }}</option>
+                    @foreach ($employees as $employee)
+                        <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Due date') }}</label>
+                <input type="date" name="due_date" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-4">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add task') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->tasks->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No tasks yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Title') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Assignee') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Due date') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->tasks as $task)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-900">{{ $task->title }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $task->assignee?->full_name ?? '—' }}</td>
+                            <td class="px-6 py-3 {{ $task->isOverdue() ? 'text-red-600' : 'text-slate-500' }}">{{ optional($task->due_date)->format('Y-m-d') ?? '—' }}</td>
+                            <td class="px-6 py-3">
+                                <form method="POST" action="{{ route('app.projects.tasks.update', [$project, $task]) }}" class="inline">
+                                    @csrf @method('PUT')
+                                    <select name="status" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-xs">
+                                        @foreach (['open' => __('Open'), 'in_progress' => __('In progress'), 'completed' => __('Completed'), 'cancelled' => __('Cancelled')] as $value => $label)
+                                            <option value="{{ $value }}" @selected($task->status === $value)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </form>
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <form method="POST" action="{{ route('app.projects.tasks.destroy', [$project, $task]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="boq">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Add a BOQ item') }}</h3>
+        <form method="POST" action="{{ route('app.projects.boq-items.store', $project) }}" class="grid sm:grid-cols-6 gap-3 items-end">
+            @csrf
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Item no.') }}</label>
+                <input type="text" name="item_no" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Description') }}</label>
+                <input type="text" name="description" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Unit') }}</label>
+                <select name="unit_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    <option value="">{{ __('—') }}</option>
+                    @foreach ($units as $unit)
+                        <option value="{{ $unit->id }}">{{ $unit->label() }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Quantity') }}</label>
+                <input type="number" step="0.01" min="0.01" name="quantity" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Rate') }}</label>
+                <input type="number" step="0.01" min="0" name="rate" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-6">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add item') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->boqItems->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No BOQ items yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Item') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Description') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Qty') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Rate') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Amount') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('% complete') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->boqItems as $item)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-500">{{ $item->item_no ?: '—' }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ $item->description }} @if ($item->unit)<span class="text-slate-400">({{ $item->unit->label() }})</span>@endif</td>
+                            <td class="px-6 py-3 text-end">{{ number_format($item->quantity, 2) }}</td>
+                            <td class="px-6 py-3 text-end">{{ \App\Support\Money::format($item->rate) }}</td>
+                            <td class="px-6 py-3 text-end font-medium">{{ \App\Support\Money::format($item->amount()) }}</td>
+                            <td class="px-6 py-3 text-end">
+                                <form method="POST" action="{{ route('app.projects.boq-items.update', [$project, $item]) }}" class="flex items-center justify-end gap-1">
+                                    @csrf @method('PUT')
+                                    <input type="number" step="0.01" min="0" name="executed_quantity" value="{{ $item->executed_quantity }}" class="w-20 rounded-lg border border-slate-200 text-xs text-end">
+                                    <input type="hidden" name="billed_quantity" value="{{ $item->billed_quantity }}">
+                                    <button type="submit" class="text-xs text-brand-700 hover:underline">{{ __('Save') }}</button>
+                                </form>
+                                <p class="text-xs text-slate-400 mt-0.5">{{ $item->percentComplete() }}%</p>
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <form method="POST" action="{{ route('app.projects.boq-items.destroy', [$project, $item]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="budget">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Add a budget line') }}</h3>
+        <form method="POST" action="{{ route('app.projects.budget-lines.store', $project) }}" class="grid sm:grid-cols-4 gap-3 items-end">
+            @csrf
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Cost head') }}</label>
+                <select name="cost_head" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    @foreach (\App\Models\Project::COST_HEADS as $head)
+                        <option value="{{ $head }}">{{ __(ucfirst($head)) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Description') }}</label>
+                <input type="text" name="description" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Budgeted amount') }}</label>
+                <input type="number" step="0.01" min="0" name="budgeted_amount" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-4">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add line') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->budgetLines->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No budget lines yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Cost head') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Description') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Budgeted') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Actual') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->budgetLines as $line)
+                        @php($actual = $line->actualAmount())
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-900">{{ ucfirst($line->cost_head) }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $line->description ?: '—' }}</td>
+                            <td class="px-6 py-3 text-end">{{ \App\Support\Money::format($line->budgeted_amount) }}</td>
+                            <td class="px-6 py-3 text-end {{ $actual > $line->budgeted_amount ? 'text-red-600' : 'text-slate-700' }}">{{ \App\Support\Money::format($actual) }}</td>
+                            <td class="px-6 py-3">
+                                @if ($line->status === 'approved')
+                                    <span class="inline-block rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">{{ __('Approved') }}</span>
+                                @else
+                                    <form method="POST" action="{{ route('app.projects.budget-lines.approve', [$project, $line]) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Approve') }}</button>
+                                    </form>
+                                @endif
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <form method="POST" action="{{ route('app.projects.budget-lines.destroy', [$project, $line]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="costs">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Add a cost') }}</h3>
+        <form method="POST" action="{{ route('app.projects.costs.store', $project) }}" class="grid sm:grid-cols-6 gap-3 items-end">
+            @csrf
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Cost head') }}</label>
+                <select name="cost_head" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    @foreach (\App\Models\Project::COST_HEADS as $head)
+                        <option value="{{ $head }}">{{ __(ucfirst($head)) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Date') }}</label>
+                <input type="date" name="cost_date" required value="{{ now()->toDateString() }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Description') }}</label>
+                <input type="text" name="description" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Amount') }}</label>
+                <input type="number" step="0.01" min="0" name="amount" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="billable" value="1" checked id="cost-billable" class="rounded border-slate-300">
+                <label for="cost-billable" class="text-xs text-slate-500">{{ __('Billable') }}</label>
+            </div>
+            <div class="sm:col-span-6">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add cost') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->projectCosts->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No costs logged yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Cost head') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Description') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Amount') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Billable') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->projectCosts as $cost)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-500">{{ $cost->cost_date->format('Y-m-d') }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ ucfirst($cost->cost_head) }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ $cost->description }}</td>
+                            <td class="px-6 py-3 text-end font-medium">{{ \App\Support\Money::format($cost->amount) }}</td>
+                            <td class="px-6 py-3">{{ $cost->billable ? __('Yes') : __('No') }}</td>
+                            <td class="px-6 py-3 text-right">
+                                <form method="POST" action="{{ route('app.projects.costs.destroy', [$project, $cost]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
     </div>
 </div>
 

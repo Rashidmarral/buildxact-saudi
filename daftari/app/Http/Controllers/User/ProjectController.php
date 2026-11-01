@@ -65,10 +65,15 @@ class ProjectController extends Controller
         $project->load(
             'client', 'invoices.client', 'expenses.category',
             'quotations.client', 'purchaseOrders.supplier', 'bills.supplier',
-            'projectManager', 'businessLocation', 'costCenter', 'attachments.uploader'
+            'projectManager', 'businessLocation', 'costCenter', 'attachments.uploader',
+            'boqItems.unit', 'budgetLines.creator', 'projectCosts.creator', 'tasks.assignee'
         );
 
-        return view('user.projects.show', compact('project'));
+        return view('user.projects.show', [
+            'project' => $project,
+            'units' => \App\Models\Unit::orderBy('name')->get(),
+            'employees' => \App\Models\Employee::where('status', 'active')->orderBy('full_name')->get(),
+        ]);
     }
 
     public function edit(Project $project)
