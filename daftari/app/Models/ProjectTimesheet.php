@@ -97,6 +97,7 @@ class ProjectTimesheet extends Model
         } else {
             $cost = $this->project->projectCosts()->create($attributes);
             $this->update(['project_cost_id' => $cost->id]);
+            $this->setRelation('projectCost', $cost);
         }
     }
 }

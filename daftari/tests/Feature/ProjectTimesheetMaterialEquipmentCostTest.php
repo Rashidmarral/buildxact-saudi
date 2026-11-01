@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
+use App\Models\AccountMapping;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Item;
@@ -30,7 +32,11 @@ class ProjectTimesheetMaterialEquipmentCostTest extends TestCase
 
     private function makeCompany(): Company
     {
-        return Company::create(['name' => 'Dynamic Core Contracting', 'slug' => 'dcc-'.uniqid()]);
+        $company = Company::create(['name' => 'Dynamic Core Contracting', 'slug' => 'dcc-'.uniqid()]);
+        Account::seedSystemAccounts($company->id);
+        AccountMapping::seedDefaults($company->id);
+
+        return $company;
     }
 
     private function makeOwner(Company $company): User

@@ -79,6 +79,17 @@ class Account extends Model
             // Operating Expenses so it's never swept into a VAT/Zakat
             // deductible-expense figure.
             ['code' => '5900', 'name' => 'Non-Deductible Expenses', 'name_ar' => 'مصاريف غير قابلة للخصم', 'type' => 'expense', 'normal_balance' => 'debit'],
+            // Contra-expense: a project's own cost ledger (equipment
+            // deployments, approved timesheets, manual "add cost" entries
+            // — see LedgerPostingService::postProjectCostAllocation())
+            // attributes an INTERNAL cost to a project's Cost of Goods
+            // Sold for job-costing visibility, without creating a second
+            // real expense alongside the one already posted elsewhere
+            // (machinery depreciation, payroll). Crediting this instead of
+            // reducing COGS directly keeps both sides visible: how much
+            // was allocated to projects, and that the company-wide P&L
+            // net effect of every such allocation is always zero.
+            ['code' => '5950', 'name' => 'Internal Cost Recovery', 'name_ar' => 'استرداد التكلفة الداخلية', 'type' => 'expense', 'normal_balance' => 'credit'],
             ['code' => '9000', 'name' => 'Rounding', 'name_ar' => 'فروقات التقريب', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '9100', 'name' => 'FX Gain', 'name_ar' => 'أرباح فروقات العملة', 'type' => 'revenue', 'normal_balance' => 'credit'],
             ['code' => '9200', 'name' => 'FX Loss', 'name_ar' => 'خسائر فروقات العملة', 'type' => 'expense', 'normal_balance' => 'debit'],

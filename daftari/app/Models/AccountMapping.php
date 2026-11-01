@@ -45,6 +45,7 @@ class AccountMapping extends Model
             'FX_LOSSES' => ['label' => 'FX losses', 'default_code' => '9200'],
             'INVENTORY_ADJUSTMENT' => ['label' => 'Inventory adjustment', 'default_code' => '5200'],
             'INVENTORY_ASSET' => ['label' => 'Inventory asset', 'default_code' => '1400'],
+            'INTERNAL_COST_RECOVERY' => ['label' => 'Internal cost recovery (project cost allocation)', 'default_code' => '5950'],
             'DEFAULT_OPERATING_EXPENSES' => ['label' => 'Default operating expenses', 'default_code' => '5100'],
             'OTHER_INCOME_DEFAULT' => ['label' => 'Other income (default)', 'default_code' => '4200'],
             'SALARY_EXPENSE' => ['label' => 'Salaries & wages expense', 'default_code' => '5350'],

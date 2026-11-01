@@ -78,16 +78,20 @@ class MachineryProjectDeploymentController extends Controller
         return redirect()->route('app.machinery.deployments.index')->with('status', __('Machine deployed on project.'));
     }
 
-    public function end(Request $request, MachineryProjectDeployment $deployment)
+    public function end(Request $request, MachineryProjectDeployment $deployment, \App\Services\Accounting\LedgerPostingService $ledger)
     {
         abort_unless($deployment->status === 'active', 404);
 
         $data = $request->validate(['end_date' => ['required', 'date']]);
 
-        DB::transaction(function () use ($deployment, $data) {
+        DB::transaction(function () use ($deployment, $data, $ledger) {
             $deployment->update(['status' => 'completed', 'end_date' => $data['end_date']]);
             $deployment->machinery->update(['status' => 'available']);
             $deployment->postCost();
+
+            if ($deployment->projectCost) {
+                $ledger->postProjectCostAllocation($deployment->projectCost);
+            }
         });
 
         AuditLog::record('machinery.deployment.end', $deployment, __('Ended deployment of :code', ['code' => $deployment->machinery->asset_code]));

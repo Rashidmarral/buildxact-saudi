@@ -6,14 +6,11 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Material issued from real inventory stock to a project. Reduces the
- * item's on-hand quantity (so stock reports stay accurate) and posts a
- * ProjectCost row (cost_head 'materials') for project margin purposes.
- * Deliberately does NOT post its own GL/journal entry for the stock
- * value change — doing that correctly (a dedicated job-cost/COGS
- * account distinct from StockAdjustment's generic inventory-adjustment
- * account) is a larger piece of work the user hasn't asked for yet;
- * this phase tracks project cost/margin only, same scope boundary as
- * the equipment and timesheet costs in this same migration batch.
+ * item's on-hand quantity (so stock reports stay accurate), posts a
+ * ProjectCost row (cost_head 'materials') for project margin purposes,
+ * and posts a real Dr COGS / Cr Inventory Asset journal entry — see
+ * LedgerPostingService::postProjectMaterialIssue(), added once the user
+ * asked for GL posting on every project cost source.
  */
 return new class extends Migration
 {

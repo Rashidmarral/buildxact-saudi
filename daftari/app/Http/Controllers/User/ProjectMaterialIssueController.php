@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\ItemStock;
 use App\Models\Project;
 use App\Models\ProjectMaterialIssue;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,12 +16,17 @@ use Illuminate\Validation\Rule;
 /**
  * Hamly's project "Materials" tab: issuing stock to a project reduces
  * on-hand quantity and posts a ProjectCost (cost_head 'materials') for
- * margin tracking. See the project_material_issues migration's
- * docblock for why this deliberately doesn't post its own GL entry.
+ * margin tracking, plus a real Dr COGS / Cr Inventory journal entry via
+ * LedgerPostingService::postProjectMaterialIssue() — genuine stock
+ * consumption, unlike equipment/labour costs, which allocate an expense
+ * already posted elsewhere (see postProjectCostAllocation()'s docblock).
+ * The GL entry is keyed to the Issue itself, not the linked ProjectCost
+ * row, so postProjectCostAllocation() is never also called for it —
+ * that would double-post the same economic event.
  */
 class ProjectMaterialIssueController extends Controller
 {
-    public function store(Request $request, Project $project)
+    public function store(Request $request, Project $project, LedgerPostingService $ledger)
     {
         $companyId = Auth::user()->company_id;
 
@@ -32,7 +38,7 @@ class ProjectMaterialIssueController extends Controller
             'issued_at' => ['required', 'date'],
         ]);
 
-        DB::transaction(function () use ($data, $project) {
+        DB::transaction(function () use ($data, $project, $ledger) {
             $item = Item::findOrFail($data['item_id']);
             $unitCost = (float) ($item->purchase_price ?? 0);
             $total = round($unitCost * (float) $data['quantity'], 2);
@@ -63,16 +69,18 @@ class ProjectMaterialIssueController extends Controller
             ]);
 
             $issue->update(['project_cost_id' => $cost->id]);
+
+            $ledger->postProjectMaterialIssue($issue);
         });
 
         return back()->with('status', __('Material issued.'));
     }
 
-    public function destroy(Project $project, ProjectMaterialIssue $materialIssue)
+    public function destroy(Project $project, ProjectMaterialIssue $materialIssue, LedgerPostingService $ledger)
     {
         abort_unless($materialIssue->project_id === $project->id, 404);
 
-        DB::transaction(function () use ($materialIssue) {
+        DB::transaction(function () use ($project, $materialIssue, $ledger) {
             if ($materialIssue->warehouse_id) {
                 $stock = ItemStock::firstOrCreate(
                     ['item_id' => $materialIssue->item_id, 'warehouse_id' => $materialIssue->warehouse_id],
@@ -81,6 +89,7 @@ class ProjectMaterialIssueController extends Controller
                 $stock->increment('quantity', $materialIssue->quantity);
             }
 
+            $ledger->deletePosting($project->company, 'project_material_issue', $materialIssue->id);
             $materialIssue->projectCost?->delete();
             $materialIssue->delete();
         });

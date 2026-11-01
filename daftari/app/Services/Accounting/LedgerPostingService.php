@@ -22,6 +22,8 @@ use App\Models\JournalEntry;
 use App\Models\PaymentVoucher;
 use App\Models\PayrollRun;
 use App\Models\PosSale;
+use App\Models\ProjectCost;
+use App\Models\ProjectMaterialIssue;
 use App\Models\PurchaseReturn;
 use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
@@ -1085,6 +1087,74 @@ class LedgerPostingService
             ];
 
         return $this->post($company, 'stock_adjustment', $adjustment->id, __('Stock adjustment: :item', ['item' => $adjustment->item->name]), $adjustment->date, $lines);
+    }
+
+    /**
+     * Material issued from real inventory to a project (Projects module
+     * Phase 2) genuinely reduces on-hand stock — unlike equipment/labour
+     * project costs below, nothing else has already recorded this
+     * consumption, so this is a real COGS/Inventory entry, the same pair
+     * postInvoiceIssued() uses for a sold, stock-tracked item, valued the
+     * same way (standard cost — purchase_price). Only posts when stock
+     * actually moved (a warehouse was selected); a quantity issued with
+     * no warehouse never touched Inventory, so there is nothing to
+     * relieve.
+     */
+    public function postProjectMaterialIssue(ProjectMaterialIssue $issue): ?JournalEntry
+    {
+        if (! $issue->warehouse_id || (float) $issue->total <= 0) {
+            return null;
+        }
+
+        $company = $issue->project->company;
+        $cogs = $this->account($company, 'COGS_DEFAULT');
+        $inventoryAsset = $this->account($company, 'INVENTORY_ASSET');
+        $this->requireAccounts(['COGS_DEFAULT' => $cogs, 'INVENTORY_ASSET' => $inventoryAsset], 'project material issue');
+
+        $lines = [
+            ['account_id' => $cogs->id, 'debit' => (float) $issue->total, 'memo' => __('Material issued to :project', ['project' => $issue->project->name])],
+            ['account_id' => $inventoryAsset->id, 'credit' => (float) $issue->total],
+        ];
+
+        return $this->post($company, 'project_material_issue', $issue->id, __('Material issue: :item', ['item' => $issue->item->name]), $issue->issued_at, $lines);
+    }
+
+    /**
+     * Equipment deployment cost, approved timesheet labour cost, and
+     * manual "Add cost" entries (Projects module Phases 1-2) all land in
+     * a project's own ProjectCost ledger before this ever runs. None of
+     * them is a NEW real expense — the machine's actual cost already
+     * posts as depreciation (FixedAssetLifecycleService) and the
+     * employee's actual wage already posts through Payroll; this is
+     * purely an internal allocation that attributes part of an expense
+     * already on the books to a specific project's Cost of Goods Sold,
+     * for job-costing visibility. Crediting the contra account
+     * INTERNAL_COST_RECOVERY instead of the original expense account
+     * keeps the allocation visible both ways without ever changing net
+     * income — the debit and credit sit on opposite sides of the same
+     * P&L expense section, and its effect is always zero company-wide,
+     * regardless of what (if anything) already recorded the same cost
+     * elsewhere. That zero-net-income property is why this one posting
+     * is safe to apply uniformly to every ProjectCost row, whatever
+     * created it.
+     */
+    public function postProjectCostAllocation(ProjectCost $cost): ?JournalEntry
+    {
+        if ((float) $cost->amount <= 0) {
+            return null;
+        }
+
+        $company = $cost->project->company;
+        $cogs = $this->account($company, 'COGS_DEFAULT');
+        $recovery = $this->account($company, 'INTERNAL_COST_RECOVERY');
+        $this->requireAccounts(['COGS_DEFAULT' => $cogs, 'INTERNAL_COST_RECOVERY' => $recovery], 'project cost allocation');
+
+        $lines = [
+            ['account_id' => $cogs->id, 'debit' => (float) $cost->amount, 'memo' => __(':description — :project', ['description' => $cost->description, 'project' => $cost->project->name])],
+            ['account_id' => $recovery->id, 'credit' => (float) $cost->amount],
+        ];
+
+        return $this->post($company, 'project_cost', $cost->id, __('Project cost allocated: :description', ['description' => $cost->description]), $cost->cost_date, $lines);
     }
 
     // ---- Cash & banks ----------------------------------------------------
