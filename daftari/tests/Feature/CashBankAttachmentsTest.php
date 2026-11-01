@@ -53,7 +53,7 @@ class CashBankAttachmentsTest extends TestCase
         $account = $this->makeBankAccount($company);
         $voucher = ReceiptVoucher::create([
             'company_id' => $company->id, 'bank_account_id' => $account->id, 'party_type' => 'manual',
-            'voucher_number' => 'RV-1', 'date' => now()->toDateString(), 'payer_name' => 'Client',
+            'voucher_number' => 'RV-1', 'date' => now()->subYears(7)->toDateString(), 'payer_name' => 'Client',
             'amount' => 1000, 'method' => 'cash', 'status' => 'issued',
         ]);
 
@@ -82,7 +82,7 @@ class CashBankAttachmentsTest extends TestCase
         $account = $this->makeBankAccount($company);
         $voucher = PaymentVoucher::create([
             'company_id' => $company->id, 'bank_account_id' => $account->id, 'party_type' => 'manual',
-            'voucher_number' => 'PV-1', 'date' => now()->toDateString(), 'payee_name' => 'Supplier',
+            'voucher_number' => 'PV-1', 'date' => now()->subYears(7)->toDateString(), 'payee_name' => 'Supplier',
             'amount' => 500, 'method' => 'cash', 'status' => 'issued',
         ]);
 
@@ -109,7 +109,7 @@ class CashBankAttachmentsTest extends TestCase
         $cash = $this->makeBankAccount($company, 'cash');
         $transfer = BankTransfer::create([
             'company_id' => $company->id, 'from_bank_account_id' => $bank->id, 'to_bank_account_id' => $cash->id,
-            'amount' => 2000, 'date' => now()->toDateString(), 'created_by' => $owner->id,
+            'amount' => 2000, 'date' => now()->subYears(7)->toDateString(), 'created_by' => $owner->id,
         ]);
 
         $this->actingAs($owner)->get(route('app.bank-transfers.show', $transfer))
@@ -156,6 +156,27 @@ class CashBankAttachmentsTest extends TestCase
         $this->actingAs($owner)->post(route('app.bank-transfers.attachments.store', $transfer), [
             'file' => UploadedFile::fake()->create('malicious.exe', 10),
         ])->assertSessionHasErrors('file');
+    }
+
+    public function test_an_attachment_cannot_be_removed_from_an_issued_voucher_within_the_retention_window(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $account = $this->makeBankAccount($company);
+        $voucher = ReceiptVoucher::create([
+            'company_id' => $company->id, 'bank_account_id' => $account->id, 'party_type' => 'manual',
+            'voucher_number' => 'RV-3', 'date' => now()->subYear()->toDateString(), 'payer_name' => 'Client',
+            'amount' => 100, 'method' => 'cash', 'status' => 'issued',
+        ]);
+        $this->actingAs($owner)->post(route('app.receipt-vouchers.attachments.store', $voucher), [
+            'file' => UploadedFile::fake()->image('receipt.jpg'),
+        ]);
+        $attachment = $voucher->attachments()->first();
+
+        $response = $this->actingAs($owner)->delete(route('app.receipt-vouchers.attachments.destroy', [$voucher, $attachment]));
+
+        $response->assertSessionHasErrors('attachment');
+        $this->assertDatabaseHas('attachments', ['id' => $attachment->id]);
     }
 
     public function test_a_company_cannot_remove_another_companys_attachment(): void

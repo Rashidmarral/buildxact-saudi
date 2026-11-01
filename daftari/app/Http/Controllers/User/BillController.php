@@ -418,6 +418,10 @@ class BillController extends Controller
     {
         abort_unless($attachment->attachable_type === Bill::class && $attachment->attachable_id === $bill->id, 404);
 
+        if ($bill->status === 'posted' && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($bill->bill_date)) {
+            return back()->withErrors(['attachment' => __('This bill is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
 

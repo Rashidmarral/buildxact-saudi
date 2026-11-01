@@ -956,6 +956,10 @@ class InvoiceController extends Controller
     {
         abort_unless($attachment->attachable_type === Invoice::class && $attachment->attachable_id === $invoice->id, 404);
 
+        if (! in_array($invoice->status, ['draft', 'cancelled'], true) && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($invoice->issue_date)) {
+            return back()->withErrors(['attachment' => __('This invoice is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
 

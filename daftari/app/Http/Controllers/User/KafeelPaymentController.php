@@ -144,6 +144,10 @@ class KafeelPaymentController extends Controller
     {
         abort_unless($attachment->attachable_type === KafeelPayment::class && $attachment->attachable_id === $kafeelPayment->id, 404);
 
+        if (\App\Support\RecordRetentionPolicy::isWithinRetentionWindow($kafeelPayment->payment_date)) {
+            return back()->withErrors(['attachment' => __('This payment is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
 

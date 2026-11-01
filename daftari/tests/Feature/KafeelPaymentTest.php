@@ -162,7 +162,7 @@ class KafeelPaymentTest extends TestCase
         $owner = $this->makeOwner($company);
         $this->installModule($company);
         $payment = KafeelPayment::create([
-            'company_id' => $company->id, 'payment_date' => now()->toDateString(), 'category' => 'other',
+            'company_id' => $company->id, 'payment_date' => now()->subYears(7)->toDateString(), 'category' => 'other',
             'description' => 'Fine', 'amount' => 150, 'created_by' => $owner->id,
         ]);
 
@@ -179,6 +179,26 @@ class KafeelPaymentTest extends TestCase
             ->assertSessionDoesntHaveErrors();
 
         $this->assertDatabaseMissing('attachments', ['id' => $attachment->id]);
+    }
+
+    public function test_an_attachment_cannot_be_removed_from_a_payment_within_the_retention_window(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $this->installModule($company);
+        $payment = KafeelPayment::create([
+            'company_id' => $company->id, 'payment_date' => now()->subYear()->toDateString(), 'category' => 'other',
+            'description' => 'Fine', 'amount' => 150, 'created_by' => $owner->id,
+        ]);
+        $this->actingAs($owner)->post(route('app.kafeel-payments.attachments.store', $payment), [
+            'file' => UploadedFile::fake()->image('receipt.jpg'),
+        ]);
+        $attachment = $payment->attachments()->first();
+
+        $response = $this->actingAs($owner)->delete(route('app.kafeel-payments.attachments.destroy', [$payment, $attachment]));
+
+        $response->assertSessionHasErrors('attachment');
+        $this->assertDatabaseHas('attachments', ['id' => $attachment->id]);
     }
 
     // ------------------------------------------------------------------

@@ -533,6 +533,10 @@ class PaymentVoucherController extends Controller
     {
         abort_unless($attachment->attachable_type === PaymentVoucher::class && $attachment->attachable_id === $paymentVoucher->id, 404);
 
+        if ($paymentVoucher->status === 'issued' && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($paymentVoucher->date)) {
+            return back()->withErrors(['attachment' => __('This payment voucher is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
 

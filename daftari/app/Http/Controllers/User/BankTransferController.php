@@ -193,6 +193,10 @@ class BankTransferController extends Controller
     {
         abort_unless($attachment->attachable_type === BankTransfer::class && $attachment->attachable_id === $bankTransfer->id, 404);
 
+        if ($bankTransfer->status === 'issued' && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($bankTransfer->date)) {
+            return back()->withErrors(['attachment' => __('This transfer is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
 

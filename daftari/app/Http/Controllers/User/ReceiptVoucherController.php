@@ -585,6 +585,10 @@ class ReceiptVoucherController extends Controller
     {
         abort_unless($attachment->attachable_type === ReceiptVoucher::class && $attachment->attachable_id === $receiptVoucher->id, 404);
 
+        if ($receiptVoucher->status === 'issued' && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($receiptVoucher->date)) {
+            return back()->withErrors(['attachment' => __('This receipt voucher is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
 

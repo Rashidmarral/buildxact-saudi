@@ -466,6 +466,10 @@ class PurchaseOrderController extends Controller
     {
         abort_unless($attachment->attachable_type === PurchaseOrder::class && $attachment->attachable_id === $purchaseOrder->id, 404);
 
+        if (in_array($purchaseOrder->status, ['approved', 'partially_billed', 'converted'], true) && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($purchaseOrder->order_date)) {
+            return back()->withErrors(['attachment' => __('This purchase order is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
         Storage::disk('public')->delete($attachment->path);
         $attachment->delete();
 
