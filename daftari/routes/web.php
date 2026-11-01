@@ -814,6 +814,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::resource('salespersons', SalespersonController::class)->except(['show'])->middleware('permission:salespersons');
 
     Route::resource('projects', ProjectController::class)->middleware('permission:projects');
+    Route::middleware('permission:projects')->group(function () {
+        Route::post('projects/{project}/attachments', [ProjectController::class, 'storeAttachment'])->name('projects.attachments.store');
+        Route::delete('projects/{project}/attachments/{attachment}', [ProjectController::class, 'destroyAttachment'])->name('projects.attachments.destroy');
+    });
 
     Route::middleware('role:owner')->group(function () {
         Route::get('billing', [BillingController::class, 'index'])->name('billing.index');

@@ -7,14 +7,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Project extends Model
 {
     use BelongsToCompany;
 
+    public const TYPES = ['internal', 'service_tm', 'construction_contract', 'real_estate_development', 'maintenance_amc'];
+
+    public const BILLING_TYPES = ['no_billing', 'fixed_price', 'time_and_material', 'milestones', 'progress_retention', 'recurring_amc', 'per_unit_sale'];
+
     protected $fillable = [
-        'company_id', 'code', 'name', 'name_ar', 'status', 'client_id',
-        'start_date', 'end_date', 'target_revenue', 'cost_ceiling', 'created_by',
+        'company_id', 'code', 'name', 'name_ar', 'type', 'status', 'client_id',
+        'business_location_id', 'project_manager_id', 'billing_type', 'default_tax_rate_id',
+        'start_date', 'end_date', 'target_revenue', 'cost_ceiling', 'contract_value',
+        'retention_percent', 'retention_calculated_on', 'advance_recovery_percent',
+        'cost_center_id', 'site_address', 'city', 'description', 'created_by',
     ];
 
     protected function casts(): array
@@ -28,6 +36,26 @@ class Project extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function businessLocation(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'business_location_id');
+    }
+
+    public function projectManager(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'project_manager_id');
+    }
+
+    public function defaultTaxRate(): BelongsTo
+    {
+        return $this->belongsTo(TaxRate::class, 'default_tax_rate_id');
+    }
+
+    public function costCenter(): BelongsTo
+    {
+        return $this->belongsTo(CostCenter::class);
     }
 
     public function creator(): BelongsTo
@@ -205,5 +233,10 @@ class Project extends Model
     public function netCashPosition(): float
     {
         return $this->cashReceived() - $this->cashPaid();
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 }
