@@ -12,7 +12,7 @@ class ProjectTimesheet extends Model
     protected $fillable = [
         'project_id', 'employee_id', 'task_id', 'work_date', 'description',
         'hours', 'overtime_hours', 'billable', 'bill_rate', 'cost_rate',
-        'status', 'project_cost_id', 'created_by',
+        'status', 'project_cost_id', 'invoice_id', 'invoiced_at', 'created_by',
     ];
 
     protected function casts(): array
@@ -20,6 +20,7 @@ class ProjectTimesheet extends Model
         return [
             'work_date' => 'date',
             'billable' => 'boolean',
+            'invoiced_at' => 'datetime',
         ];
     }
 
@@ -41,6 +42,11 @@ class ProjectTimesheet extends Model
     public function projectCost(): BelongsTo
     {
         return $this->belongsTo(ProjectCost::class);
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
     }
 
     public function creator(): BelongsTo

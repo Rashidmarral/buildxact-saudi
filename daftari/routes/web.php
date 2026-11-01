@@ -105,6 +105,7 @@ use App\Http\Controllers\User\OwnerReimbursementController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\AdvanceCreditController;
 use App\Http\Controllers\User\PrepaymentInvoiceController;
+use App\Http\Controllers\User\ProjectBillingController;
 use App\Http\Controllers\User\ProjectBoqItemController;
 use App\Http\Controllers\User\ProjectBudgetLineController;
 use App\Http\Controllers\User\ProjectController;
@@ -863,6 +864,11 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::delete('projects/{project}/work-orders/{workOrder}', [ProjectWorkOrderController::class, 'destroy'])->name('projects.work-orders.destroy');
 
         Route::get('dispatch-board', [DispatchBoardController::class, 'index'])->name('dispatch-board.index');
+
+        Route::post('projects/{project}/billing/progress', [ProjectBillingController::class, 'createProgress'])->name('projects.billing.progress');
+        Route::post('projects/{project}/billing/time-and-material', [ProjectBillingController::class, 'createTimeAndMaterial'])->name('projects.billing.time-and-material');
+        Route::post('projects/{project}/billing/fixed', [ProjectBillingController::class, 'createFixed'])->name('projects.billing.fixed');
+        Route::post('projects/{project}/billing/advance', [ProjectBillingController::class, 'createAdvance'])->name('projects.billing.advance');
     });
 
     Route::middleware('role:owner')->group(function () {

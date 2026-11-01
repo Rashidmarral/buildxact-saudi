@@ -309,4 +309,32 @@ class Project extends Model
     {
         return (float) $this->contract_value + (float) $this->changeOrders()->where('status', 'approved')->sum('amount');
     }
+
+    /**
+     * Phase 5 — Billing. The contract/fixed-price/recurring balance
+     * still to invoice: the effective contract value minus everything
+     * already billed (revenue() — non-draft/cancelled invoice totals,
+     * the same figure the Overview tab's margin already uses).
+     */
+    public function remainingContractBalance(): float
+    {
+        return max(0, round($this->effectiveContractValue() - $this->revenue(), 2));
+    }
+
+    public function retentionHeldTotal(): float
+    {
+        return (float) $this->invoices()->whereNotIn('status', ['draft', 'cancelled'])->sum('retention_amount');
+    }
+
+    /** Approved, billable timesheets not yet included on any invoice. */
+    public function uninvoicedBillableTimesheets(): HasMany
+    {
+        return $this->timesheets()->where('status', 'approved')->where('billable', true)->whereNull('invoiced_at');
+    }
+
+    /** Billable project-cost ledger rows not yet included on any invoice. */
+    public function uninvoicedBillableCosts(): HasMany
+    {
+        return $this->projectCosts()->where('billable', true)->whereNull('invoiced_at');
+    }
 }

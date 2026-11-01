@@ -63,6 +63,10 @@ class InvoiceController extends Controller
         $query = Invoice::with('client', 'salesperson')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->when($request->filled('salesperson_id'), fn ($q) => $q->where('salesperson_id', $request->integer('salesperson_id')))
+            // "Global Billing: cross-project filtered view of project
+            // invoices" — lets the project Billing tab link out to "every
+            // invoice for this project" without a second invoice list page.
+            ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->integer('project_id')))
             ->orderByDesc('issue_date')
             ->orderByDesc('id');
 

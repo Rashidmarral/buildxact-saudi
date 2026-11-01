@@ -62,15 +62,17 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
-        $project->load(
-            'client', 'invoices.client', 'expenses.category',
+        $project->load([
+            'client', 'invoices' => fn ($q) => $q->orderByDesc('issue_date')->with('client'),
+            'expenses.category',
             'quotations.client', 'purchaseOrders.supplier', 'bills.supplier',
             'projectManager', 'businessLocation', 'costCenter', 'attachments.uploader',
             'boqItems.unit', 'budgetLines.creator', 'projectCosts.creator', 'tasks.assignee',
             'timesheets.employee', 'materialIssues.item', 'machineryDeployments.machinery',
             'subcontracts.supplier', 'changeOrders', 'siteDiaryEntries',
-            'workOrders.technician', 'workOrders.machinery'
-        );
+            'workOrders.technician', 'workOrders.machinery',
+            'uninvoicedBillableTimesheets.employee', 'uninvoicedBillableCosts',
+        ]);
 
         return view('user.projects.show', [
             'project' => $project,
@@ -79,6 +81,7 @@ class ProjectController extends Controller
             'items' => \App\Models\Item::where('is_active', true)->orderBy('name')->get(),
             'warehouses' => \App\Models\Warehouse::orderBy('name')->get(),
             'machineryAssets' => \App\Models\MachineryAsset::orderBy('name')->get(),
+            'remainingBoq' => $project->boqItems->filter(fn ($item) => $item->remainingToBill() > 0.01),
         ]);
     }
 

@@ -9,7 +9,7 @@ class ProjectCost extends Model
 {
     protected $fillable = [
         'project_id', 'cost_head', 'cost_date', 'description', 'quantity',
-        'unit_cost', 'amount', 'billable', 'created_by', 'notes',
+        'unit_cost', 'amount', 'billable', 'created_by', 'notes', 'invoice_id', 'invoiced_at',
     ];
 
     protected function casts(): array
@@ -17,6 +17,7 @@ class ProjectCost extends Model
         return [
             'cost_date' => 'date',
             'billable' => 'boolean',
+            'invoiced_at' => 'datetime',
         ];
     }
 
@@ -28,5 +29,10 @@ class ProjectCost extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
     }
 }

@@ -43,6 +43,7 @@
     <button type="button" data-tab="change-orders" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Change Orders') }} ({{ $project->changeOrders->count() }})</button>
     <button type="button" data-tab="site-diary" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Site Diary') }} ({{ $project->siteDiaryEntries->count() }})</button>
     <button type="button" data-tab="work-orders" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Work Orders') }} ({{ $project->workOrders->count() }})</button>
+    <button type="button" data-tab="billing" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Billing') }} ({{ $project->invoices->count() }})</button>
     <button type="button" data-tab="documents" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Documents') }} ({{ $project->attachments->count() }})</button>
 </div>
 
@@ -973,6 +974,116 @@
                                     <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
                                 </form>
                             </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="billing">
+    <div class="grid sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <p class="text-xs text-slate-400">{{ __('Billed to date') }}</p>
+            <p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($project->revenue()) }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <p class="text-xs text-slate-400">{{ __('Retention held') }}</p>
+            <p class="text-xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($project->retentionHeldTotal()) }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <p class="text-xs text-slate-400">{{ __('Billing type') }}</p>
+            <p class="text-xl font-bold text-slate-900 mt-1">{{ $billingTypeLabels[$project->billing_type] ?? $project->billing_type }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        @if (in_array($project->billing_type, ['milestones', 'progress_retention', 'per_unit_sale']))
+            <h3 class="font-semibold text-slate-900 mb-4">{{ __('Outstanding progress (from BOQ)') }}</h3>
+            @if ($remainingBoq->isEmpty())
+                <p class="text-sm text-slate-500">{{ __('No BOQ item has unbilled progress right now.') }}</p>
+            @else
+                <table class="w-full text-sm mb-4">
+                    <tbody>
+                        @foreach ($remainingBoq as $item)
+                            @php($remainingQty = $item->executed_quantity - $item->billed_quantity)
+                            <tr class="border-b border-slate-50 last:border-0">
+                                <td class="py-2 text-slate-900">{{ $item->description }}</td>
+                                <td class="py-2 text-end text-slate-500">{{ number_format($remainingQty, 2) }} {{ __('@') }} {{ \App\Support\Money::format($item->rate) }}</td>
+                                <td class="py-2 text-end font-medium">{{ \App\Support\Money::format($remainingQty * $item->rate) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                <form method="POST" action="{{ route('app.projects.billing.progress', $project) }}" onsubmit="return confirm('{{ __('Create a draft invoice for all outstanding progress?') }}')">
+                    @csrf
+                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Bill outstanding progress') }}</button>
+                </form>
+            @endif
+        @elseif ($project->billing_type === 'time_and_material')
+            <h3 class="font-semibold text-slate-900 mb-4">{{ __('Outstanding time & material') }}</h3>
+            @if ($project->uninvoicedBillableTimesheets->isEmpty() && $project->uninvoicedBillableCosts->isEmpty())
+                <p class="text-sm text-slate-500">{{ __('Every approved timesheet and billable cost is already invoiced.') }}</p>
+            @else
+                <ul class="text-sm text-slate-600 mb-4 space-y-1">
+                    @foreach ($project->uninvoicedBillableTimesheets as $timesheet)
+                        <li>{{ $timesheet->employee?->full_name ?? __('Unassigned') }} — {{ $timesheet->totalHours() }}h {{ __('@') }} {{ \App\Support\Money::format($timesheet->bill_rate ?? 0) }}/h</li>
+                    @endforeach
+                    @foreach ($project->uninvoicedBillableCosts as $cost)
+                        <li>{{ $cost->description }} — {{ \App\Support\Money::format($cost->amount) }}</li>
+                    @endforeach
+                </ul>
+                <form method="POST" action="{{ route('app.projects.billing.time-and-material', $project) }}" onsubmit="return confirm('{{ __('Create a draft invoice for all outstanding time & material?') }}')">
+                    @csrf
+                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Bill outstanding time & material') }}</button>
+                </form>
+            @endif
+        @elseif (in_array($project->billing_type, ['fixed_price', 'recurring_amc']))
+            <h3 class="font-semibold text-slate-900 mb-4">{{ __('Remaining contract balance') }}</h3>
+            <p class="text-2xl font-bold text-slate-900 mb-4">{{ \App\Support\Money::format($project->remainingContractBalance()) }}</p>
+            @if ($project->remainingContractBalance() > 0)
+                <form method="POST" action="{{ route('app.projects.billing.fixed', $project) }}" onsubmit="return confirm('{{ __('Create a draft invoice for the remaining contract balance?') }}')">
+                    @csrf
+                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Bill remaining balance') }}</button>
+                </form>
+            @endif
+        @else
+            <p class="text-sm text-slate-500">{{ __('This project is not billed directly (billing type: No billing).') }}</p>
+        @endif
+    </div>
+
+    @if ($project->billing_type !== 'no_billing')
+        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+            <h3 class="font-semibold text-slate-900 mb-4">{{ __('Advance invoice') }}</h3>
+            <form method="POST" action="{{ route('app.projects.billing.advance', $project) }}" class="flex items-end gap-3">
+                @csrf
+                <div>
+                    <label class="block text-xs text-slate-500">{{ __('Amount') }}</label>
+                    <input type="number" step="0.01" min="0.01" name="amount" required class="mt-1 rounded-lg border border-slate-200 text-sm">
+                </div>
+                <button type="submit" class="rounded-lg border border-brand-200 text-brand-700 px-4 py-2 text-sm font-semibold hover:bg-brand-50">{{ __('Create advance invoice') }}</button>
+            </form>
+        </div>
+    @endif
+
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-900">{{ __('Invoices for this project') }}</h3>
+        <a href="{{ route('app.invoices.index', ['project_id' => $project->id]) }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('View all in Invoices') }}</a>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->invoices->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No invoices yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <tbody>
+                    @foreach ($project->invoices as $invoice)
+                        <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.invoices.show', $invoice) }}'">
+                            <td class="py-2 px-4 font-medium text-brand-700">{{ $invoice->invoice_number }}</td>
+                            <td class="py-2 px-4 text-slate-500">{{ $invoice->issue_date->format('Y-m-d') }}</td>
+                            <td class="py-2 px-4 text-end">{{ \App\Support\Money::format($invoice->total) }}</td>
+                            <td class="py-2 px-4 text-end text-slate-400">{{ $invoice->retention_amount > 0 ? \App\Support\Money::format($invoice->retention_amount) : '—' }}</td>
+                            <td class="py-2 px-4">{{ ucfirst($invoice->status) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
