@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class QuotationItem extends Model
 {
     protected $fillable = [
-        'quotation_id', 'item_id', 'unit_id', 'description', 'name_ar', 'item_description', 'quantity', 'unit_price',
+        'quotation_id', 'item_id', 'unit_id', 'description', 'name_ar', 'item_description', 'quantity', 'unit_price', 'cost_price',
         'vat_rate', 'vat_amount', 'line_total', 'sort_order',
     ];
 
@@ -32,5 +32,13 @@ class QuotationItem extends Model
         $lineSubtotal = $this->quantity * $this->unit_price;
         $this->vat_amount = round($lineSubtotal * ($this->vat_rate / 100), 2);
         $this->line_total = round($lineSubtotal + $this->vat_amount, 2);
+    }
+
+    /** Null when no cost_price was entered — margin isn't known, not zero. */
+    public function marginAmount(): ?float
+    {
+        return $this->cost_price !== null
+            ? round(((float) $this->unit_price - (float) $this->cost_price) * (float) $this->quantity, 2)
+            : null;
     }
 }

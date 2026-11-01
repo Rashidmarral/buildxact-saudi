@@ -744,6 +744,7 @@ class QuotationController extends Controller
                 'item_description' => $item?->description,
                 'quantity' => $row['quantity'],
                 'unit_price' => $row['unit_price'],
+                'cost_price' => $row['cost_price'] ?? null,
                 'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($quotation->company_id),
                 'sort_order' => $sort,
             ]);
@@ -809,6 +810,7 @@ class QuotationController extends Controller
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.cost_price' => ['nullable', 'numeric', 'min:0'],
             'items.*.vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
         ]);
     }

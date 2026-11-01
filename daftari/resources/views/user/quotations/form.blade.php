@@ -119,6 +119,7 @@ $company = auth()->user()->company;
                         <th class="py-2 pe-3 font-medium w-20">{{ __('Qty') }}</th>
                         <th class="py-2 pe-3 font-medium w-28">{{ __('Unit') }}</th>
                         <th class="py-2 pe-3 font-medium w-28">{{ __('Unit price') }}</th>
+                        <th class="py-2 pe-3 font-medium w-28">{{ __('Cost price') }}</th>
                         <th class="py-2 pe-3 font-medium w-24">{{ __('VAT %') }}</th>
                         <th class="py-2 pe-3 font-medium w-28">{{ __('Line total') }}</th>
                         <th class="py-2 w-8"></th>
@@ -197,7 +198,7 @@ $company = auth()->user()->company;
         ];
     })->values());
     $existingJson = \Illuminate\Support\Js::from($existingItems->map(function ($i) {
-        return ['item_id' => $i->item_id, 'unit_id' => $i->unit_id, 'description' => $i->description, 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'vat_rate' => (float) $i->vat_rate];
+        return ['item_id' => $i->item_id, 'unit_id' => $i->unit_id, 'description' => $i->description, 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'cost_price' => $i->cost_price !== null ? (float) $i->cost_price : null, 'vat_rate' => (float) $i->vat_rate];
     })->values());
     $unitsJson = \Illuminate\Support\Js::from($units->map(fn ($u) => ['id' => $u->id, 'label' => $u->label()])->values());
 @endphp
@@ -300,6 +301,7 @@ function addRow(data) {
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0.01" name="items[${i}][quantity]" data-role="quantity" value="${data.quantity}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><select name="items[${i}][unit_id]" data-role="unit" disabled class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></select></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="items[${i}][unit_price]" data-role="unit_price" value="${data.unit_price}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+        <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="items[${i}][cost_price]" data-role="cost_price" value="${data.cost_price ?? ''}" placeholder="${@json(__('Optional'))}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" max="100" name="items[${i}][vat_rate]" data-role="vat_rate" value="${data.vat_rate}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3 text-slate-700" data-role="line_total">${CURRENCY_SYMBOL} 0.00</td>
         <td class="py-2"><button type="button" data-role="remove" class="text-slate-400 hover:text-red-600">&times;</button></td>

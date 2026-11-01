@@ -112,6 +112,17 @@
     @include('documents.print.body', ['doc' => $doc, 'company' => $quotation->company, 'template' => $template])
 </div>
 
+@if ($quotation->marginAmount() !== null)
+    <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
+        <h3 class="font-semibold text-slate-900 mb-1">{{ __('Estimated margin') }}</h3>
+        <p class="text-xs text-slate-400 mb-4">{{ __('Internal only — never shown to the client.') }}</p>
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div><p class="text-xs text-slate-400">{{ __('Margin') }}</p><p class="text-xl font-bold {{ $quotation->marginAmount() >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ \App\Support\Money::format($quotation->marginAmount()) }}</p></div>
+            <div><p class="text-xs text-slate-400">{{ __('Margin %') }}</p><p class="text-xl font-bold {{ ($quotation->marginPercent() ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ $quotation->marginPercent() !== null ? number_format($quotation->marginPercent(), 1).'%' : '—' }}</p></div>
+        </div>
+    </div>
+@endif
+
 @php
     $canRetroactivelyStage = $quotation->status === 'converted' && ! $quotation->is_staged && $quotation->converted_invoice_id;
 @endphp

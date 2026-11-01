@@ -150,6 +150,29 @@ class Quotation extends Model
         return $this->expiry_date && $this->expiry_date->isPast() && ! in_array($this->status, ['converted', 'accepted']);
     }
 
+    /**
+     * Null when none of this quotation's lines has a cost_price entered
+     * — margin isn't known yet, which is different from a zero margin.
+     * Hamly's Estimates tab shows a margin column; this is the same
+     * figure, computed from the cost_price an estimator can optionally
+     * enter per line (QuotationItem::marginAmount()) rather than a
+     * second Estimate model duplicating Quotation.
+     */
+    public function marginAmount(): ?float
+    {
+        $priced = $this->items->filter(fn (QuotationItem $item) => $item->cost_price !== null);
+
+        return $priced->isEmpty() ? null : round((float) $priced->sum(fn (QuotationItem $item) => $item->marginAmount()), 2);
+    }
+
+    public function marginPercent(): ?float
+    {
+        $margin = $this->marginAmount();
+        $taxableSubtotal = (float) $this->subtotal - (float) $this->discount_total;
+
+        return $margin !== null && $taxableSubtotal > 0 ? round(($margin / $taxableSubtotal) * 100, 1) : null;
+    }
+
     public function balanceDue(): float
     {
         return round((float) $this->total - (float) $this->advance_received, 2);
