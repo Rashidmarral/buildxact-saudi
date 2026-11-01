@@ -279,6 +279,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.aging', 'label' => __('Aged Receivables/Payables')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.employee-advances', 'label' => __('Employee Advances')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.wht-return', 'label' => __('Withholding Tax')])
+                        @include('partials.nav-subitem', ['route' => 'app.documents.index', 'label' => __('Document Archive')])
                     </div>
                 </details>
 

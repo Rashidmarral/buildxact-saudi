@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
+use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Employee;
@@ -21,11 +23,12 @@ use App\Services\ReceiptOcrService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ExpenseController extends Controller
 {
-    use ResolvesPerPage;
+    use EnforcesStorageQuota, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -218,6 +221,45 @@ class ExpenseController extends Controller
         );
 
         return redirect()->route('app.expenses.index')->with('status', __('Expense deleted.'));
+    }
+
+    public function storeAttachment(Request $request, Expense $expense)
+    {
+        if ($rejected = $this->rejectIfStorageQuotaReached($expense->company)) {
+            return $rejected;
+        }
+
+        $request->validate(['file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,csv,txt', 'max:10240']]);
+
+        $file = $request->file('file');
+        $expense->attachments()->create([
+            'company_id' => $expense->company_id,
+            'uploaded_by' => Auth::id(),
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $file->store('expense-attachments', 'public'),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]);
+
+        return back()->with('status', __('File attached.'));
+    }
+
+    public function destroyAttachment(Expense $expense, Attachment $attachment)
+    {
+        abort_unless($attachment->attachable_type === Expense::class && $attachment->attachable_id === $expense->id, 404);
+
+        // Same audit-retention protection as deleting the expense itself
+        // (see destroy() above) — a posted expense's supporting document
+        // shouldn't be removable during the retention window it exists
+        // to satisfy just because the expense record itself stays put.
+        if ($expense->status === 'approved' && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($expense->expense_date)) {
+            return back()->withErrors(['attachment' => __('This expense is within the :years-year record retention period required by Saudi VAT law — its attachments cannot be removed.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        }
+
+        Storage::disk('public')->delete($attachment->path);
+        $attachment->delete();
+
+        return back()->with('status', __('Attachment removed.'));
     }
 
     public function approve(Expense $expense, LedgerPostingService $ledger)

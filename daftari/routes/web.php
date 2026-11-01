@@ -75,6 +75,7 @@ use App\Http\Controllers\User\ZakatController;
 use App\Http\Controllers\User\CreditNoteController;
 use App\Http\Controllers\User\DebitNoteController;
 use App\Http\Controllers\User\DeliveryNoteController;
+use App\Http\Controllers\User\DocumentArchiveController;
 use App\Http\Controllers\User\CustomFieldDefinitionController;
 use App\Http\Controllers\User\CustomsDeclarationController;
 use App\Http\Controllers\User\DashboardController;
@@ -396,6 +397,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::middleware('permission:expenses')->group(function () {
         Route::post('expenses/scan-receipt', [ExpenseController::class, 'scanReceipt'])->name('expenses.scan-receipt');
         Route::resource('expenses', ExpenseController::class)->except(['show']);
+        Route::post('expenses/{expense}/attachments', [ExpenseController::class, 'storeAttachment'])->name('expenses.attachments.store');
+        Route::delete('expenses/{expense}/attachments/{attachment}', [ExpenseController::class, 'destroyAttachment'])->name('expenses.attachments.destroy');
         Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expenses.approve');
         Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
         Route::resource('expense-categories', ExpenseCategoryController::class)->except(['show']);
@@ -435,6 +438,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('employee-advances', [ReportController::class, 'employeeAdvances'])->name('employee-advances');
         Route::get('withholding-tax', [ReportController::class, 'whtReturn'])->name('wht-return');
     });
+
+    Route::middleware('permission:reports')->get('documents', [DocumentArchiveController::class, 'index'])->name('documents.index');
 
     Route::middleware('permission:audit')->prefix('audit')->name('audit.')->group(function () {
         Route::get('/', [CompanyAuditController::class, 'index'])->name('index');

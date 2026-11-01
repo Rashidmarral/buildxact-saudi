@@ -152,6 +152,32 @@
     <button type="submit" class="w-full rounded-lg bg-brand-800 px-6 py-3 font-semibold text-white hover:bg-brand-900">{{ __('Save') }}</button>
 </form>
 
+@if ($expense->exists)
+<div class="max-w-2xl bg-white rounded-xl border border-slate-100 p-6 mt-6">
+    <h3 class="font-semibold text-slate-900 mb-3">{{ __('Attachments') }}</h3>
+    <form method="POST" action="{{ route('app.expenses.attachments.store', $expense) }}" enctype="multipart/form-data" class="mb-4">
+        @csrf
+        <input type="file" name="file" required class="text-sm">
+        <button type="submit" class="ms-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Upload') }}</button>
+    </form>
+    <p class="text-xs text-slate-400 mb-3">{{ __('The real bill, receipt, or invoice behind this expense — kept for your year-end audit.') }}</p>
+    @forelse ($expense->attachments as $attachment)
+        <div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+            <a href="{{ \Illuminate\Support\Facades\Storage::url($attachment->path) }}" target="_blank" class="text-sm text-brand-700 hover:underline">{{ $attachment->original_name }}</a>
+            <span class="flex items-center gap-3">
+                <span class="text-xs text-slate-400">{{ $attachment->humanSize() }}</span>
+                <form method="POST" action="{{ route('app.expenses.attachments.destroy', [$expense, $attachment]) }}" onsubmit="return confirm('{{ __('Remove this attachment?') }}')">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="text-xs text-red-600 hover:underline">{{ __('Remove') }}</button>
+                </form>
+            </span>
+        </div>
+    @empty
+        <p class="text-sm text-slate-400">{{ __('No attachments yet.') }}</p>
+    @endforelse
+</div>
+@endif
+
 <script>
 (function () {
     const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
