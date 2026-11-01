@@ -16,9 +16,10 @@ use Illuminate\Validation\Rule;
 
 /**
  * A machine used on the company's OWN project — no client, no invoice.
- * See the migration's docblock for why internal_daily_rate never feeds
- * Project::costs()/cashPaid(); the real cash cost of running the machine
- * is whatever fuel/maintenance/operator-wage Expense rows are tagged to
+ * Once a deployment ends, its rate x days cost is posted as a real
+ * ProjectCost row (cost_head 'equipment') — see
+ * MachineryProjectDeployment::postCost() — alongside whatever
+ * fuel/maintenance/operator-wage Expense rows are separately tagged to
  * this project (see Expense.machinery_asset_id).
  */
 class MachineryProjectDeploymentController extends Controller
@@ -86,6 +87,7 @@ class MachineryProjectDeploymentController extends Controller
         DB::transaction(function () use ($deployment, $data) {
             $deployment->update(['status' => 'completed', 'end_date' => $data['end_date']]);
             $deployment->machinery->update(['status' => 'available']);
+            $deployment->postCost();
         });
 
         AuditLog::record('machinery.deployment.end', $deployment, __('Ended deployment of :code', ['code' => $deployment->machinery->asset_code]));

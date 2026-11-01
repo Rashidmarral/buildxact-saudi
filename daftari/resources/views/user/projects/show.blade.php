@@ -36,6 +36,9 @@
     <button type="button" data-tab="boq" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('BOQ') }} ({{ $project->boqItems->count() }})</button>
     <button type="button" data-tab="budget" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Budget') }} ({{ $project->budgetLines->count() }})</button>
     <button type="button" data-tab="costs" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Costs') }} ({{ $project->projectCosts->count() }})</button>
+    <button type="button" data-tab="timesheets" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Timesheets') }} ({{ $project->timesheets->count() }})</button>
+    <button type="button" data-tab="materials" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Materials') }} ({{ $project->materialIssues->count() }})</button>
+    <button type="button" data-tab="equipment" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Equipment') }} ({{ $project->machineryDeployments->count() }})</button>
     <button type="button" data-tab="documents" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Documents') }} ({{ $project->attachments->count() }})</button>
 </div>
 
@@ -473,6 +476,207 @@
                                     <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
                                 </form>
                             </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="timesheets">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Add a timesheet entry') }}</h3>
+        <form method="POST" action="{{ route('app.projects.timesheets.store', $project) }}" class="grid sm:grid-cols-6 gap-3 items-end">
+            @csrf
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Employee') }}</label>
+                <select name="employee_id" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    @foreach ($employees as $employee)
+                        <option value="{{ $employee->id }}">{{ $employee->full_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Date') }}</label>
+                <input type="date" name="work_date" required value="{{ now()->toDateString() }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Description') }}</label>
+                <input type="text" name="description" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Hours') }}</label>
+                <input type="number" step="0.25" min="0.01" max="24" name="hours" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Overtime') }}</label>
+                <input type="number" step="0.25" min="0" max="24" name="overtime_hours" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Cost rate / hr') }}</label>
+                <input type="number" step="0.01" min="0" name="cost_rate" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Bill rate / hr') }}</label>
+                <input type="number" step="0.01" min="0" name="bill_rate" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-6">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add entry') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->timesheets->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No timesheet entries yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Employee') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Hours') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Cost') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->timesheets as $timesheet)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-500">{{ $timesheet->work_date->format('Y-m-d') }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ $timesheet->employee?->full_name ?? '—' }}</td>
+                            <td class="px-6 py-3 text-end">{{ $timesheet->totalHours() }}</td>
+                            <td class="px-6 py-3 text-end">{{ \App\Support\Money::format($timesheet->costAmount()) }}</td>
+                            <td class="px-6 py-3">
+                                @if ($timesheet->status === 'approved')
+                                    <span class="inline-block rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">{{ __('Approved') }}</span>
+                                @else
+                                    <form method="POST" action="{{ route('app.projects.timesheets.approve', [$project, $timesheet]) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Approve') }}</button>
+                                    </form>
+                                @endif
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <form method="POST" action="{{ route('app.projects.timesheets.destroy', [$project, $timesheet]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="materials">
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Issue material') }}</h3>
+        <form method="POST" action="{{ route('app.projects.material-issues.store', $project) }}" class="grid sm:grid-cols-6 gap-3 items-end">
+            @csrf
+            <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-500">{{ __('Item') }}</label>
+                <select name="item_id" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    @foreach ($items as $item)
+                        <option value="{{ $item->id }}">{{ $item->display_name ?? $item->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Warehouse') }}</label>
+                <select name="warehouse_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+                    <option value="">{{ __('—') }}</option>
+                    @foreach ($warehouses as $warehouse)
+                        <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Quantity') }}</label>
+                <input type="number" step="0.01" min="0.01" name="quantity" required class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Issued to') }}</label>
+                <input type="text" name="issued_to" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500">{{ __('Date') }}</label>
+                <input type="date" name="issued_at" required value="{{ now()->toDateString() }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm">
+            </div>
+            <div class="sm:col-span-6">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Issue material') }}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->materialIssues->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No materials issued yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Date') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Item') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Qty') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Unit cost') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Total') }}</th>
+                        <th class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->materialIssues as $issue)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-500">{{ $issue->issued_at->format('Y-m-d') }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ $issue->item->name ?? '—' }}</td>
+                            <td class="px-6 py-3 text-end">{{ number_format($issue->quantity, 2) }}</td>
+                            <td class="px-6 py-3 text-end">{{ \App\Support\Money::format($issue->unit_cost) }}</td>
+                            <td class="px-6 py-3 text-end font-medium">{{ \App\Support\Money::format($issue->total) }}</td>
+                            <td class="px-6 py-3 text-right">
+                                <form method="POST" action="{{ route('app.projects.material-issues.destroy', [$project, $issue]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+</div>
+
+<div class="project-panel hidden" data-panel="equipment">
+    <div class="flex items-center justify-between mb-4">
+        <p class="text-sm text-slate-500">{{ __('Machinery deployed on this project — rate x days posts as project cost once a deployment ends.') }}</p>
+        <a href="{{ route('app.machinery.deployments.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Deploy a machine') }}</a>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100">
+        @if ($project->machineryDeployments->isEmpty())
+            <p class="px-6 py-8 text-sm text-slate-500">{{ __('No machinery deployed on this project yet.') }}</p>
+        @else
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 border-b border-slate-100">
+                        <th class="px-6 py-3 font-medium">{{ __('Machine') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Start') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('End') }}</th>
+                        <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3 font-medium text-end">{{ __('Cost') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($project->machineryDeployments as $deployment)
+                        <tr class="border-b border-slate-50 last:border-0">
+                            <td class="px-6 py-3 text-slate-900">{{ $deployment->machinery->name }} <span class="text-slate-400">({{ $deployment->machinery->asset_code }})</span></td>
+                            <td class="px-6 py-3 text-slate-500">{{ $deployment->start_date->format('Y-m-d') }}</td>
+                            <td class="px-6 py-3 text-slate-500">{{ optional($deployment->end_date)->format('Y-m-d') ?? '—' }}</td>
+                            <td class="px-6 py-3">{{ ucfirst($deployment->status) }}</td>
+                            <td class="px-6 py-3 text-end font-medium">{{ \App\Support\Money::format($deployment->notionalCost()) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

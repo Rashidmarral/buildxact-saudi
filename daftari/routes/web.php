@@ -109,7 +109,9 @@ use App\Http\Controllers\User\ProjectBoqItemController;
 use App\Http\Controllers\User\ProjectBudgetLineController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCostController;
+use App\Http\Controllers\User\ProjectMaterialIssueController;
 use App\Http\Controllers\User\ProjectTaskController;
+use App\Http\Controllers\User\ProjectTimesheetController;
 use App\Http\Controllers\User\ProjectCashFlowController;
 use App\Http\Controllers\User\CompanyLetterController;
 use App\Http\Controllers\User\MachineryAssetController;
@@ -836,6 +838,13 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('projects/{project}/tasks', [ProjectTaskController::class, 'store'])->name('projects.tasks.store');
         Route::put('projects/{project}/tasks/{task}', [ProjectTaskController::class, 'update'])->name('projects.tasks.update');
         Route::delete('projects/{project}/tasks/{task}', [ProjectTaskController::class, 'destroy'])->name('projects.tasks.destroy');
+
+        Route::post('projects/{project}/timesheets', [ProjectTimesheetController::class, 'store'])->name('projects.timesheets.store');
+        Route::post('projects/{project}/timesheets/{timesheet}/approve', [ProjectTimesheetController::class, 'approve'])->name('projects.timesheets.approve');
+        Route::delete('projects/{project}/timesheets/{timesheet}', [ProjectTimesheetController::class, 'destroy'])->name('projects.timesheets.destroy');
+
+        Route::post('projects/{project}/material-issues', [ProjectMaterialIssueController::class, 'store'])->name('projects.material-issues.store');
+        Route::delete('projects/{project}/material-issues/{materialIssue}', [ProjectMaterialIssueController::class, 'destroy'])->name('projects.material-issues.destroy');
     });
 
     Route::middleware('role:owner')->group(function () {

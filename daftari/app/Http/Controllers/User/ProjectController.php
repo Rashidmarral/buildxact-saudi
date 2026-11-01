@@ -66,13 +66,16 @@ class ProjectController extends Controller
             'client', 'invoices.client', 'expenses.category',
             'quotations.client', 'purchaseOrders.supplier', 'bills.supplier',
             'projectManager', 'businessLocation', 'costCenter', 'attachments.uploader',
-            'boqItems.unit', 'budgetLines.creator', 'projectCosts.creator', 'tasks.assignee'
+            'boqItems.unit', 'budgetLines.creator', 'projectCosts.creator', 'tasks.assignee',
+            'timesheets.employee', 'materialIssues.item', 'machineryDeployments.machinery'
         );
 
         return view('user.projects.show', [
             'project' => $project,
             'units' => \App\Models\Unit::orderBy('name')->get(),
             'employees' => \App\Models\Employee::where('status', 'active')->orderBy('full_name')->get(),
+            'items' => \App\Models\Item::where('is_active', true)->orderBy('name')->get(),
+            'warehouses' => \App\Models\Warehouse::orderBy('name')->get(),
         ]);
     }
 

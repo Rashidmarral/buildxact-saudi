@@ -268,4 +268,19 @@ class Project extends Model
     {
         return $this->hasMany(ProjectTask::class)->orderBy('sort_order');
     }
+
+    public function timesheets(): HasMany
+    {
+        return $this->hasMany(ProjectTimesheet::class)->orderByDesc('work_date');
+    }
+
+    public function materialIssues(): HasMany
+    {
+        return $this->hasMany(ProjectMaterialIssue::class)->orderByDesc('issued_at');
+    }
+
+    public function machineryDeployments(): HasMany
+    {
+        return $this->hasMany(MachineryProjectDeployment::class);
+    }
 }
