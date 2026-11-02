@@ -206,6 +206,8 @@ class PaymentVoucherController extends Controller
                 'amount' => $data['amount'],
                 'wht_amount' => 0,
                 'method' => $data['method'],
+                'cheque_number' => $data['method'] === 'cheque' ? $data['cheque_number'] : null,
+                'cheque_date' => $data['method'] === 'cheque' ? $data['cheque_date'] : null,
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'notes_ar' => $data['notes_ar'] ?? null,
@@ -390,6 +392,10 @@ class PaymentVoucherController extends Controller
             return back()->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
         }
 
+        if ($paymentVoucher->cheque_cleared_at) {
+            return back()->with('status', __('This cheque has already cleared — it cannot be edited. Post a manual journal entry for a correction instead.'));
+        }
+
         $data = $this->validated($request);
 
         DB::transaction(function () use ($data, $paymentVoucher, $ledger) {
@@ -458,6 +464,8 @@ class PaymentVoucherController extends Controller
                 'amount' => $data['amount'],
                 'wht_amount' => $whtAmount,
                 'method' => $data['method'],
+                'cheque_number' => $data['method'] === 'cheque' ? $data['cheque_number'] : null,
+                'cheque_date' => $data['method'] === 'cheque' ? $data['cheque_date'] : null,
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'notes_ar' => $data['notes_ar'] ?? null,
@@ -486,6 +494,10 @@ class PaymentVoucherController extends Controller
             return back();
         }
 
+        if ($paymentVoucher->cheque_cleared_at) {
+            return back()->with('status', __('This cheque has already cleared and moved real money out of the holding account — voiding it now would leave that reclass entry orphaned. Post a manual journal entry for a correction instead.'));
+        }
+
         DB::transaction(function () use ($paymentVoucher, $ledger) {
             if ($paymentVoucher->bill_payment_id && $paymentVoucher->bill) {
                 $bill = $paymentVoucher->bill;
@@ -505,6 +517,34 @@ class PaymentVoucherController extends Controller
         });
 
         return back()->with('status', __('Payment voucher voided.'));
+    }
+
+    /**
+     * The cheque we wrote actually clearing the bank — moves it out of
+     * "Cheques Issued (Outstanding)" and out of the bank account it
+     * clears against. Accounts Payable isn't touched again here; it was
+     * already relieved when the cheque was issued.
+     */
+    public function markChequeCleared(Request $request, PaymentVoucher $paymentVoucher, LedgerPostingService $ledger)
+    {
+        abort_unless($paymentVoucher->method === 'cheque', 404);
+
+        if ($paymentVoucher->status !== 'issued') {
+            return back()->with('status', __('Only an issued voucher can be marked cleared.'));
+        }
+
+        if ($paymentVoucher->cheque_cleared_at) {
+            return back()->with('status', __('This cheque has already been marked cleared.'));
+        }
+
+        $data = $request->validate(['cheque_cleared_at' => ['required', 'date']]);
+
+        DB::transaction(function () use ($paymentVoucher, $data, $ledger) {
+            $paymentVoucher->update(['cheque_cleared_at' => $data['cheque_cleared_at']]);
+            $ledger->postPaymentVoucherChequeClearance($paymentVoucher->fresh('bankAccount'));
+        });
+
+        return back()->with('status', __('Cheque marked as cleared.'));
     }
 
     public function storeAttachment(Request $request, PaymentVoucher $paymentVoucher)
@@ -587,6 +627,8 @@ class PaymentVoucherController extends Controller
             'party_address' => ['nullable', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'method' => ['required', 'in:cash,bank_transfer,card,cheque'],
+            'cheque_number' => ['nullable', 'required_if:method,cheque', 'string', 'max:50'],
+            'cheque_date' => ['nullable', 'required_if:method,cheque', 'date'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'notes_ar' => ['nullable', 'string', 'max:2000'],

@@ -99,6 +99,8 @@ class VoucherRedesignTest extends TestCase
             'date' => now()->toDateString(),
             'amount' => 800,
             'method' => 'cheque',
+            'cheque_number' => 'CHQ-000123',
+            'cheque_date' => now()->addDays(30)->toDateString(),
             'reference' => 'CHQ-000123',
         ]);
 
@@ -366,7 +368,7 @@ class VoucherRedesignTest extends TestCase
         $this->actingAs($owner)->post(route('app.payment-vouchers.store'), [
             'party_type' => 'manual', 'payee_name' => 'Cheque Payee',
             'bank_account_id' => $account->id, 'date' => now()->toDateString(),
-            'amount' => 500, 'method' => 'cheque', 'reference' => 'CHQ-1001',
+            'amount' => 500, 'method' => 'cheque', 'cheque_number' => 'CHQ-1001', 'cheque_date' => now()->addDays(30)->toDateString(), 'reference' => 'CHQ-1001',
         ]);
 
         $voucher = PaymentVoucher::first();
@@ -413,7 +415,7 @@ class VoucherRedesignTest extends TestCase
         $this->actingAs($owner)->post(route('app.receipt-vouchers.store'), [
             'party_type' => 'manual', 'payer_name' => 'PDF Test Payer',
             'bank_account_id' => $account->id, 'date' => now()->toDateString(),
-            'amount' => 250, 'method' => 'cheque', 'reference' => 'CHQ-999',
+            'amount' => 250, 'method' => 'cheque', 'cheque_number' => 'CHQ-999', 'cheque_date' => now()->addDays(30)->toDateString(), 'reference' => 'CHQ-999',
         ]);
 
         $voucher = ReceiptVoucher::first();

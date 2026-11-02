@@ -19,11 +19,17 @@ class ReceiptVoucher extends Model
         'party_name_ar', 'party_vat_number', 'party_phone', 'party_email', 'party_address',
         'amount', 'method', 'reference', 'notes', 'notes_ar', 'status',
         'approved_by', 'approved_at', 'rejection_reason',
+        'cheque_number', 'cheque_date', 'cheque_cleared_at',
     ];
 
     protected function casts(): array
     {
-        return ['date' => 'date', 'approved_at' => 'datetime'];
+        return ['date' => 'date', 'approved_at' => 'datetime', 'cheque_date' => 'date', 'cheque_cleared_at' => 'date'];
+    }
+
+    public function isUnclearedCheque(): bool
+    {
+        return $this->method === 'cheque' && $this->cheque_cleared_at === null;
     }
 
     public function approver(): BelongsTo

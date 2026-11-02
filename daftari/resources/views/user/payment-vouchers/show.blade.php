@@ -20,9 +20,23 @@
         @else
             <span class="inline-block rounded-full bg-brand-50 text-brand-700 text-xs font-medium px-2.5 py-1">{{ __('Issued') }}</span>
         @endif
+        @if ($voucher->method === 'cheque')
+            @if ($voucher->cheque_cleared_at)
+                <span class="inline-block rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1">{{ __('Cheque cleared :date', ['date' => $voucher->cheque_cleared_at->format('Y-m-d')]) }}</span>
+            @else
+                <span class="inline-block rounded-full bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1">{{ __('Cheque held — not yet cleared') }}</span>
+            @endif
+        @endif
     </div>
     <div class="flex items-center gap-3">
-        @if ($voucher->status === 'issued')
+        @if ($voucher->status === 'issued' && $voucher->method === 'cheque' && ! $voucher->cheque_cleared_at)
+            <form method="POST" action="{{ route('app.payment-vouchers.mark-cheque-cleared', $voucher) }}" class="flex items-center gap-2">
+                @csrf
+                <input type="date" name="cheque_cleared_at" value="{{ now()->toDateString() }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <button type="submit" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">{{ __('Mark cheque cleared') }}</button>
+            </form>
+        @endif
+        @if ($voucher->status === 'issued' && ! $voucher->cheque_cleared_at)
             <a href="{{ route('app.payment-vouchers.edit', $voucher) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Edit') }}</a>
             <form method="POST" action="{{ route('app.payment-vouchers.void', $voucher) }}" onsubmit="return confirm('{{ __('Void this payment voucher? This reverses any linked bill payment.') }}')">
                 @csrf

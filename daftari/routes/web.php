@@ -554,6 +554,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('receipt-vouchers/{receiptVoucher}/approve', [ReceiptVoucherController::class, 'approvePending'])->name('receipt-vouchers.approve');
         Route::post('receipt-vouchers/{receiptVoucher}/reject', [ReceiptVoucherController::class, 'rejectPending'])->name('receipt-vouchers.reject');
         Route::post('receipt-vouchers/{receiptVoucher}/void', [ReceiptVoucherController::class, 'void'])->name('receipt-vouchers.void');
+        Route::post('receipt-vouchers/{receiptVoucher}/mark-cheque-cleared', [ReceiptVoucherController::class, 'markChequeCleared'])->name('receipt-vouchers.mark-cheque-cleared');
         Route::get('receipt-vouchers/{receiptVoucher}/pdf', [ReceiptVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('receipt-vouchers.pdf');
         Route::post('receipt-vouchers/{receiptVoucher}/attachments', [ReceiptVoucherController::class, 'storeAttachment'])->name('receipt-vouchers.attachments.store');
         Route::delete('receipt-vouchers/{receiptVoucher}/attachments/{attachment}', [ReceiptVoucherController::class, 'destroyAttachment'])->name('receipt-vouchers.attachments.destroy');
@@ -562,6 +563,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('payment-vouchers/{paymentVoucher}/approve', [PaymentVoucherController::class, 'approvePending'])->name('payment-vouchers.approve');
         Route::post('payment-vouchers/{paymentVoucher}/reject', [PaymentVoucherController::class, 'rejectPending'])->name('payment-vouchers.reject');
         Route::post('payment-vouchers/{paymentVoucher}/void', [PaymentVoucherController::class, 'void'])->name('payment-vouchers.void');
+        Route::post('payment-vouchers/{paymentVoucher}/mark-cheque-cleared', [PaymentVoucherController::class, 'markChequeCleared'])->name('payment-vouchers.mark-cheque-cleared');
         Route::get('payment-vouchers/{paymentVoucher}/pdf', [PaymentVoucherController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('payment-vouchers.pdf');
         Route::post('payment-vouchers/{paymentVoucher}/attachments', [PaymentVoucherController::class, 'storeAttachment'])->name('payment-vouchers.attachments.store');
         Route::delete('payment-vouchers/{paymentVoucher}/attachments/{attachment}', [PaymentVoucherController::class, 'destroyAttachment'])->name('payment-vouchers.attachments.destroy');

@@ -484,7 +484,12 @@ class LedgerPostingService
     {
         $company = $voucher->company;
         $bankAccount = $voucher->bankAccount;
-        $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount) : null;
+        // A post-dated cheque isn't real cash yet — it sits in the
+        // holding account until postReceiptVoucherChequeClearance() moves
+        // it into the bank account it actually clears into.
+        $cashOrBank = $voucher->isUnclearedCheque()
+            ? $this->account($company, 'CHEQUES_RECEIVED_HOLDING')
+            : ($bankAccount ? $this->bankOrCashAccount($company, $bankAccount) : null);
 
         // An explicit counter account on the voucher always wins (e.g. the
         // user knows this receipt should be credited to a specific account).
@@ -510,6 +515,26 @@ class LedgerPostingService
         return $this->post($company, 'receipt_voucher', $voucher->id, __('Receipt voucher :number', ['number' => $voucher->voucher_number]), $voucher->date, [
             ['account_id' => $cashOrBank->id, 'debit' => $voucher->amount],
             ['account_id' => $counterpart->id, 'credit' => $voucher->amount],
+        ]);
+    }
+
+    /**
+     * The cheque actually clearing the bank — a pure reclass from the
+     * holding account into the bank account it was deposited into.
+     * Accounts Receivable was already relieved when the cheque was
+     * accepted (postReceiptVoucher()), so this never touches it again.
+     */
+    public function postReceiptVoucherChequeClearance(ReceiptVoucher $voucher): ?JournalEntry
+    {
+        $company = $voucher->company;
+        $holding = $this->account($company, 'CHEQUES_RECEIVED_HOLDING');
+        $bank = $this->bankOrCashAccount($company, $voucher->bankAccount);
+
+        $this->requireAccounts(['CHEQUES_RECEIVED_HOLDING' => $holding, 'bank account' => $bank], 'receipt voucher cheque clearance');
+
+        return $this->post($company, 'receipt_voucher_cheque_clearance', $voucher->id, __('Cheque :number cleared — :voucher', ['number' => $voucher->cheque_number, 'voucher' => $voucher->voucher_number]), $voucher->cheque_cleared_at, [
+            ['account_id' => $bank->id, 'debit' => $voucher->amount],
+            ['account_id' => $holding->id, 'credit' => $voucher->amount],
         ]);
     }
 
@@ -726,7 +751,13 @@ class LedgerPostingService
     {
         $company = $voucher->company;
         $bankAccount = $voucher->bankAccount;
-        $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount) : null;
+        // A post-dated cheque we've written doesn't actually leave the
+        // bank yet — it sits in the holding account until
+        // postPaymentVoucherChequeClearance() moves it out of that bank
+        // account once it clears.
+        $cashOrBank = $voucher->isUnclearedCheque()
+            ? $this->account($company, 'CHEQUES_ISSUED_HOLDING')
+            : ($bankAccount ? $this->bankOrCashAccount($company, $bankAccount) : null);
 
         // An explicit counter account on the voucher always wins. Otherwise:
         // linked to a bill or expense settles Accounts Payable (the bill or
@@ -764,6 +795,26 @@ class LedgerPostingService
         }
 
         return $this->post($company, 'payment_voucher', $voucher->id, __('Payment voucher :number', ['number' => $voucher->voucher_number]), $voucher->date, $lines);
+    }
+
+    /**
+     * The cheque we wrote actually clearing the bank — a pure reclass out
+     * of the holding account and out of the bank account it clears
+     * against. Accounts Payable was already relieved when the cheque was
+     * issued (postPaymentVoucher()), so this never touches it again.
+     */
+    public function postPaymentVoucherChequeClearance(PaymentVoucher $voucher): ?JournalEntry
+    {
+        $company = $voucher->company;
+        $holding = $this->account($company, 'CHEQUES_ISSUED_HOLDING');
+        $bank = $this->bankOrCashAccount($company, $voucher->bankAccount);
+
+        $this->requireAccounts(['CHEQUES_ISSUED_HOLDING' => $holding, 'bank account' => $bank], 'payment voucher cheque clearance');
+
+        return $this->post($company, 'payment_voucher_cheque_clearance', $voucher->id, __('Cheque :number cleared — :voucher', ['number' => $voucher->cheque_number, 'voucher' => $voucher->voucher_number]), $voucher->cheque_cleared_at, [
+            ['account_id' => $holding->id, 'debit' => $voucher->amount],
+            ['account_id' => $bank->id, 'credit' => $voucher->amount],
+        ]);
     }
 
     /**

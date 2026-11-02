@@ -169,7 +169,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Payment method') }}</label>
-                    <select name="method" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <select name="method" id="method" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                         @php $currentMethod = old('method', $voucher->method ?? 'cash'); @endphp
                         <option value="cash" @selected($currentMethod === 'cash')>{{ __('Cash') }}</option>
                         <option value="bank_transfer" @selected($currentMethod === 'bank_transfer')>{{ __('Bank transfer') }}</option>
@@ -178,6 +178,28 @@
                     </select>
                 </div>
             </div>
+
+            <div id="cheque-fields" class="grid sm:grid-cols-2 gap-4 mt-4" style="{{ $currentMethod === 'cheque' ? '' : 'display:none' }}">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Cheque number') }}</label>
+                    <input type="text" name="cheque_number" value="{{ old('cheque_number', $voucher->cheque_number ?? '') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Cheque date') }}</label>
+                    <input type="date" name="cheque_date" value="{{ old('cheque_date', optional($voucher->cheque_date ?? null)->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <p class="mt-1 text-xs text-slate-400">{{ __('This holds as a post-dated cheque until you mark it cleared once it actually leaves the bank.') }}</p>
+                </div>
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    var methodSelect = document.getElementById('method');
+                    var chequeFields = document.getElementById('cheque-fields');
+                    methodSelect.addEventListener('change', function () {
+                        chequeFields.style.display = methodSelect.value === 'cheque' ? '' : 'none';
+                    });
+                });
+            </script>
 
             <div class="mt-6">
                 <h4 class="font-semibold text-slate-900">{{ __('Additional details') }}</h4>

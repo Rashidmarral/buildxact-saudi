@@ -36,6 +36,13 @@ class Account extends Model
             ['code' => '1200', 'name' => 'Accounts Receivable', 'name_ar' => 'الذمم المدينة', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1250', 'name' => 'AR – Retentions Receivable', 'name_ar' => 'ذمم مدينة - محتجزات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1260', 'name' => 'Due from Employees (Advances)', 'name_ar' => 'ذمم موظفين (سلف)', 'type' => 'asset', 'normal_balance' => 'debit'],
+            // A post-dated cheque received settles the customer's
+            // receivable immediately (same as a bank transfer would) but
+            // isn't real cash yet — it sits here until it actually
+            // clears the bank, at which point it reclasses into that
+            // bank account's own ledger line (see
+            // LedgerPostingService::postReceiptVoucherChequeClearance()).
+            ['code' => '1270', 'name' => 'Cheques Received (Under Collection)', 'name_ar' => 'شيكات مستلمة تحت التحصيل', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1300', 'name' => 'VAT Input', 'name_ar' => 'ضريبة القيمة المضافة المدخلات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1310', 'name' => 'VAT Input – Imports', 'name_ar' => 'ضريبة مدخلات - الواردات', 'type' => 'asset', 'normal_balance' => 'debit'],
             ['code' => '1400', 'name' => 'Inventory', 'name_ar' => 'المخزون', 'type' => 'asset', 'normal_balance' => 'debit'],
@@ -49,6 +56,12 @@ class Account extends Model
             ['code' => '2110', 'name' => 'VAT Output – Reverse Charge', 'name_ar' => 'ضريبة مخرجات - آلية الاحتساب العكسي', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2150', 'name' => 'Customs Payable', 'name_ar' => 'الجمارك المستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2200', 'name' => 'Retentions Payable', 'name_ar' => 'محتجزات مستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
+            // The mirror of 1270 on the payable side: a post-dated
+            // cheque we've written settles the supplier's bill
+            // immediately, but the cash doesn't actually leave the bank
+            // until it clears — see
+            // LedgerPostingService::postPaymentVoucherChequeClearance().
+            ['code' => '2240', 'name' => 'Cheques Issued (Outstanding)', 'name_ar' => 'شيكات صادرة لم تُصرف بعد', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2250', 'name' => 'Withholding Tax Payable', 'name_ar' => 'ضريبة الاستقطاع المستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2260', 'name' => 'GOSI Payable', 'name_ar' => 'التأمينات الاجتماعية المستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
             ['code' => '2270', 'name' => 'Salaries Payable', 'name_ar' => 'الرواتب المستحقة', 'type' => 'liability', 'normal_balance' => 'credit'],
