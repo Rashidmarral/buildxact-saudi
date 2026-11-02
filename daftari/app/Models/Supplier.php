@@ -17,7 +17,7 @@ class Supplier extends Model
     protected $fillable = [
         'company_id', 'supplier_code', 'type', 'name', 'name_ar', 'contact_name', 'vat_number',
         'cr_number', 'initial_balance', 'email', 'phone', 'mobile', 'address_line_1',
-        'address_line_2', 'district', 'city', 'postal_code', 'state', 'country', 'notes',
+        'address_line_2', 'district', 'city', 'postal_code', 'additional_number', 'short_address', 'state', 'country', 'notes',
         'is_resident', 'lead_source', 'next_follow_up_date', 'last_contacted_at',
     ];
 

@@ -381,6 +381,8 @@ class ClientController extends Controller
             'state' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
+            'additional_number' => ['nullable', 'string', 'max:20'],
+            'short_address' => ['nullable', 'string', 'max:10'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'lead_source' => ['nullable', 'string', 'max:100'],
             'next_follow_up_date' => ['nullable', 'date'],

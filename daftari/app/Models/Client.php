@@ -30,7 +30,7 @@ class Client extends Model
         'is_vat_registered', 'vat_number', 'cr_number', 'additional_id_type',
         'additional_id_number', 'initial_balance', 'payment_terms_days', 'email', 'phone', 'mobile',
         'street_name', 'building_number', 'district', 'city', 'state', 'country',
-        'postal_code', 'notes',
+        'postal_code', 'additional_number', 'short_address', 'notes',
         'lead_source', 'next_follow_up_date', 'last_contacted_at', 'pipeline_stage', 'lost_reason',
         'platform_billed_company_id',
         'credit_hold', 'credit_hold_reason',

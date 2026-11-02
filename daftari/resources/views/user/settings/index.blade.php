@@ -180,27 +180,72 @@
 
             <h3 class="font-semibold text-slate-900 pt-2">{{ __('National Address (required for ZATCA)') }}</h3>
             <p class="text-xs text-slate-500 -mt-3">{{ __('The structured Saudi National Address ZATCA requires on every tax invoice — separate from the free-text address above.') }}</p>
-            <div class="grid sm:grid-cols-2 gap-5">
+            <div x-data="{
+                checking: false,
+                message: '',
+                messageType: '',
+                verify() {
+                    const shortAddress = this.$refs.shortAddress.value.trim();
+                    if (! shortAddress) { this.message = '{{ __('Enter a short address code first.') }}'; this.messageType = 'error'; return; }
+                    this.checking = true; this.message = '';
+                    fetch('{{ route('app.wathq.national-address') }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                        body: JSON.stringify({ short_address: shortAddress }),
+                    })
+                        .then(r => r.json().then(body => ({ ok: r.ok, body })))
+                        .then(({ ok, body }) => {
+                            this.checking = false;
+                            if (! ok || ! body.success) { this.message = body.error || '{{ __('Could not verify this address.') }}'; this.messageType = 'error'; return; }
+                            const data = body.data;
+                            const form = this.$el.closest('form');
+                            if (data.short_address) this.$refs.shortAddress.value = data.short_address;
+                            if (data.building_number) form.querySelector('[name=building_number]').value = data.building_number;
+                            if (data.street_name) form.querySelector('[name=street_name]').value = data.street_name;
+                            if (data.district) form.querySelector('[name=district]').value = data.district;
+                            if (data.postal_code) form.querySelector('[name=postal_code]').value = data.postal_code;
+                            if (data.additional_number) form.querySelector('[name=additional_number]').value = data.additional_number;
+                            if (data.city) form.querySelector('[name=city]').value = data.city;
+                            this.message = '{{ __('Address verified via Wathq.') }}';
+                            this.messageType = 'success';
+                        })
+                        .catch(() => { this.checking = false; this.message = '{{ __('Could not reach the Wathq verification service.') }}'; this.messageType = 'error'; });
+                },
+            }" class="space-y-3">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('Building number') }}</label>
-                    <input type="text" name="building_number" maxlength="20" value="{{ old('building_number', $company->building_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Short address code') }}</label>
+                    <div class="mt-1 flex gap-2 max-w-sm">
+                        <input type="text" name="short_address" x-ref="shortAddress" maxlength="10" placeholder="RRRD2929" value="{{ old('short_address', $company->short_address) }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500 uppercase">
+                        <button type="button" @click="verify" :disabled="checking" class="shrink-0 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700 disabled:opacity-50">
+                            <span x-show="! checking">{{ __('Verify address') }}</span>
+                            <span x-show="checking" x-cloak>{{ __('Checking…') }}</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">{{ __('The 4-letter, 4-digit code on your National Address certificate — fills in the fields below automatically.') }}</p>
+                    <p x-show="message" x-cloak class="text-xs mt-1" :class="messageType === 'success' ? 'text-emerald-600' : 'text-red-600'" x-text="message"></p>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('Street name') }}</label>
-                    <input type="text" name="street_name" value="{{ old('street_name', $company->street_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('District') }}</label>
-                    <input type="text" name="district" value="{{ old('district', $company->district) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('Postal code') }}</label>
-                    <input type="text" name="postal_code" maxlength="20" value="{{ old('postal_code', $company->postal_code) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">{{ __('Additional number') }}</label>
-                    <input type="text" name="additional_number" maxlength="20" value="{{ old('additional_number', $company->additional_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                    <p class="text-xs text-slate-400 mt-1">{{ __('The 4-digit unique number completing your National Address.') }}</p>
+                <div class="grid sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('Building number') }}</label>
+                        <input type="text" name="building_number" maxlength="20" value="{{ old('building_number', $company->building_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('Street name') }}</label>
+                        <input type="text" name="street_name" value="{{ old('street_name', $company->street_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('District') }}</label>
+                        <input type="text" name="district" value="{{ old('district', $company->district) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('Postal code') }}</label>
+                        <input type="text" name="postal_code" maxlength="20" value="{{ old('postal_code', $company->postal_code) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">{{ __('Additional number') }}</label>
+                        <input type="text" name="additional_number" maxlength="20" value="{{ old('additional_number', $company->additional_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <p class="text-xs text-slate-400 mt-1">{{ __('The 4-digit unique number completing your National Address.') }}</p>
+                    </div>
                 </div>
             </div>
 

@@ -251,6 +251,8 @@ class SupplierController extends Controller
             'district' => ['nullable', 'string', 'max:100'],
             'city' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
+            'additional_number' => ['nullable', 'string', 'max:20'],
+            'short_address' => ['nullable', 'string', 'max:10'],
             'state' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],

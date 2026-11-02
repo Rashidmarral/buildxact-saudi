@@ -97,6 +97,7 @@ class SettingsController extends Controller
             'district' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'additional_number' => ['nullable', 'string', 'max:20'],
+            'short_address' => ['nullable', 'string', 'max:10'],
             'phone' => ['nullable', 'string', new SaudiPhoneNumber],
             'email' => ['nullable', 'email', 'max:255'],
             'invoice_prefix' => ['required', 'string', 'max:10'],

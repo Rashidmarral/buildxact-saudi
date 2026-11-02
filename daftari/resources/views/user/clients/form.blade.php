@@ -201,6 +201,47 @@
 
             <div id="client-section-address">
                 <h3 class="font-semibold text-slate-900 pt-2">{{ __('Address') }}</h3>
+                <div x-data="{
+                    checking: false,
+                    message: '',
+                    messageType: '',
+                    verify() {
+                        const shortAddress = this.$refs.shortAddress.value.trim();
+                        if (! shortAddress) { this.message = '{{ __('Enter a short address code first.') }}'; this.messageType = 'error'; return; }
+                        this.checking = true; this.message = '';
+                        fetch('{{ route('app.wathq.national-address') }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                            body: JSON.stringify({ short_address: shortAddress }),
+                        })
+                            .then(r => r.json().then(body => ({ ok: r.ok, body })))
+                            .then(({ ok, body }) => {
+                                this.checking = false;
+                                if (! ok || ! body.success) { this.message = body.error || '{{ __('Could not verify this address.') }}'; this.messageType = 'error'; return; }
+                                const data = body.data;
+                                const form = this.$el.closest('form');
+                                if (data.short_address) this.$refs.shortAddress.value = data.short_address;
+                                if (data.building_number) form.querySelector('[name=building_number]').value = data.building_number;
+                                if (data.street_name) form.querySelector('[name=street_name]').value = data.street_name;
+                                if (data.district) form.querySelector('[name=district]').value = data.district;
+                                if (data.city) form.querySelector('[name=city]').value = data.city;
+                                if (data.postal_code) form.querySelector('[name=postal_code]').value = data.postal_code;
+                                this.message = '{{ __('Address verified via Wathq.') }}';
+                                this.messageType = 'success';
+                            })
+                            .catch(() => { this.checking = false; this.message = '{{ __('Could not reach the Wathq verification service.') }}'; this.messageType = 'error'; });
+                    },
+                }" class="mt-3">
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Short address code') }}</label>
+                    <div class="mt-1 flex gap-2">
+                        <input type="text" name="short_address" x-ref="shortAddress" maxlength="10" placeholder="RRRD2929" value="{{ old('short_address', $client->short_address) }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500 uppercase">
+                        <button type="button" @click="verify" :disabled="checking" class="shrink-0 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700 disabled:opacity-50">
+                            <span x-show="! checking">{{ __('Verify address') }}</span>
+                            <span x-show="checking" x-cloak>{{ __('Checking…') }}</span>
+                        </button>
+                    </div>
+                    <p x-show="message" x-cloak class="text-xs mt-1" :class="messageType === 'success' ? 'text-emerald-600' : 'text-red-600'" x-text="message"></p>
+                </div>
                 <div class="mt-3">
                     <label class="block text-sm font-medium text-slate-700">{{ __('Street name') }}</label>
                     <input type="text" name="street_name" value="{{ old('street_name', $client->street_name) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -228,6 +269,10 @@
                         <label class="block text-sm font-medium text-slate-700">{{ __('Postal code') }}</label>
                         <input type="text" name="postal_code" value="{{ old('postal_code', $client->postal_code) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                     </div>
+                </div>
+                <div class="mt-3">
+                    <label class="block text-sm font-medium text-slate-700">{{ __('Additional number') }}</label>
+                    <input type="text" name="additional_number" maxlength="20" value="{{ old('additional_number', $client->additional_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div class="mt-3">
                     <label class="block text-sm font-medium text-slate-700">{{ __('Country') }}</label>

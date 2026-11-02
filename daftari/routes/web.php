@@ -309,6 +309,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     // Shared between the Client and Supplier forms' "Verify via Wathq"
     // button — not tucked under either permission group for that reason.
     Route::post('wathq/commercial-registration', [WathqLookupController::class, 'commercialRegistration'])->name('wathq.commercial-registration');
+    Route::post('wathq/national-address', [WathqLookupController::class, 'nationalAddress'])->name('wathq.national-address');
 
     Route::middleware('permission:clients')->group(function () {
         Route::resource('clients', ClientController::class)->except(['show']);

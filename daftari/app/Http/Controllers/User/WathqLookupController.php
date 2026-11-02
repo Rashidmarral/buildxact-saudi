@@ -24,4 +24,15 @@ class WathqLookupController extends Controller
 
         return response()->json($result, $result['success'] ? 200 : 422);
     }
+
+    public function nationalAddress(Request $request, WathqService $wathq)
+    {
+        $data = $request->validate([
+            'short_address' => ['required', 'string', 'max:10'],
+        ]);
+
+        $result = $wathq->lookupNationalAddress($data['short_address']);
+
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
 }

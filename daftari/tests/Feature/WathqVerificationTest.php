@@ -156,4 +156,74 @@ class WathqVerificationTest extends TestCase
         $response->assertStatus(422);
         $response->assertJson(['success' => false]);
     }
+
+    public function test_national_address_lookup_requires_a_short_address(): void
+    {
+        $owner = $this->makeOwner();
+
+        $response = $this->actingAs($owner)->post(route('app.wathq.national-address'), []);
+
+        $response->assertSessionHasErrors('short_address');
+    }
+
+    public function test_national_address_lookup_fails_gracefully_when_wathq_is_not_configured(): void
+    {
+        $owner = $this->makeOwner();
+
+        $response = $this->actingAs($owner)->postJson(route('app.wathq.national-address'), [
+            'short_address' => 'RRRD2929',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson(['success' => false]);
+    }
+
+    public function test_national_address_lookup_returns_mapped_address_on_success(): void
+    {
+        Setting::set('wathq_api_key', 'a-real-key', encrypted: true);
+        Http::fake([
+            'api.wathq.sa/*' => Http::response([
+                'shortAddress' => 'RRRD2929',
+                'buildingNumber' => '7452',
+                'streetName' => 'King Fahd Road',
+                'district' => 'Al Olaya',
+                'city' => 'Riyadh',
+                'postCode' => '12333',
+                'additionalNumber' => '4321',
+            ], 200),
+        ]);
+        $owner = $this->makeOwner();
+
+        $response = $this->actingAs($owner)->postJson(route('app.wathq.national-address'), [
+            'short_address' => 'RRRD2929',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'data' => [
+                'short_address' => 'RRRD2929',
+                'building_number' => '7452',
+                'street_name' => 'King Fahd Road',
+                'district' => 'Al Olaya',
+                'city' => 'Riyadh',
+                'postal_code' => '12333',
+                'additional_number' => '4321',
+            ],
+        ]);
+    }
+
+    public function test_national_address_lookup_reports_a_clean_error_when_not_found(): void
+    {
+        Setting::set('wathq_api_key', 'a-real-key', encrypted: true);
+        Http::fake(['api.wathq.sa/*' => Http::response(null, 404)]);
+        $owner = $this->makeOwner();
+
+        $response = $this->actingAs($owner)->postJson(route('app.wathq.national-address'), [
+            'short_address' => 'ZZZZ0000',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson(['success' => false]);
+    }
 }
