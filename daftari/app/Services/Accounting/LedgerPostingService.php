@@ -263,9 +263,9 @@ class LedgerPostingService
             ->exists();
     }
 
-    private function account(Company $company, string $key): ?Account
+    private function account(Company $company, string $key, ?int $branchId = null): ?Account
     {
-        return AccountMapping::resolve($company->id, $key);
+        return AccountMapping::resolve($company->id, $key, $branchId);
     }
 
     /**
@@ -310,11 +310,16 @@ class LedgerPostingService
     public function postInvoiceIssued(Invoice $invoice): ?JournalEntry
     {
         $company = $invoice->company;
-        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
-        $arRetention = $this->account($company, 'AR_RETENTION');
-        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
-        $vatOutput = $this->account($company, 'VAT_OUTPUT');
-        $discounts = $this->account($company, 'DEFAULT_SALES_DISCOUNTS');
+        // A branch can override where its own sales post (see
+        // AccountMapping::branchOverridableKeys()), falling back to the
+        // company-wide default for any key it hasn't — Hamly's own
+        // per-location mapping screen works the same way.
+        $branchId = $invoice->branch_id;
+        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE', $branchId);
+        $arRetention = $this->account($company, 'AR_RETENTION', $branchId);
+        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE', $branchId);
+        $vatOutput = $this->account($company, 'VAT_OUTPUT', $branchId);
+        $discounts = $this->account($company, 'DEFAULT_SALES_DISCOUNTS', $branchId);
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'invoice');
 
@@ -384,9 +389,10 @@ class LedgerPostingService
     public function postCreditNote(CreditNote $creditNote): ?JournalEntry
     {
         $company = $creditNote->company;
-        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
-        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
-        $vatOutput = $this->account($company, 'VAT_OUTPUT');
+        $branchId = $creditNote->branch_id;
+        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE', $branchId);
+        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE', $branchId);
+        $vatOutput = $this->account($company, 'VAT_OUTPUT', $branchId);
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'credit note');
 
@@ -418,9 +424,10 @@ class LedgerPostingService
     public function postDebitNote(DebitNote $debitNote): ?JournalEntry
     {
         $company = $debitNote->company;
-        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
-        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE');
-        $vatOutput = $this->account($company, 'VAT_OUTPUT');
+        $branchId = $debitNote->branch_id;
+        $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE', $branchId);
+        $revenue = $this->account($company, 'DEFAULT_SALES_REVENUE', $branchId);
+        $vatOutput = $this->account($company, 'VAT_OUTPUT', $branchId);
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'debit note');
 
@@ -543,9 +550,10 @@ class LedgerPostingService
     public function postBillPosted(Bill $bill): ?JournalEntry
     {
         $company = $bill->company;
-        $ap = $this->account($company, 'ACCOUNTS_PAYABLE');
-        $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES');
-        $vatInput = $this->account($company, 'VAT_INPUT');
+        $branchId = $bill->branch_id;
+        $ap = $this->account($company, 'ACCOUNTS_PAYABLE', $branchId);
+        $expenseAccount = $this->account($company, 'DEFAULT_OPERATING_EXPENSES', $branchId);
+        $vatInput = $this->account($company, 'VAT_INPUT', $branchId);
 
         $this->requireAccounts(['ACCOUNTS_PAYABLE' => $ap, 'DEFAULT_OPERATING_EXPENSES' => $expenseAccount, 'VAT_INPUT' => $vatInput], 'bill');
 

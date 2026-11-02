@@ -101,12 +101,48 @@ class AccountMapping extends Model
     }
 
     /**
+     * Keys a branch can override (see account_mapping_branch_overrides) —
+     * the Sales/Purchases document postings that already carry their own
+     * branch_id (Invoice, CreditNote, DebitNote, Bill), matching the
+     * "بيع"/"المشتريات" sections of Hamly's own per-location mapping
+     * screen. Every other key only has one, company-wide meaning (e.g.
+     * payroll, fixed assets) and isn't exposed for branch override.
+     */
+    public static function branchOverridableKeys(): array
+    {
+        return [
+            'DEFAULT_SALES_REVENUE', 'ACCOUNTS_RECEIVABLE', 'AR_RETENTION', 'VAT_OUTPUT',
+            'DEFAULT_SALES_DISCOUNTS', 'SALES_RETURNS_DEFAULT',
+            'ACCOUNTS_PAYABLE', 'DEFAULT_OPERATING_EXPENSES', 'VAT_INPUT',
+        ];
+    }
+
+    /**
      * Resolve a business key to the company's currently-mapped account,
      * falling back to the system account at its default code if the
      * mapping row is somehow missing (e.g. seeded before this key existed).
+     *
+     * $branchId, when given, checks that branch's own override first (see
+     * account_mapping_branch_overrides and branchOverridableKeys()) —
+     * Hamly's own per-location mapping screen falls back to the
+     * company-wide default for any field the branch leaves unset, which
+     * this mirrors exactly rather than requiring every branch to map
+     * every key from scratch.
      */
-    public static function resolve(int $companyId, string $key): ?Account
+    public static function resolve(int $companyId, string $key, ?int $branchId = null): ?Account
     {
+        if ($branchId) {
+            $override = AccountMappingBranchOverride::withoutGlobalScope('company')
+                ->where('company_id', $companyId)
+                ->where('branch_id', $branchId)
+                ->where('key', $key)
+                ->first();
+
+            if ($override && $override->account?->is_active) {
+                return $override->account;
+            }
+        }
+
         $mapping = self::withoutGlobalScope('company')
             ->where('company_id', $companyId)
             ->where('key', $key)

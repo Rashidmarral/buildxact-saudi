@@ -112,6 +112,24 @@
     <p class="mt-4 text-xs text-slate-400">{{ __('System accounts and required mappings cannot be deactivated once used.') }}</p>
 </div>
 
+@if ($branches->isNotEmpty())
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mt-8">
+        <h3 class="font-semibold text-slate-900">{{ __('Branch Overrides') }}</h3>
+        <p class="text-sm text-slate-500 mt-1 mb-4">{{ __('Each branch can post its sales and purchases to its own accounts instead of the company default above — e.g. a separate revenue account per branch. Anything a branch leaves unset falls back to the company default.') }}</p>
+        <div class="divide-y divide-slate-50">
+            @foreach ($branches as $branch)
+                <div class="flex items-center justify-between py-3">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800">{{ $branch->name }}</p>
+                        <p class="text-xs text-slate-400">{{ $branch->code }}</p>
+                    </div>
+                    <a href="{{ route('app.accounts.branch-mappings', $branch) }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Configure overrides') }}</a>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endif
+
 <dialog id="add-account-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.accounts.store') }}" class="p-6 space-y-4">
         @csrf

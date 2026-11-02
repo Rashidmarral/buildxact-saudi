@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Branch extends Model
 {
@@ -31,6 +32,11 @@ class Branch extends Model
         } while (static::withoutGlobalScopes()->where('company_id', $companyId)->where('code', $code)->exists());
 
         return $code;
+    }
+
+    public function accountMappingOverrides(): HasMany
+    {
+        return $this->hasMany(AccountMappingBranchOverride::class);
     }
 
     public function fullAddress(): string

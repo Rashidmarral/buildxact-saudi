@@ -5,6 +5,8 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\AccountMapping;
+use App\Models\AccountMappingBranchOverride;
+use App\Models\Branch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,7 +39,66 @@ class AccountController extends Controller
             'mappings' => $mappings,
             'mappingCatalog' => AccountMapping::catalog(),
             'activeAccounts' => $activeAccounts,
+            'branches' => $company->branches()->orderBy('name')->get(),
         ]);
+    }
+
+    /**
+     * One branch's Sales/Purchases account overrides (see
+     * AccountMapping::branchOverridableKeys()) — any key left unset here
+     * falls back to the company-wide default shown on the main Accounts
+     * page, exactly like Hamly's own per-location mapping screen.
+     */
+    public function branchMappings(Branch $branch)
+    {
+        $company = Auth::user()->company;
+        abort_unless($branch->company_id === $company->id, 404);
+
+        $overrides = $branch->accountMappingOverrides()->with('account')->get()->keyBy('key');
+        $activeAccounts = $company->accounts()->where('is_active', true)->orderBy('code')->get();
+        $catalog = AccountMapping::catalog();
+        $overridableKeys = collect(AccountMapping::branchOverridableKeys())->mapWithKeys(fn ($key) => [$key => $catalog[$key]]);
+
+        return view('user.accounts.branch-mappings', [
+            'branch' => $branch,
+            'overrides' => $overrides,
+            'overridableKeys' => $overridableKeys,
+            'activeAccounts' => $activeAccounts,
+            'companyMappings' => $company->accountMappings()->with('account')->get()->keyBy('key'),
+        ]);
+    }
+
+    public function updateBranchMapping(Request $request, Branch $branch): RedirectResponse
+    {
+        $company = Auth::user()->company;
+        abort_unless($branch->company_id === $company->id, 404);
+
+        $data = $request->validate([
+            'key' => ['required', Rule::in(AccountMapping::branchOverridableKeys())],
+            // Empty clears the override — "use the company default" is
+            // itself a valid, common choice, not an error.
+            'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $company->id)->where('is_active', true)],
+        ]);
+
+        if (empty($data['account_id'])) {
+            $branch->accountMappingOverrides()->where('key', $data['key'])->delete();
+
+            return back()->with('status', __('Now using the company default for this key.'));
+        }
+
+        $allowedType = AccountMapping::catalog()[$data['key']]['allowed_type'] ?? null;
+        $account = Account::where('company_id', $company->id)->find($data['account_id']);
+
+        if ($allowedType && $account && $account->type !== $allowedType) {
+            return back()->withErrors(['account_id' => __('This role requires a(n) :type account — the selected account is a(n) :actual account.', ['type' => $allowedType, 'actual' => $account->type])]);
+        }
+
+        AccountMappingBranchOverride::updateOrCreate(
+            ['company_id' => $company->id, 'branch_id' => $branch->id, 'key' => $data['key']],
+            ['account_id' => $data['account_id']]
+        );
+
+        return back()->with('status', __('Branch override saved.'));
     }
 
     public function store(Request $request): RedirectResponse

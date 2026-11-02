@@ -471,6 +471,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::post('{account}/activate', [AccountController::class, 'activate'])->name('activate');
         });
         Route::post('mappings', [AccountController::class, 'updateMapping'])->name('accounts.mappings.update');
+        Route::get('accounts/branches/{branch}', [AccountController::class, 'branchMappings'])->name('accounts.branch-mappings');
+        Route::post('accounts/branches/{branch}', [AccountController::class, 'updateBranchMapping'])->name('accounts.branch-mappings.update');
 
         Route::get('opening-balances', [OpeningBalanceController::class, 'create'])->name('opening-balances.create');
         Route::post('opening-balances', [OpeningBalanceController::class, 'store'])->name('opening-balances.store');
