@@ -51,9 +51,43 @@
                 <label class="block text-sm font-medium text-slate-700">{{ __('VAT number') }}</label>
                 <input type="text" name="vat_number" value="{{ old('vat_number', $client->vat_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
-            <div>
+            <div x-data="{
+                checking: false,
+                message: '',
+                messageType: '',
+                verify() {
+                    const crNumber = this.$refs.crNumber.value.trim();
+                    if (! crNumber) { this.message = '{{ __('Enter a CR number first.') }}'; this.messageType = 'error'; return; }
+                    this.checking = true; this.message = '';
+                    fetch('{{ route('app.wathq.commercial-registration') }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                        body: JSON.stringify({ cr_number: crNumber }),
+                    })
+                        .then(r => r.json().then(body => ({ ok: r.ok, body })))
+                        .then(({ ok, body }) => {
+                            this.checking = false;
+                            if (! ok || ! body.success) { this.message = body.error || '{{ __('Could not verify this CR number.') }}'; this.messageType = 'error'; return; }
+                            const data = body.data;
+                            const form = this.$el.closest('form');
+                            if (data.cr_number) this.$refs.crNumber.value = data.cr_number;
+                            if (data.name) form.querySelector('[name=name]').value = data.name;
+                            if (data.name_ar) form.querySelector('[name=name_ar]').value = data.name_ar;
+                            this.message = '{{ __('Verified via Wathq.') }}' + (data.status ? ' ' + data.status : '');
+                            this.messageType = 'success';
+                        })
+                        .catch(() => { this.checking = false; this.message = '{{ __('Could not reach the Wathq verification service.') }}'; this.messageType = 'error'; });
+                },
+            }">
                 <label class="block text-sm font-medium text-slate-700">{{ __('CR number') }}</label>
-                <input type="text" name="cr_number" value="{{ old('cr_number', $client->cr_number) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                <div class="mt-1 flex gap-2">
+                    <input type="text" name="cr_number" x-ref="crNumber" value="{{ old('cr_number', $client->cr_number) }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <button type="button" @click="verify" :disabled="checking" class="shrink-0 whitespace-nowrap rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:border-brand-300 hover:text-brand-700 disabled:opacity-50">
+                        <span x-show="! checking">{{ __('Verify via Wathq') }}</span>
+                        <span x-show="checking" x-cloak>{{ __('Checking…') }}</span>
+                    </button>
+                </div>
+                <p x-show="message" x-cloak class="text-xs mt-1" :class="messageType === 'success' ? 'text-emerald-600' : 'text-red-600'" x-text="message"></p>
             </div>
 
             <div class="grid grid-cols-2 gap-4">

@@ -118,6 +118,9 @@ class PlatformSettingsController extends Controller
             'storage_s3_key_configured' => Setting::isConfigured('storage_s3_key'),
             'storage_s3_secret_configured' => Setting::isConfigured('storage_s3_secret'),
             'storage_max_upload_size_mb' => (int) Setting::get('storage_max_upload_size_mb', 10),
+
+            // Integrations
+            'wathq_api_key_configured' => Setting::isConfigured('wathq_api_key'),
         ];
 
         $featureToggles = collect(FeatureRegistry::gatedKeys())
@@ -447,6 +450,33 @@ class PlatformSettingsController extends Controller
         AuditLog::record('settings.update_storage', null, __('Updated storage settings'));
 
         return back()->with('status', __('Storage settings saved.'));
+    }
+
+    /**
+     * One Wathq (Ministry of Commerce) API subscription, held at the
+     * platform level and used on behalf of every tenant — a small
+     * construction subcontractor realistically won't have their own
+     * direct Wathq subscription, so this works the same way the SaaS
+     * vendor already holds its own Unifonic/Meta credentials for
+     * company-level SMS/WhatsApp... except here it's the platform, not
+     * each company, that holds the one key. See WathqService for the
+     * actual CR and National Address lookups this enables, and
+     * WathqLookupController for the "Verify via Wathq" buttons on the
+     * Client/Supplier forms.
+     */
+    public function updateIntegrations(Request $request)
+    {
+        $data = $request->validate([
+            'wathq_api_key' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if (filled($data['wathq_api_key'] ?? null)) {
+            Setting::set('wathq_api_key', $data['wathq_api_key'], encrypted: true);
+        }
+
+        AuditLog::record('settings.update_integrations', null, __('Updated integrations settings'));
+
+        return back()->with('status', __('Integrations settings saved.'));
     }
 
     public function runSystemAction(Request $request, string $action)

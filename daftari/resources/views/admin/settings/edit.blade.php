@@ -22,6 +22,7 @@
             'features' => __('Features'),
             'mail' => __('Email'),
             'storage' => __('Storage'),
+            'integrations' => __('Integrations'),
             'system' => __('System'),
         ] as $key => $label)
             <button type="button" @click="tab = '{{ $key }}'"
@@ -602,6 +603,25 @@
             </div>
 
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Storage settings') }}</button>
+        </form>
+    </div>
+
+    {{-- ============ Integrations ============ --}}
+    <div x-show="tab === 'integrations'" x-cloak>
+        <form method="POST" action="{{ route('admin.settings.integrations.update') }}" class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+            @csrf
+            <div>
+                <h3 class="font-semibold text-slate-900 mb-1">{{ __('Wathq (Ministry of Commerce)') }}</h3>
+                <p class="text-sm text-slate-500">{{ __('One subscription, shared by every company on the platform, used for the "Verify via Wathq" buttons on Client/Supplier forms — Commercial Registration lookups and Saudi National Address lookups. The key is encrypted at rest and never shown again once saved.') }}</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Wathq API key') }}</label>
+                <input type="password" name="wathq_api_key" autocomplete="new-password" placeholder="{{ $settings['wathq_api_key_configured'] ? __('•••••••• (configured — leave blank to keep)') : __('Not configured') }}" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <p class="text-xs text-slate-400 mt-1">{{ __('From your account at developer.wathq.sa. Until a key is saved here, companies can still enter CR numbers and addresses manually — only the auto-pull/verify button needs this.') }}</p>
+            </div>
+
+            <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save Integrations settings') }}</button>
         </form>
     </div>
 

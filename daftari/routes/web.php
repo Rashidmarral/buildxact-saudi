@@ -159,6 +159,7 @@ use App\Http\Controllers\User\PaymentGatewayController;
 use App\Http\Controllers\User\ApprovalChainController;
 use App\Http\Controllers\User\ApprovalSettingsController;
 use App\Http\Controllers\User\MailSettingsController;
+use App\Http\Controllers\User\WathqLookupController;
 use App\Http\Controllers\User\SmsSettingsController;
 use App\Http\Controllers\User\WhatsappSettingsController;
 use App\Http\Controllers\User\TicketController;
@@ -304,6 +305,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+
+    // Shared between the Client and Supplier forms' "Verify via Wathq"
+    // button — not tucked under either permission group for that reason.
+    Route::post('wathq/commercial-registration', [WathqLookupController::class, 'commercialRegistration'])->name('wathq.commercial-registration');
 
     Route::middleware('permission:clients')->group(function () {
         Route::resource('clients', ClientController::class)->except(['show']);
@@ -1207,6 +1212,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         // secrets above, since a hijacked/left-open admin session
         // shouldn't be able to repoint them without a fresh password.
         Route::middleware('password.confirm.admin')->post('settings/storage', [PlatformSettingsController::class, 'updateStorage'])->name('settings.storage.update');
+        // The Wathq API key is the same class of secret as the ones above —
+        // same re-auth requirement.
+        Route::middleware('password.confirm.admin')->post('settings/integrations', [PlatformSettingsController::class, 'updateIntegrations'])->name('settings.integrations.update');
         Route::post('settings/system/{action}', [PlatformSettingsController::class, 'runSystemAction'])->name('settings.system.run');
 
         Route::get('settings/payment-gateways', [AdminPaymentGatewaySettingsController::class, 'index'])->name('settings.payment-gateways');
