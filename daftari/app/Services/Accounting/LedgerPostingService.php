@@ -293,9 +293,16 @@ class LedgerPostingService
         }
     }
 
-    private function bankOrCashAccount(Company $company, string $bankAccountType): ?Account
+    /**
+     * A specific BankAccount posts to its own dedicated ledger line (see
+     * BankAccount::glAccount()) rather than every bank/cash account
+     * sharing one generic Default Bank/Default Cash account — lazily
+     * creates that line on first use, so an account created before this
+     * existed still gets one instead of erroring.
+     */
+    private function bankOrCashAccount(Company $company, BankAccount $bankAccount): ?Account
     {
-        return $this->account($company, $bankAccountType === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK');
+        return $bankAccount->glAccount();
     }
 
     // ---- Sales cycle ----------------------------------------------------
@@ -452,7 +459,7 @@ class LedgerPostingService
         $company = $invoice->company;
         $ar = $this->account($company, 'ACCOUNTS_RECEIVABLE');
         $cashOrBank = $payment->bankAccount
-            ? $this->bankOrCashAccount($company, $payment->bankAccount->type)
+            ? $this->bankOrCashAccount($company, $payment->bankAccount)
             : $this->account($company, $payment->method === 'cash' ? 'DEFAULT_CASH' : 'DEFAULT_BANK');
 
         $this->requireAccounts(['ACCOUNTS_RECEIVABLE' => $ar, 'DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank], 'invoice payment');
@@ -477,7 +484,7 @@ class LedgerPostingService
     {
         $company = $voucher->company;
         $bankAccount = $voucher->bankAccount;
-        $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount->type) : null;
+        $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount) : null;
 
         // An explicit counter account on the voucher always wins (e.g. the
         // user knows this receipt should be credited to a specific account).
@@ -719,7 +726,7 @@ class LedgerPostingService
     {
         $company = $voucher->company;
         $bankAccount = $voucher->bankAccount;
-        $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount->type) : null;
+        $cashOrBank = $bankAccount ? $this->bankOrCashAccount($company, $bankAccount) : null;
 
         // An explicit counter account on the voucher always wins. Otherwise:
         // linked to a bill or expense settles Accounts Payable (the bill or
@@ -816,7 +823,7 @@ class LedgerPostingService
     {
         $company = $payrollRun->company;
         $salariesPayable = $this->account($company, 'SALARIES_PAYABLE');
-        $funding = $this->bankOrCashAccount($company, $bankAccount->type);
+        $funding = $this->bankOrCashAccount($company, $bankAccount);
 
         $this->requireAccounts(['SALARIES_PAYABLE' => $salariesPayable, 'funding account' => $funding], 'payroll run settlement');
 
@@ -935,7 +942,7 @@ class LedgerPostingService
         $counterpart = $expense->employee_id
             ? $this->account($company, 'EMPLOYEE_ADVANCES')
             : ($bankAccount
-                ? $this->bankOrCashAccount($company, $bankAccount->type)
+                ? $this->bankOrCashAccount($company, $bankAccount)
                 : $this->account($company, 'ACCOUNTS_PAYABLE'));
 
         $this->requireAccounts(['expense account' => $expenseAccount, 'counterpart' => $counterpart], 'expense');
@@ -968,7 +975,7 @@ class LedgerPostingService
 
         $bankAccount = $income->bankAccount;
         $counterpart = $bankAccount
-            ? $this->bankOrCashAccount($company, $bankAccount->type)
+            ? $this->bankOrCashAccount($company, $bankAccount)
             : $this->account($company, 'ACCOUNTS_RECEIVABLE');
 
         $this->requireAccounts(['income account' => $incomeAccount, 'counterpart' => $counterpart], 'income');
@@ -1172,8 +1179,8 @@ class LedgerPostingService
             return null;
         }
 
-        $fromAccount = $this->bankOrCashAccount($company, $from->type);
-        $toAccount = $this->bankOrCashAccount($company, $to->type);
+        $fromAccount = $this->bankOrCashAccount($company, $from);
+        $toAccount = $this->bankOrCashAccount($company, $to);
 
         $this->requireAccounts(['from account' => $fromAccount, 'to account' => $toAccount], 'bank transfer');
 

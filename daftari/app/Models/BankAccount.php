@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BankAccount extends Model
@@ -14,6 +15,9 @@ class BankAccount extends Model
         'company_id', 'name', 'bank_name', 'account_holder_name', 'account_number', 'iban',
         'bank_phone', 'bank_address', 'type', 'opening_balance', 'opening_balance_date',
         'opening_balance_reference', 'currency', 'is_active', 'is_personal', 'personal_owner_name',
+        // Not set from form input (see BankAccountController::validated()) —
+        // only ever written by glAccount() itself, below.
+        'account_id',
     ];
 
     protected function casts(): array
@@ -23,6 +27,48 @@ class BankAccount extends Model
             'is_personal' => 'boolean',
             'opening_balance_date' => 'date',
         ];
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    /**
+     * Each real bank/cash account gets its own dedicated ledger line
+     * (created on first use, idempotent) instead of every account of the
+     * same type sharing one generic "Bank"/"Cash" account — see
+     * LedgerPostingService::bankOrCashAccount(). Code is allocated from a
+     * reserved sub-range under the matching system parent (1001–1099
+     * under Cash 1000, 1101–1149 under Bank 1100 — see
+     * Account::nextAvailableCode()).
+     */
+    public function glAccount(): Account
+    {
+        if ($this->account_id) {
+            return $this->account;
+        }
+
+        $isCash = $this->type === 'cash';
+        $code = Account::nextAvailableCode($this->company_id, $isCash ? 1001 : 1101, $isCash ? 1099 : 1149);
+
+        if (! $code) {
+            throw new \RuntimeException("No free ledger code left for new {$this->type} accounts — contact support.");
+        }
+
+        $account = Account::create([
+            'company_id' => $this->company_id,
+            'code' => $code,
+            'name' => $this->name,
+            'type' => 'asset',
+            'normal_balance' => 'debit',
+            'is_system' => false,
+        ]);
+
+        $this->update(['account_id' => $account->id]);
+        $this->setRelation('account', $account);
+
+        return $account;
     }
 
     public function receiptVouchers(): HasMany

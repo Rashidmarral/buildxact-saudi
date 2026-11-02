@@ -109,4 +109,40 @@
         <a href="{{ route('app.bank-accounts.index') }}" class="rounded-lg border border-slate-200 px-6 py-2.5 font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
     </div>
 </form>
+
+@if ($account->exists)
+    <div class="max-w-2xl mt-6 bg-white rounded-xl border border-slate-100 p-6 space-y-4">
+        <div>
+            <h4 class="font-semibold text-slate-900">{{ __('Ledger account') }}</h4>
+            <p class="text-xs text-slate-500 mt-1">
+                {{ __('Every transaction on this account (payments, receipts, transfers) posts to its own ledger line, separate from your other bank/cash accounts.') }}
+            </p>
+            <p class="mt-2 text-sm font-medium text-slate-700">{{ $account->glAccount()->label() }}</p>
+        </div>
+
+        @php($alreadyTransferred = \App\Models\JournalEntry::where('company_id', $account->company_id)->where('source_type', 'bank_account_gl_transfer')->where('source_id', $account->id)->exists())
+        <div class="border-t border-slate-100 pt-4">
+            <h4 class="font-semibold text-slate-900">{{ __('GL opening balance transfer (optional, one-time)') }}</h4>
+            @if ($alreadyTransferred)
+                <p class="text-xs text-slate-500 mt-1">{{ __('A one-time balance has already been transferred into this account\'s ledger line.') }}</p>
+            @else
+                <p class="text-xs text-slate-500 mt-1 mb-3">
+                    {{ __('Until now, every bank/cash account shared one combined "Bank"/"Cash" ledger line, so this account\'s share of your historical balance is still sitting there, not here. If you want this account\'s own ledger line to start from a real balance instead of zero, enter the amount to move across — this only happens if you confirm it; nothing is guessed automatically.') }}
+                </p>
+                <form method="POST" action="{{ route('app.bank-accounts.transfer-gl-opening-balance', $account) }}" class="grid sm:grid-cols-3 gap-3 items-end">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Amount to move in') }}</label>
+                        <input type="number" step="0.01" name="amount" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('As of') }}</label>
+                        <input type="date" name="date" value="{{ now()->toDateString() }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <button type="submit" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:border-slate-400">{{ __('Transfer') }}</button>
+                </form>
+            @endif
+        </div>
+    </div>
+@endif
 @endsection

@@ -532,6 +532,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:cash_banks')->group(function () {
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
+        Route::post('bank-accounts/{bankAccount}/transfer-gl-opening-balance', [BankAccountController::class, 'transferGlOpeningBalance'])->name('bank-accounts.transfer-gl-opening-balance');
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
         Route::get('cash-custody', [CashCustodyController::class, 'index'])->name('cash-custody.index');
         Route::get('cash-custody/report', [CashCustodyController::class, 'report'])->name('cash-custody.report');

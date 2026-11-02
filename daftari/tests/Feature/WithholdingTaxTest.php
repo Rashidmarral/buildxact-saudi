@@ -105,7 +105,11 @@ class WithholdingTaxTest extends TestCase
 
         $entry = JournalEntry::where('source_type', 'payment_voucher')->latest('id')->first();
         $ap = Account::where('company_id', $owner->company_id)->where('code', '2000')->first();
-        $bankAccount = Account::where('company_id', $owner->company_id)->where('code', '1100')->first();
+        // The voucher's own bank account has its own dedicated ledger
+        // line (see BankAccount::glAccount()), not the shared code 1100
+        // — re-fetched fresh since the controller's posting used a
+        // separate instance of this same row.
+        $bankAccount = $bank->fresh()->glAccount();
         $whtPayable = Account::where('company_id', $owner->company_id)->where('code', '2250')->first();
 
         $this->assertSame(1000.0, (float) $entry->lines()->where('account_id', $ap->id)->sum('debit'));

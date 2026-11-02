@@ -112,6 +112,37 @@ class Account extends Model
         return $this->hasMany(JournalEntryLine::class);
     }
 
+    /**
+     * Picks the next free code in a reserved sub-range under one of the
+     * system cash/bank parents (1001–1099 under 1000 Cash, 1101–1149
+     * under 1100 Bank — both ranges sit below the next system code in
+     * that family, 1100/1150, so they never collide with
+     * systemAccounts()). Used to give each real BankAccount its own
+     * dedicated ledger line instead of every bank/cash account sharing
+     * the one generic Cash/Bank account — see BankAccount::glAccount().
+     */
+    public static function nextAvailableCode(int $companyId, int $min, int $max): ?string
+    {
+        // Fetched and filtered in PHP rather than with a numeric CAST in
+        // SQL: `code` is a string column, and a portable numeric cast
+        // across both MySQL (production) and SQLite (tests) isn't worth
+        // the complexity for a chart of accounts that's always small.
+        $used = self::withoutGlobalScope('company')
+            ->where('company_id', $companyId)
+            ->pluck('code')
+            ->map(fn ($c) => (int) $c)
+            ->filter(fn ($c) => $c >= $min && $c <= $max)
+            ->all();
+
+        for ($i = $min; $i <= $max; $i++) {
+            if (! in_array($i, $used, true)) {
+                return (string) $i;
+            }
+        }
+
+        return null;
+    }
+
     public function label(): string
     {
         return $this->code.' — '.$this->name;

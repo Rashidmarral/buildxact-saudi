@@ -87,12 +87,15 @@ class PayrollRunSettlementTest extends TestCase
         $this->assertSame($bankAccount->id, $run->bank_account_id);
 
         $salariesPayable = AccountMapping::resolve($company->id, 'SALARIES_PAYABLE');
-        $bank = AccountMapping::resolve($company->id, 'DEFAULT_BANK');
         $entry = JournalEntry::where('company_id', $company->id)->where('source_type', 'payroll_run_settlement')->where('source_id', $run->id)->first();
 
         $this->assertNotNull($entry, 'Marking a run paid must post a settlement journal entry.');
         $this->assertSame((float) $run->total_net, (float) $entry->lines()->where('account_id', $salariesPayable->id)->sum('debit'));
-        $this->assertSame((float) $run->total_net, (float) $entry->lines()->where('account_id', $bank->id)->sum('credit'));
+        // Credits the bank account's own dedicated ledger line (see
+        // BankAccount::glAccount()), not the shared Default Bank account.
+        // Re-fetched fresh: $bankAccount was loaded before the controller's
+        // own (separate) instance persisted its account_id.
+        $this->assertSame((float) $run->total_net, (float) $entry->lines()->where('account_id', $bankAccount->fresh()->glAccount()->id)->sum('credit'));
     }
 
     public function test_marking_a_run_as_paid_from_a_cash_account_credits_the_cash_account(): void
@@ -104,10 +107,9 @@ class PayrollRunSettlementTest extends TestCase
 
         $this->actingAs($owner)->post(route('app.payroll.mark-paid', $run), ['bank_account_id' => $cashAccount->id])->assertRedirect();
 
-        $cash = AccountMapping::resolve($company->id, 'DEFAULT_CASH');
         $entry = JournalEntry::where('company_id', $company->id)->where('source_type', 'payroll_run_settlement')->where('source_id', $run->id)->first();
 
-        $this->assertSame((float) $run->total_net, (float) $entry->lines()->where('account_id', $cash->id)->sum('credit'));
+        $this->assertSame((float) $run->total_net, (float) $entry->lines()->where('account_id', $cashAccount->fresh()->glAccount()->id)->sum('credit'));
     }
 
     public function test_marking_a_run_as_paid_without_a_bank_account_is_rejected(): void

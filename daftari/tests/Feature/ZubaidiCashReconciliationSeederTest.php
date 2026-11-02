@@ -119,14 +119,22 @@ class ZubaidiCashReconciliationSeederTest extends TestCase
     {
         [$company] = $this->seedUpTo();
 
+        // Each real bank/cash account now has its own dedicated ledger
+        // line (see BankAccount::glAccount()) instead of every one
+        // sharing codes 1000/1100 — the set of real accounts is stable
+        // across this seeder's run (it posts against existing accounts,
+        // never creates new ones), so the same lookup is valid before
+        // and after.
+        $bankAccountGlIds = BankAccount::where('company_id', $company->id)->get()->map(fn (BankAccount $b) => $b->glAccount()->id)->all();
+
         $before = JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->where('source_type', 'payment_voucher'))
-            ->whereHas('account', fn ($q) => $q->whereIn('code', ['1000', '1100']))
+            ->whereIn('account_id', $bankAccountGlIds)
             ->sum('credit');
 
         (new ZubaidiCashReconciliationSeeder)->run();
 
         $after = JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->where('source_type', 'payment_voucher'))
-            ->whereHas('account', fn ($q) => $q->whereIn('code', ['1000', '1100']))
+            ->whereIn('account_id', $bankAccountGlIds)
             ->sum('credit');
 
         $this->assertEqualsWithDelta(30000.00, (float) $after - (float) $before, 0.01);

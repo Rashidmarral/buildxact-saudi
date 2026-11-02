@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Account;
 use App\Models\AccountMapping;
+use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\Company;
 use App\Models\JournalEntry;
@@ -247,24 +248,32 @@ class SaedEstMaterialSupplierCorrectionSeederTest extends TestCase
     {
         $company = $this->seedUpToBill();
 
+        // Each real bank/cash account now has its own dedicated ledger
+        // line (see BankAccount::glAccount()) instead of every one
+        // sharing codes 1000/1100 — the set of real accounts is stable
+        // across this seeder's run (it posts against existing accounts,
+        // never creates new ones), so the same lookup is valid before
+        // and after.
+        $bankAccountGlIds = BankAccount::where('company_id', $company->id)->get()->map(fn (BankAccount $b) => $b->glAccount()->id)->all();
+
         $before = JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->where('source_type', 'payment_voucher'))
-            ->whereHas('account', fn ($q) => $q->whereIn('code', ['1000', '1100']))
+            ->whereIn('account_id', $bankAccountGlIds)
             ->get(['account_id', 'debit', 'credit'])
             ->map(fn ($l) => round((float) $l->debit, 2).'|'.round((float) $l->credit, 2).'|'.$l->account_id)
             ->sort()->values();
         $totalBefore = (float) JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->where('source_type', 'payment_voucher'))
-            ->whereHas('account', fn ($q) => $q->whereIn('code', ['1000', '1100']))
+            ->whereIn('account_id', $bankAccountGlIds)
             ->sum('credit');
 
         (new SaedEstMaterialSupplierCorrectionSeeder)->run();
 
         $after = JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->where('source_type', 'payment_voucher'))
-            ->whereHas('account', fn ($q) => $q->whereIn('code', ['1000', '1100']))
+            ->whereIn('account_id', $bankAccountGlIds)
             ->get(['account_id', 'debit', 'credit'])
             ->map(fn ($l) => round((float) $l->debit, 2).'|'.round((float) $l->credit, 2).'|'.$l->account_id)
             ->sort()->values();
         $totalAfter = (float) JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->where('source_type', 'payment_voucher'))
-            ->whereHas('account', fn ($q) => $q->whereIn('code', ['1000', '1100']))
+            ->whereIn('account_id', $bankAccountGlIds)
             ->sum('credit');
 
         // Every line that existed before still exists afterward, unchanged.
