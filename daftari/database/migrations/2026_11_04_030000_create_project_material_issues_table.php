@@ -19,7 +19,7 @@ return new class extends Migration
         Schema::create('project_material_issues', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('item_id')->constrained()->nullOnDelete();
+            $table->foreignId('item_id')->constrained()->restrictOnDelete();
             $table->foreignId('warehouse_id')->nullable()->constrained()->nullOnDelete();
             $table->decimal('quantity', 14, 2);
             $table->decimal('unit_cost', 14, 2);
