@@ -12,7 +12,7 @@
 @endphp
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <div class="flex items-center gap-3">
             <h2 class="text-lg font-semibold text-slate-900">{{ $project->name }}</h2>
@@ -664,7 +664,7 @@
 </div>
 
 <div class="project-panel hidden" data-panel="equipment">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <p class="text-sm text-slate-500">{{ __('Machinery deployed on this project — rate x days posts as project cost once a deployment ends.') }}</p>
         <a href="{{ route('app.machinery.deployments.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Deploy a machine') }}</a>
     </div>
@@ -699,7 +699,7 @@
 </div>
 
 <div class="project-panel hidden" data-panel="subcontracts">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <p class="text-sm text-slate-500">{{ __('Sub-vendor contracts raised against this project.') }}</p>
         <a href="{{ route('app.subcontracts.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('New subcontract') }}</a>
     </div>
@@ -1067,7 +1067,7 @@
         </div>
     @endif
 
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 class="font-semibold text-slate-900">{{ __('Invoices for this project') }}</h3>
         <a href="{{ route('app.invoices.index', ['project_id' => $project->id]) }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('View all in Invoices') }}</a>
     </div>

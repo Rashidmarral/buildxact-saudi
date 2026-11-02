@@ -5,7 +5,7 @@
 @section('content')
 @include('user.bank-accounts.partials.tabs')
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <a href="{{ route('app.cash-custody.index') }}" class="text-sm text-slate-400 hover:text-slate-600">{{ __('← Custody / Advances') }}</a>
         <h1 class="text-xl font-bold text-slate-900 mt-1">{{ __('Custody Report') }}</h1>

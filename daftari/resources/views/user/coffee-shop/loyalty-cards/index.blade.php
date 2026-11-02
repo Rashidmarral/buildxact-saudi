@@ -3,7 +3,7 @@
 @section('title', __('Loyalty Cards'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Loyalty Cards') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Prepaid card balances customers can top up and spend at checkout — the Coffee Shop module\'s take on a loyalty program.') }}</p>

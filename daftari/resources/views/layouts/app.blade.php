@@ -57,7 +57,7 @@
                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-glow">د</span>
                     Daftari
                 </a>
-                <button type="button" @click="mobileNavOpen = false" class="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white lg:hidden">
+                <button type="button" @click="mobileNavOpen = false" aria-label="{{ __('Close menu') }}" class="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white lg:hidden">
                     @include('partials.icon', ['name' => 'close', 'class' => 'h-5 w-5'])
                 </button>
             </div>
@@ -339,7 +339,7 @@
         <div class="flex min-w-0 flex-1 flex-col">
             <header class="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-6 print:hidden">
                 <div class="flex items-center gap-3">
-                    <button type="button" @click="mobileNavOpen = true" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
+                    <button type="button" @click="mobileNavOpen = true" aria-label="{{ __('Open menu') }}" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
                         @include('partials.icon', ['name' => 'menu', 'class' => 'h-5 w-5'])
                     </button>
                     @if ($company?->logo_path)
@@ -392,7 +392,7 @@
                         {{ app()->getLocale() === 'ar' ? 'EN' : 'AR' }}
                     </a>
                     <div class="relative" @click.outside="notificationsOpen = false">
-                        <button type="button" @click="notificationsOpen = !notificationsOpen" class="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700">
+                        <button type="button" @click="notificationsOpen = !notificationsOpen" aria-label="{{ __('Notifications') }}" class="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700">
                             @include('partials.icon', ['name' => 'bell', 'class' => 'h-5 w-5'])
                             @if ($unreadNotificationsCount > 0)
                                 <span class="absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">{{ $unreadNotificationsCount > 9 ? '9+' : $unreadNotificationsCount }}</span>

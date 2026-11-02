@@ -3,7 +3,7 @@
 @section('title', __('Projects'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Projects') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Track revenue, costs, and margin per project.') }}</p>

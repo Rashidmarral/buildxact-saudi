@@ -3,7 +3,7 @@
 @section('title', __('Partner Types'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Categories of partner and their commission rule. Nothing here is pre-set — define every rate before inviting partners.') }}</p>
     <a href="{{ route('admin.partner-types.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New partner type') }}</a>
 </div>

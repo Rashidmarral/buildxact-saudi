@@ -41,12 +41,29 @@ class DashboardVatDueBannerTest extends TestCase
 
     public function test_the_banner_does_not_show_when_the_current_period_is_already_filed(): void
     {
+        // QA audit finding: this used to file a VatReturnPeriod for
+        // "today's" calendar quarter and run with the real, unfrozen
+        // now() — but DashboardController::vatDueNotice() deliberately
+        // nags about the PREVIOUS period (the one actually due/overdue
+        // by the time you're in the next one; see the other two tests
+        // below, which both file nothing and expect "Q1 is overdue"
+        // while "now" sits in Q2), never the still-open current one. The
+        // old fixture filed a period the controller was never checking
+        // in the first place, so whether this happened to pass depended
+        // entirely on what day it was actually run — on some dates the
+        // real previous quarter was unfiled *and* inside the controller's
+        // nag window, so the banner legitimately showed and the test
+        // failed. Freezing time and filing the actual previous period
+        // (Q1 2026, with "now" in Q2 2026 — the same pairing the overdue/
+        // due-soon tests below already use) makes this deterministic.
+        Carbon::setTestNow(Carbon::create(2026, 5, 3));
+
         $company = $this->makeCompany();
         $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
 
         VatReturnPeriod::create([
             'company_id' => $company->id, 'created_by' => $owner->id,
-            'period_start' => now()->startOfQuarter(), 'period_end' => now()->endOfQuarter(),
+            'period_start' => Carbon::create(2026, 1, 1), 'period_end' => Carbon::create(2026, 3, 31),
             'output_tax' => 0, 'input_tax_purchases' => 0, 'expense_tax' => 0, 'net_recoverable_input_tax' => 0,
             'credit_brought_forward' => 0, 'amount_payable' => 0, 'credit_carried_forward' => 0,
         ]);
@@ -55,6 +72,8 @@ class DashboardVatDueBannerTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee(__('Record it'));
+
+        Carbon::setTestNow();
     }
 
     public function test_the_banner_does_not_show_for_a_company_without_the_feature(): void

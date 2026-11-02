@@ -3,7 +3,7 @@
 @section('title', __('Maintenance'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ __('Maintenance') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Service history and the next due date each machine is reminded against 30 days ahead.') }}</p>

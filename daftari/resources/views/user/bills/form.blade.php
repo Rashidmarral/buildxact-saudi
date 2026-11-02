@@ -7,7 +7,7 @@
 $company = auth()->user()->company;
 @endphp
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <h1 class="text-2xl font-bold text-slate-900">{{ __('Create Bill') }}</h1>
     <div class="flex items-center gap-3">
         <button type="button" id="preview-btn" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Preview Bill') }}</button>
@@ -106,7 +106,7 @@ $company = auth()->user()->company;
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
             <div class="flex items-center gap-3">
                 @if ($warehouses->isNotEmpty())

@@ -71,7 +71,15 @@ class InvoiceController extends Controller
             ->orderByDesc('id');
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse('invoices.csv', $this->csvHeader(), $query->get()->map(fn ($invoice) => $this->csvRow($invoice)));
+            // QA audit finding: ->get() materialized every matching
+            // invoice into memory at once before mapping to CSV rows —
+            // fine at normal scale, but a real memory-exhaustion crash
+            // once a company's invoice count reaches the tens of
+            // thousands. ->lazy() fetches in bounded chunks (eager
+            // loading included) and streams each chunk straight into
+            // csvResponse()'s own streamed download, so memory stays
+            // flat regardless of how many invoices match.
+            return $this->csvResponse('invoices.csv', $this->csvHeader(), $query->lazy()->map(fn ($invoice) => $this->csvRow($invoice)));
         }
 
         $salespersonTotals = null;
@@ -102,7 +110,7 @@ class InvoiceController extends Controller
     public function bulkExport(Request $request)
     {
         $ids = $this->validatedBulkIds($request);
-        $invoices = Invoice::with('client')->whereIn('id', $ids)->orderByDesc('issue_date')->orderByDesc('id')->get();
+        $invoices = Invoice::with('client')->whereIn('id', $ids)->orderByDesc('issue_date')->orderByDesc('id')->lazy();
 
         return $this->csvResponse('invoices-selected.csv', $this->csvHeader(), $invoices->map(fn ($invoice) => $this->csvRow($invoice)));
     }
@@ -600,13 +608,7 @@ class InvoiceController extends Controller
      */
     private function blockedByMissingClearance(Invoice $invoice): ?\Illuminate\Http\RedirectResponse
     {
-        $company = $invoice->company;
-
-        if ($invoice->type !== 'standard' || ! $company->zatca_sync_b2b || ! $company->isZatcaOnboarded()) {
-            return null;
-        }
-
-        if ($invoice->zatcaInvoiceLogs()->where('status', 'cleared')->exists()) {
+        if (! $invoice->requiresZatcaClearanceBeforeDelivery()) {
             return null;
         }
 
@@ -780,9 +782,26 @@ class InvoiceController extends Controller
         // revenue never recognized in the GL at all: real cash coming in
         // debited nothing against an AR balance that was never credited.
         // Sending it first (a no-op if it's already past draft, per
-        // doSend()'s own guard) keeps the books consistent with the fact
-        // that money changing hands means the invoice really was issued.
-        $this->doSend($invoice, $ledger);
+        // requestSend()'s own guard) keeps the books consistent with the
+        // fact that money changing hands means the invoice really was
+        // issued — and, unlike the doSend() this used to call directly,
+        // requestSend() actually enforces the company's approval
+        // threshold/chain instead of unconditionally marking it sent.
+        $this->requestSend($invoice, $ledger);
+
+        // QA audit finding: a draft above the approval threshold parked
+        // itself in pending_approval here, but the code below ran anyway
+        // and overwrote that back to partially_paid/paid — silently
+        // bypassing the approval gate on the one path that actually moves
+        // real money. A cancelled invoice has the same problem: doSend()'s
+        // own "only from draft" guard left it untouched, but nothing then
+        // stopped a payment from flipping a cancelled invoice straight to
+        // partially_paid. Both are simply "not in a state a payment can be
+        // recorded against" — block here rather than trying to special-
+        // case each one further down.
+        if (in_array($invoice->status, ['cancelled', 'pending_approval'], true)) {
+            return back()->withErrors(['invoice' => __('A payment cannot be recorded while this invoice is :status.', ['status' => __(ucfirst(str_replace('_', ' ', $invoice->status)))])]);
+        }
 
         $wasPaid = $invoice->status === 'paid';
 
@@ -1040,6 +1059,7 @@ class InvoiceController extends Controller
 
         DB::transaction(function () use ($invoice, $ledger) {
             $invoice->update(['status' => 'sent']);
+            $invoice->capturePartySnapshot();
 
             if ($invoice->warehouse_id && ! $invoice->stock_deducted) {
                 $this->applyStock($invoice, -1);

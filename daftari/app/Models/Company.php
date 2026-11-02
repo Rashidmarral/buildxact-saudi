@@ -334,9 +334,30 @@ class Company extends Model
      * DB::transaction() (invoice/bill/etc. creation), so this join the
      * same transaction rather than opening a separate one.
      */
-    private function nextSequenceNumber(string $column, ?string $fiscalYearColumn = null): int
+    /**
+     * QA audit finding: a single column was being reused as BOTH the
+     * lifetime counter and the yearly counter — turning yearly numbering
+     * on reset it to 1 the moment the stored fiscal year didn't match
+     * today's (discarding whatever lifetime count it already held), and
+     * turning it back off then read that corrupted, rewound value and
+     * handed out a number that collided with one already on a real
+     * document (INV-00001, INV-00002, toggle yearly on and back off,
+     * get INV-00002 again).
+     *
+     * $column itself now NEVER rewinds in either mode — it's a single,
+     * strictly-increasing counter regardless of how many times the
+     * company flips document_numbering_resets_yearly on and off.
+     * $fiscalYearBaselineColumn records where that counter stood the
+     * moment each new fiscal year was first encountered; the number
+     * actually shown to the user in yearly mode is just
+     * ($column's new value - that baseline), so it still counts 1, 2, 3…
+     * within each year, but the shared storage underneath it can no
+     * longer ever go backward and collide with something already
+     * allocated.
+     */
+    private function nextSequenceNumber(string $column, ?string $fiscalYearColumn = null, ?string $fiscalYearBaselineColumn = null): int
     {
-        return DB::transaction(function () use ($column, $fiscalYearColumn) {
+        return DB::transaction(function () use ($column, $fiscalYearColumn, $fiscalYearBaselineColumn) {
             if ($fiscalYearColumn === null) {
                 $current = (int) self::query()->whereKey($this->id)->lockForUpdate()->value($column);
 
@@ -346,32 +367,34 @@ class Company extends Model
                 return $current;
             }
 
-            // Audit finding NUM-05: a year-scoped counter restarts at 1 the
-            // moment the fiscal year it last represents no longer matches
-            // today's — computed and compared inside this same locked
-            // transaction as the increment itself, so two concurrent
-            // requests spanning the rollover can't both reset and both
-            // hand out "00001".
-            $row = self::query()->whereKey($this->id)->lockForUpdate()->first([$column, $fiscalYearColumn]);
+            // Audit finding NUM-05: the yearly-relative number resets to 1
+            // the moment the fiscal year it last represented no longer
+            // matches today's — computed and compared inside this same
+            // locked transaction as the increment itself, so two
+            // concurrent requests spanning the rollover can't both reset
+            // and both hand out "00001". Only $fiscalYearBaselineColumn
+            // moves when that happens now — $column keeps climbing.
+            $row = self::query()->whereKey($this->id)->lockForUpdate()->first([$column, $fiscalYearColumn, $fiscalYearBaselineColumn]);
             $current = (int) $row->{$column};
             $currentFiscalYear = $this->currentFiscalYearLabel();
+            $baseline = (int) $row->{$fiscalYearBaselineColumn};
 
             if ((string) $row->{$fiscalYearColumn} !== $currentFiscalYear) {
-                // The column's own baseline for "the next number to hand
-                // out is 1" (see the $attributes defaults above) — not 0,
-                // which would hand out "00000" for the first document of
-                // a new fiscal year.
-                $current = 1;
+                $baseline = $current;
             }
 
             self::query()->whereKey($this->id)->update([
                 $column => $current + 1,
                 $fiscalYearColumn => $currentFiscalYear,
+                $fiscalYearBaselineColumn => $baseline,
             ]);
             $this->{$column} = $current + 1;
             $this->{$fiscalYearColumn} = $currentFiscalYear;
+            $this->{$fiscalYearBaselineColumn} = $baseline;
 
-            return $current;
+            // +1 so the first document of a fiscal year is numbered 1,
+            // not 0 (baseline === current the moment a year starts).
+            return $current - $baseline + 1;
         });
     }
 
@@ -424,7 +447,7 @@ class Company extends Model
         }
 
         $fiscalYear = $this->currentFiscalYearLabel();
-        $number = $this->nextSequenceNumber($numberColumn, $fiscalYearColumn);
+        $number = $this->nextSequenceNumber($numberColumn, $fiscalYearColumn, $fiscalYearColumn.'_baseline');
 
         return $prefix.'-'.$fiscalYear.'-'.str_pad((string) $number, $pad, '0', STR_PAD_LEFT);
     }

@@ -3,7 +3,7 @@
 @section('title', __('Machinery & Equipment'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ __('Machinery & Equipment') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Your registered machines — rent them out, deploy them on your own projects, or sell them.') }}</p>

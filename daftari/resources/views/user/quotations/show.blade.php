@@ -128,7 +128,7 @@
 @endphp
 @if ($quotation->status === 'accepted' || $quotation->is_staged || $canRetroactivelyStage)
     <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
-        <div class="flex items-center justify-between mb-1">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
             <h3 class="font-semibold text-slate-900">{{ __('Payment Plan') }}</h3>
             @if (! $quotation->is_staged)
                 <button type="button" onclick="document.getElementById('payment-plan-builder').classList.remove('hidden'); this.classList.add('hidden')" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Bill this quotation in stages') }}</button>
@@ -259,7 +259,7 @@
 @endif
 
 <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6 print:hidden">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 class="font-semibold text-slate-900">{{ __('Attachments') }}</h3>
         <button type="button" onclick="document.getElementById('attach-file-input').click()" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Attach file') }}</button>
         <form method="POST" action="{{ route('app.quotations.attachments.store', $quotation) }}" enctype="multipart/form-data" id="attach-file-form" class="hidden">

@@ -35,7 +35,7 @@
     $productionCsidIssued = (bool) $company->zatca_production_csid;
 @endphp
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('ZATCA Phase 2 Compliance') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Real-time e-invoicing integration with ZATCA — clearance for B2B, reporting for B2C.') }}</p>
@@ -122,7 +122,7 @@
     <div class="lg:col-span-2 space-y-6">
         @if ($stepIndex < 1)
             <div class="bg-white rounded-xl border {{ $isReady ? 'border-emerald-100' : 'border-amber-200' }} p-6">
-                <div class="flex items-center justify-between mb-1">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
                     <h3 class="font-semibold text-slate-900">{{ __('Before you start: readiness check') }}</h3>
                     @if ($isReady)
                         <span class="text-xs font-semibold text-emerald-600">✓ {{ __('Ready') }}</span>
@@ -274,7 +274,7 @@
             $pendingTotal = $pendingCount + $pendingPrepaymentCount + $pendingCreditNoteCount + $pendingDebitNoteCount;
         @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-6">
-            <div class="flex items-center justify-between mb-1">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
                 <h3 class="font-semibold text-slate-900">{{ __('Pending sync') }} ({{ $pendingTotal }})</h3>
                 @if ($pendingTotal > 0)
                     <form method="POST" action="{{ route('app.zatca.sync') }}" onsubmit="return confirm('{{ __('Sync all :count pending document(s) now?', ['count' => $pendingTotal]) }}')">
@@ -368,7 +368,7 @@
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h3 class="font-semibold text-slate-900">{{ __('Invoice sync log') }}</h3>
             </div>
             <div class="overflow-x-auto">

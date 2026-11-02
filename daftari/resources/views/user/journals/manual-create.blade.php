@@ -3,7 +3,7 @@
 @section('title', __('New Manual Journal Entry'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('New manual journal entry') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('For adjustments, corrections, and opening balances that have no source document — total debits must equal total credits.') }}</p>
@@ -39,7 +39,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <h3 class="font-semibold text-slate-900">{{ __('Journal lines') }}</h3>
             <button type="button" id="add-row" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('+ Add line') }}</button>
         </div>

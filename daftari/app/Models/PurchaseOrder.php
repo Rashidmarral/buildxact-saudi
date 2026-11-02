@@ -89,8 +89,8 @@ class PurchaseOrder extends Model
         $items = $this->items;
 
         $this->subtotal = $items->sum(fn ($item) => $item->quantity * $item->unit_price);
-        $this->vat_total = $items->sum('vat_amount');
         $this->discount_total = $this->computeDiscountTotal($this->subtotal);
+        $this->vat_total = $this->discountedVatTotal($this->subtotal, $items->sum('vat_amount'), $this->discount_total);
         $this->total = $this->subtotal - $this->discount_total + $this->vat_total;
 
         $this->save();

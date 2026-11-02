@@ -98,11 +98,14 @@ class InvoiceTotalsTest extends TestCase
         $invoice->discount_value = 10;
         $invoice->recalculateTotals();
 
-        // subtotal 100, vat 15, minus 10 discount = 105
+        // QA audit finding: a discount must shrink the taxable base, not
+        // just the net total — subtotal 100 less a 10 discount leaves 90
+        // actually taxable at 15%, so vat is 13.50 (not the pre-discount
+        // 15), and the total is 90 + 13.50 = 103.50.
         $this->assertSame(100.0, (float) $invoice->subtotal);
-        $this->assertSame(15.0, (float) $invoice->vat_total);
+        $this->assertSame(13.50, (float) $invoice->vat_total);
         $this->assertSame(10.0, (float) $invoice->discount_total);
-        $this->assertSame(105.0, (float) $invoice->total);
+        $this->assertSame(103.50, (float) $invoice->total);
     }
 
     public function test_invoice_total_deducts_a_percentage_based_discount(): void
@@ -115,11 +118,13 @@ class InvoiceTotalsTest extends TestCase
         $invoice->discount_value = 10;
         $invoice->recalculateTotals();
 
-        // subtotal 100, 10% discount = 10, vat 15, total = 100 - 10 + 15 = 105
+        // subtotal 100, 10% discount = 10 off a 90 taxable base at 15%
+        // vat = 13.50, total = 90 + 13.50 = 103.50 (see the fixed-discount
+        // test above for why vat isn't still 15).
         $this->assertSame(100.0, (float) $invoice->subtotal);
         $this->assertSame(10.0, (float) $invoice->discount_total);
-        $this->assertSame(15.0, (float) $invoice->vat_total);
-        $this->assertSame(105.0, (float) $invoice->total);
+        $this->assertSame(13.50, (float) $invoice->vat_total);
+        $this->assertSame(103.50, (float) $invoice->total);
     }
 
     public function test_a_fixed_discount_larger_than_the_subtotal_is_clamped_instead_of_going_negative(): void
@@ -132,11 +137,13 @@ class InvoiceTotalsTest extends TestCase
         $invoice->discount_value = 500; // fat-fingered: far more than the 100 subtotal
         $invoice->recalculateTotals();
 
-        // Clamped to the 100 subtotal, so the discount can zero out the net
-        // amount but the VAT still applies — never a negative total.
+        // Clamped to the 100 subtotal — discounting away the entire
+        // taxable base also zeroes the VAT on it (0 left to tax), so the
+        // total is 0, never negative.
         $this->assertSame(100.0, (float) $invoice->subtotal);
         $this->assertSame(100.0, (float) $invoice->discount_total);
-        $this->assertSame(15.0, (float) $invoice->total);
+        $this->assertSame(0.0, (float) $invoice->vat_total);
+        $this->assertSame(0.0, (float) $invoice->total);
     }
 
     public function test_balance_due_reflects_partial_payment(): void

@@ -3,7 +3,7 @@
 @section('title', __('Document Archive'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ __('Document Archive') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Every supplier bill, client PO, invoice, expense receipt and other attached document in one place — for your year-end audit.') }}</p>

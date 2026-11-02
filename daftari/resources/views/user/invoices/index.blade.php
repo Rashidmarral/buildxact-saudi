@@ -3,7 +3,7 @@
 @section('title', __('Invoices'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <form method="GET" class="flex items-center gap-2">
         <select name="status" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">{{ __('All statuses') }}</option>

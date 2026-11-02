@@ -3,7 +3,7 @@
 @section('title', __('Branches'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Manage the branch locations invoices and quotations can be issued from.') }}</p>
     <a href="{{ route('app.branches.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New branch') }}</a>
 </div>

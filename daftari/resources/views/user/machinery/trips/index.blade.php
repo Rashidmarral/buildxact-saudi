@@ -3,7 +3,7 @@
 @section('title', __('Trip Log'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ __('Trip Log') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Who had a machine or vehicle out, where, and why.') }}</p>

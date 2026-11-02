@@ -73,7 +73,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-5 mb-6">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <h3 class="text-sm font-semibold text-slate-900">{{ __('BOQ breakdown (optional)') }}</h3>
             <button type="button" @click="addBoqRow()" class="text-xs font-semibold text-brand-700 hover:underline">+ {{ __('Add line') }}</button>
         </div>
@@ -91,7 +91,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-5 mb-6">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <h3 class="text-sm font-semibold text-slate-900">{{ __('Milestone payment schedule') }}</h3>
             <button type="button" @click="addMilestoneRow()" class="text-xs font-semibold text-brand-700 hover:underline">+ {{ __('Add milestone') }}</button>
         </div>

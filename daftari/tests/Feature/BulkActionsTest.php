@@ -49,6 +49,33 @@ class BulkActionsTest extends TestCase
         $this->assertStringNotContainsString('INV-2', $response->streamedContent());
     }
 
+    /**
+     * QA audit finding: the filtered "export everything matching this
+     * list's current filter" CSV (app.invoices.index?export=csv) used to
+     * fetch every matching invoice into memory as one Eloquent Collection
+     * before mapping to CSV rows — exhausted PHP's memory_limit outright
+     * once a company's invoice count reached roughly 50-100k. Switched to
+     * ->lazy() (chunked, with relations still eager-loaded per chunk)
+     * instead of ->get(); this just confirms the export itself still
+     * produces the right rows, not the memory behavior at scale — that's
+     * verified separately against a real 100k-row fixture.
+     */
+    public function test_invoice_filtered_csv_export_still_returns_the_right_rows(): void
+    {
+        $owner = $this->makeOwner();
+        $client = Client::create(['company_id' => $owner->company_id, 'name' => 'Client A']);
+        Invoice::create(['company_id' => $owner->company_id, 'client_id' => $client->id, 'invoice_number' => 'INV-SENT', 'type' => 'standard', 'issue_date' => now(), 'status' => 'sent', 'currency' => 'SAR', 'subtotal' => 100, 'vat_total' => 15, 'total' => 115]);
+        Invoice::create(['company_id' => $owner->company_id, 'client_id' => $client->id, 'invoice_number' => 'INV-DRAFT', 'type' => 'standard', 'issue_date' => now(), 'status' => 'draft', 'currency' => 'SAR', 'subtotal' => 200, 'vat_total' => 30, 'total' => 230]);
+
+        $response = $this->actingAs($owner)->get(route('app.invoices.index', ['status' => 'sent', 'export' => 'csv']));
+
+        $response->assertOk();
+        $content = $response->streamedContent();
+        $this->assertStringContainsString('INV-SENT', $content);
+        $this->assertStringNotContainsString('INV-DRAFT', $content);
+        $this->assertStringContainsString('Client A', $content);
+    }
+
     public function test_invoice_bulk_destroy_deletes_drafts_and_skips_non_drafts(): void
     {
         $owner = $this->makeOwner();

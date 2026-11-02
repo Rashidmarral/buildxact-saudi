@@ -3,7 +3,7 @@
 @section('title', __('POS Registers'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('POS Registers') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Each register deducts stock from its own linked warehouse when a sale is rung up.') }}</p>

@@ -31,4 +31,35 @@ trait ComputesDiscount
 
         return round(min($flat, $subtotal), 2);
     }
+
+    /**
+     * QA audit finding: every recalculateTotals() using this trait summed
+     * each line's own vat_amount — computed from that line's full,
+     * pre-discount price — straight into vat_total, so a header-level
+     * discount reduced the document's total but left VAT exactly as if
+     * no discount had ever been applied (SAR 100 less a SAR 10 discount
+     * at 15% kept charging VAT 15 instead of the correct VAT 13.50 on the
+     * SAR 90 actually-taxable amount).
+     *
+     * Reducing vat_total only at the header level (rather than rewriting
+     * each line's own persisted vat_amount) is the correct ZATCA UBL
+     * treatment for a document-level discount in the first place — it's
+     * reported as its own cac:AllowanceCharge with its own tax category,
+     * not by retroactively changing each line's LineExtensionAmount or
+     * TaxTotal. $vatBeforeDiscount/$subtotal is exactly the document's
+     * blended VAT rate (correct even with mixed-rate lines, since
+     * $vatBeforeDiscount = Σ(line_subtotal × its own rate)), so scaling it
+     * by the post-discount share of the subtotal allocates the discount's
+     * tax impact across every tax category in exactly the same proportion
+     * it was taxed in — the standard "discount allocated proportionally
+     * across tax categories" treatment.
+     */
+    protected function discountedVatTotal(float $subtotal, float $vatBeforeDiscount, float $discountTotal): float
+    {
+        if ($subtotal <= 0.0) {
+            return 0.0;
+        }
+
+        return round($vatBeforeDiscount * ($subtotal - $discountTotal) / $subtotal, 2);
+    }
 }

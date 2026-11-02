@@ -5,7 +5,7 @@
 @section('content')
 @include('user.bank-accounts.partials.tabs')
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500 max-w-2xl">{{ __('A separate, informal cash log — for money that moved outside your normal books (a direct owner handout, an inter-company transfer you managed by hand) but still needs a clear "where did it go" report. Nothing logged here affects your accounts, vouchers, or financial statements.') }}</p>
     <button type="button" onclick="document.getElementById('new-tracker-modal').showModal()" class="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New cash tracker') }}</button>
 </div>

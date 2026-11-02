@@ -3,7 +3,7 @@
 @section('title', __('Dispatch Board'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Dispatch Board') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Work orders scheduled this week, by technician.') }}</p>

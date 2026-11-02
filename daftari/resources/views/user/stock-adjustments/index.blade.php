@@ -5,7 +5,7 @@
 @section('content')
 @php($canAdjust = $items->isNotEmpty())
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Inventory Adjustments') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Correct counted stock quantities') }}</p>

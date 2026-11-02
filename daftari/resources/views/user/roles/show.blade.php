@@ -3,7 +3,7 @@
 @section('title', $role->name)
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-slate-900">{{ $role->name }}</h2>
         @if ($role->is_system)

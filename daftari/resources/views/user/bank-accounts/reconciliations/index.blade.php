@@ -3,7 +3,7 @@
 @section('title', __('Reconcile :account', ['account' => $bankAccount->name]))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-lg font-semibold text-slate-900">{{ __('Reconcile :account', ['account' => $bankAccount->name]) }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Match a bank statement against the receipts, payments, and transfers recorded for this account.') }}</p>

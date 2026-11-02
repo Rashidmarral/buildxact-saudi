@@ -5,7 +5,7 @@
 @section('content')
 @include('user.bank-accounts.partials.tabs')
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Cash floats held by site staff or managers — an advance given to someone, spent on your behalf, with a running balance of what is still unaccounted for.') }}</p>
     <div class="flex items-center gap-2 shrink-0">
         <a href="{{ route('app.cash-custody.report') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Custody Report') }}</a>

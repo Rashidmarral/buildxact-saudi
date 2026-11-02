@@ -3,7 +3,7 @@
 @section('title', $credit->name)
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <a href="{{ route('app.advance-credits.index') }}" class="text-xs text-slate-400 hover:text-slate-600">&larr; {{ __('Advance Credits') }}</a>
         <h2 class="text-lg font-semibold text-slate-900 mt-1">{{ $credit->name }}</h2>

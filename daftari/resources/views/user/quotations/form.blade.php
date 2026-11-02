@@ -8,7 +8,7 @@ $existingItems = $quotation->exists ? $quotation->items()->orderBy('sort_order')
 $company = auth()->user()->company;
 @endphp
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Create') }}</h1>
         @unless ($quotation->exists)
@@ -101,7 +101,7 @@ $company = auth()->user()->company;
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
             <div class="flex items-center gap-3">
                 <button type="button" id="scan-line-barcode" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Scan barcode') }}</button>

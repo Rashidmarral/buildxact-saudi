@@ -12,7 +12,7 @@
 @endphp
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div class="flex items-center gap-3">
         <h2 class="text-lg font-semibold text-slate-900">{{ $kindLabel }}</h2>
         <span class="inline-block rounded-full bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1">{{ \App\Support\PlatformFormat::date($transfer->date) }}</span>
@@ -67,7 +67,7 @@
 </div>
 
 <div class="max-w-2xl bg-white rounded-xl border border-slate-100 p-6 mt-6">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 class="font-semibold text-slate-900">{{ __('Attachments') }}</h3>
         <button type="button" onclick="document.getElementById('attach-file-input').click()" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Attach file') }}</button>
         <form method="POST" action="{{ route('app.bank-transfers.attachments.store', $transfer) }}" enctype="multipart/form-data" id="attach-file-form" class="hidden">

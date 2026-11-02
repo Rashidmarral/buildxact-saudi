@@ -3,7 +3,7 @@
 @section('title', __('Leave'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Leave') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Annual leave balances accrue automatically under Saudi Labor Law (21 days/year, 30 after 5 years) — request and approve time off against them here.') }}</p>

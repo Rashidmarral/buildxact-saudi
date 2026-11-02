@@ -8,7 +8,7 @@
     <a href="{{ route('app.purchase-orders.index') }}" class="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Purchase orders') }}</a>
 </div>
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('What\'s needed on site, flagged before a supplier or price is chosen — approve one to turn it into a purchase order.') }}</p>
     <a href="{{ route('app.purchase-requisitions.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New requisition') }}</a>
 </div>

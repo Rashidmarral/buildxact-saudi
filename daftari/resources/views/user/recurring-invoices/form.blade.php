@@ -7,7 +7,7 @@
 $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy('sort_order')->get() : collect();
 @endphp
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ $recurringInvoice->exists ? __('Edit recurring invoice') : __('New recurring invoice') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('A draft invoice is generated automatically each time this schedule runs.') }}</p>
@@ -101,7 +101,7 @@ $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
             <button type="button" id="add-row" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add line') }}</button>
         </div>

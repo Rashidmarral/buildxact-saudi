@@ -91,5 +91,15 @@
         </div>
     @endif
 
-    {{ $slot }}
+    {{--
+        QA audit finding: a data table wider than its viewport (every
+        column visible at once — invoice #, client, salesperson, dates,
+        amounts, status, actions) had nothing clipping it, so it pushed
+        the whole page wider than the screen on mobile (390px) instead of
+        scrolling on its own — this wraps every list page's table in
+        exactly one place instead of 68 individual files.
+    --}}
+    <div class="overflow-x-auto">
+        {{ $slot }}
+    </div>
 </div>

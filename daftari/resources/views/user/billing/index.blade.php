@@ -99,7 +99,7 @@
     @endif
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 class="font-semibold text-slate-900">{{ __('Saved payment methods') }}</h3>
             <button type="button" disabled title="{{ __('Card storage will be available once a live payment gateway is connected.') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed">{{ __('Add a new card') }}</button>
         </div>

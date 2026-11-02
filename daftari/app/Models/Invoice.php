@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\ComputesDiscount;
 use App\Services\ZatcaQrGenerator;
+use App\Support\DocumentPartySnapshot;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -33,6 +34,7 @@ class Invoice extends Model
             'last_reminder_sent_at' => 'datetime',
             'last_reminder_tier' => 'integer',
             'approved_at' => 'datetime',
+            'party_snapshot' => 'array',
         ];
     }
 
@@ -171,6 +173,88 @@ class Invoice extends Model
     public function zatcaInvoiceLogs(): HasMany
     {
         return $this->hasMany(ZatcaInvoiceLog::class);
+    }
+
+    /**
+     * Audit finding ZATCA-01 (see InvoiceController::blockedByMissingClearance()
+     * for the original, controller-only version of this check): a standard
+     * (B2B) tax invoice is regulated under ZATCA's Clearance Model — the
+     * government must cryptographically clear it BEFORE it reaches the
+     * buyer. True means every customer-facing delivery channel (public
+     * view/pay/PDF, email) must refuse to hand this invoice over; it does
+     * NOT mean the invoice can't be marked "sent" internally — doSend()
+     * itself is what kicks off the ZATCA submission in the first place, so
+     * gating that too would make clearance impossible to ever reach. Only
+     * applies once the company has actually turned on B2B sync and
+     * finished onboarding; a company that hasn't isn't under this
+     * obligation in the first place.
+     */
+    public function requiresZatcaClearanceBeforeDelivery(): bool
+    {
+        $company = $this->company;
+
+        if ($this->type !== 'standard' || ! $company->zatca_sync_b2b || ! $company->isZatcaOnboarded()) {
+            return false;
+        }
+
+        return ! $this->zatcaInvoiceLogs()->where('status', 'cleared')->exists();
+    }
+
+    /**
+     * QA audit finding: pdfData()['doc']['party'] used to be a live join
+     * to the Client record, so editing a client's name/address after an
+     * invoice was sent silently rewrote that invoice's historical PDF and
+     * public customer-facing page. Freezes the buyer's details into
+     * party_snapshot the moment this invoice is actually issued — called
+     * from InvoiceController::doSend(), the one place every "mark this
+     * invoice sent" path funnels through. Deliberately a no-op once a
+     * snapshot already exists (party_snapshot is not mass-assignable, so
+     * the only way to reach this a second time is a resend of an
+     * already-sent invoice) — the FIRST issuance is the one that must be
+     * preserved, not whatever client data happens to exist on a later
+     * resend.
+     */
+    public function capturePartySnapshot(): void
+    {
+        if ($this->party_snapshot !== null || ! $this->client) {
+            return;
+        }
+
+        $client = $this->client;
+
+        $this->party_snapshot = [
+            'name' => $client->name,
+            'name_ar' => $client->name_ar,
+            'vat_number' => $client->vat_number,
+            'cr_number' => $client->cr_number,
+            'building_number' => $client->building_number,
+            'street_name' => $client->street_name,
+            'district' => $client->district,
+            'city' => $client->city,
+            'state' => $client->state,
+            'country' => $client->country,
+            'postal_code' => $client->postal_code,
+            'email' => $client->email,
+        ];
+        $this->save();
+    }
+
+    /**
+     * What pdfData()/the public invoice page should actually display as
+     * the buyer — the frozen snapshot once this invoice has been issued
+     * and captured one (see capturePartySnapshot()), otherwise the live
+     * Client record. A still-draft invoice (being previewed before it's
+     * ever sent) deliberately keeps showing live client data — nothing
+     * is "historical" yet, so it should reflect edits exactly like every
+     * other still-draft field does.
+     */
+    public function partyForDocument(): DocumentPartySnapshot|Client|null
+    {
+        if ($this->party_snapshot !== null) {
+            return new DocumentPartySnapshot($this->party_snapshot);
+        }
+
+        return $this->client;
     }
 
     public function deliveryNotes(): HasMany
@@ -336,8 +420,8 @@ class Invoice extends Model
         $items = $this->items;
 
         $this->subtotal = $items->sum(fn ($item) => $item->quantity * $item->unit_price);
-        $this->vat_total = $items->sum('vat_amount');
         $this->discount_total = $this->computeDiscountTotal($this->subtotal);
+        $this->vat_total = $this->discountedVatTotal($this->subtotal, $items->sum('vat_amount'), $this->discount_total);
         $this->total = $this->subtotal - $this->discount_total + $this->vat_total;
         $this->amount_paid = $this->invoicePayments()->sum('amount');
 
@@ -410,7 +494,7 @@ class Invoice extends Model
             'date2' => $this->due_date,
             'party_label' => __('Bill to'),
             'party_label_ar' => 'العميل',
-            'party' => $this->client,
+            'party' => $this->partyForDocument(),
             'qr_code' => $this->qr_code,
             'zatca_status' => $this->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
             'payment_status' => $this->status,

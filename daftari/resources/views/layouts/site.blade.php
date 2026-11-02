@@ -99,7 +99,7 @@
                     <a href="{{ route('register') }}" class="btn-shine rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-card">{{ __('Start free trial') }}</a>
                 @endauth
             </div>
-            <button type="button" @click="mobileOpen = !mobileOpen" class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:hidden">
+            <button type="button" @click="mobileOpen = !mobileOpen" aria-label="{{ __('Toggle menu') }}" class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:hidden">
                 <svg x-show="!mobileOpen" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 <svg x-show="mobileOpen" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="display:none"><path d="M6 6l12 12M18 6L6 18"/></svg>
             </button>

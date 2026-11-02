@@ -3,7 +3,7 @@
 @section('title', __('Hired-in Equipment'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ __('Hired-in Equipment') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Equipment hired in from external suppliers — not owned by your company.') }}</p>

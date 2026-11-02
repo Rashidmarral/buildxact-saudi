@@ -21,7 +21,7 @@
 <div class="space-y-4">
     {{-- Initial description, rendered as the first message in the thread --}}
     <div class="bg-white rounded-xl border border-slate-100 p-5">
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
             <span class="text-sm font-semibold text-slate-800">{{ $ticket->user?->name ?? __('You') }}</span>
             <span class="text-xs text-slate-400">{{ $ticket->created_at->format('Y-m-d H:i') }}</span>
         </div>
@@ -42,7 +42,7 @@
     @foreach ($ticket->publicReplies as $reply)
         @php $isAdmin = $reply->author && ($reply->author->isSuperAdmin() || $reply->author->isAdminStaff()); @endphp
         <div class="bg-white rounded-xl border {{ $isAdmin ? 'border-brand-100 bg-brand-50/30' : 'border-slate-100' }} p-5">
-            <div class="flex items-center justify-between mb-2">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <span class="text-sm font-semibold text-slate-800">{{ $reply->author?->name ?? __('Support team') }} @if ($isAdmin) <span class="text-xs font-normal text-brand-600">({{ __('Support') }})</span> @endif</span>
                 <span class="text-xs text-slate-400">{{ $reply->created_at->format('Y-m-d H:i') }}</span>
             </div>

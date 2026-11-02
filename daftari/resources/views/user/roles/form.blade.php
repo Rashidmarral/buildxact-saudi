@@ -13,7 +13,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 class="font-semibold text-slate-900">{{ __('Permissions') }}</h2>
             <div class="flex gap-3 text-xs">
                 <button type="button" id="select-all" class="font-semibold text-brand-700 hover:underline">{{ __('Select all') }}</button>

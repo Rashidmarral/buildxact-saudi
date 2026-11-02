@@ -3,7 +3,7 @@
 @section('title', __('Plans'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Plans shown on the public pricing page and at signup.') }}</p>
     <a href="{{ route('admin.plans.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New plan') }}</a>
 </div>

@@ -7,7 +7,7 @@
     $existingItems = $requisition->exists ? $requisition->items : collect();
 @endphp
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <h1 class="text-2xl font-bold text-slate-900">{{ $requisition->exists ? __('Edit Purchase Requisition') : __('New Purchase Requisition') }}</h1>
     <div class="flex items-center gap-3">
         <a href="{{ route('app.purchase-requisitions.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
@@ -38,7 +38,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 class="font-semibold text-slate-900">{{ __('What\'s needed') }}</h2>
             <button type="button" onclick="addRow()" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add line') }}</button>
         </div>

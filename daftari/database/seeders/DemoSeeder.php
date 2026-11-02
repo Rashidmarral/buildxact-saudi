@@ -129,7 +129,14 @@ class DemoSeeder extends Seeder
             $salesUser->roles()->sync([$salesRole->id]);
         }
 
-        $plan = Plan::where('slug', 'professional')->first();
+        // QA audit finding: PlanSeeder renamed this plan's slug to
+        // 'essential' a while back (its array key there is still literally
+        // 'professional' — that's only its own internal rename-matching
+        // key, kept so re-running it updates the same row rather than
+        // creating a duplicate; see that seeder's docblock). This lookup
+        // never got updated, so it always returned null and the demo
+        // company silently ended up with zero subscriptions at all.
+        $plan = Plan::where('slug', 'essential')->first();
         if ($plan && ! $company->subscriptions()->exists()) {
             Subscription::create([
                 'company_id' => $company->id,

@@ -150,7 +150,7 @@
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100 mb-6 p-5" x-data="categoryBreakdownForm({{ json_encode(request()->filled('group_label') ? collect(request('group_label'))->map(fn ($l, $i) => ['label' => $l, 'terms' => request('group_terms')[$i] ?? '']) ->values() : collect($defaultCategoryGroups)->map(fn ($terms, $label) => ['label' => $label, 'terms' => $terms])->values()) }})">
-    <div class="flex items-center justify-between mb-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h3 class="text-sm font-semibold text-slate-900">{{ __('Payment breakdown by category') }}</h3>
         <p class="text-xs text-slate-400">{{ __('Group this contract\'s own payments however you think about the cost — who got paid, what it was for.') }}</p>
     </div>
@@ -208,7 +208,7 @@ function categoryBreakdownForm(initialRows) {
 </script>
 
 <div class="bg-white rounded-xl border border-slate-100 mb-6 p-5">
-    <div class="flex items-center justify-between mb-1">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
         <h3 class="text-sm font-semibold text-slate-900">{{ __('Receiving Payments Report categories') }}</h3>
     </div>
     <p class="text-xs text-slate-400 mb-3">{{ __('Controls how the printed Receiving Payments Report lists this contract\'s payments. An "Itemized" category still lists every matching real payment (like Shahid\'s cash); a "Measured" category collapses to one quantity × rate line, like a site measurement sheet (Sub Base, Asphalt). Leave empty to keep printing the plain milestone-by-milestone ledger.') }}</p>

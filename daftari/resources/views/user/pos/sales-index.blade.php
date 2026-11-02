@@ -3,7 +3,7 @@
 @section('title', __('POS Sales'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('POS Sales') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Every sale rung up across all registers.') }}</p>

@@ -23,6 +23,10 @@ class PublicInvoiceController extends Controller
 
         abort_unless(hash_equals($invoice->public_token, $token), 404);
         abort_if($invoice->status === 'draft', 404);
+        // QA audit finding: an onboarded Phase 2 production company's
+        // uncleared standard (B2B) invoice reached this public, no-login
+        // page — see Invoice::requiresZatcaClearanceBeforeDelivery().
+        abort_if($invoice->requiresZatcaClearanceBeforeDelivery(), 403);
 
         $doc = $this->buildDoc($invoice);
         $template = $invoice->company->defaultTemplateFor('invoice');
@@ -58,6 +62,7 @@ class PublicInvoiceController extends Controller
 
         abort_unless(hash_equals($invoice->public_token, $token), 404);
         abort_if($invoice->status === 'draft', 404);
+        abort_if($invoice->requiresZatcaClearanceBeforeDelivery(), 403);
         abort_if($invoice->balanceDue() <= 0.01, 404);
 
         $gateway = PaymentGateway::where('company_id', $invoice->company_id)
@@ -92,6 +97,7 @@ class PublicInvoiceController extends Controller
 
         abort_unless(hash_equals($invoice->public_token, $token), 404);
         abort_if($invoice->status === 'draft', 404);
+        abort_if($invoice->requiresZatcaClearanceBeforeDelivery(), 403);
 
         $pdf = $renderer->render('documents.print.pdf', [
             'doc' => $this->buildDoc($invoice),
@@ -124,7 +130,7 @@ class PublicInvoiceController extends Controller
             'date2' => $invoice->due_date,
             'party_label' => __('Bill to'),
             'party_label_ar' => 'العميل',
-            'party' => $invoice->client,
+            'party' => $invoice->partyForDocument(),
             'qr_code' => $invoice->qr_code,
             'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
             'payment_status' => $invoice->status,

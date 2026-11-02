@@ -29,7 +29,7 @@
     <div class="lg:col-span-2 space-y-4">
         @if ($lead->message)
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                     <span class="text-sm font-semibold text-slate-800">{{ __('Original message') }}</span>
                     <span class="text-xs text-slate-400">{{ $lead->sourceLabel() }}</span>
                 </div>
@@ -80,7 +80,7 @@
                 <ul class="divide-y divide-slate-50">
                     @foreach ($timeline as $entry)
                         <li class="px-5 py-3 {{ $entry['is_note'] ? '' : 'bg-slate-50/50' }}">
-                            <div class="flex items-center justify-between mb-1">
+                            <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
                                 <span class="text-sm font-semibold text-slate-800">{{ $entry['author'] ?? __('System') }}</span>
                                 <span class="text-xs text-slate-400">{{ $entry['at']->format('Y-m-d H:i') }}</span>
                             </div>

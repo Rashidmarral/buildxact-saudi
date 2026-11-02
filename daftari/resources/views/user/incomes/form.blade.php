@@ -3,7 +3,7 @@
 @section('title', $income->exists ? __('Edit Income') : __('New Income'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <h1 class="text-2xl font-bold text-slate-900">{{ $income->exists ? __('Edit Income') : __('New Income') }}</h1>
     <a href="{{ route('app.incomes.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Back') }}</a>
 </div>

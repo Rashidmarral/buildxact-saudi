@@ -25,18 +25,47 @@ use Illuminate\Support\Facades\Config;
 class CompanyMailService
 {
     /**
+     * QA audit finding: applying tenant A's SMTP config and then calling
+     * this again for tenant B (who has none configured) left tenant A's
+     * host sitting in the shared runtime mail config — Config::set() only
+     * ever wrote the company's values, it never had anything to put back
+     * when there was nothing to apply. A single process handling more
+     * than one company's mail in sequence (exactly what
+     * SendOverdueInvoiceReminders does, looping over every overdue
+     * invoice across every company in one run) could silently send
+     * company B's reminder through company A's mail account.
+     *
+     * Captured lazily, once per instance, from whatever the platform
+     * mailer config was BEFORE this service ever touched it — i.e. after
+     * AppServiceProvider::configureMailDriver() has already applied the
+     * platform-wide settings at boot, but before any company-specific
+     * override. An instance property rather than a static one
+     * deliberately: SendOverdueInvoiceReminders resolves exactly one
+     * CompanyMailService for its whole run (via handle()'s method
+     * injection) and reuses it across every company in the loop — which
+     * is the only place this needs to survive more than one call — while
+     * every other caller (a single HTTP request's controller action)
+     * gets its own fresh instance per request, same as before.
+     */
+    private ?array $platformDefaults = null;
+
+    /**
      * Returns true if the company's own SMTP config was applied (so the
-     * caller can log/decide accordingly); false if nothing changed and
-     * the platform's default mailer config is still in effect.
+     * caller can log/decide accordingly); false if nothing changed — the
+     * platform's default mailer config is (now, always) back in effect.
      */
     public function applyFor(Company $company): bool
     {
+        $this->capturePlatformDefaultsOnce();
+
         $config = CompanyMailConfig::withoutGlobalScope('company')
             ->where('company_id', $company->id)
             ->where('is_enabled', true)
             ->first();
 
         if (! $config || blank($config->smtp_host) || blank($config->from_address)) {
+            Config::set($this->platformDefaults);
+
             return false;
         }
 
@@ -52,5 +81,23 @@ class CompanyMailService
         ]);
 
         return true;
+    }
+
+    private function capturePlatformDefaultsOnce(): void
+    {
+        if ($this->platformDefaults !== null) {
+            return;
+        }
+
+        $this->platformDefaults = [
+            'mail.default' => Config::get('mail.default'),
+            'mail.mailers.smtp.host' => Config::get('mail.mailers.smtp.host'),
+            'mail.mailers.smtp.port' => Config::get('mail.mailers.smtp.port'),
+            'mail.mailers.smtp.encryption' => Config::get('mail.mailers.smtp.encryption'),
+            'mail.mailers.smtp.username' => Config::get('mail.mailers.smtp.username'),
+            'mail.mailers.smtp.password' => Config::get('mail.mailers.smtp.password'),
+            'mail.from.address' => Config::get('mail.from.address'),
+            'mail.from.name' => Config::get('mail.from.name'),
+        ];
     }
 }

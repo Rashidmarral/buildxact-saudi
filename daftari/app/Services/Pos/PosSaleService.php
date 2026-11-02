@@ -149,30 +149,39 @@ class PosSaleService
             'issue_date' => now()->toDateString(),
             'currency' => $company->currency,
             // Audit finding POS-01: InvoiceItem has no per-line discount
-            // column, so recalculateTotals() below sums each mirrored
-            // line's full, undiscounted quantity*unit_price for subtotal
-            // — a PosSaleItem's own discount_amount (already baked into
-            // its line_total/vat_amount, both copied over as-is) would
-            // otherwise be silently dropped, leaving this invoice's total
-            // higher than what the sale actually charged and its
-            // InvoicePayment rows actually recorded. Carrying the sale's
-            // total discount forward as a header-level fixed discount
-            // lands recalculateTotals() on the exact same total.
+            // column — a PosSaleItem's own discount_amount needs to be
+            // represented as a header-level discount on the mirrored
+            // invoice, exactly like any other invoice with a discount, or
+            // it's silently dropped and this invoice's total ends up
+            // higher than what the sale actually charged. Carrying the
+            // sale's total discount forward this way also makes
+            // Invoice::recalculateTotals() apply the EXACT SAME discount
+            // -> taxable-base -> VAT treatment below (via
+            // ComputesDiscount::discountedVatTotal()) that a normal
+            // invoice gets, as long as each mirrored line's own vat_amount
+            // is computed gross (quantity*unit_price*rate, ignoring that
+            // line's own discount_amount) rather than copied net from the
+            // PosSaleItem — see the loop below.
             'discount_type' => 'fixed',
             'discount_value' => $sale->discount_total > 0 ? $sale->discount_total : 0,
         ]);
 
         foreach ($sale->items as $sort => $line) {
-            $invoice->items()->create([
+            $mirroredItem = new \App\Models\InvoiceItem([
                 'item_id' => $line->item_id,
                 'description' => $line->description,
                 'quantity' => $line->quantity,
                 'unit_price' => $line->unit_price,
                 'vat_rate' => $line->vat_rate,
-                'vat_amount' => $line->vat_amount,
-                'line_total' => $line->line_total,
                 'sort_order' => $sort,
             ]);
+            // Deliberately NOT $line->vat_amount/$line->line_total — those
+            // are already net of this line's own discount_amount, but
+            // every other InvoiceItem in the system (and recalculateTotals()
+            // below) expects vat_amount to be the line's GROSS tax, with
+            // discounting handled once, at the header level.
+            $mirroredItem->recalculate();
+            $invoice->items()->save($mirroredItem);
         }
 
         foreach ($sale->payments as $payment) {
@@ -185,6 +194,7 @@ class PosSaleService
         }
 
         $invoice->recalculateTotals();
+        $invoice->capturePartySnapshot();
 
         return $invoice;
     }

@@ -163,7 +163,7 @@
         </div>
 
         <div class="bg-white rounded-xl border border-slate-100 p-6">
-            <div class="flex items-center justify-between mb-1">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
                 <h3 class="font-semibold text-slate-900">{{ __('Content') }}</h3>
                 <div class="flex items-center gap-3">
                     <button type="button" id="add-heading" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('+ Add section heading') }}</button>
@@ -200,7 +200,7 @@
         const wrapper = document.createElement('div');
         wrapper.className = 'border border-slate-100 rounded-lg p-4';
         wrapper.innerHTML = `
-            <div class="flex items-center justify-between mb-2">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <label class="flex items-center gap-2 text-xs text-slate-500">
                     <input type="checkbox" name="content[${index}][is_heading]" value="1" ${block.is_heading ? 'checked' : ''}>
                     ${@json(__('Section heading'))}

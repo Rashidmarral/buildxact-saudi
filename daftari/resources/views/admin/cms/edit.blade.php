@@ -162,13 +162,13 @@
         return `
             <div x-data="richTextEditor(${JSON.stringify(value || '')}, ${JSON.stringify(LINK_PROMPT)})" class="overflow-hidden rounded-lg border border-slate-200 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
                 <div class="flex items-center gap-0.5 border-b border-slate-100 bg-slate-50/60 px-1.5 py-1">
-                    <button type="button" @click="exec('bold')" class="rte-btn"><span class="font-bold">B</span></button>
-                    <button type="button" @click="exec('italic')" class="rte-btn"><span class="italic">I</span></button>
+                    <button type="button" @click="exec('bold')" class="rte-btn" aria-label="Bold"><span class="font-bold">B</span></button>
+                    <button type="button" @click="exec('italic')" class="rte-btn" aria-label="Italic"><span class="italic">I</span></button>
                     <span class="mx-0.5 h-4 w-px bg-slate-200"></span>
-                    <button type="button" @click="exec('insertUnorderedList')" class="rte-btn">
+                    <button type="button" @click="exec('insertUnorderedList')" class="rte-btn" aria-label="Bulleted list">
                         <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><circle cx="3" cy="5" r="1.3"/><circle cx="3" cy="10" r="1.3"/><circle cx="3" cy="15" r="1.3"/><rect x="7" y="4.3" width="11" height="1.4" rx="0.7"/><rect x="7" y="9.3" width="11" height="1.4" rx="0.7"/><rect x="7" y="14.3" width="11" height="1.4" rx="0.7"/></svg>
                     </button>
-                    <button type="button" @click="link()" class="rte-btn">
+                    <button type="button" @click="link()" class="rte-btn" aria-label="Insert link">
                         <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M8 12a3.5 3.5 0 003.5 3.5H14a3.5 3.5 0 000-7h-1"/><path d="M12 8a3.5 3.5 0 00-3.5-3.5H6a3.5 3.5 0 000 7h1"/></svg>
                     </button>
                 </div>

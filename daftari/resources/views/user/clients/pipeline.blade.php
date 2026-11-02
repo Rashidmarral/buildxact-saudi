@@ -3,7 +3,7 @@
 @section('title', __('Pipeline'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Prospects moving toward becoming a paying client. Set a pipeline stage on any client to add it here.') }}</p>
     <a href="{{ route('app.clients.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('All clients') }}</a>
 </div>

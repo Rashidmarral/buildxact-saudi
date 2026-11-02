@@ -43,7 +43,7 @@
         ['label' => __('Transaction Processing'), 'desc' => __('Documents that should have an accounting entry.'), 'issues' => $transactionIssues, 'route' => route('app.journals.index'), 'action' => __('View Journals')],
     ] as $area)
         <div class="bg-white rounded-xl border border-slate-100 p-5">
-            <div class="flex items-center justify-between mb-2">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <p class="font-semibold text-slate-800">{{ $area['label'] }}</p>
                 @if (count($area['issues']) === 0)
                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{{ __('OK') }}</span>

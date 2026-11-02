@@ -27,7 +27,7 @@
     <div class="lg:col-span-2 space-y-4">
         {{-- Initial description --}}
         <div class="bg-white rounded-xl border border-slate-100 p-5">
-            <div class="flex items-center justify-between mb-2">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                 <span class="text-sm font-semibold text-slate-800">{{ $ticket->user?->name ?? __('Customer') }}</span>
                 <span class="text-xs text-slate-400">{{ $ticket->created_at->format('Y-m-d H:i') }}</span>
             </div>
@@ -47,7 +47,7 @@
         {{-- Full thread: public replies AND internal notes, clearly distinguished --}}
         @foreach ($ticket->replies as $reply)
             <div class="bg-white rounded-xl border p-5 {{ $reply->is_internal_note ? 'border-amber-200 bg-amber-50/40' : 'border-slate-100' }}">
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
                     <span class="text-sm font-semibold text-slate-800">
                         {{ $reply->author?->name ?? __('Unknown') }}
                         @if ($reply->is_internal_note)

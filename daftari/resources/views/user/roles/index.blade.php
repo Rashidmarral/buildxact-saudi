@@ -3,7 +3,7 @@
 @section('title', __('Roles & Permissions'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Control what members can do through system and custom roles.') }}</p>
     @if (auth()->user()->company->hasFeature('roles_permissions'))
         <a href="{{ route('app.roles.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Create custom role') }}</a>

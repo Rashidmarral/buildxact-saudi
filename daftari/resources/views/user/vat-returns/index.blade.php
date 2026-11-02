@@ -3,7 +3,7 @@
 @section('title', __('VAT Return Filings'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ __('VAT Return Filings') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('One record per period filed with ZATCA, chained so a credit carried forward from one period becomes the next period\'s starting point automatically.') }}</p>

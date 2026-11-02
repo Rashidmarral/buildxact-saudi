@@ -12,7 +12,7 @@
     $issueCount = collect($sections)->sum(fn ($s) => $s['items']->count());
 @endphp
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Company Audit') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('A self-check of your books and ZATCA compliance for the selected period — no accountant required to read it.') }}</p>
@@ -50,7 +50,7 @@
             };
         @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-6">
-            <div class="flex items-center justify-between mb-1">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
                 <h3 class="font-semibold text-slate-900">{{ $section['label'] }}</h3>
                 <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold {{ $sectionBadge[0] }}">{{ $sectionBadge[1] }}</span>
             </div>
@@ -82,7 +82,7 @@
 
 <x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 p-6 mt-6">
-    <div class="flex items-center justify-between mb-1">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
         <h3 class="font-semibold text-slate-900">{{ __('Transaction detail') }}</h3>
         <span class="text-xs text-slate-400">{{ __(':count entries', ['count' => $transactions->count()]) }}</span>
     </div>

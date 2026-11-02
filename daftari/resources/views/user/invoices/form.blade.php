@@ -13,7 +13,7 @@ $initialTermsDays = $invoice->exists && $invoice->issue_date && $invoice->due_da
 $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (string) $initialTermsDays : 'custom';
 @endphp
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Create invoice') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('Manage invoices and track who owes you') }}</p>
@@ -133,9 +133,17 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
             <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center flex-wrap gap-3">
                 @if ($warehouses->isNotEmpty())
-                    <select name="warehouse_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    {{--
+                        QA audit finding: a native <select> sizes itself
+                        to its longest option text (here, a warehouse's
+                        full code + name) and won't shrink below that in
+                        a flex row without min-w-0 — pushed this whole
+                        card, and the page itself, wider than a 390px
+                        viewport.
+                    --}}
+                    <select name="warehouse_id" class="min-w-0 max-w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="">{{ __('No stock deduction') }}</option>
                         @foreach ($warehouses as $warehouse)
                             <option value="{{ $warehouse->id }}" @selected(old('warehouse_id', $invoice->warehouse_id ?? $warehouse->id) == $warehouse->id)>{{ $warehouse->code }} — {{ $warehouse->name }}</option>

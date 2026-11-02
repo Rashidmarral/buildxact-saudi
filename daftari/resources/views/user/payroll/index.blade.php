@@ -3,7 +3,7 @@
 @section('title', __('Payroll'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Run payroll each pay period and post it to the ledger.') }}</p>
     <div class="flex gap-2">
         <a href="{{ route('app.employees.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Employees') }}</a>

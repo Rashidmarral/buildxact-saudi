@@ -80,7 +80,7 @@
         </div>
 
         <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Alternate units') }}</label>
                     <p class="text-xs text-slate-400">{{ __('Sell or buy this item in other units too — e.g. base unit Ton, alternate unit Bag with a conversion factor of 40 (1 Ton = 40 Bags).') }}</p>
@@ -149,7 +149,7 @@
         </div>
 
         <div class="sm:col-span-2 rounded-lg border border-slate-200 p-4" id="kit-components-wrap">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Kit components') }}</label>
                     <p class="text-xs text-slate-400">{{ __('Selling this kit deducts each component\'s own stock instead of the kit itself — e.g. a "Gift Basket" kit deducts stock of the fruit, box and ribbon it contains.') }}</p>

@@ -3,7 +3,7 @@
 @section('title', __('Legal Documents'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Legal Documents') }}</h1>
         <p class="text-sm text-slate-500 mt-1">{{ __('These are drafted starting points, not reviewed legal advice. Have each one checked by a licensed Saudi legal advisor before you rely on it, then mark it reviewed and publish it.') }}</p>

@@ -21,7 +21,7 @@
     </div>
 </div>
 
-<div class="flex items-center justify-between mb-3">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-3">
     <h2 class="font-semibold text-slate-900">{{ __('Recent invoices') }}</h2>
     <a href="{{ route('portal.invoices') }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('View all') }}</a>
 </div>

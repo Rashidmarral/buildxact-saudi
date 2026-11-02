@@ -32,7 +32,7 @@
                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-glow">د</span>
                     <span>Daftari <span class="text-xs font-normal text-slate-500">Admin</span></span>
                 </a>
-                <button type="button" @click="mobileNavOpen = false" class="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white lg:hidden">
+                <button type="button" @click="mobileNavOpen = false" aria-label="{{ __('Close menu') }}" class="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white lg:hidden">
                     @include('partials.icon', ['name' => 'close', 'class' => 'h-5 w-5'])
                 </button>
             </div>
@@ -57,7 +57,7 @@
         <div class="flex min-w-0 flex-1 flex-col">
             <header class="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-6">
                 <div class="flex items-center gap-3">
-                    <button type="button" @click="mobileNavOpen = true" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
+                    <button type="button" @click="mobileNavOpen = true" aria-label="{{ __('Open menu') }}" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
                         @include('partials.icon', ['name' => 'menu', 'class' => 'h-5 w-5'])
                     </button>
                     <h1 class="text-base font-semibold text-slate-900 sm:text-lg">@yield('title')</h1>

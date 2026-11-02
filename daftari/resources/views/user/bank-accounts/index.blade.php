@@ -5,7 +5,7 @@
 @section('content')
 @include('user.bank-accounts.partials.tabs')
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Bank and cash accounts your receipts, payments, and transfers move through.') }}</p>
     <a href="{{ route('app.bank-accounts.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Add account') }}</a>
 </div>

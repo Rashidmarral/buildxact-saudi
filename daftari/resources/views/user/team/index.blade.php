@@ -10,7 +10,7 @@
     </div>
 @endif
 
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <p class="text-sm text-slate-500">{{ __('Control who can access your account and what they can do.') }}</p>
     <a href="{{ route('app.roles.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Manage roles & permissions') }}</a>
 </div>

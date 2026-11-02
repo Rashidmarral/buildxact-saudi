@@ -3,7 +3,7 @@
 @section('title', __('Advance Credits'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Advance Credits') }}</h2>
         <p class="text-sm text-slate-500 mt-1 max-w-2xl">{{ __('Advance payments received (whether or not they were issued through the dedicated Prepayment Invoice feature), split into portions you can credit against future invoices for the same client — in full, or a little at a time.') }}</p>

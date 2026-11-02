@@ -114,7 +114,7 @@
     </div>
 
     <div class="mt-6 bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 class="font-semibold text-slate-900">{{ __('Gateway response') }}</h3>
             @if ($payment->transaction)
                 <button type="button" @click="showResponse = ! showResponse" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('View gateway response') }}</button>
