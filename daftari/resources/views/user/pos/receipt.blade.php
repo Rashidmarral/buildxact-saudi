@@ -30,6 +30,17 @@
 
 @include('documents.print.pos-receipt-body', ['sale' => $sale, 'qr' => $qr, 'layout' => $layout ?? 'receipt_compact', 'languageMode' => $languageMode ?? 'bilingual'])
 
+@if (session('status') && $sale->company->pos_auto_print_receipt)
+    {{--
+        The "Sale completed." status flash is only present on the single
+        request right after checkout()'s redirect — a later visit to this
+        same receipt (reloading the page, coming back from "All sales")
+        never carries it, so this never re-fires the print dialog on
+        every subsequent view.
+    --}}
+    <script>window.addEventListener('load', () => window.print());</script>
+@endif
+
 <dialog id="void-sale-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-sm backdrop:bg-slate-900/40 print:hidden">
     <form method="POST" action="{{ route('app.pos.sales.void', $sale) }}" class="p-6 space-y-4">
         @csrf

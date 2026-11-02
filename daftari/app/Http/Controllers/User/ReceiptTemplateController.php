@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Support\ReceiptTemplatePresets;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -32,7 +33,29 @@ class ReceiptTemplateController extends Controller
         return view('user.receipt-templates.index', [
             'presets' => ReceiptTemplatePresets::all(),
             'activeKey' => $activeKey,
+            'company' => $company,
         ]);
+    }
+
+    /**
+     * Which thermal paper width the PDF/print output is laid out for, and
+     * whether the receipt should print itself the moment a sale completes
+     * instead of the cashier clicking Print — see MpdfRenderer::
+     * resolvePageSize() and pos/receipt.blade.php.
+     */
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'pos_receipt_paper_width' => ['required', 'in:58mm,80mm'],
+            'pos_auto_print_receipt' => ['nullable', 'boolean'],
+        ]);
+
+        Auth::user()->company->update([
+            'pos_receipt_paper_width' => $data['pos_receipt_paper_width'],
+            'pos_auto_print_receipt' => $request->boolean('pos_auto_print_receipt'),
+        ]);
+
+        return redirect()->route('app.receipt-templates.index')->with('status', __('Printer settings saved.'));
     }
 
     public function activate(string $key): RedirectResponse

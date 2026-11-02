@@ -32,6 +32,8 @@ class Company extends Model
     protected $fillable = [
         'name', 'name_ar', 'organization_size', 'industry', 'slug', 'vat_number', 'cr_number', 'address', 'city',
         'building_number', 'street_name', 'district', 'postal_code', 'additional_number', 'short_address',
+        'pos_receipt_paper_width', 'pos_auto_print_receipt',
+        'sku_prefix', 'sku_auto_generate', 'sku_next_number', 'barcode_length',
         'phone', 'email', 'logo_path', 'favicon_path', 'stamp_path', 'stamp_size', 'invoice_prefix', 'next_invoice_number',
         'credit_note_prefix', 'next_credit_note_number',
         'debit_note_prefix', 'next_debit_note_number',
@@ -142,6 +144,10 @@ class Company extends Model
         return [
             'trial_ends_at' => 'datetime',
             'is_demo' => 'boolean',
+            'pos_auto_print_receipt' => 'boolean',
+            'sku_auto_generate' => 'boolean',
+            'sku_next_number' => 'integer',
+            'barcode_length' => 'integer',
             'vat_makes_exempt_supplies' => 'boolean',
             'vat_recovery_percentage' => 'decimal:2',
             'zatca_sync_b2b' => 'boolean',
@@ -375,6 +381,18 @@ class Company extends Model
      * allocated at creation time, not backdated to a document's own
      * (possibly different) issue_date.
      */
+    /**
+     * Same running-counter mechanism as invoice/bill/etc. numbering
+     * (lockForUpdate-protected against two items auto-generating the
+     * same SKU concurrently) — see ItemController::store() and
+     * ItemSettingsController for where sku_prefix/sku_auto_generate are
+     * configured.
+     */
+    public function nextSkuNumber(): int
+    {
+        return $this->nextSequenceNumber('sku_next_number');
+    }
+
     public function currentFiscalYearLabel(): string
     {
         $startMonth = (int) ($this->fiscal_year_start ?: Setting::get('general_fiscal_year_start', 1));

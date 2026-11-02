@@ -158,6 +158,7 @@ use App\Http\Controllers\User\WarehouseController;
 use App\Http\Controllers\User\PaymentGatewayController;
 use App\Http\Controllers\User\ApprovalChainController;
 use App\Http\Controllers\User\ApprovalSettingsController;
+use App\Http\Controllers\User\ItemSettingsController;
 use App\Http\Controllers\User\MailSettingsController;
 use App\Http\Controllers\User\WathqLookupController;
 use App\Http\Controllers\User\SmsSettingsController;
@@ -700,6 +701,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('pos-sales/{sale}/pdf', [PosController::class, 'downloadReceiptPdf'])->middleware('throttle:pdf')->name('pos.sales.pdf');
         Route::get('receipt-templates', [ReceiptTemplateController::class, 'index'])->name('receipt-templates.index');
         Route::post('receipt-templates/{key}/activate', [ReceiptTemplateController::class, 'activate'])->name('receipt-templates.activate');
+        Route::post('receipt-templates-printer-settings', [ReceiptTemplateController::class, 'updateSettings'])->name('receipt-templates.settings.update');
     });
 
     // Coffee Shop is a thin preset on top of Restaurant (same order/table/
@@ -954,6 +956,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('settings/approvals/close-period', [ApprovalSettingsController::class, 'closePeriod'])->name('settings.approvals.close-period');
         Route::post('settings/approvals/reopen-period', [ApprovalSettingsController::class, 'reopenPeriod'])->name('settings.approvals.reopen-period');
         Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
+        Route::get('settings/barcode-sku', [ItemSettingsController::class, 'show'])->name('settings.barcode-sku');
+        Route::post('settings/barcode-sku', [ItemSettingsController::class, 'update'])->name('settings.barcode-sku.update');
         Route::post('settings/approvals/chain-steps', [ApprovalChainController::class, 'store'])->name('settings.approvals.chain-steps.store');
         Route::delete('settings/approvals/chain-steps/{approvalChainStep}', [ApprovalChainController::class, 'destroy'])->name('settings.approvals.chain-steps.destroy');
     });

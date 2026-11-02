@@ -24,8 +24,22 @@
         };
     };
     $isDetailed = ($layout ?? 'receipt_compact') === 'receipt_detailed';
+    $paperWidthMm = ($sale->company->pos_receipt_paper_width ?? '80mm') === '58mm' ? 58 : 80;
 @endphp
-<div class="max-w-md mx-auto bg-white rounded-xl border border-slate-100 p-6 font-mono text-sm" @if($languageMode === 'arabic_only') dir="rtl" @endif>
+{{--
+    @page below only takes effect when the browser actually prints this
+    page (window.print(), see receipt.blade.php) — matches the sheet to
+    whatever thermal paper the company's printer settings say it uses
+    (ReceiptTemplateController::updateSettings()), same width the
+    downloaded PDF renders at (MpdfRenderer::resolvePageSize()).
+--}}
+<style>
+    @media print {
+        @page { size: {{ $paperWidthMm }}mm auto; margin: 2mm; }
+        .receipt-slip { width: {{ $paperWidthMm }}mm !important; max-width: {{ $paperWidthMm }}mm !important; }
+    }
+</style>
+<div class="receipt-slip max-w-md mx-auto bg-white rounded-xl border border-slate-100 p-6 font-mono text-sm" @if($languageMode === 'arabic_only') dir="rtl" @endif>
     <div class="text-center mb-4">
         @if ($isDetailed && ($sale->company->logo_path ?? null))
             <img src="{{ Illuminate\Support\Facades\Storage::disk('public')->url($sale->company->logo_path) }}" alt="" class="mx-auto h-12 mb-2 object-contain">

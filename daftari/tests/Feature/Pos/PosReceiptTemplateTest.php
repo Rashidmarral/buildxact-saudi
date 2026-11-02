@@ -241,4 +241,98 @@ class PosReceiptTemplateTest extends TestCase
 
         $this->actingAs($owner)->post(route('app.receipt-templates.activate', 'not-a-real-preset'))->assertNotFound();
     }
+
+    // ------------------------------------------------------------------
+    // Printer settings — paper width + auto-print
+    // ------------------------------------------------------------------
+
+    public function test_a_company_defaults_to_80mm_paper_and_no_auto_print(): void
+    {
+        $company = $this->makeCompany(['has_pos' => true])->fresh();
+
+        $this->assertSame('80mm', $company->pos_receipt_paper_width);
+        $this->assertFalse($company->pos_auto_print_receipt);
+    }
+
+    public function test_an_owner_can_save_printer_settings(): void
+    {
+        $company = $this->makeCompany(['has_pos' => true]);
+        $owner = $this->makeOwner($company);
+
+        $response = $this->actingAs($owner)->post(route('app.receipt-templates.settings.update'), [
+            'pos_receipt_paper_width' => '58mm',
+            'pos_auto_print_receipt' => '1',
+        ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $company->refresh();
+        $this->assertSame('58mm', $company->pos_receipt_paper_width);
+        $this->assertTrue($company->pos_auto_print_receipt);
+    }
+
+    public function test_omitting_the_auto_print_checkbox_turns_it_off(): void
+    {
+        $company = $this->makeCompany(['has_pos' => true]);
+        $company->update(['pos_auto_print_receipt' => true]);
+        $owner = $this->makeOwner($company);
+
+        $this->actingAs($owner)->post(route('app.receipt-templates.settings.update'), [
+            'pos_receipt_paper_width' => '80mm',
+        ]);
+
+        $this->assertFalse($company->fresh()->pos_auto_print_receipt);
+    }
+
+    public function test_an_invalid_paper_width_is_rejected(): void
+    {
+        $company = $this->makeCompany(['has_pos' => true]);
+        $owner = $this->makeOwner($company);
+
+        $response = $this->actingAs($owner)->post(route('app.receipt-templates.settings.update'), [
+            'pos_receipt_paper_width' => '110mm',
+        ]);
+
+        $response->assertSessionHasErrors('pos_receipt_paper_width');
+    }
+
+    public function test_the_receipt_page_prints_itself_automatically_right_after_checkout_when_enabled(): void
+    {
+        $company = $this->makeCompany(['has_pos' => true]);
+        $company->update(['pos_auto_print_receipt' => true]);
+        $owner = $this->makeOwner($company);
+        $sale = $this->makePosSale($company, $owner);
+
+        // checkout()'s own redirect carries the "Sale completed." status
+        // flash — this GET is the request that consumes it, exactly like
+        // a cashier being bounced straight to the receipt after payment.
+        $justAfterCheckout = $this->actingAs($owner)->get(route('app.pos.sales.show', $sale));
+        $justAfterCheckout->assertSee("addEventListener('load'", false);
+
+        $laterVisit = $this->actingAs($owner)->get(route('app.pos.sales.show', $sale));
+        $laterVisit->assertDontSee("addEventListener('load'", false);
+    }
+
+    public function test_the_receipt_page_does_not_auto_print_when_the_setting_is_off(): void
+    {
+        $company = $this->makeCompany(['has_pos' => true]);
+        $owner = $this->makeOwner($company);
+        $sale = $this->makePosSale($company, $owner);
+
+        $response = $this->actingAs($owner)->get(route('app.pos.sales.show', $sale));
+
+        $response->assertDontSee("addEventListener('load'", false);
+    }
+
+    public function test_the_downloaded_pdf_uses_the_companys_configured_paper_width(): void
+    {
+        $company = $this->makeCompany(['has_pos' => true]);
+        $company->update(['pos_receipt_paper_width' => '58mm']);
+        $owner = $this->makeOwner($company);
+        $sale = $this->makePosSale($company, $owner);
+
+        $response = $this->actingAs($owner)->get(route('app.pos.sales.pdf', $sale));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+    }
 }

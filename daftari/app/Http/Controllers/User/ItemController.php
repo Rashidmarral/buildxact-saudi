@@ -137,6 +137,12 @@ class ItemController extends Controller
         $kitComponents = $data['kit_components'] ?? [];
         unset($data['alt_units'], $data['custom_fields'], $data['kit_components']);
         $data = $this->withImage($request, $data);
+
+        $company = Auth::user()->company;
+        if (empty($data['sku']) && $company->sku_auto_generate) {
+            $data['sku'] = $this->generateSku($company);
+        }
+
         $item = Item::create($data);
         $this->syncAltUnits($item, $altUnits);
         $item->syncCustomFieldValues($customFields);
@@ -347,11 +353,30 @@ class ItemController extends Controller
 
     public function generateBarcode()
     {
+        $length = Auth::user()->company->barcode_length ?: 12;
+        $min = (int) str_pad('1', $length, '0');
+        $max = (int) str_pad('', $length, '9');
+
         do {
-            $barcode = (string) random_int(100000000000, 999999999999);
+            $barcode = (string) random_int($min, $max);
         } while (Item::where('barcode', $barcode)->exists());
 
         return response()->json(['barcode' => $barcode]);
+    }
+
+    /**
+     * Collision retry mirrors generateBarcode() above — sku_next_number
+     * is a clean running sequence, but a manually typed SKU on an
+     * earlier item could already occupy a value this would otherwise
+     * hand out.
+     */
+    private function generateSku(\App\Models\Company $company): string
+    {
+        do {
+            $sku = ($company->sku_prefix ?: '').str_pad((string) $company->nextSkuNumber(), 5, '0', STR_PAD_LEFT);
+        } while (Item::where('sku', $sku)->exists());
+
+        return $sku;
     }
 
     private function withImage(Request $request, array $data, ?Item $item = null): array

@@ -218,6 +218,7 @@ class PosController extends Controller
             'sale' => $sale, 'qr' => $qr,
             'layout' => $template->layout, 'languageMode' => $template->language_mode ?? 'bilingual',
             'template' => $template,
+            'receiptPaperWidthMm' => $sale->company->pos_receipt_paper_width === '58mm' ? 58 : 80,
         ]);
 
         return response($pdf, 200, [
