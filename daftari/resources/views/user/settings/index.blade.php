@@ -443,6 +443,7 @@
             ['title' => __('Payment gateways'), 'desc' => __('Let clients pay your invoices online with mada, cards, Apple Pay, or STC Pay.'), 'route' => 'app.settings.payment-gateways'],
             ['title' => __('WhatsApp'), 'desc' => __('Send invoices to clients over WhatsApp using your own WhatsApp Business account.'), 'route' => 'app.settings.whatsapp'],
             ['title' => __('SMS'), 'desc' => __('Send invoices and reminders to clients over SMS using your own Unifonic account.'), 'route' => 'app.settings.sms'],
+            ['title' => __('Email'), 'desc' => __('Send invoices, quotations, statements, and reminders from your own email address and domain.'), 'route' => 'app.settings.mail'],
         ] as $card)
             <div class="bg-white rounded-xl border border-slate-100 p-6 flex flex-col justify-between">
                 <div>

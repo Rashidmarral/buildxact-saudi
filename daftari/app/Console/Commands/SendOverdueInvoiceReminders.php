@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\OverdueInvoiceReminderMail;
 use App\Models\Invoice;
+use App\Services\CompanyMailService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
@@ -30,7 +31,7 @@ class SendOverdueInvoiceReminders extends Command
         1 => 7,
     ];
 
-    public function handle(): int
+    public function handle(CompanyMailService $mailService): int
     {
         $invoices = Invoice::withoutGlobalScopes()
             ->whereIn('status', ['sent', 'partially_paid'])
@@ -51,6 +52,7 @@ class SendOverdueInvoiceReminders extends Command
                 continue;
             }
 
+            $mailService->applyFor($invoice->company);
             Mail::to($invoice->client->email)->send(new OverdueInvoiceReminderMail($invoice, $tier));
             $invoice->update(['last_reminder_sent_at' => now(), 'last_reminder_tier' => $tier]);
             $sent++;

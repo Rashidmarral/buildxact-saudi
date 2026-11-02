@@ -334,7 +334,7 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function emailInvoice(Invoice $invoice, Request $request, MpdfRenderer $renderer)
+    public function emailInvoice(Invoice $invoice, Request $request, MpdfRenderer $renderer, \App\Services\CompanyMailService $mailService)
     {
         $recipient = $invoice->client->email;
 
@@ -348,6 +348,7 @@ class InvoiceController extends Controller
 
         $pdfBinary = $renderer->render('documents.print.pdf', $invoice->pdfData());
 
+        $mailService->applyFor($invoice->company);
         Mail::to($recipient)->send(new InvoiceMail($invoice, $pdfBinary));
 
         return back()->with('status', __('Invoice emailed to :email.', ['email' => $recipient]));

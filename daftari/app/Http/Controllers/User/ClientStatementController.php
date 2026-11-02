@@ -90,7 +90,7 @@ class ClientStatementController extends Controller
      * InvoiceController::emailInvoice() exactly: same PDF, same mailable
      * shape, same missing-email guard.
      */
-    public function email(Client $client, Request $request, MpdfRenderer $renderer)
+    public function email(Client $client, Request $request, MpdfRenderer $renderer, \App\Services\CompanyMailService $mailService)
     {
         $recipient = $client->email;
 
@@ -113,6 +113,7 @@ class ClientStatementController extends Controller
             'template' => $company->defaultTemplateFor('client_statement'),
         ] + $data);
 
+        $mailService->applyFor($company);
         Mail::to($recipient)->send(new StatementMail($client, $company, $data['closingBalance'], $pdf));
 
         return back()->with('status', __('Statement emailed to :email.', ['email' => $recipient]));

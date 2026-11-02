@@ -157,7 +157,7 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function emailQuotation(Quotation $quotation, MpdfRenderer $renderer)
+    public function emailQuotation(Quotation $quotation, MpdfRenderer $renderer, \App\Services\CompanyMailService $mailService)
     {
         $recipient = $quotation->client->email;
 
@@ -167,6 +167,7 @@ class QuotationController extends Controller
 
         $pdfBinary = $renderer->render('documents.print.pdf', $quotation->pdfData());
 
+        $mailService->applyFor($quotation->company);
         Mail::to($recipient)->send(new QuotationMail($quotation, $pdfBinary));
 
         return back()->with('status', __('Quotation emailed to :email.', ['email' => $recipient]));

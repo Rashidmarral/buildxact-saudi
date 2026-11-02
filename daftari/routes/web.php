@@ -158,6 +158,7 @@ use App\Http\Controllers\User\WarehouseController;
 use App\Http\Controllers\User\PaymentGatewayController;
 use App\Http\Controllers\User\ApprovalChainController;
 use App\Http\Controllers\User\ApprovalSettingsController;
+use App\Http\Controllers\User\MailSettingsController;
 use App\Http\Controllers\User\SmsSettingsController;
 use App\Http\Controllers\User\WhatsappSettingsController;
 use App\Http\Controllers\User\TicketController;
@@ -937,6 +938,10 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('settings/sms', [SmsSettingsController::class, 'show'])->name('settings.sms');
         Route::post('settings/sms', [SmsSettingsController::class, 'update'])->name('settings.sms.update');
         Route::post('settings/sms/test', [SmsSettingsController::class, 'test'])->name('settings.sms.test');
+
+        Route::get('settings/mail', [MailSettingsController::class, 'show'])->name('settings.mail');
+        Route::post('settings/mail', [MailSettingsController::class, 'update'])->name('settings.mail.update');
+        Route::post('settings/mail/test', [MailSettingsController::class, 'test'])->name('settings.mail.test');
 
         Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
         Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
