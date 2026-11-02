@@ -11,6 +11,7 @@
     <a href="{{ route('app.machinery.trips.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Log a trip') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($trips->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No trips logged yet.') }}</p>
@@ -49,6 +50,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $trips])</div>
 @endsection

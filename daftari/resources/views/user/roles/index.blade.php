@@ -12,6 +12,7 @@
     @endif
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     <table class="w-full text-sm">
         <thead>
@@ -31,19 +32,22 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-slate-500">{{ $role->users_count }}</td>
-                    <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                        <a href="{{ route('app.roles.show', $role) }}" class="text-slate-500 hover:underline">{{ __('View') }}</a>
-                        @unless ($role->is_system)
-                            <a href="{{ route('app.roles.edit', $role) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                            <form method="POST" action="{{ route('app.roles.destroy', $role) }}" class="inline" onsubmit="return confirm('{{ __('Delete this role?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
-                        @endunless
+                    <td class="px-6 py-3 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <x-icon-button href="{{ route('app.roles.show', $role) }}" icon="eye" title="{{ __('View') }}" />
+                            @unless ($role->is_system)
+                                <x-icon-button href="{{ route('app.roles.edit', $role) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <form method="POST" action="{{ route('app.roles.destroy', $role) }}" onsubmit="return confirm('{{ __('Delete this role?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            @endunless
+                        </div>
                     </td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 </div>
+</x-list-toolbar>
 @endsection

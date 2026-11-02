@@ -28,6 +28,7 @@
             'destroyConfirm' => __('Delete the selected clients? Clients with invoices or quotations on file will be skipped.'),
         ])
 
+        <x-list-toolbar>
         <div class="bg-white rounded-xl border border-slate-100">
             <table class="w-full text-sm">
                 <thead>
@@ -61,21 +62,24 @@
                                     <span class="text-slate-300">—</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                                @if ($canSeeStatements)
-                                    <a href="{{ route('app.client-statements.show', $client) }}" class="text-slate-500 hover:underline">{{ __('Statement') }}</a>
-                                @endif
-                                <a href="{{ route('app.clients.edit', $client) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                                <form method="POST" action="{{ route('app.clients.destroy', $client) }}" class="inline" onsubmit="return confirm('{{ __('Delete this client?') }}')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                                </form>
+                            <td class="px-6 py-3">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    @if ($canSeeStatements)
+                                        <x-icon-button href="{{ route('app.client-statements.show', $client) }}" icon="eye" title="{{ __('Statement') }}" />
+                                    @endif
+                                    <x-icon-button href="{{ route('app.clients.edit', $client) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                    <form method="POST" action="{{ route('app.clients.destroy', $client) }}" onsubmit="return confirm('{{ __('Delete this client?') }}')">
+                                        @csrf @method('DELETE')
+                                        <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
+        </x-list-toolbar>
     </div>
 @endif
 

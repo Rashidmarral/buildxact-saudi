@@ -23,6 +23,7 @@
     </div>
 @endunless
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($adjustments->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No stock adjustments yet.') }}</p>
@@ -62,10 +63,12 @@
                         </td>
                         <td class="px-6 py-3 text-right">
                             @if ($adjustment->status === 'recorded')
-                                <form method="POST" action="{{ route('app.stock-adjustments.revoke', $adjustment) }}" onsubmit="return confirm('{{ __('Revoke this adjustment?') }}')">
-                                    @csrf
-                                    <button type="submit" class="text-red-600 hover:underline text-xs font-semibold">{{ __('Revoke') }}</button>
-                                </form>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <form method="POST" action="{{ route('app.stock-adjustments.revoke', $adjustment) }}" onsubmit="return confirm('{{ __('Revoke this adjustment?') }}')">
+                                        @csrf
+                                        <x-icon-button type="submit" icon="x-circle" color="red" title="{{ __('Revoke') }}" />
+                                    </form>
+                                </div>
                             @endif
                         </td>
                     </tr>
@@ -74,6 +77,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 <div class="mt-4">@include('partials.pagination', ['paginator' => $adjustments])</div>
 
 @if ($canAdjust)

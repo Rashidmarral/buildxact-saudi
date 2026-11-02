@@ -21,6 +21,7 @@
 @if ($cards->isEmpty())
     <p class="bg-white rounded-xl border border-slate-100 px-6 py-8 text-sm text-slate-500">{{ __('No loyalty cards yet.') }}</p>
 @else
+    <x-list-toolbar>
     <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
         <table class="w-full text-sm">
             <thead>
@@ -46,17 +47,20 @@
                             @endif
                         </td>
                         <td class="px-4 py-2.5 text-end">
-                            <button type="button" class="text-xs font-semibold text-brand-700 hover:underline"
-                                data-top-up
-                                data-url="{{ route('app.coffee-shop.loyalty-cards.top-up', $card) }}"
-                                data-number="{{ $card->card_number }}"
-                            >{{ __('Top up') }}</button>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button type="button" icon="plus" color="brand" title="{{ __('Top up') }}"
+                                    data-top-up
+                                    data-url="{{ route('app.coffee-shop.loyalty-cards.top-up', $card) }}"
+                                    data-number="{{ $card->card_number }}"
+                                />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
+    </x-list-toolbar>
 @endif
 
 <dialog id="new-card-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">

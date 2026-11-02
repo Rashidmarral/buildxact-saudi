@@ -43,6 +43,7 @@
             'destroyConfirm' => __('Delete the selected invoices? Only draft, non-ZATCA-locked invoices will be removed.'),
         ])
 
+        <x-list-toolbar>
         <div class="bg-white rounded-xl border border-slate-100">
             <table class="w-full text-sm">
                 <thead>
@@ -73,6 +74,7 @@
                 </tbody>
             </table>
         </div>
+        </x-list-toolbar>
     </div>
 @else
     <div class="bg-white rounded-xl border border-slate-100">

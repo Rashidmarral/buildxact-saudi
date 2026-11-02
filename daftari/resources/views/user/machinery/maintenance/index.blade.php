@@ -11,6 +11,7 @@
     <a href="{{ route('app.machinery.maintenance.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Log maintenance') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 mb-6">
     <div class="px-6 py-4 border-b border-slate-100">
         <h2 class="font-semibold text-slate-900 text-sm">{{ __('Upcoming / overdue') }}</h2>
@@ -46,7 +47,9 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     <div class="px-6 py-4 border-b border-slate-100">
         <h2 class="font-semibold text-slate-900 text-sm">{{ __('Service history') }}</h2>
@@ -86,6 +89,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $logs])</div>
 @endsection

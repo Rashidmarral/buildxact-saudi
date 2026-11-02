@@ -29,6 +29,7 @@
     @endif
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     <table class="w-full text-sm">
         <thead>
@@ -52,7 +53,9 @@
                         @endif
                     </td>
                     <td class="px-5 py-3 text-end">
-                        <a href="{{ route('app.bank-reconciliations.show', $r) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <div class="flex items-center justify-end gap-1.5">
+                            <x-icon-button href="{{ route('app.bank-reconciliations.show', $r) }}" icon="eye" title="{{ __('View') }}" />
+                        </div>
                     </td>
                 </tr>
             @empty
@@ -61,4 +64,5 @@
         </tbody>
     </table>
 </div>
+</x-list-toolbar>
 @endsection

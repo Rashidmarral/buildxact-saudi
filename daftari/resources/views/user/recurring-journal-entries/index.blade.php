@@ -9,6 +9,7 @@
     <a href="{{ route('app.recurring-journal-entries.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New recurring entry') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($recurringEntries->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No recurring journal entries yet.') }}</p>
@@ -38,22 +39,22 @@
                             </span>
                         </td>
                         <td class="px-6 py-3 text-end">
-                            <div class="flex items-center justify-end gap-3">
+                            <div class="flex items-center justify-end gap-1.5">
                                 @if ($recurringEntry->status === 'active')
                                     <form method="POST" action="{{ route('app.recurring-journal-entries.pause', $recurringEntry) }}">
                                         @csrf
-                                        <button type="submit" class="text-slate-500 hover:text-slate-700">{{ __('Pause') }}</button>
+                                        <x-icon-button type="submit" icon="x-circle" title="{{ __('Pause') }}" />
                                     </form>
                                 @elseif ($recurringEntry->status === 'paused')
                                     <form method="POST" action="{{ route('app.recurring-journal-entries.resume', $recurringEntry) }}">
                                         @csrf
-                                        <button type="submit" class="text-brand-700 hover:underline">{{ __('Resume') }}</button>
+                                        <x-icon-button type="submit" icon="check-circle" color="brand" title="{{ __('Resume') }}" />
                                     </form>
                                 @endif
-                                <a href="{{ route('app.recurring-journal-entries.edit', $recurringEntry) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
+                                <x-icon-button href="{{ route('app.recurring-journal-entries.edit', $recurringEntry) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 <form method="POST" action="{{ route('app.recurring-journal-entries.destroy', $recurringEntry) }}" onsubmit="return confirm('{{ __('Delete this recurring journal entry? This does not affect entries already posted.') }}')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
                             </div>
                         </td>
@@ -63,6 +64,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $recurringEntries])</div>
 @endsection

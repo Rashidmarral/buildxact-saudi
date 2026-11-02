@@ -33,6 +33,7 @@
     </select>
 </form>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($lots->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No lots on hand.') }}</p>
@@ -75,7 +76,9 @@
                         </td>
                         <td class="px-6 py-3">{{ rtrim(rtrim(number_format($lot->quantity, 2), '0'), '.') }}</td>
                         <td class="px-6 py-3 text-right">
-                            <button type="button" onclick="document.getElementById('consume-modal-{{ $lot->id }}').showModal()" class="text-slate-600 hover:underline text-xs font-semibold">{{ __('Consume') }}</button>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button type="button" icon="pencil" title="{{ __('Consume') }}" onclick="document.getElementById('consume-modal-{{ $lot->id }}').showModal()" />
+                            </div>
                             <dialog id="consume-modal-{{ $lot->id }}" class="rounded-2xl border border-slate-100 p-0 w-full max-w-sm backdrop:bg-slate-900/40">
                                 <form method="POST" action="{{ route('app.item-lots.consume', $lot) }}" class="p-6 space-y-4">
                                     @csrf
@@ -97,6 +100,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 <div class="mt-4">@include('partials.pagination', ['paginator' => $lots])</div>
 
 @if ($canReceive)

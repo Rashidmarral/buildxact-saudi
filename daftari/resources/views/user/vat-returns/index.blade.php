@@ -32,7 +32,7 @@
                 <div class="flex items-center gap-3">
                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $badge['class'] }}">{{ $badge['label'] }}</span>
                     @if ($row['status'] === 'filed')
-                        <a href="{{ route('app.reports.vat-returns.show', $row['recorded']) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('app.reports.vat-returns.show', $row['recorded']) }}" icon="eye" title="{{ __('View') }}" />
                     @else
                         <a href="{{ route('app.reports.vat-returns.create', ['year' => $row['start']->year, 'index' => $row['index']]) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Record this period') }}</a>
                     @endif
@@ -42,6 +42,7 @@
     </div>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($periods->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No VAT return periods recorded yet.') }}</p>
@@ -74,6 +75,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $periods])</div>
 @endsection

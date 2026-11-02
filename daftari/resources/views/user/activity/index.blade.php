@@ -8,6 +8,7 @@
     <p class="text-sm text-slate-500 mt-1">{{ __('A record of who did what across your company account.') }}</p>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($logs->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No activity recorded yet.') }}</p>
@@ -34,6 +35,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $logs])</div>
 @endsection

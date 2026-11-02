@@ -30,6 +30,7 @@
     <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Filter') }}</button>
 </form>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     <table class="w-full text-sm">
         <thead>
@@ -56,5 +57,6 @@
         </tbody>
     </table>
 </div>
+</x-list-toolbar>
 <div class="mt-4">@include('partials.pagination', ['paginator' => $entries])</div>
 @endsection

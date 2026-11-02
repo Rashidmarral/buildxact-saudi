@@ -22,6 +22,7 @@
     @endif
 </form>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($categories->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No expense categories yet.') }}</p>
@@ -54,12 +55,14 @@
                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{{ __('Inactive') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <a href="{{ route('app.expense-categories.edit', $category) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                            <form method="POST" action="{{ route('app.expense-categories.destroy', $category) }}" class="inline" onsubmit="return confirm('{{ __('Delete this category?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                        <td class="px-6 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.expense-categories.edit', $category) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <form method="POST" action="{{ route('app.expense-categories.destroy', $category) }}" onsubmit="return confirm('{{ __('Delete this category?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -67,5 +70,6 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 @include('partials.pagination', ['paginator' => $categories])
 @endsection

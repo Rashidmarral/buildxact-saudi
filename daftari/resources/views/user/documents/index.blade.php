@@ -39,6 +39,7 @@
     @endif
 </form>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($attachments->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No documents match your filters.') }}</p>
@@ -75,7 +76,9 @@
                         </td>
                         <td class="px-6 py-3 text-slate-500">{{ $attachment->uploader?->name ?? '—' }}</td>
                         <td class="px-6 py-3 text-right">
-                            <a href="{{ \Illuminate\Support\Facades\Storage::url($attachment->path) }}" download target="_blank" class="text-xs font-semibold text-slate-600 hover:underline">{{ __('Download') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ \Illuminate\Support\Facades\Storage::url($attachment->path) }}" download target="_blank" icon="download" title="{{ __('Download') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -83,6 +86,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $attachments])</div>
 @endsection

@@ -37,6 +37,7 @@
     ];
 @endphp
 
+<x-list-toolbar>
 @foreach ($sections as $key => $section)
     <div class="mb-8">
         <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ $section['label'] }}</h3>
@@ -73,4 +74,5 @@
         @endif
     </div>
 @endforeach
+</x-list-toolbar>
 @endsection

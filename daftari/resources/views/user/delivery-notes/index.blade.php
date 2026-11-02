@@ -11,6 +11,7 @@
     <a href="{{ route('app.delivery-notes.select-invoice') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New delivery note') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($deliveryNotes->isEmpty())
         <p class="px-6 py-16 text-center text-sm text-slate-500">{{ __('No delivery notes yet.') }}</p>
@@ -51,5 +52,6 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 <div class="mt-4">@include('partials.pagination', ['paginator' => $deliveryNotes])</div>
 @endsection

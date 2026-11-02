@@ -18,6 +18,7 @@
     <p class="text-xl font-bold text-slate-900">{{ \App\Support\Money::format($totalOutstanding) }}</p>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
     @if ($accounts->isEmpty())
         <div class="px-6 py-16 text-center">
@@ -52,15 +53,13 @@
                             @endif
                         </td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
-                            <a href="{{ route('app.bank-transfers.create', ['to_bank_account_id' => $account->id]) }}" class="text-brand-700 hover:underline">{{ __('Give advance') }}</a>
-                            <span class="text-slate-300 mx-1">&middot;</span>
-                            <a href="{{ route('app.expenses.create', ['bank_account_id' => $account->id]) }}" class="text-brand-700 hover:underline">{{ __('Record spend') }}</a>
-                            <span class="text-slate-300 mx-1">&middot;</span>
-                            <a href="{{ route('app.bank-transfers.create', ['from_bank_account_id' => $account->id]) }}" class="text-brand-700 hover:underline">{{ __('Return cash') }}</a>
-                            <span class="text-slate-300 mx-1">&middot;</span>
-                            <a href="{{ route('app.account-reports.show', $account) }}" class="text-slate-500 hover:underline">{{ __('Statement') }}</a>
-                            <span class="text-slate-300 mx-1">&middot;</span>
-                            <a href="{{ route('app.bank-accounts.edit', $account) }}" class="text-slate-500 hover:underline">{{ __('Edit') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.bank-transfers.create', ['to_bank_account_id' => $account->id]) }}" icon="trend-up" color="brand" title="{{ __('Give advance') }}" />
+                                <x-icon-button href="{{ route('app.expenses.create', ['bank_account_id' => $account->id]) }}" icon="clipboard" color="brand" title="{{ __('Record spend') }}" />
+                                <x-icon-button href="{{ route('app.bank-transfers.create', ['from_bank_account_id' => $account->id]) }}" icon="trend-down" title="{{ __('Return cash') }}" />
+                                <x-icon-button href="{{ route('app.account-reports.show', $account) }}" icon="statement" title="{{ __('Statement') }}" />
+                                <x-icon-button href="{{ route('app.bank-accounts.edit', $account) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -68,4 +67,5 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 @endsection

@@ -11,6 +11,7 @@
     <a href="{{ route('app.fx-revaluations.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('New revaluation') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($revaluations->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No FX revaluations yet.') }}</p>
@@ -39,7 +40,9 @@
                         <td class="px-6 py-3 text-slate-500">{{ $revaluation->journalEntry?->entry_number ?? '—' }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $revaluation->created_at->format('Y-m-d') }}</td>
                         <td class="px-6 py-3 text-right">
-                            <a href="{{ route('app.fx-revaluations.show', $revaluation) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('View') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.fx-revaluations.show', $revaluation) }}" icon="eye" color="brand" title="{{ __('View') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -47,6 +50,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $revaluations])</div>
 @endsection

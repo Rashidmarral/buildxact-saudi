@@ -34,6 +34,7 @@
     @endforeach
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($orders->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No purchase orders yet.') }}</p>
@@ -62,5 +63,6 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 <div class="mt-4">@include('partials.pagination', ['paginator' => $orders])</div>
 @endsection

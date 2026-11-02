@@ -11,6 +11,7 @@
     <a href="{{ route('app.machinery.deployments.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New deployment') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($deployments->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No deployments yet.') }}</p>
@@ -38,11 +39,13 @@
                         </td>
                         <td class="px-6 py-3 text-right">
                             @if ($deployment->status === 'active')
-                                <form method="POST" action="{{ route('app.machinery.deployments.end', $deployment) }}" onsubmit="return confirm('{{ __('End this deployment and mark the machine available?') }}')">
-                                    @csrf
-                                    <input type="hidden" name="end_date" value="{{ now()->toDateString() }}">
-                                    <button type="submit" class="text-xs font-semibold text-slate-600 hover:underline">{{ __('End deployment') }}</button>
-                                </form>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <form method="POST" action="{{ route('app.machinery.deployments.end', $deployment) }}" onsubmit="return confirm('{{ __('End this deployment and mark the machine available?') }}')">
+                                        @csrf
+                                        <input type="hidden" name="end_date" value="{{ now()->toDateString() }}">
+                                        <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('End deployment') }}" />
+                                    </form>
+                                </div>
                             @endif
                         </td>
                     </tr>
@@ -51,6 +54,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $deployments])</div>
 @endsection

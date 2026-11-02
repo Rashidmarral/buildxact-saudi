@@ -107,6 +107,7 @@
         <div class="rounded-lg border border-dashed border-slate-200 px-6 py-8 text-center text-sm text-slate-400">{{ __('No saved cards yet.') }}</div>
     </div>
 
+    <x-list-toolbar>
     <div class="bg-white rounded-xl border border-slate-100">
         <div class="px-6 py-4 border-b border-slate-100">
             <h2 class="font-semibold text-slate-900">{{ __('Payment history') }}</h2>
@@ -133,7 +134,9 @@
                             <td class="px-6 py-3">{{ ucfirst($payment->status) }}</td>
                             <td class="px-6 py-3 text-right">
                                 @if ($payment->status === 'paid')
-                                    <a href="{{ route('app.billing.receipt', $payment) }}" class="text-brand-700 hover:underline">{{ __('Download receipt') }}</a>
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        <x-icon-button href="{{ route('app.billing.receipt', $payment) }}" icon="download" title="{{ __('Download receipt') }}" />
+                                    </div>
                                 @endif
                             </td>
                         </tr>
@@ -142,6 +145,7 @@
             </table>
         @endif
     </div>
+    </x-list-toolbar>
     <div class="mt-4">@include('partials.pagination', ['paginator' => $payments])</div>
 @elseif ($tab === 'plans')
     @php

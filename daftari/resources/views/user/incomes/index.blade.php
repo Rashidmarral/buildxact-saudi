@@ -30,6 +30,7 @@
     </form>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($incomes->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No income recorded yet.') }}</p>
@@ -57,12 +58,14 @@
                         <td class="px-6 py-3">{{ $income->project?->name ?? '—' }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($income->gross_amount) }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($income->vat_amount) }}</td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <a href="{{ route('app.incomes.edit', $income) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                            <form method="POST" action="{{ route('app.incomes.destroy', $income) }}" class="inline" onsubmit="return confirm('{{ __('Delete this income?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                        <td class="px-6 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.incomes.edit', $income) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <form method="POST" action="{{ route('app.incomes.destroy', $income) }}" onsubmit="return confirm('{{ __('Delete this income?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -70,6 +73,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $incomes])</div>
 @endsection

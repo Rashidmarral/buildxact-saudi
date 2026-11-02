@@ -8,6 +8,7 @@
     <p class="text-sm text-slate-500 mt-1">{{ __('Pick a client to see every invoice, payment, and credit note on their account — a running balance you can hand them as a branded, bilingual PDF.') }}</p>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 p-6">
     @if ($clients->isEmpty())
         <p class="text-sm text-slate-400 py-6 text-center">{{ __('No clients yet.') }}</p>
@@ -25,4 +26,5 @@
         </div>
     @endif
 </div>
+</x-list-toolbar>
 @endsection

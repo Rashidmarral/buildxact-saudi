@@ -50,6 +50,13 @@
         'machinery' => '<rect x="1.5" y="8" width="12" height="8" rx="1"/><path d="M13.5 10.5h4l3.5 3v2.5h-7.5z"/><circle cx="6" cy="18.5" r="2"/><circle cx="17" cy="18.5" r="2"/>',
         'income' => '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
         'statement' => '<rect x="4" y="2.5" width="16" height="19" rx="1.5"/><path d="M8 7h8M8 11h8M8 15h5"/>',
+        'pencil' => '<path d="M12.6 3.9l3.5 3.5L6.5 17 3 18l1-3.5 8.6-8.6z"/><path d="M15 2l3.5 3.5"/>',
+        'eye' => '<path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/>',
+        'trash' => '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2"/><path d="M19 6l-.9 13.5a2 2 0 01-2 1.9H7.9a2 2 0 01-2-1.9L5 6"/><path d="M10 11v5M14 11v5"/>',
+        'x-circle' => '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/>',
+        'columns' => '<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M9.5 4v16M14.5 4v16"/>',
+        'printer' => '<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="7" rx="1.5"/><path d="M6 14h12v7H6z"/>',
+        'download' => '<path d="M12 3v12m0 0l4-4m-4 4l-4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>',
     ];
     $d = $paths[$name] ?? $paths['dashboard'];
 @endphp

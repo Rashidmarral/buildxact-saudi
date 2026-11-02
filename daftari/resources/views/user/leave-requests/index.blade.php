@@ -19,6 +19,7 @@
 @endif
 
 <h2 class="text-sm font-semibold uppercase text-slate-500 mb-3">{{ __('Annual leave balances') }}</h2>
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 overflow-hidden mb-8">
     <table class="w-full text-sm">
         <thead>
@@ -44,8 +45,10 @@
         </tbody>
     </table>
 </div>
+</x-list-toolbar>
 
 <h2 class="text-sm font-semibold uppercase text-slate-500 mb-3">{{ __('Leave requests') }}</h2>
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
     <table class="w-full text-sm">
         <thead>
@@ -78,18 +81,18 @@
                     </td>
                     <td class="px-5 py-3 text-end">
                         @if ($leaveRequest->isPending())
-                            <div class="flex justify-end gap-2">
+                            <div class="flex items-center justify-end gap-1.5">
                                 <form method="POST" action="{{ route('app.leave-requests.approve', $leaveRequest) }}">
                                     @csrf
-                                    <button type="submit" class="text-xs font-semibold text-emerald-700 hover:underline">{{ __('Approve') }}</button>
+                                    <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
                                 </form>
                                 <form method="POST" action="{{ route('app.leave-requests.reject', $leaveRequest) }}">
                                     @csrf
-                                    <button type="submit" class="text-xs font-semibold text-red-600 hover:underline">{{ __('Reject') }}</button>
+                                    <x-icon-button type="submit" icon="x-circle" color="red" title="{{ __('Reject') }}" />
                                 </form>
                                 <form method="POST" action="{{ route('app.leave-requests.cancel', $leaveRequest) }}" onsubmit="return confirm('{{ __('Cancel this leave request?') }}')">
                                     @csrf
-                                    <button type="submit" class="text-xs font-semibold text-slate-500 hover:underline">{{ __('Cancel') }}</button>
+                                    <x-icon-button type="submit" icon="x-circle" color="amber" title="{{ __('Cancel') }}" />
                                 </form>
                             </div>
                         @endif
@@ -101,6 +104,7 @@
         </tbody>
     </table>
 </div>
+</x-list-toolbar>
 
 <dialog id="new-leave-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.leave-requests.store') }}" class="p-6 space-y-4">

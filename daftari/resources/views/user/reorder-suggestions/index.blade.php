@@ -8,6 +8,7 @@
     <p class="text-sm text-slate-500 mt-1">{{ __('Items that have dropped to or below their reorder point, ready to turn into a purchase order.') }}</p>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($suggestions->isEmpty())
         <p class="px-6 py-16 text-center text-sm text-slate-500">{{ __('Nothing needs reordering right now.') }}</p>
@@ -74,6 +75,7 @@
         </form>
     @endif
 </div>
+</x-list-toolbar>
 
 <script>
 (function () {

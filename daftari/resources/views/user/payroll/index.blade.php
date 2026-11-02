@@ -11,6 +11,7 @@
     </div>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($payrollRuns->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No payroll runs yet.') }}</p>
@@ -47,7 +48,9 @@
                             </span>
                         </td>
                         <td class="px-6 py-3 text-right">
-                            <a href="{{ route('app.payroll.show', $run) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.payroll.show', $run) }}" icon="eye" title="{{ __('View') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -55,6 +58,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $payrollRuns])</div>
 @endsection

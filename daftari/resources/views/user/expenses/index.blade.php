@@ -16,6 +16,7 @@
     <a href="{{ route('app.expense-categories.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-brand-300">{{ __('Manage expense categories') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($expenses->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No expenses recorded yet.') }}</p>
@@ -57,22 +58,24 @@
                                 {{ $statusLabels[$expense->status] ?? $expense->status }}
                             </span>
                         </td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            @if ($expense->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
-                                <form method="POST" action="{{ route('app.expenses.approve', $expense) }}" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-emerald-600 hover:underline">{{ __('Approve') }}</button>
+                        <td class="px-6 py-3">
+                            <div class="flex items-center justify-end gap-1.5">
+                                @if ($expense->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
+                                    <form method="POST" action="{{ route('app.expenses.approve', $expense) }}">
+                                        @csrf
+                                        <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
+                                    </form>
+                                    <form method="POST" action="{{ route('app.expenses.reject', $expense) }}" onsubmit="return confirm('{{ __('Reject this expense?') }}')">
+                                        @csrf
+                                        <x-icon-button type="submit" icon="x-circle" color="red" title="{{ __('Reject') }}" />
+                                    </form>
+                                @endif
+                                <x-icon-button href="{{ route('app.expenses.edit', $expense) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <form method="POST" action="{{ route('app.expenses.destroy', $expense) }}" onsubmit="return confirm('{{ __('Delete this expense?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                                <form method="POST" action="{{ route('app.expenses.reject', $expense) }}" class="inline" onsubmit="return confirm('{{ __('Reject this expense?') }}')">
-                                    @csrf
-                                    <button type="submit" class="text-red-600 hover:underline">{{ __('Reject') }}</button>
-                                </form>
-                            @endif
-                            <a href="{{ route('app.expenses.edit', $expense) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                            <form method="POST" action="{{ route('app.expenses.destroy', $expense) }}" class="inline" onsubmit="return confirm('{{ __('Delete this expense?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -80,6 +83,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $expenses])</div>
 @endsection

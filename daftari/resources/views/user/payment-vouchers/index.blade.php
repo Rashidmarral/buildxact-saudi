@@ -79,6 +79,7 @@
     <p class="text-lg font-bold text-slate-900">{{ \App\Support\Money::format($total) }}</p>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($vouchers->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No payment vouchers yet.') }}</p>
@@ -115,5 +116,6 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 <div class="mt-4">@include('partials.pagination', ['paginator' => $vouchers])</div>
 @endsection

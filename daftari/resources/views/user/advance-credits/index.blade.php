@@ -11,6 +11,7 @@
     <a href="{{ route('app.advance-credits.create') }}" class="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New advance credit') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
     @if ($credits->isEmpty())
         <div class="px-6 py-16 text-center">
@@ -40,7 +41,9 @@
                         <td class="px-6 py-3 text-right tabular-nums">{{ \App\Support\Money::format($credit->totalAmount()) }}</td>
                         <td class="px-6 py-3 text-right tabular-nums font-semibold {{ $credit->remainingTotal() > 0 ? 'text-amber-600' : 'text-slate-400' }}">{{ \App\Support\Money::format($credit->remainingTotal()) }}</td>
                         <td class="px-6 py-3 text-right">
-                            <a href="{{ route('app.advance-credits.show', $credit) }}" class="text-brand-700 hover:underline text-xs font-semibold">{{ __('Open') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.advance-credits.show', $credit) }}" icon="eye" title="{{ __('Open') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -48,4 +51,5 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 @endsection

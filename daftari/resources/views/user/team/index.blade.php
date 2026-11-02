@@ -15,6 +15,7 @@
     <a href="{{ route('app.roles.index') }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Manage roles & permissions') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 mb-8">
     <div class="px-6 py-4 border-b border-slate-100">
         <h2 class="font-semibold text-slate-900">{{ __('Team members') }}</h2>
@@ -49,25 +50,28 @@
                             @endforeach
                         @endif
                     </td>
-                    <td class="px-6 py-3 text-right whitespace-nowrap">
-                        @if ($member->status === 'invited')
-                            <form method="POST" action="{{ route('app.team.resend-invite', $member) }}" class="inline">
-                                @csrf
-                                <button type="submit" class="text-brand-700 hover:underline me-3">{{ __('Resend invite') }}</button>
-                            </form>
-                        @endif
-                        @if ($member->id !== auth()->id())
-                            <form method="POST" action="{{ route('app.team.destroy', $member) }}" onsubmit="return confirm('{{ __('Remove this team member?') }}')" class="inline">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Remove') }}</button>
-                            </form>
-                        @endif
+                    <td class="px-6 py-3 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            @if ($member->status === 'invited')
+                                <form method="POST" action="{{ route('app.team.resend-invite', $member) }}">
+                                    @csrf
+                                    <x-icon-button type="submit" icon="check-circle" color="brand" title="{{ __('Resend invite') }}" />
+                                </form>
+                            @endif
+                            @if ($member->id !== auth()->id())
+                                <form method="POST" action="{{ route('app.team.destroy', $member) }}" onsubmit="return confirm('{{ __('Remove this team member?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Remove') }}" />
+                                </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 </div>
+</x-list-toolbar>
 
 <div class="bg-white rounded-xl border border-slate-100 p-6 max-w-xl">
     <h2 class="font-semibold text-slate-900 mb-4">{{ __('Invite team member') }}</h2>

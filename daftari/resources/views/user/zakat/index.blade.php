@@ -11,6 +11,7 @@
     <a href="{{ route('app.zakat.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('New estimate') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($calculations->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No Zakat estimates yet.') }}</p>
@@ -33,7 +34,9 @@
                         <td class="px-6 py-3 font-semibold text-slate-900">SAR {{ number_format($calculation->zakat_due, 2) }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $calculation->created_at->format('Y-m-d') }}</td>
                         <td class="px-6 py-3 text-right">
-                            <a href="{{ route('app.zakat.show', $calculation) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('View') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.zakat.show', $calculation) }}" icon="eye" title="{{ __('View') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -41,6 +44,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $calculations])</div>
 @endsection

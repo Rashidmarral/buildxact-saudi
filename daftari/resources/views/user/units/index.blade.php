@@ -17,6 +17,7 @@
     </div>
 @endif
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($units->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No units yet. Add your first unit (e.g. Ton, Bag, Metre).') }}</p>
@@ -47,19 +48,21 @@
                                 <span class="text-xs text-slate-400">{{ __('Unused') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <button type="button" class="text-brand-700 hover:underline"
-                                data-edit-unit
-                                data-update-url="{{ route('app.units.update', $unit) }}"
-                                data-name="{{ $unit->name }}"
-                                data-name-ar="{{ $unit->name_ar }}"
-                                data-symbol="{{ $unit->symbol }}"
-                                data-code="{{ $unit->code }}"
-                            >{{ __('Edit') }}</button>
-                            <form method="POST" action="{{ route('app.units.destroy', $unit) }}" class="inline" onsubmit="return confirm('{{ __('Delete this unit?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                        <td class="px-6 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button type="button" icon="pencil" title="{{ __('Edit') }}"
+                                    data-edit-unit
+                                    data-update-url="{{ route('app.units.update', $unit) }}"
+                                    data-name="{{ $unit->name }}"
+                                    data-name-ar="{{ $unit->name_ar }}"
+                                    data-symbol="{{ $unit->symbol }}"
+                                    data-code="{{ $unit->code }}"
+                                />
+                                <form method="POST" action="{{ route('app.units.destroy', $unit) }}" onsubmit="return confirm('{{ __('Delete this unit?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -67,6 +70,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 @php($unitCodeOptions = $unitCodes)
 

@@ -18,6 +18,7 @@
     <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $errors->first() }}</div>
 @endif
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($openJobs->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No open jobs right now.') }}</p>
@@ -43,7 +44,9 @@
                             <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $statusBadge[$job->status] ?? 'bg-slate-100 text-slate-600' }}">{{ ucfirst(str_replace('_', ' ', $job->status)) }}</span>
                         </td>
                         <td class="px-6 py-3 text-end">
-                            <a href="{{ route('app.repair-jobs.show', $job) }}" class="text-brand-700 hover:underline">{{ __('Open') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.repair-jobs.show', $job) }}" icon="eye" title="{{ __('Open') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -51,6 +54,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <dialog id="new-job-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-lg backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.repair-jobs.store') }}" class="p-6 space-y-4">

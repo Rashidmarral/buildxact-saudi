@@ -26,6 +26,7 @@
     </div>
 </form>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
     @if ($tickets->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No support tickets yet.') }}</p>
@@ -52,7 +53,9 @@
                         <td class="px-4 py-3 text-slate-500">{{ $ticket->created_at->format('Y-m-d') }}</td>
                         <td class="px-4 py-3 text-slate-500">{{ $ticket->updated_at->diffForHumans() }}</td>
                         <td class="px-6 py-3 text-right">
-                            <a href="{{ route('app.tickets.show', $ticket) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.tickets.show', $ticket) }}" icon="eye" title="{{ __('View') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -60,5 +63,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
+
 <div class="mt-4">@include('partials.pagination', ['paginator' => $tickets])</div>
 @endsection

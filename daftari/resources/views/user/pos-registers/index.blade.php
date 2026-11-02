@@ -14,6 +14,7 @@
     </div>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($registers->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No registers yet.') }}</p>
@@ -41,19 +42,21 @@
                                 <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{{ __('Inactive') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <button type="button" class="text-brand-700 hover:underline"
-                                data-edit-register
-                                data-update-url="{{ route('app.pos-registers.update', $register) }}"
-                                data-name="{{ $register->name }}"
-                                data-branch-id="{{ $register->branch_id }}"
-                                data-warehouse-id="{{ $register->warehouse_id }}"
-                                data-is-active="{{ $register->is_active ? '1' : '0' }}"
-                            >{{ __('Edit') }}</button>
-                            <form method="POST" action="{{ route('app.pos-registers.destroy', $register) }}" class="inline" onsubmit="return confirm('{{ __('Delete this register?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                        <td class="px-6 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button type="button" icon="pencil" title="{{ __('Edit') }}"
+                                    data-edit-register
+                                    data-update-url="{{ route('app.pos-registers.update', $register) }}"
+                                    data-name="{{ $register->name }}"
+                                    data-branch-id="{{ $register->branch_id }}"
+                                    data-warehouse-id="{{ $register->warehouse_id }}"
+                                    data-is-active="{{ $register->is_active ? '1' : '0' }}"
+                                />
+                                <form method="POST" action="{{ route('app.pos-registers.destroy', $register) }}" onsubmit="return confirm('{{ __('Delete this register?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -61,6 +64,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <dialog id="add-register-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.pos-registers.store') }}" class="p-6 space-y-4">

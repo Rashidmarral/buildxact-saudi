@@ -71,6 +71,7 @@
     </div>
 </form>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
     @if ($payments->isEmpty())
         <p class="px-6 py-10 text-center text-sm text-slate-400">{{ __('No Kafeel payments in this period.') }}</p>
@@ -101,6 +102,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $payments])</div>
 @endsection

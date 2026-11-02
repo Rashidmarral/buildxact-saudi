@@ -52,6 +52,7 @@
             'destroyConfirm' => __('Delete the selected quotations? Converted quotations will be skipped.'),
         ])
 
+        <x-list-toolbar>
         <div class="bg-white rounded-xl border border-slate-100">
             <table class="w-full text-sm">
                 <thead>
@@ -80,6 +81,7 @@
                 </tbody>
             </table>
         </div>
+        </x-list-toolbar>
     </div>
 @endif
 

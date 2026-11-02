@@ -61,16 +61,16 @@
                     @foreach ($section['items'] as $item)
                         <li class="py-2 flex items-center justify-between text-sm">
                             <span class="text-slate-700">{{ $item['label'] }}</span>
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-1.5">
                                 @if ($section['key'] === 'ledger_posting' && isset($item['source_type'], $item['source_id']))
                                     <form method="POST" action="{{ route('app.audit.repost') }}" onsubmit="return confirm('{{ __('Post this document to the ledger now?') }}')">
                                         @csrf
                                         <input type="hidden" name="source_type" value="{{ $item['source_type'] }}">
                                         <input type="hidden" name="source_id" value="{{ $item['source_id'] }}">
-                                        <button type="submit" class="text-emerald-600 hover:underline font-medium">{{ __('Repost to ledger') }}</button>
+                                        <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('Repost to ledger') }}" />
                                     </form>
                                 @endif
-                                <a href="{{ $item['url'] }}" class="text-brand-600 hover:underline font-medium">{{ __('View') }} &rarr;</a>
+                                <x-icon-button href="{{ $item['url'] }}" icon="eye" title="{{ __('View') }}" />
                             </div>
                         </li>
                     @endforeach
@@ -80,6 +80,7 @@
     @endforeach
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 p-6 mt-6">
     <div class="flex items-center justify-between mb-1">
         <h3 class="font-semibold text-slate-900">{{ __('Transaction detail') }}</h3>
@@ -141,4 +142,5 @@
         </div>
     @endif
 </div>
+</x-list-toolbar>
 @endsection

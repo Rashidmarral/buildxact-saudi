@@ -8,6 +8,7 @@
     <a href="{{ route('app.machinery.operators.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Add operator') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($operators->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No operators yet.') }}</p>
@@ -49,7 +50,9 @@
                             @endif
                         </td>
                         <td class="px-6 py-3 text-right">
-                            <a href="{{ route('app.employees.edit', $operator) }}" class="text-brand-700 hover:underline">{{ __('Edit full HR details') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.employees.edit', $operator) }}" icon="pencil" title="{{ __('Edit full HR details') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -57,6 +60,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $operators])</div>
 @endsection

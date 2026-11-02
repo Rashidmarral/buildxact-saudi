@@ -11,6 +11,7 @@
     <button type="button" onclick="document.getElementById('add-wh-modal').showModal()" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ Add warehouse') }}</button>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($warehouses->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No warehouses yet.') }}</p>
@@ -39,25 +40,27 @@
                             @unless ($warehouse->is_default)
                                 <form method="POST" action="{{ route('app.warehouses.make-default', $warehouse) }}">
                                     @csrf
-                                    <button type="submit" class="text-xs font-semibold text-slate-500 hover:text-brand-700">{{ __('Set as default') }}</button>
+                                    <x-icon-button type="submit" icon="check-circle" title="{{ __('Set as default') }}" />
                                 </form>
                             @endunless
                         </td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <button type="button" class="text-brand-700 hover:underline"
-                                data-edit-warehouse
-                                data-update-url="{{ route('app.warehouses.update', $warehouse) }}"
-                                data-code="{{ $warehouse->code }}"
-                                data-branch-id="{{ $warehouse->branch_id }}"
-                                data-name="{{ $warehouse->name }}"
-                                data-name-ar="{{ $warehouse->name_ar }}"
-                                data-address="{{ $warehouse->address }}"
-                                data-is-default="{{ $warehouse->is_default ? '1' : '0' }}"
-                            >{{ __('Edit') }}</button>
-                            <form method="POST" action="{{ route('app.warehouses.destroy', $warehouse) }}" class="inline" onsubmit="return confirm('{{ __('Delete this warehouse?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                        <td class="px-6 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button type="button" icon="pencil" title="{{ __('Edit') }}"
+                                    data-edit-warehouse
+                                    data-update-url="{{ route('app.warehouses.update', $warehouse) }}"
+                                    data-code="{{ $warehouse->code }}"
+                                    data-branch-id="{{ $warehouse->branch_id }}"
+                                    data-name="{{ $warehouse->name }}"
+                                    data-name-ar="{{ $warehouse->name_ar }}"
+                                    data-address="{{ $warehouse->address }}"
+                                    data-is-default="{{ $warehouse->is_default ? '1' : '0' }}"
+                                />
+                                <form method="POST" action="{{ route('app.warehouses.destroy', $warehouse) }}" onsubmit="return confirm('{{ __('Delete this warehouse?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -65,6 +68,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <dialog id="add-wh-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.warehouses.store') }}" class="p-6 space-y-4">

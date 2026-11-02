@@ -45,6 +45,7 @@
 </div>
 
 <h2 class="text-sm font-semibold uppercase text-slate-500 mb-3">{{ __('Open orders') }}</h2>
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($openOrders->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No open orders right now.') }}</p>
@@ -75,7 +76,9 @@
                             </span>
                         </td>
                         <td class="px-6 py-3 text-end">
-                            <a href="{{ route('app.restaurant.orders.show', $order) }}" class="text-brand-700 hover:underline">{{ __('Open') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.restaurant.orders.show', $order) }}" icon="eye" title="{{ __('Open') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -83,6 +86,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <dialog id="takeaway-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.restaurant.orders.store') }}" class="p-6 space-y-4">

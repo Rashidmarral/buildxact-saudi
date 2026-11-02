@@ -8,6 +8,7 @@
     <a href="{{ route('app.employees.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New employee') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($employees->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No employees yet.') }}</p>
@@ -41,11 +42,13 @@
                                 <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">{{ __('Suspended') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <a href="{{ route('app.employees.edit', $employee) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                            @if ($employee->status === 'active')
-                                <button type="button" onclick="document.getElementById('terminate-{{ $employee->id }}').showModal()" class="text-amber-700 hover:underline">{{ __('Terminate') }}</button>
-                            @endif
+                        <td class="px-6 py-3">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.employees.edit', $employee) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                @if ($employee->status === 'active')
+                                    <x-icon-button type="button" onclick="document.getElementById('terminate-{{ $employee->id }}').showModal()" icon="x-circle" color="amber" title="{{ __('Terminate') }}" />
+                                @endif
+                            </div>
                         </td>
                     </tr>
 
@@ -82,6 +85,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <div class="mt-4">@include('partials.pagination', ['paginator' => $employees])</div>
 @endsection

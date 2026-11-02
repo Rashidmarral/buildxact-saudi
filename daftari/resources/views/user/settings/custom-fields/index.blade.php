@@ -30,6 +30,7 @@
                 </button>
             </div>
 
+            <x-list-toolbar>
             <div class="bg-white rounded-xl border border-slate-100">
                 @php($definitions = $definitionsByEntity->get($entityKey, collect()))
                 @if ($definitions->isEmpty())
@@ -61,20 +62,22 @@
                                             <span class="inline-block rounded-full bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-1">{{ __('Inactive') }}</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                                        <button type="button" class="text-brand-700 hover:underline"
-                                            data-edit-field
-                                            data-update-url="{{ route('app.settings.custom-fields.update', $definition) }}"
-                                            data-label="{{ $definition->label }}"
-                                            data-field-type="{{ $definition->field_type }}"
-                                            data-options="{{ implode("\n", $definition->optionsList()) }}"
-                                            data-is-required="{{ $definition->is_required ? '1' : '0' }}"
-                                            data-is-active="{{ $definition->is_active ? '1' : '0' }}"
-                                        >{{ __('Edit') }}</button>
-                                        <form method="POST" action="{{ route('app.settings.custom-fields.destroy', $definition) }}" class="inline" onsubmit="return confirm('{{ __('Delete this custom field? Any saved values for it will also be deleted.') }}')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                                        </form>
+                                    <td class="px-6 py-3 text-right">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <x-icon-button type="button" icon="pencil" title="{{ __('Edit') }}"
+                                                data-edit-field
+                                                data-update-url="{{ route('app.settings.custom-fields.update', $definition) }}"
+                                                data-label="{{ $definition->label }}"
+                                                data-field-type="{{ $definition->field_type }}"
+                                                data-options="{{ implode("\n", $definition->optionsList()) }}"
+                                                data-is-required="{{ $definition->is_required ? '1' : '0' }}"
+                                                data-is-active="{{ $definition->is_active ? '1' : '0' }}"
+                                            />
+                                            <form method="POST" action="{{ route('app.settings.custom-fields.destroy', $definition) }}" onsubmit="return confirm('{{ __('Delete this custom field? Any saved values for it will also be deleted.') }}')">
+                                                @csrf @method('DELETE')
+                                                <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -82,6 +85,7 @@
                     </table>
                 @endif
             </div>
+            </x-list-toolbar>
         </div>
     @endforeach
 </div>

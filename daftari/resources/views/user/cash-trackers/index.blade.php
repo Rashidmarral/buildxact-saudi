@@ -10,6 +10,7 @@
     <button type="button" onclick="document.getElementById('new-tracker-modal').showModal()" class="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New cash tracker') }}</button>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
     @if ($trackers->isEmpty())
         <div class="px-6 py-16 text-center">
@@ -36,9 +37,10 @@
                         <td class="px-6 py-3 text-slate-500">{{ $tracker->entries_count }}</td>
                         <td class="px-6 py-3 text-right font-semibold tabular-nums">{{ \App\Support\Money::format($tracker->balance(), $tracker->currency) }}</td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
-                            <a href="{{ route('app.cash-trackers.show', $tracker) }}" class="text-brand-700 hover:underline">{{ __('Open') }}</a>
-                            <span class="text-slate-300 mx-1">&middot;</span>
-                            <a href="{{ route('app.cash-trackers.pdf', $tracker) }}" class="text-slate-500 hover:underline">{{ __('Report') }}</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.cash-trackers.show', $tracker) }}" icon="eye" color="brand" title="{{ __('Open') }}" />
+                                <x-icon-button href="{{ route('app.cash-trackers.pdf', $tracker) }}" icon="printer" title="{{ __('Report') }}" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -46,6 +48,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 
 <dialog id="new-tracker-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.cash-trackers.store') }}" class="p-6 space-y-4">

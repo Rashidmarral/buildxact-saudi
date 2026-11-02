@@ -26,6 +26,7 @@
             'destroyConfirm' => __('Delete the selected items? Items already used on a document will be skipped.'),
         ])
 
+        <x-list-toolbar>
         <div class="bg-white rounded-xl border border-slate-100">
             <table class="w-full text-sm">
                 <thead>
@@ -52,18 +53,21 @@
                                     <span class="text-slate-400">{{ __('Inactive') }}</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                                <a href="{{ route('app.items.edit', $item) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                                <form method="POST" action="{{ route('app.items.destroy', $item) }}" class="inline" onsubmit="return confirm('{{ __('Delete this item?') }}')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                                </form>
+                            <td class="px-6 py-3">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <x-icon-button href="{{ route('app.items.edit', $item) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                    <form method="POST" action="{{ route('app.items.destroy', $item) }}" onsubmit="return confirm('{{ __('Delete this item?') }}')">
+                                        @csrf @method('DELETE')
+                                        <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
+        </x-list-toolbar>
     </div>
 @endif
 

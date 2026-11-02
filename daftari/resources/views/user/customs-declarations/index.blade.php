@@ -22,6 +22,7 @@
     </div>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($declarations->isEmpty())
         <p class="px-6 py-16 text-center text-sm text-slate-500">{{ __('No customs declarations recorded yet.') }}</p>
@@ -57,16 +58,18 @@
                         </td>
                         <td class="px-6 py-3">{{ $declaration->bills->count() }}</td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
-                            @if ($declaration->customs_duty > 0 && ! $declaration->landed_cost_allocated_at)
-                                <form method="POST" action="{{ route('app.customs-declarations.allocate-landed-cost', $declaration) }}" onsubmit="return confirm('{{ __('Allocate this declaration\'s customs duty across the linked bills\' item costs?') }}')" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-brand-700 hover:underline me-3">{{ __('Allocate landed cost') }}</button>
+                            <div class="flex items-center justify-end gap-1.5">
+                                @if ($declaration->customs_duty > 0 && ! $declaration->landed_cost_allocated_at)
+                                    <form method="POST" action="{{ route('app.customs-declarations.allocate-landed-cost', $declaration) }}" onsubmit="return confirm('{{ __('Allocate this declaration\'s customs duty across the linked bills\' item costs?') }}')">
+                                        @csrf
+                                        <x-icon-button type="submit" icon="check-circle" color="brand" title="{{ __('Allocate landed cost') }}" />
+                                    </form>
+                                @endif
+                                <form method="POST" action="{{ route('app.customs-declarations.destroy', $declaration) }}" onsubmit="return confirm('{{ __('Delete this declaration?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                            @endif
-                            <form method="POST" action="{{ route('app.customs-declarations.destroy', $declaration) }}" onsubmit="return confirm('{{ __('Delete this declaration?') }}')" class="inline">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -74,6 +77,7 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 <div class="mt-4">@include('partials.pagination', ['paginator' => $declarations])</div>
 
 <dialog id="add-declaration-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-2xl backdrop:bg-slate-900/40">

@@ -8,6 +8,7 @@
     <a href="{{ route('app.salespersons.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New salesperson') }}</a>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if ($salespersons->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No salespersons yet.') }}</p>
@@ -36,12 +37,14 @@
                         <td class="px-6 py-3 text-slate-500">{{ $salesperson->phone ?: '—' }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $salesperson->commission_rate !== null ? $salesperson->commission_rate.'%' : '—' }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ $salesperson->invoices_count }}</td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <a href="{{ route('app.salespersons.edit', $salesperson) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                            <form method="POST" action="{{ route('app.salespersons.destroy', $salesperson) }}" class="inline" onsubmit="return confirm('{{ __('Delete this salesperson?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                        <td class="px-6 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <x-icon-button href="{{ route('app.salespersons.edit', $salesperson) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <form method="POST" action="{{ route('app.salespersons.destroy', $salesperson) }}" onsubmit="return confirm('{{ __('Delete this salesperson?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -49,4 +52,5 @@
         </table>
     @endif
 </div>
+</x-list-toolbar>
 @endsection

@@ -19,6 +19,7 @@
     </form>
 </div>
 
+<x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">
     @if (! $warehouse)
         <p class="px-6 py-16 text-center text-sm text-slate-500">{{ __('Add a warehouse first to start a physical count.') }}</p>
@@ -63,4 +64,5 @@
         </form>
     @endif
 </div>
+</x-list-toolbar>
 @endsection
