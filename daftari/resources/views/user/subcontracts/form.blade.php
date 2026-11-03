@@ -10,7 +10,7 @@
     $boqRows = $subcontract->exists ? $subcontract->boqItems->map(fn ($i) => ['description' => $i->description, 'quantity' => $i->quantity, 'unit' => $i->unit, 'rate' => $i->rate, 'amount' => (float) $i->amount])->values()->all() : [];
 @endphp
 
-<form method="POST" action="{{ $subcontract->exists ? route('app.subcontracts.update', $subcontract) : route('app.subcontracts.store') }}" class="max-w-4xl" x-data="subcontractForm({{ json_encode($boqRows) }}, {{ json_encode($milestoneRows) }}, {{ (float) old('contract_value', $subcontract->contract_value ?: 0) }}, '{{ old('party_type', $subcontract->party_type ?? 'supplier') }}')">
+<form method="POST" action="{{ $subcontract->exists ? route('app.subcontracts.update', $subcontract) : route('app.subcontracts.store') }}" class="max-w-4xl" x-data="subcontractForm({{ json_encode($boqRows) }}, {{ json_encode($milestoneRows) }}, {{ (float) old('contract_value', $subcontract->contract_value ?: 0) }})">
     @csrf
     @if ($subcontract->exists) @method('PUT') @endif
 
@@ -30,30 +30,13 @@
                 @foreach ($projects as $p)<option value="{{ $p->id }}" @selected(old('project_id', $subcontract->project_id) == $p->id)>{{ $p->name }}</option>@endforeach
             </select>
         </div>
-        <div class="sm:col-span-2">
-            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">{{ __('Party') }}</label>
-            <div class="flex items-center gap-4 mb-2">
-                <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
-                    <input type="radio" name="party_type" value="supplier" x-model="partyType" class="text-brand-600 focus:ring-brand-500">
-                    {{ __('Supplier (external subcontractor)') }}
-                </label>
-                <label class="inline-flex items-center gap-1.5 text-sm text-slate-700">
-                    <input type="radio" name="party_type" value="employee" x-model="partyType" class="text-brand-600 focus:ring-brand-500">
-                    {{ __('Employee (internally managed, e.g. a project manager)') }}
-                </label>
-            </div>
-            <div x-show="partyType === 'supplier'">
-                <select name="supplier_id" :required="partyType === 'supplier'" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    <option value="">{{ __('Select a supplier') }}</option>
-                    @foreach ($suppliers as $s)<option value="{{ $s->id }}" @selected(old('supplier_id', $subcontract->supplier_id) == $s->id)>{{ $s->name }}</option>@endforeach
-                </select>
-            </div>
-            <div x-show="partyType === 'employee'" x-cloak>
-                <select name="employee_id" :required="partyType === 'employee'" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    <option value="">{{ __('Select an employee') }}</option>
-                    @foreach ($employees as $e)<option value="{{ $e->id }}" @selected(old('employee_id', $subcontract->employee_id) == $e->id)>{{ $e->full_name }}</option>@endforeach
-                </select>
-            </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">{{ __('Subcontractor (Supplier)') }}</label>
+            <select name="supplier_id" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('Select a supplier') }}</option>
+                @foreach ($suppliers as $s)<option value="{{ $s->id }}" @selected(old('supplier_id', $subcontract->supplier_id) == $s->id)>{{ $s->name }}</option>@endforeach
+            </select>
+            <p class="text-xs text-slate-400 mt-1">{{ __('Cash given to your own project manager to run a work package? Use Project Manager Budgets instead — it keeps the same budget/BOQ/category breakdown, separately from external subcontractors.') }}</p>
         </div>
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">{{ __('Contract No.') }}</label>
@@ -141,12 +124,11 @@
 </form>
 
 <script>
-function subcontractForm(initialBoq, initialMilestones, initialContractValue, initialPartyType) {
+function subcontractForm(initialBoq, initialMilestones, initialContractValue) {
     return {
         boqItems: initialBoq,
         milestones: initialMilestones,
         contractValue: initialContractValue,
-        partyType: initialPartyType,
         addBoqRow() { this.boqItems.push({ description: '', quantity: null, unit: '', rate: null, amount: null }); },
         removeBoqRow(i) { this.boqItems.splice(i, 1); this.recalcContractFromBoq(); },
         recalcBoqRow(i) {

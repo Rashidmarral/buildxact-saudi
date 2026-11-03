@@ -45,26 +45,74 @@ class SubcontractController extends Controller
         ['name' => 'Final (after handover & approval)', 'percentage' => 5, 'requires_handover_approval' => true],
     ];
 
+    /**
+     * "we need to separate project manager from subcontractor... make
+     * it completely separate from subcontractor" — ProjectManagerBudgetController
+     * extends this class and overrides only these four hooks (which
+     * party_type this controller is locked to, which route/view prefix
+     * its pages live under, and whether the milestone schedule UI even
+     * applies) so the two modules share every actual budget/BOQ/
+     * category-breakdown/voucher-linking behavior below without
+     * duplicating it, while staying fully separate in the URL, the
+     * nav, and which party (Supplier vs. Employee) each one can create.
+     */
+    protected function partyTypeScope(): string
+    {
+        return 'supplier';
+    }
+
+    protected function routeName(string $action): string
+    {
+        return 'app.subcontracts.'.$action;
+    }
+
+    protected function viewName(string $view): string
+    {
+        return 'user.subcontracts.'.$view;
+    }
+
+    protected function syncsMilestones(): bool
+    {
+        return true;
+    }
+
+    /**
+     * The real enforcement behind "completely separate": a Subcontract
+     * whose party_type doesn't match this controller's own scope
+     * (an employee-party budget hit via the supplier-only /subcontracts
+     * URLs, or vice versa) 404s rather than quietly loading — otherwise
+     * route-model binding alone would let either URL prefix open, edit
+     * or even re-save (silently flipping its party_type) the other
+     * module's record.
+     */
+    private function ensureInScope(Subcontract $subcontract): void
+    {
+        abort_unless($subcontract->party_type === $this->partyTypeScope(), 404);
+    }
+
     public function index(Request $request)
     {
         $subcontracts = Subcontract::with('project', 'supplier', 'employee')
+            ->where('party_type', $this->partyTypeScope())
             ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->integer('project_id')))
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
+            ->when($request->filled('employee_id'), fn ($q) => $q->where('employee_id', $request->integer('employee_id')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->orderByDesc('id')
             ->get();
 
-        return view('user.subcontracts.index', [
+        return view($this->viewName('index'), [
             'subcontracts' => $subcontracts,
             'projects' => Project::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
+            'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
         ]);
     }
 
     public function create()
     {
-        return view('user.subcontracts.form', [
-            'subcontract' => new Subcontract(['party_type' => 'supplier', 'retention_percent' => 5, 'start_date' => now()->toDateString()]),
+        return view($this->viewName('form'), [
+            'subcontract' => new Subcontract(['party_type' => $this->partyTypeScope(), 'retention_percent' => 5, 'start_date' => now()->toDateString()]),
             'projects' => Project::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
             'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
@@ -83,7 +131,10 @@ class SubcontractController extends Controller
             ]);
 
             $this->syncBoqItems($subcontract, $request);
-            $this->syncMilestones($subcontract, $request);
+
+            if ($this->syncsMilestones()) {
+                $this->syncMilestones($subcontract, $request);
+            }
 
             return $subcontract;
         });
@@ -94,7 +145,7 @@ class SubcontractController extends Controller
             'project' => $subcontract->project->name,
         ]));
 
-        return redirect()->route('app.subcontracts.show', $subcontract)->with('status', __('Subcontract created.'));
+        return redirect()->route($this->routeName('show'), $subcontract)->with('status', __('Subcontract created.'));
     }
 
     /**
@@ -139,6 +190,8 @@ class SubcontractController extends Controller
 
     public function show(Subcontract $subcontract, Request $request)
     {
+        $this->ensureInScope($subcontract);
+
         $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
 
         $partyColumn = $subcontract->isEmployeeParty() ? 'employee_id' : 'supplier_id';
@@ -150,7 +203,7 @@ class SubcontractController extends Controller
             ->orderByDesc('date')
             ->get();
 
-        return view('user.subcontracts.show', [
+        return view($this->viewName('show'), [
             'subcontract' => $subcontract,
             'linkableVouchers' => $linkableVouchers,
             'categoryGroups' => $this->categoryGroupsFromRequest($subcontract, $request),
@@ -161,6 +214,8 @@ class SubcontractController extends Controller
 
     public function categoryReportPdf(Request $request, Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         $subcontract->load('project', 'supplier', 'employee');
 
         $groups = $this->categoryGroupsFromRequest($subcontract, $request) ?? [];
@@ -237,6 +292,8 @@ class SubcontractController extends Controller
 
     public function storeReportCategory(Request $request, Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         $data = $this->validatedReportCategory($request);
 
         $subcontract->reportCategories()->create([
@@ -250,6 +307,7 @@ class SubcontractController extends Controller
 
     public function updateReportCategory(Request $request, Subcontract $subcontract, SubcontractReportCategory $reportCategory)
     {
+        $this->ensureInScope($subcontract);
         abort_unless($reportCategory->subcontract_id === $subcontract->id, 404);
 
         $data = $this->validatedReportCategory($request);
@@ -264,6 +322,7 @@ class SubcontractController extends Controller
 
     public function destroyReportCategory(Subcontract $subcontract, SubcontractReportCategory $reportCategory)
     {
+        $this->ensureInScope($subcontract);
         abort_unless($reportCategory->subcontract_id === $subcontract->id, 404);
 
         $reportCategory->delete();
@@ -352,9 +411,11 @@ class SubcontractController extends Controller
 
     public function edit(Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         $subcontract->load('boqItems', 'milestones');
 
-        return view('user.subcontracts.form', [
+        return view($this->viewName('form'), [
             'subcontract' => $subcontract,
             'projects' => Project::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
@@ -365,19 +426,26 @@ class SubcontractController extends Controller
 
     public function update(Request $request, Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         $data = $this->validatedContract($request);
 
         DB::transaction(function () use ($subcontract, $data, $request) {
             $subcontract->update($data);
             $this->syncBoqItems($subcontract, $request);
-            $this->syncMilestones($subcontract, $request);
+
+            if ($this->syncsMilestones()) {
+                $this->syncMilestones($subcontract, $request);
+            }
         });
 
-        return redirect()->route('app.subcontracts.show', $subcontract)->with('status', __('Subcontract updated.'));
+        return redirect()->route($this->routeName('show'), $subcontract)->with('status', __('Subcontract updated.'));
     }
 
     public function destroy(Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         if ($subcontract->payments()->exists()) {
             return back()->with('status', __('This subcontract has recorded payments — remove them first.'));
         }
@@ -386,7 +454,7 @@ class SubcontractController extends Controller
         $subcontract->milestones()->delete();
         $subcontract->delete();
 
-        return redirect()->route('app.subcontracts.index')->with('status', __('Subcontract deleted.'));
+        return redirect()->route($this->routeName('index'))->with('status', __('Subcontract deleted.'));
     }
 
     /**
@@ -398,6 +466,8 @@ class SubcontractController extends Controller
      */
     public function storePayment(Request $request, Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         $data = $request->validate([
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -425,6 +495,7 @@ class SubcontractController extends Controller
 
     public function updatePayment(Request $request, Subcontract $subcontract, SubcontractPayment $payment)
     {
+        $this->ensureInScope($subcontract);
         abort_unless($payment->subcontract_id === $subcontract->id, 404);
 
         // The net amount/milestone (what this slice counts toward) is
@@ -497,6 +568,7 @@ class SubcontractController extends Controller
 
     public function destroyPayment(Subcontract $subcontract, SubcontractPayment $payment)
     {
+        $this->ensureInScope($subcontract);
         abort_unless($payment->subcontract_id === $subcontract->id, 404);
 
         $payment->delete();
@@ -506,6 +578,8 @@ class SubcontractController extends Controller
 
     public function linkVoucher(Request $request, Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         $data = $request->validate([
             'payment_voucher_id' => ['required', Rule::exists('payment_vouchers', 'id')],
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
@@ -545,6 +619,7 @@ class SubcontractController extends Controller
 
     public function unlinkVoucher(Subcontract $subcontract, SubcontractPayment $payment)
     {
+        $this->ensureInScope($subcontract);
         abort_unless($payment->subcontract_id === $subcontract->id, 404);
 
         $payment->delete();
@@ -554,6 +629,8 @@ class SubcontractController extends Controller
 
     public function reportPdf(Subcontract $subcontract)
     {
+        $this->ensureInScope($subcontract);
+
         $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
 
         $pdf = app(MpdfRenderer::class)->render('user.subcontracts.pdf.receiving-report', [
@@ -571,12 +648,13 @@ class SubcontractController extends Controller
 
     private function validatedContract(Request $request): array
     {
-        // Defaults to 'supplier' when not sent at all — every subcontract
-        // before this feature existed was implicitly one, so a request
-        // that still only ever sends supplier_id (an older client, or a
-        // test fixture predating the employee party option) keeps working
-        // exactly as before rather than failing on a newly-required field.
-        $request->merge(['party_type' => $request->input('party_type', 'supplier')]);
+        // Forced, not merely defaulted: this controller is locked to
+        // whichever party_type partyTypeScope() says, regardless of
+        // what a request actually posts — the Subcontract form has no
+        // way to pick the other one, but this is the real enforcement
+        // (a raw request can't smuggle an employee party through the
+        // supplier-only Subcontracts controller, or vice versa).
+        $request->merge(['party_type' => $this->partyTypeScope()]);
 
         $data = $request->validate([
             'project_id' => ['required', Rule::exists('projects', 'id')],

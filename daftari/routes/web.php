@@ -110,6 +110,7 @@ use App\Http\Controllers\User\ProjectBoqItemController;
 use App\Http\Controllers\User\ProjectBudgetLineController;
 use App\Http\Controllers\User\ProjectController;
 use App\Http\Controllers\User\ProjectCostController;
+use App\Http\Controllers\User\ProjectManagerBudgetController;
 use App\Http\Controllers\User\DispatchBoardController;
 use App\Http\Controllers\User\ProjectChangeOrderController;
 use App\Http\Controllers\User\ProjectMaterialIssueController;
@@ -781,6 +782,33 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('{subcontract}/report-categories', [SubcontractController::class, 'storeReportCategory'])->name('report-categories.store');
         Route::put('{subcontract}/report-categories/{reportCategory}', [SubcontractController::class, 'updateReportCategory'])->name('report-categories.update');
         Route::delete('{subcontract}/report-categories/{reportCategory}', [SubcontractController::class, 'destroyReportCategory'])->name('report-categories.destroy');
+    });
+
+    // Same budget/BOQ/category-breakdown/voucher-linking module as
+    // Subcontracts above (ProjectManagerBudgetController extends
+    // SubcontractController) — kept under its own URL prefix/route
+    // names/views so it's genuinely separate end to end, not just a
+    // toggle on the same page: cash advanced to an employee/project
+    // manager (e.g. Shahid) can only ever be created here, never under
+    // /subcontracts, and vice versa.
+    Route::middleware('permission:subcontractor_payments')->prefix('project-manager-budgets')->name('project-manager-budgets.')->group(function () {
+        Route::get('/', [ProjectManagerBudgetController::class, 'index'])->name('index');
+        Route::get('create', [ProjectManagerBudgetController::class, 'create'])->name('create');
+        Route::post('/', [ProjectManagerBudgetController::class, 'store'])->name('store');
+        Route::get('{subcontract}', [ProjectManagerBudgetController::class, 'show'])->name('show');
+        Route::get('{subcontract}/edit', [ProjectManagerBudgetController::class, 'edit'])->name('edit');
+        Route::put('{subcontract}', [ProjectManagerBudgetController::class, 'update'])->name('update');
+        Route::delete('{subcontract}', [ProjectManagerBudgetController::class, 'destroy'])->name('destroy');
+        Route::get('{subcontract}/report/pdf', [ProjectManagerBudgetController::class, 'reportPdf'])->middleware('throttle:pdf')->name('report.pdf');
+        Route::get('{subcontract}/category-report/pdf', [ProjectManagerBudgetController::class, 'categoryReportPdf'])->middleware('throttle:pdf')->name('category-report.pdf');
+        Route::post('{subcontract}/payments', [ProjectManagerBudgetController::class, 'storePayment'])->name('payments.store');
+        Route::put('{subcontract}/payments/{payment}', [ProjectManagerBudgetController::class, 'updatePayment'])->name('payments.update');
+        Route::delete('{subcontract}/payments/{payment}', [ProjectManagerBudgetController::class, 'destroyPayment'])->name('payments.destroy');
+        Route::post('{subcontract}/link-voucher', [ProjectManagerBudgetController::class, 'linkVoucher'])->name('link-voucher');
+        Route::delete('{subcontract}/payments/{payment}/unlink', [ProjectManagerBudgetController::class, 'unlinkVoucher'])->name('payments.unlink');
+        Route::post('{subcontract}/report-categories', [ProjectManagerBudgetController::class, 'storeReportCategory'])->name('report-categories.store');
+        Route::put('{subcontract}/report-categories/{reportCategory}', [ProjectManagerBudgetController::class, 'updateReportCategory'])->name('report-categories.update');
+        Route::delete('{subcontract}/report-categories/{reportCategory}', [ProjectManagerBudgetController::class, 'destroyReportCategory'])->name('report-categories.destroy');
     });
 
     Route::middleware(['permission:machinery_equipment', 'module:machinery_equipment'])->prefix('machinery')->name('machinery.')->group(function () {
