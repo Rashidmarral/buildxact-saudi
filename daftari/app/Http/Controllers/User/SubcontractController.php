@@ -628,12 +628,47 @@ class SubcontractController extends Controller
         return back()->with('status', __('Payment removed from the tracker. The underlying voucher, if any, is untouched.'));
     }
 
+    /**
+     * "deleting vouchers should be multiple not a just single remove
+     * link" — the bulk counterpart to destroyPayment()/unlinkVoucher()
+     * above (both of which just do $payment->delete() regardless of
+     * whether it's voucher-linked or manual), for the checkbox-driven
+     * multi-select on the show page. Removing the tracker row never
+     * touches the underlying voucher or its accounting entries either
+     * way.
+     */
+    public function destroyPayments(Request $request, Subcontract $subcontract)
+    {
+        $this->ensureInScope($subcontract);
+
+        $data = $request->validate([
+            'payment_id' => ['required', 'array', 'min:1'],
+            'payment_id.*' => [Rule::exists('subcontract_payments', 'id')->where('subcontract_id', $subcontract->id)],
+        ]);
+
+        $count = $subcontract->payments()->whereIn('id', $data['payment_id'])->delete();
+
+        return back()->with('status', __(':count payment(s) removed from the tracker. The underlying vouchers, if any, are untouched.', ['count' => $count]));
+    }
+
+    /**
+     * "add functionality i can add multiple payment vouchers or
+     * multiselect vouchers at a time" — payment_voucher_id now takes
+     * an array (the single-voucher case is just an array of one), so
+     * one submission can link several vouchers in one go. Each is
+     * still linked through the exact same per-voucher logic as
+     * before; one already linked (a race with another tab, or just
+     * stale page data) is skipped rather than failing the whole
+     * batch, since the others in the batch are still perfectly valid
+     * to link.
+     */
     public function linkVoucher(Request $request, Subcontract $subcontract)
     {
         $this->ensureInScope($subcontract);
 
         $data = $request->validate([
-            'payment_voucher_id' => ['required', Rule::exists('payment_vouchers', 'id')],
+            'payment_voucher_id' => ['required', 'array', 'min:1'],
+            'payment_voucher_id.*' => [Rule::exists('payment_vouchers', 'id')],
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
             // "the last voucher 6000 is against same project but
             // different work... we have an option to add subproject
@@ -648,32 +683,59 @@ class SubcontractController extends Controller
             // nothing to adjust), but can be set lower to apply only the
             // VAT-exclusive portion toward the contract/milestones while
             // the voucher itself keeps recording the real cash moved.
+            // Only meaningful with exactly one voucher selected — applying
+            // one override amount across several different vouchers'
+            // totals wouldn't mean anything, so it's ignored otherwise.
             'net_amount' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
         $partyColumn = $subcontract->isEmployeeParty() ? 'employee_id' : 'supplier_id';
-        $voucher = PaymentVoucher::where($partyColumn, $subcontract->{$partyColumn})->findOrFail($data['payment_voucher_id']);
+        $ids = $data['payment_voucher_id'];
+        $vouchers = PaymentVoucher::where($partyColumn, $subcontract->{$partyColumn})->whereIn('id', $ids)->get()->keyBy('id');
 
-        if ($voucher->subcontractPayments()->exists()) {
+        $linkedCount = 0;
+        $skippedCount = 0;
+        $lastVoucherNumber = null;
+
+        foreach ($ids as $id) {
+            $voucher = $vouchers->get($id);
+
+            if (! $voucher || $voucher->subcontractPayments()->exists()) {
+                $skippedCount++;
+
+                continue;
+            }
+
+            $netAmount = (count($ids) === 1 && ! empty($data['net_amount'])) ? (float) $data['net_amount'] : (float) $voucher->amount;
+            $common = [
+                'payment_voucher_id' => $voucher->id, 'paid_at' => $voucher->date, 'work_id' => $data['work_id'] ?? null,
+                'method' => $voucher->method, 'reference' => $voucher->reference, 'created_by' => Auth::id(),
+            ];
+
+            if (! empty($data['milestone_id'])) {
+                $subcontract->payments()->create([
+                    ...$common, 'milestone_id' => $data['milestone_id'],
+                    'amount' => $netAmount, 'gross_amount' => (float) $voucher->amount,
+                ]);
+            } else {
+                $this->createAllocatedPayments($subcontract, $netAmount, $common, (float) $voucher->amount);
+            }
+
+            $linkedCount++;
+            $lastVoucherNumber = $voucher->voucher_number;
+        }
+
+        if ($linkedCount === 0) {
             return back()->with('status', __('That voucher is already linked to a subcontract.'));
         }
 
-        $netAmount = (float) ($data['net_amount'] ?? $voucher->amount);
-        $common = [
-            'payment_voucher_id' => $voucher->id, 'paid_at' => $voucher->date, 'work_id' => $data['work_id'] ?? null,
-            'method' => $voucher->method, 'reference' => $voucher->reference, 'created_by' => Auth::id(),
-        ];
-
-        if (! empty($data['milestone_id'])) {
-            $subcontract->payments()->create([
-                ...$common, 'milestone_id' => $data['milestone_id'],
-                'amount' => $netAmount, 'gross_amount' => (float) $voucher->amount,
-            ]);
-        } else {
-            $this->createAllocatedPayments($subcontract, $netAmount, $common, (float) $voucher->amount);
+        if ($linkedCount === 1 && $skippedCount === 0) {
+            return back()->with('status', __('Voucher :number linked to this subcontract.', ['number' => $lastVoucherNumber]));
         }
 
-        return back()->with('status', __('Voucher :number linked to this subcontract.', ['number' => $voucher->voucher_number]));
+        return back()->with('status', $skippedCount > 0
+            ? __(':count voucher(s) linked; :skipped already linked and skipped.', ['count' => $linkedCount, 'skipped' => $skippedCount])
+            : __(':count voucher(s) linked to this subcontract.', ['count' => $linkedCount]));
     }
 
     public function unlinkVoucher(Subcontract $subcontract, SubcontractPayment $payment)

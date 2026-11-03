@@ -68,12 +68,22 @@
     </div>
 @endif
 
-<div class="bg-white rounded-xl border border-slate-100 mb-6">
+<div class="bg-white rounded-xl border border-slate-100 mb-6" x-data="{ selected: [], allIds: @json($subcontract->payments->pluck('id')->map('strval')) }">
     <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
         <h3 class="text-sm font-semibold text-slate-900">{{ __('Payments') }}</h3>
+        <form method="POST" action="{{ route('app.project-manager-budgets.payments.destroy-many', $subcontract) }}" onsubmit="return confirm('{{ __('Remove the selected payments from the tracker? The underlying vouchers, if any, are not affected.') }}')" x-show="selected.length" x-cloak>
+            @csrf @method('DELETE')
+            <template x-for="id in selected" :key="id"><input type="hidden" name="payment_id[]" :value="id"></template>
+            <button type="submit" class="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">
+                {{ __('Remove selected') }} (<span x-text="selected.length"></span>)
+            </button>
+        </form>
     </div>
     <table class="w-full text-sm">
         <thead><tr class="text-left text-slate-500 border-b border-slate-100">
+            <th class="px-5 py-2.5 w-8">
+                <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" :checked="selected.length && selected.length === allIds.length" @change="selected = $event.target.checked ? [...allIds] : []">
+            </th>
             <th class="px-5 py-2.5 font-medium">{{ __('Date') }}</th>
             @if ($subcontract->works->isNotEmpty())
                 <th class="px-5 py-2.5 font-medium">{{ __('Work') }}</th>
@@ -82,11 +92,11 @@
             <th class="px-5 py-2.5 font-medium">{{ __('Reference') }}</th>
             <th class="px-5 py-2.5 font-medium text-end">{{ __('Applied (net)') }}</th>
             <th class="px-5 py-2.5 font-medium text-end">{{ __('Cash (gross)') }}</th>
-            <th class="px-5 py-2.5 font-medium"></th>
         </tr></thead>
         <tbody>
             @forelse ($subcontract->payments as $payment)
-                <tr class="border-b border-slate-50 last:border-0">
+                <tr class="border-b border-slate-50 last:border-0" :class="selected.includes('{{ $payment->id }}') ? 'bg-brand-50/40' : ''">
+                    <td class="px-5 py-2.5"><input type="checkbox" value="{{ $payment->id }}" x-model="selected" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500"></td>
                     <td class="px-5 py-2.5">{{ $payment->paid_at->format('Y-m-d') }}</td>
                     @if ($subcontract->works->isNotEmpty())
                         <td class="px-5 py-2.5">
@@ -117,15 +127,9 @@
                     <td class="px-5 py-2.5">{{ $payment->reference ?: '—' }}</td>
                     <td class="px-5 py-2.5 text-end font-medium">{{ number_format((float) $payment->amount, 2) }}</td>
                     <td class="px-5 py-2.5 text-end text-slate-500">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
-                    <td class="px-5 py-2.5 text-end">
-                        <form method="POST" action="{{ route('app.project-manager-budgets.payments.destroy', [$subcontract, $payment]) }}" onsubmit="return confirm('{{ __('Remove this payment from the tracker? The underlying voucher, if any, is not affected.') }}')">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="text-xs text-red-500 hover:underline">{{ __('Remove') }}</button>
-                        </form>
-                    </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="px-5 py-8 text-center text-slate-400">{{ __('No payments recorded yet.') }}</td></tr>
+                <tr><td colspan="7" class="px-5 py-8 text-center text-slate-400">{{ __('No payments recorded yet.') }}</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -283,28 +287,46 @@ function categoryBreakdownForm(initialRows) {
 
 <div class="grid sm:grid-cols-2 gap-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
-        <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Link an existing Payment Voucher') }}</h3>
+        <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Link existing Payment Vouchers') }}</h3>
         @if ($linkableVouchers->isEmpty())
             <p class="text-sm text-slate-400">{{ __('No unlinked, issued payment vouchers found for this project manager.') }}</p>
         @else
-            <form method="POST" action="{{ route('app.project-manager-budgets.link-voucher', $subcontract) }}" class="grid grid-cols-2 gap-2">
+            <form method="POST" action="{{ route('app.project-manager-budgets.link-voucher', $subcontract) }}" x-data="{ selected: [] }">
                 @csrf
-                <select name="payment_voucher_id" required class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="inline-flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                        <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" :checked="selected.length && selected.length === {{ $linkableVouchers->count() }}" @change="selected = $event.target.checked ? {{ json_encode($linkableVouchers->pluck('id')->map(fn ($id) => (string) $id)) }} : []">
+                        {{ __('Select all') }}
+                    </label>
+                    <span class="text-xs text-slate-400" x-show="selected.length" x-cloak><span x-text="selected.length"></span> {{ __('selected') }}</span>
+                </div>
+                <div class="rounded-lg border border-slate-200 divide-y divide-slate-100 max-h-56 overflow-y-auto mb-3">
                     @foreach ($linkableVouchers as $v)
-                        <option value="{{ $v->id }}">{{ $v->voucher_number }} — {{ $v->date->format('Y-m-d') }} — {{ number_format((float) $v->amount, 2) }}</option>
+                        <label class="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer" :class="selected.includes('{{ $v->id }}') ? 'bg-brand-50/60' : ''">
+                            <span class="flex items-center gap-2 min-w-0">
+                                <input type="checkbox" name="payment_voucher_id[]" value="{{ $v->id }}" x-model="selected" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                                <span class="font-medium text-slate-700 truncate">{{ $v->voucher_number }}</span>
+                                <span class="text-slate-400 shrink-0">{{ $v->date->format('Y-m-d') }}</span>
+                            </span>
+                            <span class="tabular-nums text-slate-600 shrink-0">{{ number_format((float) $v->amount, 2) }}</span>
+                        </label>
                     @endforeach
-                </select>
-                <input type="number" step="0.01" min="0.01" name="net_amount" placeholder="{{ __('Amount to apply, if different (ex. VAT)') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
-                @if ($subcontract->works->isNotEmpty())
-                    <select name="work_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
-                        <option value="">{{ __('No specific work') }}</option>
-                        @foreach ($subcontract->works as $w)<option value="{{ $w->id }}">{{ $w->name }}</option>@endforeach
-                    </select>
-                @endif
-                <button type="submit" class="col-span-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Link') }}</button>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" step="0.01" min="0.01" name="net_amount" :disabled="selected.length !== 1" :class="selected.length !== 1 ? 'opacity-50' : ''" placeholder="{{ __('Amount to apply, if different (ex. VAT) — only with one selected') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                    @if ($subcontract->works->isNotEmpty())
+                        <select name="work_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                            <option value="">{{ __('No specific work') }}</option>
+                            @foreach ($subcontract->works as $w)<option value="{{ $w->id }}">{{ $w->name }}</option>@endforeach
+                        </select>
+                    @endif
+                    <button type="submit" :disabled="!selected.length" class="col-span-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:bg-slate-100 disabled:text-slate-400">
+                        {{ __('Link') }} <template x-if="selected.length > 1">(<span x-text="selected.length"></span>)</template>
+                    </button>
+                </div>
             </form>
         @endif
-        <p class="text-xs text-slate-400 mt-3">{{ __('Leave the applied amount blank to apply the full voucher amount. The voucher must be paid to this same employee (party_type = Employee) — create it from Cash & Banks > Payment Vouchers if it doesn\'t exist yet.') }}</p>
+        <p class="text-xs text-slate-400 mt-3">{{ __('Leave the applied amount blank to apply the full voucher amount — it only applies when exactly one voucher is selected. The voucher must be paid to this same employee (party_type = Employee) — create it from Cash & Banks > Payment Vouchers if it doesn\'t exist yet.') }}</p>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-5">

@@ -132,7 +132,7 @@ class SubcontractorPaymentsModuleTest extends TestCase
         ]);
         $subcontract = Subcontract::first();
 
-        $response = $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), ['payment_voucher_id' => $voucher->id]);
+        $response = $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), ['payment_voucher_id' => [$voucher->id]]);
         $response->assertRedirect();
 
         $this->assertDatabaseCount('subcontract_payments', 1);
@@ -141,7 +141,7 @@ class SubcontractorPaymentsModuleTest extends TestCase
         $this->assertDatabaseCount('journal_entries', 0);
 
         // Can't double-link the same voucher.
-        $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), ['payment_voucher_id' => $voucher->id]);
+        $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), ['payment_voucher_id' => [$voucher->id]]);
         $this->assertDatabaseCount('subcontract_payments', 1);
     }
 
@@ -169,7 +169,7 @@ class SubcontractorPaymentsModuleTest extends TestCase
         $subcontract = Subcontract::first();
 
         $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), [
-            'payment_voucher_id' => $voucher->id, 'net_amount' => 107352.20,
+            'payment_voucher_id' => [$voucher->id], 'net_amount' => 107352.20,
         ]);
 
         $this->assertEquals(107352.20, $subcontract->totalPaid());

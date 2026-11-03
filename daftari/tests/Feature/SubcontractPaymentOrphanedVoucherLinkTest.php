@@ -52,7 +52,7 @@ class SubcontractPaymentOrphanedVoucherLinkTest extends TestCase
         ]);
         $subcontract = Subcontract::first();
 
-        $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), ['payment_voucher_id' => $voucher->id]);
+        $this->actingAs($owner)->post(route('app.subcontracts.link-voucher', $subcontract), ['payment_voucher_id' => [$voucher->id]]);
 
         return [$subcontract, $voucher];
     }

@@ -79,7 +79,7 @@ class ProjectManagerBudgetWorkTest extends TestCase
         ]);
 
         $this->actingAs($owner)->post(route('app.project-manager-budgets.link-voucher', $budget), [
-            'payment_voucher_id' => $voucher->id, 'work_id' => $work->id,
+            'payment_voucher_id' => [$voucher->id], 'work_id' => $work->id,
         ])->assertRedirect();
 
         $payment = $budget->payments()->first();

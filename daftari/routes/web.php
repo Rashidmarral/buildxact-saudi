@@ -776,6 +776,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('{subcontract}/category-report/pdf', [SubcontractController::class, 'categoryReportPdf'])->middleware('throttle:pdf')->name('category-report.pdf');
         Route::post('{subcontract}/payments', [SubcontractController::class, 'storePayment'])->name('payments.store');
         Route::put('{subcontract}/payments/{payment}', [SubcontractController::class, 'updatePayment'])->name('payments.update');
+        Route::delete('{subcontract}/payments', [SubcontractController::class, 'destroyPayments'])->name('payments.destroy-many');
         Route::delete('{subcontract}/payments/{payment}', [SubcontractController::class, 'destroyPayment'])->name('payments.destroy');
         Route::post('{subcontract}/link-voucher', [SubcontractController::class, 'linkVoucher'])->name('link-voucher');
         Route::delete('{subcontract}/payments/{payment}/unlink', [SubcontractController::class, 'unlinkVoucher'])->name('payments.unlink');
@@ -803,6 +804,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('{subcontract}/category-report/pdf', [ProjectManagerBudgetController::class, 'categoryReportPdf'])->middleware('throttle:pdf')->name('category-report.pdf');
         Route::post('{subcontract}/payments', [ProjectManagerBudgetController::class, 'storePayment'])->name('payments.store');
         Route::put('{subcontract}/payments/{payment}', [ProjectManagerBudgetController::class, 'updatePayment'])->name('payments.update');
+        Route::delete('{subcontract}/payments', [ProjectManagerBudgetController::class, 'destroyPayments'])->name('payments.destroy-many');
         Route::delete('{subcontract}/payments/{payment}', [ProjectManagerBudgetController::class, 'destroyPayment'])->name('payments.destroy');
         Route::post('{subcontract}/link-voucher', [ProjectManagerBudgetController::class, 'linkVoucher'])->name('link-voucher');
         Route::delete('{subcontract}/payments/{payment}/unlink', [ProjectManagerBudgetController::class, 'unlinkVoucher'])->name('payments.unlink');

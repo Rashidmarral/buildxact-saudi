@@ -164,7 +164,7 @@ class ProjectManagerBudgetTest extends TestCase
         ]);
         $subcontract = Subcontract::first();
 
-        $response = $this->actingAs($owner)->post(route('app.project-manager-budgets.link-voucher', $subcontract), ['payment_voucher_id' => $voucher->id]);
+        $response = $this->actingAs($owner)->post(route('app.project-manager-budgets.link-voucher', $subcontract), ['payment_voucher_id' => [$voucher->id]]);
         $response->assertRedirect();
 
         $this->assertDatabaseCount('subcontract_payments', 1);
