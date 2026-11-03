@@ -122,9 +122,12 @@ XML;
 
         $expectedQr = ZatcaQrGenerator::renderFromBase64Tlv($this->tlv());
         $this->assertSame($expectedQr, $invoice->fresh()->qr_code, 'A cleared standard/B2B invoice must carry the QR embedded in ZATCA\'s own re-signed clearedInvoice, not the one rendered before submission.');
+
+        $expectedXml = base64_decode($this->clearedInvoiceXmlBase64());
+        $this->assertSame($expectedXml, $log->fresh()->xml_payload, 'The downloadable XML must also be ZATCA\'s own re-signed clearedInvoice, so it always agrees with the QR now shown on the invoice.');
     }
 
-    public function test_a_malformed_cleared_invoice_falls_back_to_the_pre_submission_qr(): void
+    public function test_a_malformed_cleared_invoice_falls_back_to_the_pre_submission_qr_and_xml(): void
     {
         Http::fake(['*' => Http::response(['clearedInvoice' => 'not-valid-base64-xml!!'], 200)]);
         $company = $this->makeOnboardedCompany();
@@ -134,5 +137,6 @@ XML;
 
         $this->assertSame('cleared', $log->status);
         $this->assertNotNull($invoice->fresh()->qr_code, 'A malformed/unparseable clearedInvoice must not leave the invoice with no QR at all — fall back to the pre-submission one.');
+        $this->assertStringContainsString('<Invoice', $log->fresh()->xml_payload, 'A malformed/unparseable clearedInvoice must not wipe out the downloadable XML — fall back to the pre-submission one.');
     }
 }

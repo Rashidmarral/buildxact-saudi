@@ -780,11 +780,22 @@ class ZatcaSyncService
 
                 if ($response->successful()) {
                     $body = $response->json();
+                    $cleared = $isB2b ? $this->clearedInvoiceDocument($body['clearedInvoice'] ?? null) : null;
+
+                    // Audit finding ZATCA-99: for a standard/B2B clearance,
+                    // ZATCA's clearedInvoice — re-signed with its own
+                    // certificate — is the authoritative document, not the
+                    // one we signed and submitted. Store it as this log's
+                    // xml_payload (what the "download XML" button serves)
+                    // so a downloaded XML always agrees with the QR now
+                    // rendered on the invoice (see below) — see
+                    // clearedInvoiceDocument().
                     $log->update([
                         'status' => $isB2b ? 'cleared' : 'reported',
                         'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
+                        'xml_payload' => $cleared['xml'] ?? $xmlString,
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
 
@@ -799,8 +810,8 @@ class ZatcaSyncService
                     //
                     // For a standard/B2B clearance, prefer the QR baked into
                     // ZATCA's own re-signed clearedInvoice over our
-                    // pre-submission one — see qrFromClearedInvoice().
-                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+                    // pre-submission one — see qrFromClearedInvoiceDocument().
+                    $finalQrPng = $this->qrFromClearedInvoiceDocument($cleared['doc'] ?? null) ?? $qrPng;
 
                     if ($finalQrPng) {
                         $invoice->update(['qr_code' => $finalQrPng]);
@@ -910,16 +921,20 @@ class ZatcaSyncService
 
                 if ($response->successful()) {
                     $body = $response->json();
+                    $cleared = $isB2b ? $this->clearedInvoiceDocument($body['clearedInvoice'] ?? null) : null;
+
+                    // Audit finding ZATCA-99 — see submit()'s identical comment.
                     $log->update([
                         'status' => $isB2b ? 'cleared' : 'reported',
                         'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
+                        'xml_payload' => $cleared['xml'] ?? $xmlString,
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
 
                     // Audit finding ZATCA-04 — see submit()'s identical comment.
-                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+                    $finalQrPng = $this->qrFromClearedInvoiceDocument($cleared['doc'] ?? null) ?? $qrPng;
 
                     if ($finalQrPng) {
                         $prepayment->update(['qr_code' => $finalQrPng]);
@@ -1022,16 +1037,20 @@ class ZatcaSyncService
 
                 if ($response->successful()) {
                     $body = $response->json();
+                    $cleared = $isB2b ? $this->clearedInvoiceDocument($body['clearedInvoice'] ?? null) : null;
+
+                    // Audit finding ZATCA-99 — see submit()'s identical comment.
                     $log->update([
                         'status' => $isB2b ? 'cleared' : 'reported',
                         'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
+                        'xml_payload' => $cleared['xml'] ?? $xmlString,
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
 
                     // Audit finding ZATCA-04 — see submit()'s identical comment.
-                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+                    $finalQrPng = $this->qrFromClearedInvoiceDocument($cleared['doc'] ?? null) ?? $qrPng;
 
                     if ($finalQrPng) {
                         $creditNote->update(['qr_code' => $finalQrPng]);
@@ -1134,16 +1153,20 @@ class ZatcaSyncService
 
                 if ($response->successful()) {
                     $body = $response->json();
+                    $cleared = $isB2b ? $this->clearedInvoiceDocument($body['clearedInvoice'] ?? null) : null;
+
+                    // Audit finding ZATCA-99 — see submit()'s identical comment.
                     $log->update([
                         'status' => $isB2b ? 'cleared' : 'reported',
                         'cryptographic_stamp' => $body['clearedInvoice'] ?? $body['reportingStatus'] ?? null,
                         'response_payload' => $response->body(),
                         'cleared_at' => now(),
+                        'xml_payload' => $cleared['xml'] ?? $xmlString,
                     ]);
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
 
                     // Audit finding ZATCA-04 — see submit()'s identical comment.
-                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+                    $finalQrPng = $this->qrFromClearedInvoiceDocument($cleared['doc'] ?? null) ?? $qrPng;
 
                     if ($finalQrPng) {
                         $debitNote->update(['qr_code' => $finalQrPng]);
@@ -1263,18 +1286,25 @@ class ZatcaSyncService
      * not our company's CSID cert (issued by ZATCA's PEZEINVOICESCA2-CA).
      * Its QR differs accordingly: a different signature, a different
      * public key, and only 8 TLV tags (tag 9, the certificate signature,
-     * is dropped) rather than our 9 — plus, in the sample this was
+     * is dropped) rather than our 9 — plus, in the sample this was first
      * verified against, our own pre-submission QR's seller-name tag used
      * the company's English name while AccountingSupplierParty used
      * Arabic, a mismatch ZATCA's re-signed copy doesn't have (it uses
      * Arabic in both). Once cleared, ZATCA's copy is the authoritative
-     * document, so its QR — not the one we rendered before submitting —
-     * is what should end up on the invoice. Simplified/B2C invoices are
-     * reported, not cleared, and are delivered to the buyer before that
-     * report even happens, so there's nothing here to retroactively
-     * swap for them.
+     * document — both its QR (qrFromClearedInvoiceDocument()) and, for
+     * the downloadable XML (xml_payload) itself, the whole document —
+     * are what should end up on the invoice, not what we rendered before
+     * submitting. Simplified/B2C invoices are reported, not cleared, and
+     * are delivered to the buyer before that report even happens, so
+     * there's nothing here to retroactively swap for them.
+     *
+     * Returns the decoded XML string alongside the parsed DOMDocument so
+     * callers that need both (the raw XML for xml_payload, the document
+     * for QR extraction) only have to decode/parse once.
+     *
+     * @return array{xml: string, doc: \DOMDocument}|null
      */
-    private function qrFromClearedInvoice(?string $clearedInvoiceBase64): ?string
+    private function clearedInvoiceDocument(?string $clearedInvoiceBase64): ?array
     {
         if (! $clearedInvoiceBase64) {
             return null;
@@ -1294,6 +1324,28 @@ class ZatcaSyncService
                 return null;
             }
 
+            return ['xml' => $xml, 'doc' => $doc];
+        } catch (\Throwable $e) {
+            Log::warning('ZATCA: could not parse clearedInvoice — keeping the pre-submission document.', ['error' => $e->getMessage()]);
+
+            return null;
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+    }
+
+    /**
+     * Extracts and renders the QR embedded in an already-parsed
+     * clearedInvoice document — see clearedInvoiceDocument().
+     */
+    private function qrFromClearedInvoiceDocument(?\DOMDocument $doc): ?string
+    {
+        if (! $doc) {
+            return null;
+        }
+
+        try {
             $xpath = new \DOMXPath($doc);
             $xpath->registerNamespace('cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
             $xpath->registerNamespace('cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
@@ -1310,9 +1362,6 @@ class ZatcaSyncService
             Log::warning('ZATCA: could not extract QR from clearedInvoice — keeping the pre-submission QR.', ['error' => $e->getMessage()]);
 
             return null;
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
         }
     }
 }
