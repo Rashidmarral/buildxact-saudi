@@ -128,7 +128,7 @@ class FixedAssetController extends Controller
     {
         $companyId = Auth::user()->company_id;
 
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
             'account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
@@ -139,5 +139,14 @@ class FixedAssetController extends Controller
             'useful_life_years' => ['required', 'integer', 'min:1', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        // A left-blank field reaches here as an explicit null (Laravel's
+        // ConvertEmptyStringsToNull), which the fixed_assets table's own
+        // decimal(...)->default(0) column rejects outright — a DEFAULT
+        // only applies when the column is omitted from the insert, not
+        // when it's present with a NULL value.
+        $data['salvage_value'] = $data['salvage_value'] ?? 0;
+
+        return $data;
     }
 }

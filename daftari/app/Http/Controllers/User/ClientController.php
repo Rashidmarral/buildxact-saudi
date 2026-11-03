@@ -400,6 +400,12 @@ class ClientController extends Controller
 
         $this->validateRequiredCustomFields(Client::customFieldDefinitions(), $data['custom_fields'] ?? []);
 
+        // A left-blank field reaches here as an explicit null, which the
+        // clients table's own decimal(...)->default(0) column rejects
+        // outright — a DEFAULT only applies when the column is omitted
+        // from the insert, not when it's present with a NULL value.
+        $data['initial_balance'] = $data['initial_balance'] ?? 0;
+
         return $data;
     }
 

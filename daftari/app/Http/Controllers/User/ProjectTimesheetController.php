@@ -28,6 +28,13 @@ class ProjectTimesheetController extends Controller
             'cost_rate' => ['nullable', 'numeric', 'min:0'],
         ]);
 
+        // A left-blank field reaches here as an explicit null, which the
+        // project_timesheets table's own decimal(...)->default(0) column
+        // rejects outright — a DEFAULT only applies when the column is
+        // omitted from the insert, not when it's present with a NULL value.
+        // (bill_rate/cost_rate are genuinely DB-nullable, so they're fine.)
+        $data['overtime_hours'] = $data['overtime_hours'] ?? 0;
+
         $project->timesheets()->create($data + [
             'billable' => $request->boolean('billable', true),
             'status' => 'draft',

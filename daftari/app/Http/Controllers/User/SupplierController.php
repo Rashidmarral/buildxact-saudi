@@ -269,6 +269,12 @@ class SupplierController extends Controller
         // since an unchecked checkbox never appears in the request.
         $data['is_resident'] = ! $request->boolean('is_non_resident');
 
+        // A left-blank field reaches here as an explicit null, which the
+        // suppliers table's own decimal(...)->default(0) column rejects
+        // outright — a DEFAULT only applies when the column is omitted
+        // from the insert, not when it's present with a NULL value.
+        $data['initial_balance'] = $data['initial_balance'] ?? 0;
+
         return $data;
     }
 

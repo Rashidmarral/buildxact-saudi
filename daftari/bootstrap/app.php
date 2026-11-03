@@ -2,6 +2,7 @@
 
 use App\Exceptions\PdfRenderingException;
 use App\Exceptions\PeriodLockedException;
+use App\Support\FriendlyDatabaseError;
 use App\Http\Middleware\CheckMaintenanceMode;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureAdminTwoFactorEnabled;
@@ -23,6 +24,7 @@ use App\Http\Middleware\PreventDemoDestruction;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetSecurityHeaders;
 use App\Http\Middleware\SetTimezone;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -118,6 +120,32 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return back()->withErrors(['period' => $e->getMessage()]);
+        });
+
+        // "please fix this if something required that missing please
+        // handle it with more professional show error that's required
+        // or something not for this for the whole app" — a raw NOT
+        // NULL/unique/foreign-key violation that reaches the database
+        // is always a gap in some form's validation; this is the
+        // app-wide safety net for whichever one turns up next (see
+        // FriendlyDatabaseError's own docblock). JSON/API requests get
+        // the usual structured error instead of a redirect; anything
+        // this doesn't recognize (a real bug, not a user mistake) falls
+        // through to Laravel's own default handling untouched.
+        $exceptions->render(function (QueryException $e, $request) {
+            $message = FriendlyDatabaseError::describe($e);
+
+            if ($message === null) {
+                return null;
+            }
+
+            report($e);
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->withInput()->withErrors(['form' => $message]);
         });
 
         $exceptions->render(function (ThrottleRequestsException $e, $request) {

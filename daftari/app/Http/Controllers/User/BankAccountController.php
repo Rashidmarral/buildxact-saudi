@@ -185,7 +185,7 @@ class BankAccountController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:bank,cash'],
             'currency' => ['required', 'string', 'size:3'],
@@ -200,5 +200,13 @@ class BankAccountController extends Controller
             'opening_balance_reference' => ['nullable', 'string', 'max:255'],
             'personal_owner_name' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // A left-blank field reaches here as an explicit null, which the
+        // bank_accounts table's own decimal(...)->default(0) column
+        // rejects outright — a DEFAULT only applies when the column is
+        // omitted from the insert, not when it's present with a NULL value.
+        $data['opening_balance'] = $data['opening_balance'] ?? 0;
+
+        return $data;
     }
 }

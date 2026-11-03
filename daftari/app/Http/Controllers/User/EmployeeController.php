@@ -192,6 +192,20 @@ class EmployeeController extends Controller
         $data['is_operator'] = $request->boolean('is_operator');
         $data['employment_type'] = $data['employment_type'] ?? $employee?->employment_type ?? 'full_time';
 
+        // "Column 'transport_allowance' cannot be null" — these three are
+        // validated 'nullable' (an employee legitimately has no housing/
+        // transport/other allowance), but Laravel's global
+        // ConvertEmptyStringsToNull middleware turns a left-blank form
+        // field into a real null, not a missing key — so a blank field
+        // was reaching Employee::create()/update() as an explicit NULL,
+        // which the employees table's own default(0) only covers when the
+        // column is omitted from the insert entirely, not when it's
+        // present with a NULL value. Zero is exactly what "no allowance"
+        // means here, so default to it instead of letting null through.
+        foreach (['housing_allowance', 'transport_allowance', 'other_allowance'] as $allowance) {
+            $data[$allowance] = $data[$allowance] ?? 0;
+        }
+
         return $data;
     }
 }
