@@ -12,7 +12,7 @@ class SubcontractPayment extends Model
     use BelongsToCompany, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'subcontract_id', 'milestone_id', 'payment_voucher_id',
+        'company_id', 'subcontract_id', 'milestone_id', 'work_id', 'payment_voucher_id',
         'amount', 'gross_amount', 'paid_at', 'method', 'reference', 'notes', 'created_by',
     ];
 
@@ -44,6 +44,11 @@ class SubcontractPayment extends Model
     public function milestone(): BelongsTo
     {
         return $this->belongsTo(SubcontractMilestone::class, 'milestone_id');
+    }
+
+    public function work(): BelongsTo
+    {
+        return $this->belongsTo(SubcontractWork::class, 'work_id');
     }
 
     public function paymentVoucher(): BelongsTo

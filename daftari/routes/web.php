@@ -809,6 +809,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('{subcontract}/report-categories', [ProjectManagerBudgetController::class, 'storeReportCategory'])->name('report-categories.store');
         Route::put('{subcontract}/report-categories/{reportCategory}', [ProjectManagerBudgetController::class, 'updateReportCategory'])->name('report-categories.update');
         Route::delete('{subcontract}/report-categories/{reportCategory}', [ProjectManagerBudgetController::class, 'destroyReportCategory'])->name('report-categories.destroy');
+        Route::post('{subcontract}/works', [ProjectManagerBudgetController::class, 'storeWork'])->name('works.store');
+        Route::put('{subcontract}/works/{work}', [ProjectManagerBudgetController::class, 'updateWork'])->name('works.update');
+        Route::delete('{subcontract}/works/{work}', [ProjectManagerBudgetController::class, 'destroyWork'])->name('works.destroy');
     });
 
     Route::middleware(['permission:machinery_equipment', 'module:machinery_equipment'])->prefix('machinery')->name('machinery.')->group(function () {

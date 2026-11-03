@@ -68,9 +68,15 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-slate-100 p-5 mb-6">
+    <label class="flex items-center gap-2 text-sm text-slate-700 bg-white rounded-xl border border-slate-100 p-4 mb-6 cursor-pointer">
+        <input type="checkbox" x-model="showBreakdown" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+        <span>{{ __('Track a detailed budget breakdown for this one') }}</span>
+        <span class="text-xs text-slate-400">— {{ __('leave unchecked for a simple project: just the total budget above is enough.') }}</span>
+    </label>
+
+    <div class="bg-white rounded-xl border border-slate-100 p-5 mb-6" x-show="showBreakdown" x-cloak>
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <h3 class="text-sm font-semibold text-slate-900">{{ __('Budget breakdown (optional)') }}</h3>
+            <h3 class="text-sm font-semibold text-slate-900">{{ __('Budget breakdown') }}</h3>
             <button type="button" @click="addBoqRow()" class="text-xs font-semibold text-brand-700 hover:underline">+ {{ __('Add line') }}</button>
         </div>
         <p class="text-xs text-slate-400 mb-3">{{ __('What the total budget is made of — e.g. Sub base 11,200 m² × 6.00, Asphalt 4,100 m² × 36.50.') }}</p>
@@ -98,6 +104,7 @@ function pmBudgetForm(initialBoq, initialContractValue) {
     return {
         boqItems: initialBoq,
         contractValue: initialContractValue,
+        showBreakdown: initialBoq.length > 0,
         addBoqRow() { this.boqItems.push({ description: '', quantity: null, unit: '', rate: null, amount: null }); },
         removeBoqRow(i) { this.boqItems.splice(i, 1); this.recalcContractFromBoq(); },
         recalcBoqRow(i) {

@@ -11,6 +11,7 @@ use App\Models\Subcontract;
 use App\Models\SubcontractMilestone;
 use App\Models\SubcontractPayment;
 use App\Models\SubcontractReportCategory;
+use App\Models\SubcontractWork;
 use App\Models\Supplier;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
@@ -192,7 +193,7 @@ class SubcontractController extends Controller
     {
         $this->ensureInScope($subcontract);
 
-        $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
+        $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'works.payments', 'payments.milestone', 'payments.work', 'payments.paymentVoucher', 'reportCategories');
 
         $partyColumn = $subcontract->isEmployeeParty() ? 'employee_id' : 'supplier_id';
 
@@ -328,6 +329,55 @@ class SubcontractController extends Controller
         $reportCategory->delete();
 
         return back()->with('status', __('Report category removed.'));
+    }
+
+    /**
+     * "add an option to add subproject option or work for main
+     * project and assign voucher accordingly" — a Work is just a
+     * name (and optional budget_amount) a payment can be tagged to;
+     * see SubcontractWork's docblock for why this is a lighter-weight
+     * sibling to milestones rather than reusing them.
+     */
+    public function storeWork(Request $request, Subcontract $subcontract)
+    {
+        $this->ensureInScope($subcontract);
+
+        $data = $this->validatedWork($request);
+
+        $subcontract->works()->create([
+            ...$data,
+            'sort_order' => $subcontract->works()->max('sort_order') + 1,
+        ]);
+
+        return back()->with('status', __('Work added.'));
+    }
+
+    public function updateWork(Request $request, Subcontract $subcontract, SubcontractWork $work)
+    {
+        $this->ensureInScope($subcontract);
+        abort_unless($work->subcontract_id === $subcontract->id, 404);
+
+        $work->update($this->validatedWork($request));
+
+        return back()->with('status', __('Work updated.'));
+    }
+
+    public function destroyWork(Subcontract $subcontract, SubcontractWork $work)
+    {
+        $this->ensureInScope($subcontract);
+        abort_unless($work->subcontract_id === $subcontract->id, 404);
+
+        $work->delete();
+
+        return back()->with('status', __('Work removed. Any payments tagged to it keep their own record, just untagged.'));
+    }
+
+    private function validatedWork(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'budget_amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
     }
 
     private function validatedReportCategory(Request $request): array
@@ -470,6 +520,7 @@ class SubcontractController extends Controller
 
         $data = $request->validate([
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
+            'work_id' => ['nullable', Rule::exists('subcontract_works', 'id')->where('subcontract_id', $subcontract->id)],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'gross_amount' => ['nullable', 'numeric', 'min:0.01'],
             'paid_at' => ['required', 'date'],
@@ -478,7 +529,7 @@ class SubcontractController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $common = array_intersect_key($data, array_flip(['paid_at', 'method', 'reference', 'notes']));
+        $common = array_intersect_key($data, array_flip(['paid_at', 'method', 'reference', 'notes', 'work_id']));
         $common['created_by'] = Auth::id();
 
         if (! empty($data['milestone_id'])) {
@@ -505,6 +556,7 @@ class SubcontractController extends Controller
         // that's where the cash actually moved, not a judgment call.
         $rules = [
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
+            'work_id' => ['nullable', Rule::exists('subcontract_works', 'id')->where('subcontract_id', $subcontract->id)],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'gross_amount' => ['nullable', 'numeric', 'min:0.01'],
             'paid_at' => ['required', 'date'],
@@ -583,6 +635,13 @@ class SubcontractController extends Controller
         $data = $request->validate([
             'payment_voucher_id' => ['required', Rule::exists('payment_vouchers', 'id')],
             'milestone_id' => ['nullable', Rule::exists('subcontract_milestones', 'id')->where('subcontract_id', $subcontract->id)],
+            // "the last voucher 6000 is against same project but
+            // different work... we have an option to add subproject
+            // option or work... and assign voucher accordingly" — which
+            // named Work (e.g. "MC1", "RC2 Spraying") this voucher's
+            // money actually went toward, if this budget tracks more
+            // than one.
+            'work_id' => ['nullable', Rule::exists('subcontract_works', 'id')->where('subcontract_id', $subcontract->id)],
             // "i have paid the same amount with tax but i am paying my
             // supplier this amount without tax" — defaults to the
             // voucher's real transfer when left blank (the common case:
@@ -601,7 +660,7 @@ class SubcontractController extends Controller
 
         $netAmount = (float) ($data['net_amount'] ?? $voucher->amount);
         $common = [
-            'payment_voucher_id' => $voucher->id, 'paid_at' => $voucher->date,
+            'payment_voucher_id' => $voucher->id, 'paid_at' => $voucher->date, 'work_id' => $data['work_id'] ?? null,
             'method' => $voucher->method, 'reference' => $voucher->reference, 'created_by' => Auth::id(),
         ];
 
@@ -631,7 +690,7 @@ class SubcontractController extends Controller
     {
         $this->ensureInScope($subcontract);
 
-        $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
+        $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'works.payments', 'payments.milestone', 'payments.work', 'payments.paymentVoucher', 'reportCategories');
 
         $pdf = app(MpdfRenderer::class)->render('user.subcontracts.pdf.receiving-report', [
             'company' => Auth::user()->company,

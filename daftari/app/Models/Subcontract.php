@@ -83,6 +83,11 @@ class Subcontract extends Model
         return $this->hasMany(SubcontractMilestone::class)->orderBy('sequence');
     }
 
+    public function works(): HasMany
+    {
+        return $this->hasMany(SubcontractWork::class)->orderBy('sort_order');
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(SubcontractPayment::class)->orderByDesc('paid_at')->orderByDesc('id');

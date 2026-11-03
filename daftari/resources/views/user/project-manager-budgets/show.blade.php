@@ -75,6 +75,9 @@
     <table class="w-full text-sm">
         <thead><tr class="text-left text-slate-500 border-b border-slate-100">
             <th class="px-5 py-2.5 font-medium">{{ __('Date') }}</th>
+            @if ($subcontract->works->isNotEmpty())
+                <th class="px-5 py-2.5 font-medium">{{ __('Work') }}</th>
+            @endif
             <th class="px-5 py-2.5 font-medium">{{ __('Source') }}</th>
             <th class="px-5 py-2.5 font-medium">{{ __('Reference') }}</th>
             <th class="px-5 py-2.5 font-medium text-end">{{ __('Applied (net)') }}</th>
@@ -85,6 +88,23 @@
             @forelse ($subcontract->payments as $payment)
                 <tr class="border-b border-slate-50 last:border-0">
                     <td class="px-5 py-2.5">{{ $payment->paid_at->format('Y-m-d') }}</td>
+                    @if ($subcontract->works->isNotEmpty())
+                        <td class="px-5 py-2.5">
+                            <form method="POST" action="{{ route('app.project-manager-budgets.payments.update', [$subcontract, $payment]) }}">
+                                @csrf @method('PUT')
+                                <input type="hidden" name="amount" value="{{ $payment->amount }}">
+                                <input type="hidden" name="paid_at" value="{{ $payment->paid_at->toDateString() }}">
+                                @if ($payment->gross_amount !== null)<input type="hidden" name="gross_amount" value="{{ $payment->gross_amount }}">@endif
+                                @if ($payment->reference)<input type="hidden" name="reference" value="{{ $payment->reference }}">@endif
+                                @if ($payment->method)<input type="hidden" name="method" value="{{ $payment->method }}">@endif
+                                @if ($payment->milestone_id)<input type="hidden" name="milestone_id" value="{{ $payment->milestone_id }}">@endif
+                                <select name="work_id" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-xs">
+                                    <option value="">{{ __('Unassigned') }}</option>
+                                    @foreach ($subcontract->works as $w)<option value="{{ $w->id }}" @selected($payment->work_id === $w->id)>{{ $w->name }}</option>@endforeach
+                                </select>
+                            </form>
+                        </td>
+                    @endif
                     <td class="px-5 py-2.5">
                         @if ($payment->payment_voucher_id && $payment->paymentVoucher)
                             <a href="{{ route('app.payment-vouchers.show', $payment->payment_voucher_id) }}" class="text-brand-700 hover:underline">{{ $payment->paymentVoucher->voucher_number }}</a>
@@ -275,6 +295,12 @@ function categoryBreakdownForm(initialRows) {
                     @endforeach
                 </select>
                 <input type="number" step="0.01" min="0.01" name="net_amount" placeholder="{{ __('Amount to apply, if different (ex. VAT)') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                @if ($subcontract->works->isNotEmpty())
+                    <select name="work_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                        <option value="">{{ __('No specific work') }}</option>
+                        @foreach ($subcontract->works as $w)<option value="{{ $w->id }}">{{ $w->name }}</option>@endforeach
+                    </select>
+                @endif
                 <button type="submit" class="col-span-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Link') }}</button>
             </form>
         @endif
@@ -289,9 +315,69 @@ function categoryBreakdownForm(initialRows) {
             <input type="date" name="paid_at" required value="{{ now()->toDateString() }}" class="rounded-lg border border-slate-200 text-sm">
             <input type="number" step="0.01" min="0.01" name="amount" required placeholder="{{ __('Amount to apply (ex. VAT)') }}" class="rounded-lg border border-slate-200 text-sm">
             <input type="number" step="0.01" min="0.01" name="gross_amount" placeholder="{{ __('Cash given, if different (incl. VAT)') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+            @if ($subcontract->works->isNotEmpty())
+                <select name="work_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                    <option value="">{{ __('No specific work') }}</option>
+                    @foreach ($subcontract->works as $w)<option value="{{ $w->id }}">{{ $w->name }}</option>@endforeach
+                </select>
+            @endif
             <input type="text" name="reference" placeholder="{{ __('Reference') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
             <button type="submit" class="col-span-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Add payment') }}</button>
         </form>
     </div>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-100 mb-6 p-5">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+        <h3 class="text-sm font-semibold text-slate-900">{{ __('Works / Sub-projects') }}</h3>
+    </div>
+    <p class="text-xs text-slate-400 mb-3">{{ __('If this project manager is actually running several distinct pieces of work (e.g. "MC1", "RC2 Spraying"), name each one here, then assign payments to the right one above — leave this empty for a simple, single-work budget.') }}</p>
+
+    @if ($subcontract->works->isNotEmpty())
+        <table class="w-full text-sm mb-4">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="py-2 font-medium">{{ __('Name') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Budget (optional)') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Paid') }}</th>
+                    <th class="py-2 font-medium text-end">{{ __('Balance') }}</th>
+                    <th class="py-2 font-medium"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($subcontract->works as $work)
+                    <tr class="border-b border-slate-50 last:border-0">
+                        <form method="POST" action="{{ route('app.project-manager-budgets.works.update', [$subcontract, $work]) }}" class="contents">
+                            @csrf @method('PUT')
+                            <td class="py-2"><input type="text" name="name" value="{{ $work->name }}" required class="w-full rounded-lg border border-slate-200 text-sm"></td>
+                            <td class="py-2"><input type="number" step="0.01" min="0" name="budget_amount" value="{{ $work->budget_amount }}" placeholder="{{ __('optional') }}" class="w-28 rounded-lg border border-slate-200 text-sm text-end"></td>
+                            <td class="py-2 text-end text-teal-700">{{ number_format($work->paidAmount(), 2) }}</td>
+                            <td class="py-2 text-end font-medium">{{ $work->balance() !== null ? number_format($work->balance(), 2) : '—' }}</td>
+                            <td class="py-2 text-end"><button type="submit" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Save') }}</button></td>
+                        </form>
+                        <form method="POST" action="{{ route('app.project-manager-budgets.works.destroy', [$subcontract, $work]) }}" onsubmit="return confirm('{{ __('Remove this work? Any payments tagged to it keep their own record, just untagged.') }}')" class="contents">
+                            @csrf @method('DELETE')
+                            <td class="py-2 text-end"><button type="submit" class="text-xs text-red-500 hover:underline">{{ __('Remove') }}</button></td>
+                        </form>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    <form method="POST" action="{{ route('app.project-manager-budgets.works.store', $subcontract) }}" class="grid grid-cols-12 gap-2 items-end">
+        @csrf
+        <div class="col-span-7">
+            <label class="block text-[11px] text-slate-400">{{ __('Name') }}</label>
+            <input type="text" name="name" required placeholder="{{ __('e.g. MC1, RC2 Spraying') }}" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-3">
+            <label class="block text-[11px] text-slate-400">{{ __('Budget (optional)') }}</label>
+            <input type="number" step="0.01" min="0" name="budget_amount" class="w-full rounded-lg border border-slate-200 text-sm">
+        </div>
+        <div class="col-span-2">
+            <button type="submit" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Add work') }}</button>
+        </div>
+    </form>
 </div>
 @endsection
