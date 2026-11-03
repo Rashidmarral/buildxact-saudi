@@ -146,6 +146,50 @@ class SubcontractReportCategoryTest extends TestCase
         $response->assertDontSee(__('Other / Unmatched'));
     }
 
+    /**
+     * "the other thing is i have linked payment vouchers should adjust
+     * milestone payment like my payment voucher is 161860, i have added
+     * subbase material 73000 and asphalt 107352.20" — a real production
+     * report had an itemized "Shahid" category (161,860, the full real
+     * total) plus two Measured categories (Sub Base 73,000 and Asphalt
+     * 107,352.20, independent site-measurement valuations) and the old
+     * TOTAL row simply summed every row's printed amount — 342,212.20 —
+     * which has nothing to do with real cash and made the contract look
+     * massively overpaid against its 373,650 value. The footer must
+     * always equal the real applied total, not a sum of overlapping rows.
+     */
+    public function test_the_printed_total_is_the_real_applied_amount_not_a_sum_of_overlapping_category_rows(): void
+    {
+        [$owner, $subcontract] = $this->makeSubcontractWithPayments();
+        // makeSubcontractWithPayments() links one real 20,000 "Shahid" voucher.
+        $this->assertEqualsWithDelta(20000.00, $subcontract->totalPaid(), 0.01);
+
+        // Mirrors exactly what SubcontractController::resolveReportCategories()
+        // produces for Shahid(itemized, real match)+SubBase/Asphalt(measured,
+        // independent valuations) — "Shahid" claims the one real payment,
+        // leaving nothing in the remaining pool for the measured rows to
+        // (harmlessly) search, while their own printed amount stays fixed.
+        $shahid = $subcontract->reportCategories()->create(['label' => 'Shahid', 'display_mode' => 'itemized', 'match_terms' => 'shahid']);
+        $subBase = $subcontract->reportCategories()->create(['label' => 'Sub Base', 'display_mode' => 'measured', 'quantity' => 146, 'unit' => 'trip', 'rate' => 500, 'amount' => 73000]);
+        $asphalt = $subcontract->reportCategories()->create(['label' => 'Asphalt', 'display_mode' => 'measured', 'quantity' => 646.70, 'unit' => 'ton', 'rate' => 166, 'amount' => 107352.20]);
+        $reportCategoryRows = [
+            ['category' => $shahid, 'payments' => $subcontract->payments, 'total' => 20000.00],
+            ['category' => $subBase, 'payments' => collect(), 'total' => 73000.00],
+            ['category' => $asphalt, 'payments' => collect(), 'total' => 107352.20],
+        ];
+
+        $html = view('user.subcontracts.pdf.receiving-report', [
+            'company' => $owner->company,
+            'subcontract' => $subcontract->fresh(['project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'works.payments', 'payments.milestone', 'payments.work', 'payments.paymentVoucher', 'reportCategories']),
+            'reportCategoryRows' => $reportCategoryRows,
+            'template' => null,
+            'embed' => fn ($path) => null,
+        ])->render();
+
+        $this->assertStringContainsString('20,000.00', $html);
+        $this->assertStringNotContainsString('200,352.20', $html, 'The footer total must never be the sum of overlapping category rows.');
+    }
+
     public function test_removing_a_category_deletes_it_without_touching_the_underlying_payments(): void
     {
         [$owner, $subcontract] = $this->makeSubcontractWithPayments();

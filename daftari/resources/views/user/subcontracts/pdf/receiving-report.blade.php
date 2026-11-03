@@ -143,11 +143,25 @@
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="4">{{ __('TOTAL') }}</td>
-                <td class="num">{{ number_format(collect($reportCategoryRows)->sum('total'), 2) }}</td>
+                <td colspan="4">{{ __('TOTAL APPLIED TO CONTRACT') }}</td>
+                <td class="num">{{ number_format($totalPaid, 2) }}</td>
             </tr>
         </tbody>
     </table>
+    {{--
+        "subbase material 73000 and asphalt 107352.20... these payment
+        should adjust in milestone" — a Measured category's amount is a
+        site-measurement valuation (qty × rate), not a second payment on
+        top of the itemized rows above it: the real cash is counted once,
+        under the category whose match keywords claimed it (or under the
+        catch-all), and the row below always foots to that same real
+        total — never the sum of each row's own printed amount, since a
+        Measured row's figure is deliberately independent of what it
+        matched.
+    --}}
+    <p style="font-size: 9px; color: #94a3b8; margin-top: 4px;">
+        {{ __('Each payment is counted under one category only. A "Measured" row shows a site-measurement value (quantity × rate) for reference — not an additional amount on top of the others — so the categories\' own printed amounts do not need to add up to the total above.') }}
+    </p>
 
     @foreach ($reportCategoryRows as $row)
         @if ($row['category']->display_mode === \App\Models\SubcontractReportCategory::ITEMIZED && $row['payments']->isNotEmpty())
