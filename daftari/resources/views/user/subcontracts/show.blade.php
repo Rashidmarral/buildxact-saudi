@@ -126,8 +126,10 @@
                     <td class="px-5 py-2.5">{{ $payment->paid_at->format('Y-m-d') }}</td>
                     <td class="px-5 py-2.5">{{ $payment->milestone->name ?? __('Unassigned') }}</td>
                     <td class="px-5 py-2.5">
-                        @if ($payment->payment_voucher_id)
+                        @if ($payment->payment_voucher_id && $payment->paymentVoucher)
                             <a href="{{ route('app.payment-vouchers.show', $payment->payment_voucher_id) }}" class="text-brand-700 hover:underline">{{ $payment->paymentVoucher->voucher_number }}</a>
+                        @elseif ($payment->payment_voucher_id)
+                            <span class="text-slate-400" title="{{ __('The linked payment voucher was deleted.') }}">{{ __('Deleted voucher') }}</span>
                         @else
                             <span class="text-slate-400">{{ __('Manual entry') }}</span>
                         @endif

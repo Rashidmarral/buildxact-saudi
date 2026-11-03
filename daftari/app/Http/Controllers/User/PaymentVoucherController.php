@@ -16,6 +16,7 @@ use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\PaymentVoucher;
 use App\Models\Project;
+use App\Models\SubcontractPayment;
 use App\Models\Supplier;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\MpdfRenderer;
@@ -482,6 +483,16 @@ class PaymentVoucherController extends Controller
         if (! in_array($paymentVoucher->status, ['void', 'rejected'], true)) {
             return back()->with('status', __('Void this voucher first so its ledger entries and any linked bill payment are safely reversed, then delete it.'));
         }
+
+        // This voucher only ever soft-deletes (SoftDeletes trait), so the
+        // payment_vouchers.id -> subcontract_payments.payment_voucher_id
+        // foreign key's nullOnDelete() never actually fires — the row
+        // isn't removed, just hidden. Left alone, any subcontract payment
+        // still pointing at it keeps a dangling, unresolvable reference
+        // (its paymentVoucher relation silently returns null while
+        // payment_voucher_id stays set), which crashed the subcontract's
+        // show page reading ->voucher_number off that null relation.
+        SubcontractPayment::where('payment_voucher_id', $paymentVoucher->id)->update(['payment_voucher_id' => null]);
 
         $paymentVoucher->delete();
 
