@@ -796,8 +796,14 @@ class ZatcaSyncService
                     // meaningful once ZATCA has genuinely confirmed this exact
                     // submission, so it's only persisted here, alongside the
                     // log's own "cleared"/"reported" status.
-                    if ($qrPng) {
-                        $invoice->update(['qr_code' => $qrPng]);
+                    //
+                    // For a standard/B2B clearance, prefer the QR baked into
+                    // ZATCA's own re-signed clearedInvoice over our
+                    // pre-submission one — see qrFromClearedInvoice().
+                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+
+                    if ($finalQrPng) {
+                        $invoice->update(['qr_code' => $finalQrPng]);
                     }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
@@ -913,8 +919,10 @@ class ZatcaSyncService
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
 
                     // Audit finding ZATCA-04 — see submit()'s identical comment.
-                    if ($qrPng) {
-                        $prepayment->update(['qr_code' => $qrPng]);
+                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+
+                    if ($finalQrPng) {
+                        $prepayment->update(['qr_code' => $finalQrPng]);
                     }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
@@ -1023,8 +1031,10 @@ class ZatcaSyncService
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
 
                     // Audit finding ZATCA-04 — see submit()'s identical comment.
-                    if ($qrPng) {
-                        $creditNote->update(['qr_code' => $qrPng]);
+                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+
+                    if ($finalQrPng) {
+                        $creditNote->update(['qr_code' => $finalQrPng]);
                     }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
@@ -1133,8 +1143,10 @@ class ZatcaSyncService
                     $company->update(['zatca_last_invoice_hash' => $invoiceHash, 'zatca_last_sync_at' => now(), 'zatca_icv_counter' => $icv]);
 
                     // Audit finding ZATCA-04 — see submit()'s identical comment.
-                    if ($qrPng) {
-                        $debitNote->update(['qr_code' => $qrPng]);
+                    $finalQrPng = ($isB2b ? $this->qrFromClearedInvoice($body['clearedInvoice'] ?? null) : null) ?? $qrPng;
+
+                    if ($finalQrPng) {
+                        $debitNote->update(['qr_code' => $finalQrPng]);
                     }
                 } else {
                     $errorMessage = Str::limit('HTTP '.$response->status().': '.$response->body(), 1000);
@@ -1240,5 +1252,67 @@ class ZatcaSyncService
         );
 
         return [$signedXml, $qrPng];
+    }
+
+    /**
+     * For a standard/B2B invoice, ZATCA's clearance response re-signs the
+     * document with its own certificate rather than echoing back what we
+     * submitted — confirmed against a real ZATCA Simulation clearance,
+     * where the clearedInvoice's ds:X509Certificate belongs to ZATCA's
+     * own "zatca-einvoicing-sim" cert (issuer == subject, self-signed),
+     * not our company's CSID cert (issued by ZATCA's PEZEINVOICESCA2-CA).
+     * Its QR differs accordingly: a different signature, a different
+     * public key, and only 8 TLV tags (tag 9, the certificate signature,
+     * is dropped) rather than our 9 — plus, in the sample this was
+     * verified against, our own pre-submission QR's seller-name tag used
+     * the company's English name while AccountingSupplierParty used
+     * Arabic, a mismatch ZATCA's re-signed copy doesn't have (it uses
+     * Arabic in both). Once cleared, ZATCA's copy is the authoritative
+     * document, so its QR — not the one we rendered before submitting —
+     * is what should end up on the invoice. Simplified/B2C invoices are
+     * reported, not cleared, and are delivered to the buyer before that
+     * report even happens, so there's nothing here to retroactively
+     * swap for them.
+     */
+    private function qrFromClearedInvoice(?string $clearedInvoiceBase64): ?string
+    {
+        if (! $clearedInvoiceBase64) {
+            return null;
+        }
+
+        $xml = base64_decode($clearedInvoiceBase64, true);
+
+        if (! $xml) {
+            return null;
+        }
+
+        $doc = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+
+        try {
+            if (! $doc->loadXML($xml)) {
+                return null;
+            }
+
+            $xpath = new \DOMXPath($doc);
+            $xpath->registerNamespace('cac', 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2');
+            $xpath->registerNamespace('cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
+
+            $node = $xpath->query("//cac:AdditionalDocumentReference[cbc:ID='QR']//cbc:EmbeddedDocumentBinaryObject")->item(0);
+            $tlv = $node ? trim($node->textContent) : '';
+
+            if ($tlv === '') {
+                return null;
+            }
+
+            return ZatcaQrGenerator::renderFromBase64Tlv($tlv);
+        } catch (\Throwable $e) {
+            Log::warning('ZATCA: could not extract QR from clearedInvoice — keeping the pre-submission QR.', ['error' => $e->getMessage()]);
+
+            return null;
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
     }
 }

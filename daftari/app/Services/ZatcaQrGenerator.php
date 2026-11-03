@@ -108,6 +108,28 @@ class ZatcaQrGenerator
         return base64_encode($result->getString());
     }
 
+    /**
+     * Renders a QR PNG from an already-built base64 TLV payload, rather
+     * than assembling the tags ourselves. Used when ZATCA's own clearance
+     * response hands back a re-signed invoice (its clearedInvoice) whose
+     * AdditionalDocumentReference[ID=QR] carries a payload built from
+     * ZATCA's own certificate — that payload must be rendered as-is, not
+     * rebuilt from our pre-submission components, since for a standard/
+     * B2B invoice ZATCA's clearedInvoice is the authoritative document.
+     */
+    public static function renderFromBase64Tlv(string $base64Tlv): string
+    {
+        $result = Builder::create()
+            ->data($base64Tlv)
+            ->encoding(new Encoding('UTF-8'))
+            ->errorCorrectionLevel(ErrorCorrectionLevel::Quartile)
+            ->size(400)
+            ->margin(6)
+            ->build();
+
+        return base64_encode($result->getString());
+    }
+
     public static function buildTlvPayloadPhase2(
         string $sellerName,
         string $vatNumber,
