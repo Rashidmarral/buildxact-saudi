@@ -154,8 +154,12 @@
                 @endif
                 @include('partials.nav-item', ['route' => 'app.projects.index', 'label' => __('Projects'), 'icon' => 'projects'])
                 @include('partials.nav-item', ['route' => 'app.dispatch-board.index', 'label' => __('Dispatch Board'), 'icon' => 'projects'])
-                @include('partials.nav-item', ['route' => 'app.subcontracts.index', 'label' => __('Subcontractor Payments'), 'icon' => 'team'])
-                @include('partials.nav-item', ['route' => 'app.project-manager-budgets.index', 'label' => __('Project Manager Budgets'), 'icon' => 'clipboard'])
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'subcontractor_payments'))
+                    @include('partials.nav-item', ['route' => 'app.subcontracts.index', 'label' => __('Subcontractor Payments'), 'icon' => 'team'])
+                @endif
+                @if ($navCompany && $moduleAccess->enabled($navCompany, 'project_manager_budgets'))
+                    @include('partials.nav-item', ['route' => 'app.project-manager-budgets.index', 'label' => __('Project Manager Budgets'), 'icon' => 'clipboard'])
+                @endif
 
                 @if ($navCompany && $moduleAccess->enabled($navCompany, 'payroll'))
                     @php($payrollActive = request()->routeIs('app.employees.*') || request()->routeIs('app.payroll.*') || request()->routeIs('app.leave-requests.*'))

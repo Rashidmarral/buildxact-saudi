@@ -12,6 +12,7 @@ use App\Models\CostCenter;
 use App\Models\Employee;
 use App\Models\Project;
 use App\Models\TaxRate;
+use App\Services\Features\FeatureAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -74,6 +75,8 @@ class ProjectController extends Controller
             'uninvoicedBillableTimesheets.employee', 'uninvoicedBillableCosts',
         ]);
 
+        $featureAccess = app(FeatureAccessService::class);
+
         return view('user.projects.show', [
             'project' => $project,
             'units' => \App\Models\Unit::orderBy('name')->get(),
@@ -82,6 +85,8 @@ class ProjectController extends Controller
             'warehouses' => \App\Models\Warehouse::orderBy('name')->get(),
             'machineryAssets' => \App\Models\MachineryAsset::orderBy('name')->get(),
             'remainingBoq' => $project->boqItems->filter(fn ($item) => $item->remainingToBill() > 0.01),
+            'subcontractorPaymentsEnabled' => $featureAccess->enabled($project->company, 'subcontractor_payments'),
+            'projectManagerBudgetsEnabled' => $featureAccess->enabled($project->company, 'project_manager_budgets'),
         ]);
     }
 

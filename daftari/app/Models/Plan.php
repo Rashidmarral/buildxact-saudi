@@ -18,6 +18,7 @@ class Plan extends Model
         'has_vat_return_report', 'has_cost_centers', 'has_purchase_orders', 'has_debit_notes',
         'has_roles_permissions', 'has_zatca_phase2', 'has_api', 'has_whatsapp',
         'has_payroll', 'has_pos', 'has_restaurant', 'has_repair_shop', 'has_coffee_shop', 'has_project_cash_flow', 'has_machinery_equipment', 'has_client_statements',
+        'has_subcontractor_payments', 'has_project_manager_budgets',
         'features', 'is_active', 'is_public', 'is_featured', 'sort_order',
     ];
 
@@ -52,6 +53,8 @@ class Plan extends Model
             'has_project_cash_flow' => 'boolean',
             'has_machinery_equipment' => 'boolean',
             'has_client_statements' => 'boolean',
+            'has_subcontractor_payments' => 'boolean',
+            'has_project_manager_budgets' => 'boolean',
         ];
     }
 

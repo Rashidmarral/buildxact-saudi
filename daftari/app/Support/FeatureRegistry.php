@@ -60,6 +60,20 @@ class FeatureRegistry
             'project_cash_flow' => ['label' => __('Project Cash Flow'), 'type' => 'gated', 'column' => 'has_project_cash_flow'],
             'machinery_equipment' => ['label' => __('Machinery & Equipment'), 'type' => 'gated', 'column' => 'has_machinery_equipment'],
             'client_statements' => ['label' => __('Client Account Statements'), 'type' => 'gated', 'column' => 'has_client_statements'],
+            // "please make a system so i can off these features from
+            // super admin and please verify it will not harm or disturb
+            // my ledger or accounts" — these two already ship to every
+            // company with no plan gate; turning one off only hides its
+            // nav item and blocks its own routes (see EnsureModuleEnabled
+            // and the `module:` middleware on their route groups). Every
+            // real payment under either module is a Payment Voucher
+            // posted to the GL by LedgerPostingService exactly as before
+            // (see SubcontractController's docblock) — Subcontract itself
+            // never writes a journal entry, so switching the module off
+            // cannot touch, re-post, or hide anything already in the
+            // ledger; it only blocks the dedicated tracking/report pages.
+            'subcontractor_payments' => ['label' => __('Subcontractor Payments'), 'type' => 'gated', 'column' => 'has_subcontractor_payments'],
+            'project_manager_budgets' => ['label' => __('Project Manager Budgets'), 'type' => 'gated', 'column' => 'has_project_manager_budgets'],
             // Deliberately 'planned', not 'gated' — this is a private,
             // per-company payment log (a company owner's own Kafeel/
             // sponsor payments), not a sellable module: no plan grants

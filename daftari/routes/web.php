@@ -764,7 +764,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::delete('{kafeelPayment}/attachments/{attachment}', [KafeelPaymentController::class, 'destroyAttachment'])->name('attachments.destroy');
     });
 
-    Route::middleware('permission:subcontractor_payments')->prefix('subcontracts')->name('subcontracts.')->group(function () {
+    Route::middleware(['permission:subcontractor_payments', 'module:subcontractor_payments'])->prefix('subcontracts')->name('subcontracts.')->group(function () {
         Route::get('/', [SubcontractController::class, 'index'])->name('index');
         Route::get('create', [SubcontractController::class, 'create'])->name('create');
         Route::post('/', [SubcontractController::class, 'store'])->name('store');
@@ -792,7 +792,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
     // toggle on the same page: cash advanced to an employee/project
     // manager (e.g. Shahid) can only ever be created here, never under
     // /subcontracts, and vice versa.
-    Route::middleware('permission:subcontractor_payments')->prefix('project-manager-budgets')->name('project-manager-budgets.')->group(function () {
+    Route::middleware(['permission:subcontractor_payments', 'module:project_manager_budgets'])->prefix('project-manager-budgets')->name('project-manager-budgets.')->group(function () {
         Route::get('/', [ProjectManagerBudgetController::class, 'index'])->name('index');
         Route::get('create', [ProjectManagerBudgetController::class, 'create'])->name('create');
         Route::post('/', [ProjectManagerBudgetController::class, 'store'])->name('store');

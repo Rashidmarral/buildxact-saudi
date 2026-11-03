@@ -9,6 +9,7 @@
     $marginPct = $project->marginPercent();
     $typeLabels = ['internal' => __('Internal'), 'service_tm' => __('Service / time & material'), 'construction_contract' => __('Construction contract'), 'real_estate_development' => __('Real estate development'), 'maintenance_amc' => __('Maintenance (AMC)')];
     $billingTypeLabels = ['no_billing' => __('No billing'), 'fixed_price' => __('Fixed price'), 'time_and_material' => __('Time & material'), 'milestones' => __('Milestones'), 'progress_retention' => __('Progress (with retention)'), 'recurring_amc' => __('Recurring (AMC)'), 'per_unit_sale' => __('Per-unit sale')];
+    $visibleSubcontracts = $project->subcontracts->filter(fn ($s) => $s->isEmployeeParty() ? $projectManagerBudgetsEnabled : $subcontractorPaymentsEnabled);
 @endphp
 
 @section('content')
@@ -39,7 +40,7 @@
     <button type="button" data-tab="timesheets" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Timesheets') }} ({{ $project->timesheets->count() }})</button>
     <button type="button" data-tab="materials" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Materials') }} ({{ $project->materialIssues->count() }})</button>
     <button type="button" data-tab="equipment" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Equipment') }} ({{ $project->machineryDeployments->count() }})</button>
-    <button type="button" data-tab="subcontracts" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Subcontracts') }} ({{ $project->subcontracts->count() }})</button>
+    <button type="button" data-tab="subcontracts" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Subcontracts') }} ({{ $visibleSubcontracts->count() }})</button>
     <button type="button" data-tab="change-orders" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Change Orders') }} ({{ $project->changeOrders->count() }})</button>
     <button type="button" data-tab="site-diary" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Site Diary') }} ({{ $project->siteDiaryEntries->count() }})</button>
     <button type="button" data-tab="work-orders" class="project-tab rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Work Orders') }} ({{ $project->workOrders->count() }})</button>
@@ -701,10 +702,12 @@
 <div class="project-panel hidden" data-panel="subcontracts">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <p class="text-sm text-slate-500">{{ __('Sub-vendor contracts raised against this project.') }}</p>
-        <a href="{{ route('app.subcontracts.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('New subcontract') }}</a>
+        @if ($subcontractorPaymentsEnabled)
+            <a href="{{ route('app.subcontracts.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('New subcontract') }}</a>
+        @endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100">
-        @if ($project->subcontracts->isEmpty())
+        @if ($visibleSubcontracts->isEmpty())
             <p class="px-6 py-8 text-sm text-slate-500">{{ __('No subcontracts raised against this project yet.') }}</p>
         @else
             <table class="w-full text-sm">
@@ -718,8 +721,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($project->subcontracts as $subcontract)
-                        <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.subcontracts.show', $subcontract) }}'">
+                    @foreach ($visibleSubcontracts as $subcontract)
+                        <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ $subcontract->isEmployeeParty() ? route('app.project-manager-budgets.show', $subcontract) : route('app.subcontracts.show', $subcontract) }}'">
                             <td class="px-6 py-3 font-medium text-brand-700">{{ $subcontract->contract_number }}</td>
                             <td class="px-6 py-3 text-slate-900">{{ $subcontract->partyName() ?: '—' }}</td>
                             <td class="px-6 py-3 text-slate-500">{{ $subcontract->title }}</td>
