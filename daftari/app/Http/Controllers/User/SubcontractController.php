@@ -724,9 +724,11 @@ class SubcontractController extends Controller
             'template' => Auth::user()->company->defaultTemplateFor('subcontractor_receiving_report'),
         ]);
 
+        $filenamePrefix = $subcontract->isEmployeeParty() ? 'budget-report-' : 'receiving-payments-report-';
+
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="receiving-payments-report-'.$subcontract->id.'.pdf"',
+            'Content-Disposition' => 'attachment; filename="'.$filenamePrefix.$subcontract->id.'.pdf"',
         ]);
     }
 
