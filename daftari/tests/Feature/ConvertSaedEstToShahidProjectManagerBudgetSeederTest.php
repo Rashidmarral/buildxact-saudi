@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\BankAccount;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\PaymentVoucher;
 use App\Models\Project;
 use App\Models\Subcontract;
 use App\Models\Supplier;
@@ -124,5 +126,62 @@ class ConvertSaedEstToShahidProjectManagerBudgetSeederTest extends TestCase
 
         $this->assertNotNull($busyDuplicate->fresh());
         $this->assertSame('supplier', $subcontract->fresh()->party_type, 'The conversion must not proceed while a duplicate with real payments is unresolved.');
+    }
+
+    /**
+     * "It has the same vouchers already on SAED EST (duplicate)" — the
+     * real Subcontract #2 the seeder refused on turned out to have the
+     * SAME payment vouchers linked to it as SAED EST, not genuinely
+     * separate cash. The seeder now recognizes this: a duplicate
+     * payment whose payment_voucher_id is also already linked to SAED
+     * EST is removed from the duplicate (never from SAED EST), and the
+     * conversion then proceeds as normal.
+     */
+    public function test_a_duplicate_budget_whose_payments_are_the_same_vouchers_already_on_saed_est_is_cleared_and_deleted(): void
+    {
+        [$company, $project, $supplier, $subcontract] = $this->seedRealSaedEstSubcontract();
+        $bank = BankAccount::create(['company_id' => $company->id, 'name' => 'Main Account', 'type' => 'bank', 'is_active' => true]);
+        $voucher = PaymentVoucher::create([
+            'company_id' => $company->id, 'bank_account_id' => $bank->id, 'supplier_id' => $supplier->id, 'project_id' => $project->id,
+            'voucher_number' => 'PV-DUP', 'date' => now(), 'payee_name' => 'SAED EST', 'amount' => 20000,
+            'method' => 'bank_transfer', 'status' => 'issued',
+        ]);
+        // The same real voucher is linked to SAED EST...
+        $subcontract->payments()->create(['company_id' => $company->id, 'amount' => 20000, 'paid_at' => now(), 'payment_voucher_id' => $voucher->id]);
+
+        $employee = Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-EXTRA', 'full_name' => 'Shahid', 'hire_date' => now(), 'basic_salary' => 500]);
+        $duplicateBudget = Subcontract::create([
+            'company_id' => $company->id, 'project_id' => $project->id, 'party_type' => 'employee', 'employee_id' => $employee->id,
+            'contract_value' => 373650.00, 'retention_percent' => 0, 'status' => 'active',
+        ]);
+        // ...and was also accidentally linked to the duplicate budget.
+        $duplicateBudget->payments()->create(['company_id' => $company->id, 'amount' => 20000, 'paid_at' => now(), 'payment_voucher_id' => $voucher->id]);
+
+        (new ConvertSaedEstToShahidProjectManagerBudgetSeeder)->run();
+
+        $this->assertSoftDeleted($duplicateBudget);
+        $this->assertSame(1, Subcontract::where('company_id', $company->id)->count());
+        $this->assertSame('employee', $subcontract->fresh()->party_type);
+        $this->assertSame($employee->id, $subcontract->fresh()->employee_id);
+        // The real voucher link stays exactly once, on SAED EST.
+        $this->assertEquals(161860.00 + 20000.00, $subcontract->fresh()->totalPaid());
+        $this->assertDatabaseHas('subcontract_payments', ['subcontract_id' => $subcontract->id, 'payment_voucher_id' => $voucher->id]);
+    }
+
+    public function test_a_duplicate_budget_with_a_payment_not_matching_any_saed_est_voucher_is_left_alone(): void
+    {
+        [$company, $project, $supplier, $subcontract] = $this->seedRealSaedEstSubcontract();
+        $employee = Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-EXTRA', 'full_name' => 'Shahid', 'hire_date' => now(), 'basic_salary' => 500]);
+        $duplicateBudget = Subcontract::create([
+            'company_id' => $company->id, 'project_id' => $project->id, 'party_type' => 'employee', 'employee_id' => $employee->id,
+            'contract_value' => 373650.00, 'retention_percent' => 0, 'status' => 'active',
+        ]);
+        // No payment_voucher_id at all — a genuinely separate manual payment, not a duplicate link.
+        $duplicateBudget->payments()->create(['company_id' => $company->id, 'amount' => 5000, 'paid_at' => now()]);
+
+        (new ConvertSaedEstToShahidProjectManagerBudgetSeeder)->run();
+
+        $this->assertNotNull($duplicateBudget->fresh());
+        $this->assertSame('supplier', $subcontract->fresh()->party_type);
     }
 }

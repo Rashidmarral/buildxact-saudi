@@ -38,9 +38,17 @@ use Illuminate\Database\Seeder;
  * If a separate, empty "Shahid" Project Manager Budget already exists
  * for this project (e.g. created by hand while following a walkthrough
  * before this conversion ran) — zero payments recorded on it — it's
- * deleted as a redundant empty shell. If it has any real payments on
- * it already, this seeder refuses and leaves both records alone rather
- * than guess which one is authoritative; resolve that by hand first.
+ * deleted as a redundant empty shell. If it has real payments on it,
+ * each one is checked against SAED EST's own payments: a payment whose
+ * payment_voucher_id is ALSO already linked to the real SAED EST
+ * subcontract is a confirmed duplicate (the same voucher got linked to
+ * both records while trying out the Project Manager Budgets feature)
+ * and is removed from the duplicate — never from SAED EST, where the
+ * real link stays. Once every payment on the duplicate is accounted
+ * for this way, it's deleted as an empty shell and the conversion
+ * proceeds. Any payment that does NOT match a voucher already on SAED
+ * EST is left alone and the whole conversion is refused, rather than
+ * guess it's safe to discard; resolve that by hand first.
  *
  * Run it yourself, after taking a database backup:
  *   php artisan db:seed --class="Database\\Seeders\\ConvertSaedEstToShahidProjectManagerBudgetSeeder"
@@ -105,13 +113,26 @@ class ConvertSaedEstToShahidProjectManagerBudgetSeeder extends Seeder
             ->where('id', '!=', $subcontract->id)
             ->first();
 
-        if ($duplicate) {
-            if ($duplicate->payments()->exists()) {
+        if ($duplicate && $duplicate->payments()->exists()) {
+            $saedEstVoucherIds = $subcontract->payments()->whereNotNull('payment_voucher_id')->pluck('payment_voucher_id');
+
+            $nonDuplicatePayments = $duplicate->payments()
+                ->where(function ($query) use ($saedEstVoucherIds) {
+                    $query->whereNull('payment_voucher_id')->orWhereNotIn('payment_voucher_id', $saedEstVoucherIds);
+                })
+                ->get();
+
+            if ($nonDuplicatePayments->isNotEmpty()) {
                 $this->command?->error("Subcontract #{$duplicate->id} is a separate employee-party record for Shahid on this project with real payments already on it — refusing to guess which record is authoritative. Resolve this by hand, then re-run.");
 
                 return;
             }
 
+            $this->command?->info("Removing duplicate payment vouchers from Project Manager Budget #{$duplicate->id} already linked to SAED EST.");
+            $duplicate->payments()->delete();
+        }
+
+        if ($duplicate) {
             $this->command?->info("Deleting empty duplicate Project Manager Budget #{$duplicate->id} (no payments recorded on it).");
             $duplicate->milestones()->delete();
             $duplicate->boqItems()->delete();
