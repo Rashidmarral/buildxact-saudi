@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Features\FeatureAccessService;
 use App\Support\ModulePricing;
+use App\Support\PlatformFeatureToggle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -265,6 +266,67 @@ class ModuleMarketplaceTest extends TestCase
         $staff = User::factory()->create(['role' => 'admin_staff', 'company_id' => null, 'status' => 'active']);
 
         $this->actingAs($staff)->get(route('admin.module-requests.index'))->assertForbidden();
+    }
+
+    /**
+     * "on admin side approve the request status show module install
+     * login back to dynamic in module it still says request to install
+     * module" — reproduces the real failure mode: the platform-wide
+     * master switch (Platform Settings > Features) is an absolute veto
+     * in FeatureAccessService, checked before any per-company override,
+     * so approving a company's request while the module is switched off
+     * for the whole platform leaves them exactly where they started —
+     * with nothing to explain why, before this fix.
+     */
+    public function test_approving_a_request_while_the_module_is_off_platform_wide_does_not_actually_install_it(): void
+    {
+        PlatformFeatureToggle::setEnabled('payroll', false);
+        $admin = User::factory()->create(['role' => 'super_admin', 'company_id' => null]);
+        $company = $this->makeCompany(['has_payroll' => false]);
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner)->post(route('app.modules.request', 'payroll'));
+        $moduleRequest = ModuleRequest::first();
+
+        $response = $this->withConfirmedPassword($admin)->post(route('admin.module-requests.approve', $moduleRequest));
+
+        $this->assertSame('approved', $moduleRequest->fresh()->status);
+        // The per-company override was still correctly created...
+        $this->assertDatabaseHas('company_overrides', ['company_id' => $company->id, 'type' => 'feature', 'key' => 'payroll', 'value' => '1']);
+        // ...but the platform-wide veto means the company still can't see it.
+        $this->assertFalse(app(FeatureAccessService::class)->enabled($company->fresh(), 'payroll'));
+
+        // The admin is told exactly why, instead of a plain success message.
+        $this->assertStringContainsString('switched OFF for the entire platform', $response->getSession()->get('status'));
+
+        $marketplace = $this->actingAs($owner)->get(route('app.modules.index'));
+        $marketplace->assertSee(__('Request to install'));
+    }
+
+    public function test_the_admin_queue_flags_a_module_thats_switched_off_platform_wide(): void
+    {
+        PlatformFeatureToggle::setEnabled('payroll', false);
+        $admin = User::factory()->create(['role' => 'super_admin', 'company_id' => null]);
+        $company = $this->makeCompany(['has_payroll' => false]);
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner)->post(route('app.modules.request', 'payroll'));
+
+        $response = $this->withConfirmedPassword($admin)->get(route('admin.module-requests.index'));
+
+        $response->assertOk();
+        $response->assertSee(__('Platform: OFF'));
+    }
+
+    public function test_the_admin_queue_does_not_flag_a_module_thats_on_platform_wide(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin', 'company_id' => null]);
+        $company = $this->makeCompany(['has_pos' => false]);
+        $owner = $this->makeOwner($company);
+        $this->actingAs($owner)->post(route('app.modules.request', 'pos'));
+
+        $response = $this->withConfirmedPassword($admin)->get(route('admin.module-requests.index'));
+
+        $response->assertOk();
+        $response->assertDontSee(__('Platform: OFF'));
     }
 
     // ------------------------------------------------------------------

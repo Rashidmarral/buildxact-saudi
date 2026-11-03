@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CompanyOverride;
 use App\Models\ModuleRequest;
+use App\Support\PlatformFeatureToggle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,6 +17,16 @@ use Illuminate\Support\Facades\Auth;
  * front door onto the CompanyOverride mechanism the Companies screen's
  * feature-override list already exposes directly — this doesn't add a
  * second way for a module to become enabled, only a guided one.
+ *
+ * "on admin side approve the request status show module install login
+ * back to dynamic in module it still says request to install module" —
+ * approving only ever sets the per-company override; FeatureAccessService
+ * checks the platform-wide master switch (Platform Settings > Features)
+ * FIRST and treats it as an absolute veto, so a module switched off for
+ * the whole platform stays invisible to a company no matter how many of
+ * its requests get approved, with nothing on this screen (before this
+ * fix) hinting why. Both index() and approve() now surface that switch's
+ * current state so an admin isn't left guessing.
  */
 class ModuleRequestController extends Controller
 {
@@ -31,7 +42,12 @@ class ModuleRequestController extends Controller
             ->paginate($this->resolvePerPage($request, 25))
             ->withQueryString();
 
-        return view('admin.module-requests.index', compact('requests', 'status'));
+        $platformDisabledKeys = collect($requests->items())
+            ->pluck('module_key')->unique()
+            ->reject(fn ($key) => PlatformFeatureToggle::isEnabled($key))
+            ->all();
+
+        return view('admin.module-requests.index', compact('requests', 'status', 'platformDisabledKeys'));
     }
 
     public function approve(ModuleRequest $moduleRequest)
@@ -59,6 +75,13 @@ class ModuleRequestController extends Controller
         AuditLog::record('company.override.set', $moduleRequest->company, __('Set :type override for :key on :name', [
             'type' => 'feature', 'key' => $moduleRequest->module_key, 'name' => $moduleRequest->company->name,
         ]), old: null, new: $override->only(['value', 'is_unlimited', 'reason']));
+
+        if (! PlatformFeatureToggle::isEnabled($moduleRequest->module_key)) {
+            return back()->with('status', __(
+                ':company is now approved for :module, but :module is currently switched OFF for the entire platform (Platform Settings > Features) — :company still won\'t see it until you also turn that on.',
+                ['company' => $moduleRequest->company->name, 'module' => $moduleRequest->moduleLabel()]
+            ));
+        }
 
         return back()->with('status', __('Module installed for :company.', ['company' => $moduleRequest->company->name]));
     }

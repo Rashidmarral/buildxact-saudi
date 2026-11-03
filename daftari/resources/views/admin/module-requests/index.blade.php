@@ -44,7 +44,14 @@
                         <td class="px-6 py-3 font-medium text-slate-800">
                             <a href="{{ route('admin.companies.show', $moduleRequest->company) }}" class="hover:underline">{{ $moduleRequest->company->name }}</a>
                         </td>
-                        <td class="px-6 py-3 text-slate-600">{{ $moduleRequest->moduleLabel() }}</td>
+                        <td class="px-6 py-3 text-slate-600">
+                            {{ $moduleRequest->moduleLabel() }}
+                            @if (in_array($moduleRequest->module_key, $platformDisabledKeys, true))
+                                <span class="ms-1 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700" title="{{ __('This module is switched off for the whole platform — approving a company\'s request won\'t make it visible to them until you also turn it on from Platform Settings > Features.') }}">
+                                    {{ __('Platform: OFF') }}
+                                </span>
+                            @endif
+                        </td>
                         <td class="px-6 py-3 text-slate-500">{{ $moduleRequest->requester->name ?? '—' }}</td>
                         <td class="px-6 py-3 text-slate-500 max-w-xs truncate">{{ $moduleRequest->note ?: '—' }}</td>
                         <td class="px-6 py-3">
