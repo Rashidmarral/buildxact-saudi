@@ -575,47 +575,10 @@ class SubcontractController extends Controller
         return back()->with('status', __('Payment updated.'));
     }
 
-    /**
-     * Splits $netAmount across $subcontract's milestones in sequence
-     * order, filling each one's remaining balance before spilling into
-     * the next, and creates one SubcontractPayment row per milestone it
-     * touches. The real cash figure ($grossAmount, when different from
-     * the net total) is recorded on only the first row so
-     * Subcontract::totalReceivedGross() never double-counts it. Any
-     * amount left over once every milestone is fully funded (no
-     * milestones defined, or an overpayment) lands in a final
-     * milestone_id=null row rather than being silently dropped.
-     */
+    /** Thin wrapper kept so existing call sites below read the same as before — see Subcontract::applyPaymentAcrossMilestones() for the actual waterfall logic, now shared with one-off seeders. */
     private function createAllocatedPayments(Subcontract $subcontract, float $netAmount, array $common, ?float $grossAmount): void
     {
-        $remaining = round($netAmount, 2);
-        $rows = [];
-
-        foreach ($subcontract->milestones as $milestone) {
-            if ($remaining <= 0.004) {
-                break;
-            }
-
-            $milestoneRemaining = $milestone->balance();
-            if ($milestoneRemaining <= 0.004) {
-                continue;
-            }
-
-            $apply = round(min($remaining, $milestoneRemaining), 2);
-            $rows[] = ['milestone_id' => $milestone->id, 'amount' => $apply];
-            $remaining = round($remaining - $apply, 2);
-        }
-
-        if ($remaining > 0.004) {
-            $rows[] = ['milestone_id' => null, 'amount' => $remaining];
-        }
-
-        foreach ($rows as $i => $row) {
-            $subcontract->payments()->create([
-                ...$common, ...$row,
-                'gross_amount' => $i === 0 ? $grossAmount : 0,
-            ]);
-        }
+        $subcontract->applyPaymentAcrossMilestones($netAmount, $common, $grossAmount);
     }
 
     public function destroyPayment(Subcontract $subcontract, SubcontractPayment $payment)

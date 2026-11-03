@@ -145,4 +145,53 @@ class Subcontract extends Model
 
         return round(min(100, ($this->totalPaid() / (float) $this->contract_value) * 100), 1);
     }
+
+    /**
+     * Splits $netAmount across this contract's milestones in sequence
+     * order, filling each one's remaining balance before spilling into
+     * the next, and creates one SubcontractPayment row per milestone it
+     * touches. The real cash figure ($grossAmount, when different from
+     * the net total) is recorded on only the first row so
+     * totalReceivedGross() never double-counts it. Any amount left over
+     * once every milestone is fully funded (no milestones defined, or an
+     * overpayment) lands in a final milestone_id=null row rather than
+     * being silently dropped.
+     *
+     * Shared by the controller (manual "Add a payment" entries, and
+     * voucher auto-fill) and by one-off production seeders recording a
+     * real, non-cash credit against the contract — e.g. material bought
+     * directly and supplied to a subcontractor — the exact same way a
+     * cash payment is applied, since both reduce what's actually owed.
+     */
+    public function applyPaymentAcrossMilestones(float $netAmount, array $attributes, ?float $grossAmount = null): void
+    {
+        $remaining = round($netAmount, 2);
+        $rows = [];
+
+        foreach ($this->milestones as $milestone) {
+            if ($remaining <= 0.004) {
+                break;
+            }
+
+            $milestoneRemaining = $milestone->balance();
+            if ($milestoneRemaining <= 0.004) {
+                continue;
+            }
+
+            $apply = round(min($remaining, $milestoneRemaining), 2);
+            $rows[] = ['milestone_id' => $milestone->id, 'amount' => $apply];
+            $remaining = round($remaining - $apply, 2);
+        }
+
+        if ($remaining > 0.004) {
+            $rows[] = ['milestone_id' => null, 'amount' => $remaining];
+        }
+
+        foreach ($rows as $i => $row) {
+            $this->payments()->create([
+                'company_id' => $this->company_id, ...$attributes, ...$row,
+                'gross_amount' => $i === 0 ? $grossAmount : 0,
+            ]);
+        }
+    }
 }
