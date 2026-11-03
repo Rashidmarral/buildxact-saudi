@@ -64,7 +64,12 @@ class ProjectManagerBudgetTest extends TestCase
         $this->assertSame('Shahid', $subcontract->partyName());
         $this->assertTrue($subcontract->isEmployeeParty());
         $this->assertCount(3, $subcontract->boqItems);
-        $this->assertCount(0, $subcontract->milestones, 'A project manager budget has no contractual milestone schedule — unlike a Subcontract, creating one must not fall back to the default 5-stage milestone schedule.');
+        // "do you now want a 5% retention and a milestone-style schedule
+        // to appear for the Project Manager Budget too... Yes" — a
+        // Project Manager Budget now gets the exact same default
+        // 5-stage milestone schedule as a Subcontract when none is
+        // explicitly given.
+        $this->assertCount(5, $subcontract->milestones);
     }
 
     public function test_a_posted_supplier_party_type_is_ignored_and_forced_to_employee(): void
@@ -187,13 +192,18 @@ class ProjectManagerBudgetTest extends TestCase
         $this->actingAs($owner)->get(route('app.project-manager-budgets.show', $subcontract))->assertOk()->assertSee('Shahid')->assertSee('Sub base');
     }
 
-    public function test_updating_a_budget_does_not_touch_milestones_even_if_some_already_exist(): void
+    /**
+     * "do you now want a 5% retention and a milestone-style schedule to
+     * appear for the Project Manager Budget too... Yes" — the Project
+     * Manager Budgets form now has its own milestone editor (same as
+     * Subcontracts), which always round-trips the budget's current
+     * schedule back on every save. Submitting that same one-milestone
+     * schedule back must preserve it in place (matched by sequence),
+     * not silently expand it to the 5-stage default the way an empty
+     * submission would.
+     */
+    public function test_updating_a_budget_preserves_its_milestone_schedule_when_resubmitted(): void
     {
-        // Simulates Shahid's real existing subcontract record, which
-        // already has a default 5-stage milestone schedule from before
-        // this module existed — editing it through the Project Manager
-        // Budgets form (no milestone editor) must leave that schedule
-        // (and any payments already assigned to it) untouched.
         [$company, $owner] = $this->makeOwner();
         $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
         $employee = Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-00001', 'full_name' => 'Shahid', 'hire_date' => now(), 'basic_salary' => 6000]);
@@ -201,13 +211,17 @@ class ProjectManagerBudgetTest extends TestCase
             'company_id' => $company->id, 'project_id' => $project->id, 'party_type' => 'employee', 'employee_id' => $employee->id,
             'contract_value' => 373650, 'retention_percent' => 0, 'status' => 'active',
         ]);
-        $subcontract->milestones()->create(['sequence' => 1, 'name' => 'Advance', 'percentage' => 20, 'amount' => 74730]);
+        $subcontract->milestones()->create(['sequence' => 1, 'name' => 'Advance', 'percentage' => 100, 'amount' => 373650]);
 
         $this->actingAs($owner)->put(route('app.project-manager-budgets.update', $subcontract), [
             'project_id' => $project->id, 'employee_id' => $employee->id,
-            'contract_value' => 373650, 'status' => 'active',
+            'contract_value' => 373650, 'retention_percent' => 5, 'status' => 'active',
+            'milestones' => [['name' => 'Advance', 'percentage' => 100, 'requires_handover_approval' => false]],
         ]);
 
-        $this->assertCount(1, $subcontract->milestones()->get(), 'Updating via the Project Manager Budgets form must not delete or reset existing milestones.');
+        $milestones = $subcontract->milestones()->get();
+        $this->assertCount(1, $milestones, 'Resubmitting the same single-milestone schedule must not expand it to the 5-stage default.');
+        $this->assertSame('Advance', $milestones->first()->name);
+        $this->assertSame(5.0, (float) $subcontract->fresh()->retention_percent);
     }
 }

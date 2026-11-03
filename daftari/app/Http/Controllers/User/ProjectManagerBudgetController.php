@@ -22,14 +22,18 @@ namespace App\Http\Controllers\User;
  * Supplier, and the Subcontracts module can never be created against
  * an Employee.
  *
- * No milestone schedule here (an internal cash advance has no
- * contractual handover/retention schedule the way an external
- * subcontract does) — the budget's "detail wise" breakdown is the BOQ
- * items (what the total budget is made of, e.g. Shahid's existing
- * Sub Base/Base Course/Asphalt lines) and the report categories
- * (what's actually been spent against, e.g. the existing 146 m² ×
- * 500 = 73,000 Sub Base and 646.70 ton × 166 = 107,352.20 Asphalt
- * entries) — both already built for Subcontracts and reused as-is.
+ * "do you now want a 5% retention and a milestone-style schedule to
+ * appear for the Project Manager Budget too... Yes — add 5% retention
+ * and a milestone schedule to PM budgets" — an explicit reversal of
+ * this module's original "no retention % or milestone schedule, since
+ * those are contractual concepts that don't apply to cash given to
+ * your own staff" decision: a Project Manager Budget now gets the
+ * exact same milestone/retention machinery a Subcontract gives a
+ * Supplier (syncsMilestones() is no longer overridden, so it inherits
+ * the parent's `true`), alongside the budget's own "detail wise"
+ * breakdown — the BOQ items (what the total budget is made of) and
+ * the report categories (what's actually been spent against) — both
+ * already built for Subcontracts and reused as-is.
  */
 class ProjectManagerBudgetController extends SubcontractController
 {
@@ -46,10 +50,5 @@ class ProjectManagerBudgetController extends SubcontractController
     protected function viewName(string $view): string
     {
         return 'user.project-manager-budgets.'.$view;
-    }
-
-    protected function syncsMilestones(): bool
-    {
-        return false;
     }
 }

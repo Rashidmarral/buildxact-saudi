@@ -96,62 +96,62 @@
     </table>
 @endif
 
-@if ($isPm)
-    @if ($subcontract->works->isNotEmpty())
-        {{--
-            "milestone and 5% retention not coming in pdf" — a Project
-            Manager Budget has no milestone schedule or retention (cash
-            given to your own staff isn't a contractual handover-gated
-            schedule); its equivalent breakdown, when the budget tracks
-            more than one piece of work, is the Works list below.
-        --}}
-        @include('documents.print.partials.report.section-title', ['en' => __('WORKS / SUB-PROJECTS'), 'ar' => 'الأعمال / المشاريع الفرعية'])
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>{{ __('Work') }}</th>
-                    <th class="num">{{ __('Budget') }}</th>
-                    <th class="num">{{ __('Paid') }}</th>
-                    <th class="num">{{ __('Balance') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($subcontract->works as $work)
-                    <tr>
-                        <td>{{ $work->name }}</td>
-                        <td class="num">{{ $work->budget_amount !== null ? number_format((float) $work->budget_amount, 2) : '—' }}</td>
-                        <td class="num">{{ number_format($work->paidAmount(), 2) }}</td>
-                        <td class="num">{{ $work->balance() !== null ? number_format($work->balance(), 2) : '—' }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    @endif
-@else
-    @include('documents.print.partials.report.section-title', ['en' => __('PAYMENT SCHEDULE'), 'ar' => 'جدول الدفعات'])
+{{--
+    "do you now want a 5% retention and a milestone-style schedule to
+    appear for the Project Manager Budget too... Yes" — a Project
+    Manager Budget now gets the exact same milestone payment schedule
+    as a Subcontract, shown unconditionally below (not gated on
+    $isPm); the Works/Sub-projects list is an additional, PM-specific
+    breakdown shown alongside it whenever the budget tracks more than
+    one piece of work.
+--}}
+@include('documents.print.partials.report.section-title', ['en' => __('PAYMENT SCHEDULE'), 'ar' => 'جدول الدفعات'])
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>{{ __('Milestone') }}</th>
+            <th class="num">{{ __('%') }}</th>
+            <th class="num">{{ __('Amount') }}</th>
+            <th class="num">{{ __('Received') }}</th>
+            <th class="num">{{ __('Balance') }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($subcontract->milestones as $milestone)
+            <tr>
+                <td>
+                    {{ $milestone->name }}
+                    @if ($milestone->requires_handover_approval)
+                        <span style="font-size: 9px; color: #94a3b8;">({{ $milestone->approved_at ? __('approved') : __('pending handover approval') }})</span>
+                    @endif
+                </td>
+                <td class="num">{{ number_format((float) $milestone->percentage, 2) }}%</td>
+                <td class="num">{{ number_format((float) $milestone->amount, 2) }}</td>
+                <td class="num">{{ number_format($milestone->paidAmount(), 2) }}</td>
+                <td class="num">{{ number_format($milestone->balance(), 2) }}</td>
+            </tr>
+        @endforeach
+    </tbody>
+</table>
+
+@if ($subcontract->works->isNotEmpty())
+    @include('documents.print.partials.report.section-title', ['en' => __('WORKS / SUB-PROJECTS'), 'ar' => 'الأعمال / المشاريع الفرعية'])
     <table class="data-table">
         <thead>
             <tr>
-                <th>{{ __('Milestone') }}</th>
-                <th class="num">{{ __('%') }}</th>
-                <th class="num">{{ __('Amount') }}</th>
-                <th class="num">{{ __('Received') }}</th>
+                <th>{{ __('Work') }}</th>
+                <th class="num">{{ __('Budget') }}</th>
+                <th class="num">{{ __('Paid') }}</th>
                 <th class="num">{{ __('Balance') }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($subcontract->milestones as $milestone)
+            @foreach ($subcontract->works as $work)
                 <tr>
-                    <td>
-                        {{ $milestone->name }}
-                        @if ($milestone->requires_handover_approval)
-                            <span style="font-size: 9px; color: #94a3b8;">({{ $milestone->approved_at ? __('approved') : __('pending handover approval') }})</span>
-                        @endif
-                    </td>
-                    <td class="num">{{ number_format((float) $milestone->percentage, 2) }}%</td>
-                    <td class="num">{{ number_format((float) $milestone->amount, 2) }}</td>
-                    <td class="num">{{ number_format($milestone->paidAmount(), 2) }}</td>
-                    <td class="num">{{ number_format($milestone->balance(), 2) }}</td>
+                    <td>{{ $work->name }}</td>
+                    <td class="num">{{ $work->budget_amount !== null ? number_format((float) $work->budget_amount, 2) : '—' }}</td>
+                    <td class="num">{{ number_format($work->paidAmount(), 2) }}</td>
+                    <td class="num">{{ $work->balance() !== null ? number_format($work->balance(), 2) : '—' }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -245,7 +245,7 @@
         <thead>
             <tr>
                 <th>{{ __('Date') }}</th>
-                <th>{{ $isPm ? __('Work') : __('Milestone') }}</th>
+                <th>{{ __('Milestone') }}</th>
                 <th>{{ __('Reference') }}</th>
                 <th class="num">{{ __('Applied (net)') }}</th>
                 <th class="num">{{ __('Cash (incl. VAT)') }}</th>
@@ -255,7 +255,7 @@
             @forelse ($subcontract->payments->sortBy('paid_at') as $payment)
                 <tr>
                     <td>{{ $payment->paid_at->format('Y-m-d') }}</td>
-                    <td>{{ ($isPm ? $payment->work->name ?? null : $payment->milestone->name ?? null) ?? __('Unassigned') }}</td>
+                    <td>{{ $payment->milestone->name ?? __('Unassigned') }}</td>
                     <td>{{ $payment->reference ?: ($payment->paymentVoucher->voucher_number ?? '—') }}</td>
                     <td class="num">{{ number_format((float) $payment->amount, 2) }}</td>
                     <td class="num">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
@@ -287,42 +287,32 @@
             <div class="v v-neutral">{{ number_format($totalGross, 2) }}</div>
         </td>
         <td style="width: 25%;">
-            <div class="k">{{ $isPm ? __('Balance remaining') : __('Balance before retention') }}</div>
+            <div class="k">{{ __('Balance before retention') }}</div>
             <div class="v v-neutral">{{ number_format($balanceBeforeRetention, 2) }}</div>
         </td>
     </tr>
 </table>
 
-@if ($isPm)
-    {{--
-        "milestone and 5% retention not coming in pdf" — correct: a
-        Project Manager Budget's retention_percent is always 0 (cash
-        advanced to your own staff isn't a contractual retention
-        arrangement), so balanceAfterRetention() always equals
-        balanceBeforeRetention() here — one plain balance line, no
-        retention banner that would just show "0.00" withheld.
-    --}}
-    @include('documents.print.partials.report.closing-banner', [
-        'labelEn' => __('Balance remaining'),
-        'labelAr' => 'الرصيد المتبقي',
-        'value' => number_format($balanceAfterRetention, 2),
-        'variant' => $balanceAfterRetention > 0 ? 'warn' : 'good',
-    ])
-@else
-    @include('documents.print.partials.report.closing-banner', [
-        'labelEn' => __('Retention withheld (:pct% of contract value)', ['pct' => number_format((float) $subcontract->retention_percent, 2)]),
-        'labelAr' => 'الدفعة المحتجزة',
-        'value' => number_format($retentionAmount, 2),
-        'variant' => 'warn',
-    ])
+{{--
+    "do you now want a 5% retention and a milestone-style schedule to
+    appear for the Project Manager Budget too... Yes" — both retention
+    banners now render unconditionally; a Project Manager Budget's own
+    retention_percent (set on its own form, same as a Subcontract's)
+    drives these exactly the same way.
+--}}
+@include('documents.print.partials.report.closing-banner', [
+    'labelEn' => __('Retention withheld (:pct% of contract value)', ['pct' => number_format((float) $subcontract->retention_percent, 2)]),
+    'labelAr' => 'الدفعة المحتجزة',
+    'value' => number_format($retentionAmount, 2),
+    'variant' => 'warn',
+])
 
-    @include('documents.print.partials.report.closing-banner', [
-        'labelEn' => __('Balance payable now after retention'),
-        'labelAr' => 'المتبقي المستحق الدفع بعد خصم الدفعة المحتجزة',
-        'value' => number_format($balanceAfterRetention, 2),
-        'variant' => $balanceAfterRetention > 0 ? 'warn' : 'good',
-    ])
-@endif
+@include('documents.print.partials.report.closing-banner', [
+    'labelEn' => __('Balance payable now after retention'),
+    'labelAr' => 'المتبقي المستحق الدفع بعد خصم الدفعة المحتجزة',
+    'value' => number_format($balanceAfterRetention, 2),
+    'variant' => $balanceAfterRetention > 0 ? 'warn' : 'good',
+])
 
 <table class="sign-table">
     <tr>
@@ -342,7 +332,7 @@
 </table>
 <p style="font-size: 9px; color: #94a3b8; margin-top: 10px;">
     @if ($isPm)
-        {{ __('By signing above, the project manager acknowledges having received a total of :total in cash to date, :net of which is applied against this budget, and agrees the remaining balance is :balance.', [
+        {{ __('By signing above, the project manager acknowledges having received a total of :total in cash to date, :net of which is applied against this budget, and agrees the remaining balance due is :balance (before release of the retention held per the terms above).', [
             'total' => number_format($totalGross, 2),
             'net' => number_format($totalPaid, 2),
             'balance' => number_format($balanceBeforeRetention, 2),

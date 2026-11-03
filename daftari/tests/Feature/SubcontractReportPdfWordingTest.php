@@ -13,18 +13,21 @@ use Tests\TestCase;
 
 /**
  * "you have copy the subcontractor pdf details please update it to
- * project manager milestone and 5% retention not coming in pdf as
- * well" — the printed PDF (receiving-report.blade.php) is shared by
- * both Subcontractor Payments and Project Manager Budgets (same
- * Subcontract model, party_type='supplier' vs 'employee'), but was
- * hardcoded with subcontractor-only wording and an always-rendered
- * milestone/retention schedule — printing "Subcontractor", a milestone
- * table that's always empty for a Project Manager Budget (it never
- * syncs milestones), and a retention banner that's always 0% (PM
- * budgets force retention_percent to 0). These tests render the blade
- * view directly (not through mPDF, whose binary output isn't reliably
- * text-searchable) to pin the exact wording each party_type must and
- * must not show.
+ * project manager" — the printed PDF (receiving-report.blade.php) is
+ * shared by both Subcontractor Payments and Project Manager Budgets
+ * (same Subcontract model, party_type='supplier' vs 'employee'), but
+ * was hardcoded with subcontractor-only wording ("Subcontractor",
+ * "Receiving Payments Report", "Total contract value") regardless of
+ * which module rendered it. Fixed to branch wording on party_type.
+ *
+ * Milestones and retention themselves are NOT suppressed for a
+ * Project Manager Budget — "do you now want a 5% retention and a
+ * milestone-style schedule to appear for the Project Manager Budget
+ * too... Yes" reversed this module's original "no retention %" design
+ * — both now render identically to a Subcontract's, just with PM
+ * wording. These tests render the blade view directly (not through
+ * mPDF, whose binary output isn't reliably text-searchable) to pin
+ * the exact wording each party_type shows.
  */
 class SubcontractReportPdfWordingTest extends TestCase
 {
@@ -70,15 +73,16 @@ class SubcontractReportPdfWordingTest extends TestCase
         $this->assertStringNotContainsString('Project manager signature', $html);
     }
 
-    public function test_a_project_manager_budget_pdf_uses_budget_wording_with_no_milestone_or_retention_section(): void
+    public function test_a_project_manager_budget_pdf_uses_budget_wording_but_still_shows_its_milestone_and_retention_sections(): void
     {
         [$company, $owner] = $this->makeOwner();
         $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ-1', 'name' => 'Jumum Yard Project', 'status' => 'active']);
         $employee = Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-00001', 'full_name' => 'Shahid', 'hire_date' => now(), 'basic_salary' => 6000]);
         $budget = Subcontract::create([
             'company_id' => $company->id, 'project_id' => $project->id, 'party_type' => 'employee', 'employee_id' => $employee->id,
-            'contract_value' => 373650, 'retention_percent' => 0, 'status' => 'active',
+            'contract_value' => 373650, 'retention_percent' => 5, 'status' => 'active',
         ]);
+        $budget->milestones()->create(['sequence' => 1, 'name' => 'Advance', 'percentage' => 20, 'amount' => 74730]);
 
         $html = $this->renderPdfView($company, $budget);
 
@@ -86,9 +90,8 @@ class SubcontractReportPdfWordingTest extends TestCase
         $this->assertStringContainsString('Project manager', $html);
         $this->assertStringContainsString('Project manager signature', $html);
         $this->assertStringContainsString('Total budget', $html);
-        $this->assertStringContainsString('Balance remaining', $html);
-        $this->assertStringNotContainsString('PAYMENT SCHEDULE', $html);
-        $this->assertStringNotContainsString('Retention withheld', $html);
+        $this->assertStringContainsString('PAYMENT SCHEDULE', $html);
+        $this->assertStringContainsString('Retention withheld', $html);
         $this->assertStringNotContainsString('Subcontractor', $html);
     }
 

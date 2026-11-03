@@ -6,7 +6,9 @@
 @php
     $totalPaid = $subcontract->totalPaid();
     $totalGross = $subcontract->totalReceivedGross();
-    $balance = $subcontract->balanceBeforeRetention();
+    $balanceBeforeRetention = $subcontract->balanceBeforeRetention();
+    $retentionAmount = $subcontract->retentionAmount();
+    $balanceAfterRetention = $subcontract->balanceAfterRetention();
 @endphp
 
 <div class="flex items-start justify-between mb-6">
@@ -24,7 +26,7 @@
     <div class="mb-4 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">{{ session('status') }}</div>
 @endif
 
-<div class="grid sm:grid-cols-3 gap-4 mb-6">
+<div class="grid sm:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs font-semibold uppercase text-slate-500">{{ __('Total budget') }}</p>
         <p class="text-xl font-semibold text-slate-900 mt-1">{{ number_format((float) $subcontract->contract_value, 2) }}</p>
@@ -37,8 +39,12 @@
         @endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
-        <p class="text-xs font-semibold uppercase text-slate-500">{{ __('Balance remaining') }}</p>
-        <p class="text-xl font-semibold {{ $balance > 0 ? 'text-amber-600' : 'text-slate-900' }} mt-1">{{ number_format($balance, 2) }}</p>
+        <p class="text-xs font-semibold uppercase text-slate-500">{{ __('Retention held') }} ({{ number_format((float) $subcontract->retention_percent, 2) }}%)</p>
+        <p class="text-xl font-semibold text-amber-600 mt-1">{{ number_format($retentionAmount, 2) }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <p class="text-xs font-semibold uppercase text-slate-500">{{ __('Balance after retention') }}</p>
+        <p class="text-xl font-semibold {{ $balanceAfterRetention > 0 ? 'text-amber-600' : 'text-slate-900' }} mt-1">{{ number_format($balanceAfterRetention, 2) }}</p>
     </div>
 </div>
 
@@ -68,6 +74,38 @@
     </div>
 @endif
 
+<div class="bg-white rounded-xl border border-slate-100 mb-6">
+    <div class="px-5 py-3 border-b border-slate-100"><h3 class="text-sm font-semibold text-slate-900">{{ __('Milestone schedule') }}</h3></div>
+    <table class="w-full text-sm">
+        <thead><tr class="text-left text-slate-500 border-b border-slate-100">
+            <th class="px-5 py-2.5 font-medium">{{ __('Milestone') }}</th>
+            <th class="px-5 py-2.5 font-medium text-end">{{ __('%') }}</th>
+            <th class="px-5 py-2.5 font-medium text-end">{{ __('Amount') }}</th>
+            <th class="px-5 py-2.5 font-medium text-end">{{ __('Received') }}</th>
+            <th class="px-5 py-2.5 font-medium text-end">{{ __('Balance') }}</th>
+            <th class="px-5 py-2.5 font-medium">{{ __('Status') }}</th>
+        </tr></thead>
+        <tbody>
+            @foreach ($subcontract->milestones as $milestone)
+                <tr class="border-b border-slate-50 last:border-0">
+                    <td class="px-5 py-2.5">{{ $milestone->name }}</td>
+                    <td class="px-5 py-2.5 text-end">{{ number_format((float) $milestone->percentage, 2) }}%</td>
+                    <td class="px-5 py-2.5 text-end">{{ number_format((float) $milestone->amount, 2) }}</td>
+                    <td class="px-5 py-2.5 text-end text-teal-700">{{ number_format($milestone->paidAmount(), 2) }}</td>
+                    <td class="px-5 py-2.5 text-end font-medium">{{ number_format($milestone->balance(), 2) }}</td>
+                    <td class="px-5 py-2.5">
+                        @if ($milestone->requires_handover_approval)
+                            <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $milestone->approved_at ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700' }}">
+                                {{ $milestone->approved_at ? __('Approved') : __('Awaiting handover approval') }}
+                            </span>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+
 <div class="bg-white rounded-xl border border-slate-100 mb-6" x-data="{ selected: [], allIds: {{ Illuminate\Support\Js::from($subcontract->payments->pluck('id')->map('strval')) }} }">
     <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
         <h3 class="text-sm font-semibold text-slate-900">{{ __('Payments') }}</h3>
@@ -85,6 +123,7 @@
                 <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" :checked="selected.length && selected.length === allIds.length" @change="selected = $event.target.checked ? [...allIds] : []">
             </th>
             <th class="px-5 py-2.5 font-medium">{{ __('Date') }}</th>
+            <th class="px-5 py-2.5 font-medium">{{ __('Milestone') }}</th>
             @if ($subcontract->works->isNotEmpty())
                 <th class="px-5 py-2.5 font-medium">{{ __('Work') }}</th>
             @endif
@@ -98,6 +137,7 @@
                 <tr class="border-b border-slate-50 last:border-0" :class="selected.includes('{{ $payment->id }}') ? 'bg-brand-50/40' : ''">
                     <td class="px-5 py-2.5"><input type="checkbox" value="{{ $payment->id }}" x-model="selected" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500"></td>
                     <td class="px-5 py-2.5">{{ $payment->paid_at->format('Y-m-d') }}</td>
+                    <td class="px-5 py-2.5">{{ $payment->milestone->name ?? __('Unassigned') }}</td>
                     @if ($subcontract->works->isNotEmpty())
                         <td class="px-5 py-2.5">
                             <form method="POST" action="{{ route('app.project-manager-budgets.payments.update', [$subcontract, $payment]) }}">
@@ -129,7 +169,7 @@
                     <td class="px-5 py-2.5 text-end text-slate-500">{{ $payment->gross_amount !== null && abs((float) $payment->gross_amount - (float) $payment->amount) > 0.004 ? number_format((float) $payment->gross_amount, 2) : '—' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="px-5 py-8 text-center text-slate-400">{{ __('No payments recorded yet.') }}</td></tr>
+                <tr><td colspan="8" class="px-5 py-8 text-center text-slate-400">{{ __('No payments recorded yet.') }}</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -314,6 +354,10 @@ function categoryBreakdownForm(initialRows) {
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <input type="number" step="0.01" min="0.01" name="net_amount" :disabled="selected.length !== 1" :class="selected.length !== 1 ? 'opacity-50' : ''" placeholder="{{ __('Amount to apply, if different (ex. VAT) — only with one selected') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                    <select name="milestone_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                        <option value="">{{ __('Auto-fill milestones in order') }}</option>
+                        @foreach ($subcontract->milestones as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach
+                    </select>
                     @if ($subcontract->works->isNotEmpty())
                         <select name="work_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
                             <option value="">{{ __('No specific work') }}</option>
@@ -326,7 +370,7 @@ function categoryBreakdownForm(initialRows) {
                 </div>
             </form>
         @endif
-        <p class="text-xs text-slate-400 mt-3">{{ __('Leave the applied amount blank to apply the full voucher amount — it only applies when exactly one voucher is selected. The voucher must be paid to this same employee (party_type = Employee) — create it from Cash & Banks > Payment Vouchers if it doesn\'t exist yet.') }}</p>
+        <p class="text-xs text-slate-400 mt-3">{{ __('Leave the applied amount blank to apply the full voucher amount — it only applies when exactly one voucher is selected. Leave milestone blank to fill whichever milestone is next due, spilling any remainder into the one after it. The voucher must be paid to this same employee (party_type = Employee) — create it from Cash & Banks > Payment Vouchers if it doesn\'t exist yet.') }}</p>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -337,6 +381,10 @@ function categoryBreakdownForm(initialRows) {
             <input type="date" name="paid_at" required value="{{ now()->toDateString() }}" class="rounded-lg border border-slate-200 text-sm">
             <input type="number" step="0.01" min="0.01" name="amount" required placeholder="{{ __('Amount to apply (ex. VAT)') }}" class="rounded-lg border border-slate-200 text-sm">
             <input type="number" step="0.01" min="0.01" name="gross_amount" placeholder="{{ __('Cash given, if different (incl. VAT)') }}" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+            <select name="milestone_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
+                <option value="">{{ __('Auto-fill milestones in order') }}</option>
+                @foreach ($subcontract->milestones as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach
+            </select>
             @if ($subcontract->works->isNotEmpty())
                 <select name="work_id" class="col-span-2 rounded-lg border border-slate-200 text-sm">
                     <option value="">{{ __('No specific work') }}</option>
