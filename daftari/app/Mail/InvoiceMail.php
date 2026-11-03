@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesTenantMailConfig;
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
 
 class InvoiceMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, AppliesTenantMailConfig;
 
     public int $tries = 4;
 
@@ -38,6 +39,7 @@ class InvoiceMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         $company = $this->invoice->company;
+        $this->applyTenantMailConfig($company);
 
         return new Envelope(
             from: new Address(config('mail.from.address'), $company->name),

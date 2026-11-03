@@ -213,7 +213,7 @@ Route::get('/files/{filepath}', [FileServeController::class, 'show'])->where('fi
 
 Route::get('/pay/invoices/{id}/{token}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
 Route::get('/pay/invoices/{id}/{token}/pdf', [PublicInvoiceController::class, 'downloadPdf'])->middleware('throttle:public-pdf')->name('public.invoices.pdf');
-Route::get('/pay/invoices/{id}/{token}/pay/{provider}', [PublicInvoiceController::class, 'pay'])->name('public.invoices.pay');
+Route::post('/pay/invoices/{id}/{token}/pay/{provider}', [PublicInvoiceController::class, 'pay'])->name('public.invoices.pay');
 
 Route::get('/view/quotations/{id}/{token}', [PublicQuotationController::class, 'show'])->name('public.quotations.show');
 Route::get('/view/quotations/{id}/{token}/pdf', [PublicQuotationController::class, 'downloadPdf'])->middleware('throttle:public-pdf')->name('public.quotations.pdf');

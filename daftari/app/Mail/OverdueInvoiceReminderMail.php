@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesTenantMailConfig;
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,7 +14,7 @@ use Illuminate\Queue\SerializesModels;
 
 class OverdueInvoiceReminderMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, AppliesTenantMailConfig;
 
     public int $tries = 4;
 
@@ -32,6 +33,7 @@ class OverdueInvoiceReminderMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         $company = $this->invoice->company;
+        $this->applyTenantMailConfig($company);
 
         $subjects = [
             1 => __('Payment reminder: invoice :number from :company', ['number' => $this->invoice->invoice_number, 'company' => $company->name]),

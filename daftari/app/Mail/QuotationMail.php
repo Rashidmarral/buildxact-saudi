@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesTenantMailConfig;
 use App\Models\Quotation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
 
 class QuotationMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, AppliesTenantMailConfig;
 
     public int $tries = 4;
 
@@ -33,6 +34,7 @@ class QuotationMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         $company = $this->quotation->company;
+        $this->applyTenantMailConfig($company);
         $typeLabel = $this->quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation');
 
         return new Envelope(

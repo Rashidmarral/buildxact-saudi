@@ -48,7 +48,7 @@ class PublicInvoiceController extends Controller
 
         return view('public.invoice-show', [
             'invoice' => $invoice,
-            'company' => $invoice->company,
+            'company' => $invoice->sellerForDocument(),
             'doc' => $doc,
             'template' => $template,
             'enabledProviders' => $enabledProviders,
@@ -101,7 +101,7 @@ class PublicInvoiceController extends Controller
 
         $pdf = $renderer->render('documents.print.pdf', [
             'doc' => $this->buildDoc($invoice),
-            'company' => $invoice->company,
+            'company' => $invoice->sellerForDocument(),
             'template' => $invoice->company->defaultTemplateFor('invoice'),
         ]);
 

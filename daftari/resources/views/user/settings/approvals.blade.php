@@ -159,6 +159,7 @@
             <div class="px-5 py-3 border-b border-slate-100">
                 <h3 class="text-sm font-semibold text-slate-900">{{ __('Closure history') }}</h3>
             </div>
+            <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="text-left text-slate-500 border-b border-slate-100">
@@ -185,6 +186,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
     @endif
 </div>

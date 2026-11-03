@@ -44,8 +44,15 @@ class ZatcaXmlGenerator
         $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:cbc', 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2');
         $doc->appendChild($root);
 
-        $company = $invoice->company;
-        $client = $invoice->client;
+        // QA follow-up finding: this read the live Company/Client records
+        // directly, so a client or company profile edit made after an
+        // invoice was issued could make the generated XML disagree with
+        // that same invoice's already-issued PDF (frozen via
+        // Invoice::capturePartySnapshot()) — going through the same
+        // snapshot accessors keeps both documents in permanent agreement
+        // for one issued invoice, whichever is (re)generated later.
+        $company = $invoice->sellerForDocument();
+        $client = $invoice->partyForDocument();
 
         $this->append($doc, $root, 'cbc:ProfileID', 'reporting:1.0');
         $this->append($doc, $root, 'cbc:ID', $invoice->invoice_number);
@@ -126,7 +133,7 @@ class ZatcaXmlGenerator
         // unconditionally rather than only when a discount applies.
         $root->appendChild($this->documentAllowanceCharge($doc, (float) $invoice->discount_total, $invoice->items, $docCurrency));
 
-        $this->appendDualTaxTotal($doc, $root, (float) $invoice->vat_total, $invoice->items, fn ($item) => $item->quantity * $item->unit_price);
+        $this->appendDualTaxTotal($doc, $root, (float) $invoice->vat_total, $invoice->items, fn ($item) => $item->quantity * $item->unit_price, (float) $invoice->discount_total);
 
         // ZATCA's PrepaidAmount (BT-113) is narrower than "the client has
         // already paid us something" — per the spec's own section 9.5, it
@@ -846,7 +853,23 @@ class ZatcaXmlGenerator
      * (BR-KSA-EN16931-08). Confirmed against a working reference ZATCA
      * integration — both rules fire unless both TaxTotal elements exist.
      */
-    private function appendDualTaxTotal(DOMDocument $doc, \DOMElement $root, float $vatTotal, iterable $items, \Closure $netAmount): void
+    /**
+     * QA follow-up finding: $netAmount and each line's own vat_amount are
+     * both computed pre-discount, so with a header-level discount this
+     * breakdown's TaxSubtotal entries summed to the pre-discount VAT —
+     * disagreeing with both the bare TaxTotal above (built from the
+     * already-discounted $vatTotal) and with TaxExclusiveAmount in
+     * LegalMonetaryTotal (built from the already-discounted subtotal,
+     * see documentAllowanceCharge()'s caller). $discountTotal lets every
+     * group's taxable/tax be scaled down by the same post-discount share
+     * of the subtotal that ComputesDiscount::discountedVatTotal() already
+     * applies at the header level — the standard "discount allocated
+     * proportionally across tax categories" UBL treatment, and the only
+     * way the three disagreeing totals above can ever reconcile. Callers
+     * with nothing that discounts (prepayment/credit note/debit note/
+     * compliance sample) simply never pass it, leaving this a no-op.
+     */
+    private function appendDualTaxTotal(DOMDocument $doc, \DOMElement $root, float $vatTotal, iterable $items, \Closure $netAmount, float $discountTotal = 0.0): void
     {
         $bare = $doc->createElement('cac:TaxTotal');
         $this->appendAmount($doc, $bare, 'cbc:TaxAmount', $vatTotal);
@@ -881,10 +904,13 @@ class ZatcaXmlGenerator
             $groups[$key]['tax'] = ($groups[$key]['tax'] ?? 0) + (float) $item->vat_amount;
         }
 
+        $preDiscountTaxable = array_sum(array_column($groups, 'taxable'));
+        $discountRatio = $preDiscountTaxable > 0.0 ? ($preDiscountTaxable - $discountTotal) / $preDiscountTaxable : 1.0;
+
         foreach ($groups as $group) {
             $subtotal = $doc->createElement('cac:TaxSubtotal');
-            $this->appendAmount($doc, $subtotal, 'cbc:TaxableAmount', (float) $group['taxable']);
-            $this->appendAmount($doc, $subtotal, 'cbc:TaxAmount', (float) $group['tax']);
+            $this->appendAmount($doc, $subtotal, 'cbc:TaxableAmount', round((float) $group['taxable'] * $discountRatio, 2));
+            $this->appendAmount($doc, $subtotal, 'cbc:TaxAmount', round((float) $group['tax'] * $discountRatio, 2));
 
             $category = $doc->createElement('cac:TaxCategory');
             $this->append($doc, $category, 'cbc:ID', $group['code']);

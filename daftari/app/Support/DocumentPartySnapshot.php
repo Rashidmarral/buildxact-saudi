@@ -36,6 +36,10 @@ class DocumentPartySnapshot
 
     public readonly ?string $email;
 
+    public readonly ?string $additional_id_type;
+
+    public readonly ?string $additional_id_number;
+
     public function __construct(array $attributes)
     {
         $this->name = $attributes['name'] ?? null;
@@ -50,6 +54,8 @@ class DocumentPartySnapshot
         $this->country = $attributes['country'] ?? null;
         $this->postal_code = $attributes['postal_code'] ?? null;
         $this->email = $attributes['email'] ?? null;
+        $this->additional_id_type = $attributes['additional_id_type'] ?? null;
+        $this->additional_id_number = $attributes['additional_id_number'] ?? null;
     }
 
     /**

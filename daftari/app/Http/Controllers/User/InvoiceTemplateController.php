@@ -124,8 +124,19 @@ class InvoiceTemplateController extends Controller
 
         $company = Auth::user()->company;
         $preset = InvoiceTemplatePresets::find($data['preset']);
+        $types = array_unique($data['document_types']);
 
-        $result = $this->createDesign($company, array_unique($data['document_types']), [
+        // See update()'s identical guard: a preset built for e.g.
+        // quotations can still be english_only, but the user can tick
+        // ANY document_types here regardless of what the preset was
+        // designed for — this is the choke point for that combination
+        // too, not just the editor.
+        if (($preset['language_mode'] ?? 'bilingual') === 'english_only' && (in_array('invoice', $types, true) || in_array('all', $types, true))) {
+            return redirect()->route('app.invoice-templates.index')
+                ->withErrors(['document_types' => __('A tax invoice must be issued in Arabic (Saudi VAT Implementing Regulations, Article 53(5)) — this preset is English-only, so it cannot cover invoices. Choose a bilingual or Arabic preset, or leave invoices unticked.')]);
+        }
+
+        $result = $this->createDesign($company, $types, [
             'name' => $preset['name'],
             'name_ar' => $preset['name_ar'],
             'accent_color' => $preset['accent_color'],
@@ -229,7 +240,24 @@ class InvoiceTemplateController extends Controller
             'font_size' => ['nullable', Rule::in(InvoiceTemplate::FONT_SIZES)],
             'border_style' => ['nullable', Rule::in(InvoiceTemplate::BORDER_STYLES)],
             'density' => ['nullable', Rule::in(self::DENSITIES)],
-            'language_mode' => ['required', Rule::in(self::LANGUAGE_MODES)],
+            // QA follow-up finding: Saudi VAT Implementing Regulations
+            // Article 53(5) requires a tax invoice to be issued in
+            // Arabic (a translation into another language may
+            // accompany it, but cannot replace it) — 'invoice' is the
+            // one document_type here that's an actual VAT tax invoice
+            // (standard/simplified), so 'english_only' can never apply
+            // to it, nor to 'all' since that covers invoices too.
+            // Quotations, vouchers, statements, reports, and letters
+            // carry no such requirement and stay unrestricted.
+            'language_mode' => [
+                'required', Rule::in(self::LANGUAGE_MODES),
+                function ($attribute, $value, $fail) use ($request) {
+                    $types = (array) $request->input('document_types', []);
+                    if ($value === 'english_only' && (in_array('invoice', $types, true) || in_array('all', $types, true))) {
+                        $fail(__('A tax invoice must be issued in Arabic (Saudi VAT Implementing Regulations, Article 53(5)) — choose "Bilingual" or "Arabic only" for a template covering invoices.'));
+                    }
+                },
+            ],
             'table_direction' => ['required', Rule::in(self::TABLE_DIRECTIONS)],
             'page_size' => ['nullable', Rule::in(self::PAGE_SIZES)],
             'show_signature' => ['nullable', 'boolean'],

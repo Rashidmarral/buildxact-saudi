@@ -68,9 +68,12 @@
             @if (! empty($enabledProviders))
                 <div class="mb-5 flex flex-wrap gap-2">
                     @foreach ($enabledProviders as $provider)
-                        <a href="{{ route('public.invoices.pay', ['id' => $invoice->id, 'token' => $invoice->public_token, 'provider' => $provider]) }}" class="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-                            {{ __('Pay online with :provider', ['provider' => ucfirst($provider)]) }}
-                        </a>
+                        <form method="POST" action="{{ route('public.invoices.pay', ['id' => $invoice->id, 'token' => $invoice->public_token, 'provider' => $provider]) }}">
+                            @csrf
+                            <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
+                                {{ __('Pay online with :provider', ['provider' => ucfirst($provider)]) }}
+                            </button>
+                        </form>
                     @endforeach
                 </div>
             @endif

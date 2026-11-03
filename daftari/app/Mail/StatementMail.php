@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesTenantMailConfig;
 use App\Models\Client;
 use App\Models\Company;
 use Illuminate\Bus\Queueable;
@@ -21,7 +22,7 @@ use Illuminate\Queue\SerializesModels;
  */
 class StatementMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, AppliesTenantMailConfig;
 
     public int $tries = 4;
 
@@ -40,6 +41,8 @@ class StatementMail extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
+        $this->applyTenantMailConfig($this->company);
+
         return new Envelope(
             from: new Address(config('mail.from.address'), $this->company->name),
             subject: __('Statement of Account from :company', ['company' => $this->company->name]),

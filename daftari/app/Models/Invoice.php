@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\ComputesDiscount;
 use App\Services\ZatcaQrGenerator;
 use App\Support\DocumentPartySnapshot;
+use App\Support\DocumentSellerSnapshot;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -35,6 +36,7 @@ class Invoice extends Model
             'last_reminder_tier' => 'integer',
             'approved_at' => 'datetime',
             'party_snapshot' => 'array',
+            'seller_snapshot' => 'array',
         ];
     }
 
@@ -216,27 +218,64 @@ class Invoice extends Model
      */
     public function capturePartySnapshot(): void
     {
-        if ($this->party_snapshot !== null || ! $this->client) {
-            return;
+        $dirty = false;
+
+        if ($this->party_snapshot === null && $this->client) {
+            $client = $this->client;
+
+            $this->party_snapshot = [
+                'name' => $client->name,
+                'name_ar' => $client->name_ar,
+                'vat_number' => $client->vat_number,
+                'cr_number' => $client->cr_number,
+                'building_number' => $client->building_number,
+                'street_name' => $client->street_name,
+                'district' => $client->district,
+                'city' => $client->city,
+                'state' => $client->state,
+                'country' => $client->country,
+                'postal_code' => $client->postal_code,
+                'email' => $client->email,
+                'additional_id_type' => $client->additional_id_type,
+                'additional_id_number' => $client->additional_id_number,
+            ];
+            $dirty = true;
         }
 
-        $client = $this->client;
+        // QA follow-up finding: the buyer's details were frozen here
+        // (above) but the seller's (this invoice's own issuing company)
+        // were not — editing the company's own profile after an invoice
+        // was sent silently rewrote that invoice's historical PDF, and
+        // disagreed with whatever ZatcaXmlGenerator/pdfData() had
+        // already shown for the buyer side of the same document. Same
+        // idempotency guard, same "first issuance wins" reasoning.
+        if ($this->seller_snapshot === null && $this->company) {
+            $company = $this->company;
 
-        $this->party_snapshot = [
-            'name' => $client->name,
-            'name_ar' => $client->name_ar,
-            'vat_number' => $client->vat_number,
-            'cr_number' => $client->cr_number,
-            'building_number' => $client->building_number,
-            'street_name' => $client->street_name,
-            'district' => $client->district,
-            'city' => $client->city,
-            'state' => $client->state,
-            'country' => $client->country,
-            'postal_code' => $client->postal_code,
-            'email' => $client->email,
-        ];
-        $this->save();
+            $this->seller_snapshot = [
+                'name' => $company->name,
+                'name_ar' => $company->name_ar,
+                'vat_number' => $company->vat_number,
+                'cr_number' => $company->cr_number,
+                'address' => $company->address,
+                'building_number' => $company->building_number,
+                'street_name' => $company->street_name,
+                'district' => $company->district,
+                'city' => $company->city,
+                'postal_code' => $company->postal_code,
+                'additional_number' => $company->additional_number,
+                'phone' => $company->phone,
+                'email' => $company->email,
+                'logo_path' => $company->logo_path,
+                'stamp_path' => $company->stamp_path,
+                'stamp_size' => $company->stamp_size,
+            ];
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $this->save();
+        }
     }
 
     /**
@@ -255,6 +294,21 @@ class Invoice extends Model
         }
 
         return $this->client;
+    }
+
+    /**
+     * Seller-side counterpart to partyForDocument() — see
+     * capturePartySnapshot() for why pdfData() and ZatcaXmlGenerator
+     * both need to go through this rather than reading $this->company
+     * directly once an invoice has actually been issued.
+     */
+    public function sellerForDocument(): DocumentSellerSnapshot|Company|null
+    {
+        if ($this->seller_snapshot !== null) {
+            return new DocumentSellerSnapshot($this->seller_snapshot);
+        }
+
+        return $this->company;
     }
 
     public function deliveryNotes(): HasMany
@@ -277,14 +331,25 @@ class Invoice extends Model
         return $this->hasMany(DebitNote::class);
     }
 
+    /**
+     * QA follow-up finding: this queried fresh every call via
+     * creditNotes() (the relation builder), so every balanceDue() call —
+     * one per row on the invoice list and in the CSV export — issued its
+     * own SUM query even when the caller had already eager-loaded
+     * creditNotes. Reading the relation as a property instead uses
+     * whatever's already loaded (summing in PHP) and still transparently
+     * lazy-loads-and-caches on first access otherwise — correct either
+     * way, and free of charge wherever eager loading is set up (see
+     * InvoiceController::index()'s $query).
+     */
     public function creditedTotal(): float
     {
-        return (float) $this->creditNotes()->where('status', 'issued')->sum('total');
+        return (float) $this->creditNotes->where('status', 'issued')->sum('total');
     }
 
     public function debitedTotal(): float
     {
-        return (float) $this->debitNotes()->where('status', 'issued')->sum('total');
+        return (float) $this->debitNotes->where('status', 'issued')->sum('total');
     }
 
     public function remainingCreditableTotal(): float
@@ -299,7 +364,7 @@ class Invoice extends Model
 
     public function advanceCreditAppliedTotal(): float
     {
-        return (float) $this->advanceCreditApplications()->sum('total');
+        return (float) $this->advanceCreditApplications->sum('total');
     }
 
     /** Partial draw-downs of a genuine 386 Prepayment Invoice against this invoice — see PrepaymentInvoice::applications(). */
@@ -312,7 +377,7 @@ class Invoice extends Model
     {
         $fullFk = $this->appliesPrepaymentInvoice ? (float) $this->appliesPrepaymentInvoice->total : 0.0;
 
-        return $fullFk + (float) $this->prepaymentInvoiceApplications()->sum('total');
+        return $fullFk + (float) $this->prepaymentInvoiceApplications->sum('total');
     }
 
     /**
@@ -538,7 +603,7 @@ class Invoice extends Model
 
         return [
             'doc' => $doc,
-            'company' => $this->company,
+            'company' => $this->sellerForDocument(),
             'template' => $this->company->defaultTemplateFor('invoice'),
         ];
     }

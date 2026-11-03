@@ -74,8 +74,20 @@ class SettingsSecurityAuditTest extends TestCase
 
         $this->actingAs($owner);
 
+        // A public IPv4 literal rather than a hostname — PublicHttpUrl
+        // only calls gethostbynamel() for a hostname (see its isSafe()),
+        // so a literal IP exercises the exact same private/reserved-range
+        // check without this test's result depending on whether this
+        // process's sandbox can actually resolve a real DNS name right
+        // now. QA follow-up finding: this used 'https://example.com/hook'
+        // and failed outright in a DNS-restricted sandbox — not because
+        // the app has a bug, but because PublicHttpUrl correctly rejected
+        // an unresolvable host, Webhook::create() never ran, and
+        // route('app.settings.webhooks.show', null) then threw its own
+        // unrelated UrlGenerationException — a non-hermetic test fixture,
+        // not a broken app route.
         $createResponse = $this->post(route('app.settings.webhooks.store'), [
-            'url' => 'https://example.com/hook',
+            'url' => 'https://1.1.1.1/hook',
             'events' => ['invoice.created'],
         ]);
         $webhook = Webhook::first();

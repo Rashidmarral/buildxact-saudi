@@ -378,9 +378,26 @@ class Company extends Model
             $current = (int) $row->{$column};
             $currentFiscalYear = $this->currentFiscalYearLabel();
             $baseline = (int) $row->{$fiscalYearBaselineColumn};
+            $storedFiscalYear = (string) $row->{$fiscalYearColumn};
 
-            if ((string) $row->{$fiscalYearColumn} !== $currentFiscalYear) {
+            if ($storedFiscalYear !== $currentFiscalYear) {
                 $baseline = $current;
+            } elseif ($baseline === 0) {
+                // QA follow-up finding: a company that was ALREADY in
+                // yearly mode before the *_baseline column existed had
+                // $column storing the in-year count directly (1-indexed),
+                // not a lifetime count. The baseline migration defaults
+                // every company to 0, and because $storedFiscalYear
+                // already matches here, the mismatch branch above never
+                // fires to correct it — silently shifting every number
+                // this company hands out by one for the rest of the year.
+                // next_invoice_number (and its siblings) never legitimately
+                // sits below 1, so baseline can only genuinely be 0 here
+                // because it was never initialized: treat that the same
+                // as "this column already IS the in-year count", i.e. a
+                // baseline of 1 — current - 1 + 1 reproduces $current
+                // unchanged instead of advancing past it.
+                $baseline = 1;
             }
 
             self::query()->whereKey($this->id)->update([
@@ -438,23 +455,39 @@ class Company extends Model
      * current fiscal year and the underlying counter restarts at 1 each
      * time the fiscal year rolls over.
      */
-    private function formatYearScopedNumber(string $prefix, string $numberColumn, string $fiscalYearColumn, int $pad = 5): string
+    /**
+     * $isTaken, when given, is consulted after every candidate number is
+     * formatted; while it returns true, the underlying counter is
+     * advanced again and a new candidate is formatted. QA follow-up
+     * finding: pre-fix software could rewind next_*_number below a
+     * number already issued on a real document (see the
+     * 2026_11_19_010000 migration's docblock) — that migration
+     * reconciles every company's counter against its actual historical
+     * records once, but this loop is the defense that holds regardless
+     * of whether that reconciliation has run, e.g. for a database
+     * restored from an older backup. It never fires in ordinary
+     * operation: the counter this function itself hands out can never
+     * collide with itself.
+     */
+    private function formatYearScopedNumber(string $prefix, string $numberColumn, string $fiscalYearColumn, int $pad = 5, ?\Closure $isTaken = null): string
     {
-        if (! $this->document_numbering_resets_yearly) {
-            $number = $this->nextSequenceNumber($numberColumn);
+        do {
+            if (! $this->document_numbering_resets_yearly) {
+                $number = $this->nextSequenceNumber($numberColumn);
+                $formatted = $prefix.'-'.str_pad((string) $number, $pad, '0', STR_PAD_LEFT);
+            } else {
+                $fiscalYear = $this->currentFiscalYearLabel();
+                $number = $this->nextSequenceNumber($numberColumn, $fiscalYearColumn, $fiscalYearColumn.'_baseline');
+                $formatted = $prefix.'-'.$fiscalYear.'-'.str_pad((string) $number, $pad, '0', STR_PAD_LEFT);
+            }
+        } while ($isTaken !== null && $isTaken($formatted));
 
-            return $prefix.'-'.str_pad((string) $number, $pad, '0', STR_PAD_LEFT);
-        }
-
-        $fiscalYear = $this->currentFiscalYearLabel();
-        $number = $this->nextSequenceNumber($numberColumn, $fiscalYearColumn, $fiscalYearColumn.'_baseline');
-
-        return $prefix.'-'.$fiscalYear.'-'.str_pad((string) $number, $pad, '0', STR_PAD_LEFT);
+        return $formatted;
     }
 
     public function nextInvoiceNumber(): string
     {
-        return $this->formatYearScopedNumber($this->invoice_prefix, 'next_invoice_number', 'invoice_number_fiscal_year');
+        return $this->formatYearScopedNumber($this->invoice_prefix, 'next_invoice_number', 'invoice_number_fiscal_year', 5, fn (string $number) => Invoice::withTrashed()->where('company_id', $this->id)->where('invoice_number', $number)->exists());
     }
 
     /**
@@ -475,17 +508,17 @@ class Company extends Model
 
     public function nextCreditNoteNumber(): string
     {
-        return $this->formatYearScopedNumber($this->credit_note_prefix, 'next_credit_note_number', 'credit_note_number_fiscal_year');
+        return $this->formatYearScopedNumber($this->credit_note_prefix, 'next_credit_note_number', 'credit_note_number_fiscal_year', 5, fn (string $number) => CreditNote::where('company_id', $this->id)->where('credit_note_number', $number)->exists());
     }
 
     public function nextDebitNoteNumber(): string
     {
-        return $this->formatYearScopedNumber($this->debit_note_prefix, 'next_debit_note_number', 'debit_note_number_fiscal_year');
+        return $this->formatYearScopedNumber($this->debit_note_prefix, 'next_debit_note_number', 'debit_note_number_fiscal_year', 5, fn (string $number) => DebitNote::where('company_id', $this->id)->where('debit_note_number', $number)->exists());
     }
 
     public function nextPrepaymentNumber(): string
     {
-        return $this->formatYearScopedNumber($this->prepayment_prefix, 'next_prepayment_number', 'prepayment_number_fiscal_year');
+        return $this->formatYearScopedNumber($this->prepayment_prefix, 'next_prepayment_number', 'prepayment_number_fiscal_year', 5, fn (string $number) => PrepaymentInvoice::where('company_id', $this->id)->where('prepayment_number', $number)->exists());
     }
 
     public function nextPurchaseReturnNumber(): string
@@ -585,11 +618,13 @@ class Company extends Model
 
     public function nextQuotationNumber(string $type = 'quotation'): string
     {
+        $isTaken = fn (string $number) => Quotation::withTrashed()->where('company_id', $this->id)->where('type', $type)->where('quotation_number', $number)->exists();
+
         if ($type === 'proforma') {
-            return $this->formatYearScopedNumber($this->proforma_prefix, 'next_proforma_number', 'proforma_number_fiscal_year');
+            return $this->formatYearScopedNumber($this->proforma_prefix, 'next_proforma_number', 'proforma_number_fiscal_year', 5, $isTaken);
         }
 
-        return $this->formatYearScopedNumber($this->quotation_prefix, 'next_quotation_number', 'quotation_number_fiscal_year');
+        return $this->formatYearScopedNumber($this->quotation_prefix, 'next_quotation_number', 'quotation_number_fiscal_year', 5, $isTaken);
     }
 
     public function quotations(): HasMany

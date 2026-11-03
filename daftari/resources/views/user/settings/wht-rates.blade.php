@@ -21,6 +21,7 @@
     @if ($whtRates->isEmpty())
         <p class="px-6 py-8 text-sm text-slate-500">{{ __('No withholding tax categories yet.') }}</p>
     @else
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
                 <tr class="text-left text-slate-500 border-b border-slate-100">
@@ -63,6 +64,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     @endif
 </div>
 

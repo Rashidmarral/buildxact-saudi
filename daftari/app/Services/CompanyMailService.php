@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Company;
 use App\Models\CompanyMailConfig;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Swaps Laravel's runtime mail config to a company's own SMTP account
@@ -65,6 +66,7 @@ class CompanyMailService
 
         if (! $config || blank($config->smtp_host) || blank($config->from_address)) {
             Config::set($this->platformDefaults);
+            Mail::purge('smtp');
 
             return false;
         }
@@ -79,6 +81,18 @@ class CompanyMailService
             'mail.from.address' => $config->from_address,
             'mail.from.name' => $config->from_name ?: $company->name,
         ]);
+
+        // QA follow-up finding: Config::set() alone leaves the Mail
+        // manager's already-resolved "smtp" mailer (and the Symfony
+        // transport it built) pointed at whichever tenant's host was
+        // active the first time anything resolved it this process —
+        // Mail::mailer('smtp') only re-reads config for a mailer it
+        // hasn't resolved yet. Purging it here forces the next
+        // Mail::mailer('smtp') call (and the queued-mail path, which
+        // resolves its own mailer inside the worker) to rebuild the
+        // transport from the config just written above, every time this
+        // method switches which company's mail it's sending.
+        Mail::purge('smtp');
 
         return true;
     }

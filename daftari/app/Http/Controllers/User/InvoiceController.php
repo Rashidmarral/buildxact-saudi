@@ -60,7 +60,15 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with('client', 'salesperson')
+        // QA follow-up finding: balanceDue() sums 3-4 relations per
+        // invoice (creditNotes, advanceCreditApplications,
+        // prepaymentInvoiceApplications, appliesPrepaymentInvoice) —
+        // every call used to query fresh, so both this page (25 rows)
+        // and the CSV export (every matching row, via ->lazy() below)
+        // issued several extra queries per row. Eager-loading them here
+        // lets Invoice's own total methods sum the already-loaded
+        // collections instead.
+        $query = Invoice::with('client', 'salesperson', 'creditNotes', 'advanceCreditApplications', 'prepaymentInvoiceApplications', 'appliesPrepaymentInvoice')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->when($request->filled('salesperson_id'), fn ($q) => $q->where('salesperson_id', $request->integer('salesperson_id')))
             // "Global Billing: cross-project filtered view of project
@@ -110,7 +118,7 @@ class InvoiceController extends Controller
     public function bulkExport(Request $request)
     {
         $ids = $this->validatedBulkIds($request);
-        $invoices = Invoice::with('client')->whereIn('id', $ids)->orderByDesc('issue_date')->orderByDesc('id')->lazy();
+        $invoices = Invoice::with('client', 'creditNotes', 'advanceCreditApplications', 'prepaymentInvoiceApplications', 'appliesPrepaymentInvoice')->whereIn('id', $ids)->orderByDesc('issue_date')->orderByDesc('id')->lazy();
 
         return $this->csvResponse('invoices-selected.csv', $this->csvHeader(), $invoices->map(fn ($invoice) => $this->csvRow($invoice)));
     }
@@ -804,14 +812,42 @@ class InvoiceController extends Controller
         }
 
         $wasPaid = $invoice->status === 'paid';
+        $overdrawn = false;
 
-        DB::transaction(function () use ($invoice, $data, $ledger) {
-            $payment = $invoice->invoicePayments()->create($data);
-            $invoice->amount_paid = $invoice->invoicePayments()->sum('amount');
-            $invoice->status = $invoice->isFullyPaid() ? 'paid' : 'partially_paid';
-            $invoice->save();
+        DB::transaction(function () use ($invoice, $data, $ledger, &$overdrawn) {
+            // QA follow-up finding: the amount field above was only ever
+            // validated against balanceDue() as it stood when this
+            // request started building its validation rules — an
+            // unlocked read taken before this transaction even opens.
+            // Two payment submissions racing each other on the same
+            // invoice could both pass that check against the same stale
+            // balance and both insert, overdrawing it; nothing before
+            // this line re-checked anything once a transaction (and a
+            // real row lock) was actually in effect. Locking the row
+            // here and re-reading its balance is what actually closes
+            // the race — the request-time validation above stays as a
+            // fast first pass for the overwhelmingly common
+            // non-concurrent case, but this is the check that counts.
+            $locked = Invoice::whereKey($invoice->id)->lockForUpdate()->first();
+
+            if ((float) $data['amount'] > max($locked->balanceDue(), 0.0) + 0.01) {
+                $overdrawn = true;
+
+                return;
+            }
+
+            $payment = $locked->invoicePayments()->create($data);
+            $locked->amount_paid = $locked->invoicePayments()->sum('amount');
+            $locked->status = $locked->isFullyPaid() ? 'paid' : 'partially_paid';
+            $locked->save();
             $ledger->postInvoicePayment($payment);
+
+            $invoice->setRawAttributes($locked->getAttributes());
         });
+
+        if ($overdrawn) {
+            return back()->withErrors(['amount' => __('This amount is more than the invoice\'s current balance due — another payment may have just been recorded against it. Refresh the page and try again.')]);
+        }
 
         // Security audit finding M-16: payment recording went completely
         // unlogged — real money moving against an invoice had no trace on
