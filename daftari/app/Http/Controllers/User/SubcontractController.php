@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Employee;
 use App\Models\PaymentVoucher;
 use App\Models\Project;
 use App\Models\Subcontract;
@@ -46,7 +47,7 @@ class SubcontractController extends Controller
 
     public function index(Request $request)
     {
-        $subcontracts = Subcontract::with('project', 'supplier')
+        $subcontracts = Subcontract::with('project', 'supplier', 'employee')
             ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->integer('project_id')))
             ->when($request->filled('supplier_id'), fn ($q) => $q->where('supplier_id', $request->integer('supplier_id')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
@@ -63,9 +64,10 @@ class SubcontractController extends Controller
     public function create()
     {
         return view('user.subcontracts.form', [
-            'subcontract' => new Subcontract(['retention_percent' => 5, 'start_date' => now()->toDateString()]),
+            'subcontract' => new Subcontract(['party_type' => 'supplier', 'retention_percent' => 5, 'start_date' => now()->toDateString()]),
             'projects' => Project::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
+            'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
             'defaultMilestones' => self::DEFAULT_MILESTONES,
         ]);
     }
@@ -86,9 +88,9 @@ class SubcontractController extends Controller
             return $subcontract;
         });
 
-        AuditLog::record('subcontract.create', $subcontract, __('Created subcontract :title for :supplier on :project', [
+        AuditLog::record('subcontract.create', $subcontract, __('Created subcontract :title for :party on :project', [
             'title' => $subcontract->title ?: $subcontract->contract_number ?: '#'.$subcontract->id,
-            'supplier' => $subcontract->supplier->name,
+            'party' => $subcontract->partyName(),
             'project' => $subcontract->project->name,
         ]));
 
@@ -137,9 +139,11 @@ class SubcontractController extends Controller
 
     public function show(Subcontract $subcontract, Request $request)
     {
-        $subcontract->load('project', 'supplier', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
+        $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
 
-        $linkableVouchers = PaymentVoucher::where('supplier_id', $subcontract->supplier_id)
+        $partyColumn = $subcontract->isEmployeeParty() ? 'employee_id' : 'supplier_id';
+
+        $linkableVouchers = PaymentVoucher::where($partyColumn, $subcontract->{$partyColumn})
             ->where('status', 'issued')
             ->whereDoesntHave('subcontractPayments')
             ->when($subcontract->project_id, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('project_id')->orWhere('project_id', $subcontract->project_id)))
@@ -157,7 +161,7 @@ class SubcontractController extends Controller
 
     public function categoryReportPdf(Request $request, Subcontract $subcontract)
     {
-        $subcontract->load('project', 'supplier');
+        $subcontract->load('project', 'supplier', 'employee');
 
         $groups = $this->categoryGroupsFromRequest($subcontract, $request) ?? [];
 
@@ -354,6 +358,7 @@ class SubcontractController extends Controller
             'subcontract' => $subcontract,
             'projects' => Project::orderBy('name')->get(),
             'suppliers' => Supplier::orderBy('name')->get(),
+            'employees' => Employee::where('status', 'active')->orderBy('full_name')->get(),
             'defaultMilestones' => self::DEFAULT_MILESTONES,
         ]);
     }
@@ -513,7 +518,8 @@ class SubcontractController extends Controller
             'net_amount' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
-        $voucher = PaymentVoucher::where('supplier_id', $subcontract->supplier_id)->findOrFail($data['payment_voucher_id']);
+        $partyColumn = $subcontract->isEmployeeParty() ? 'employee_id' : 'supplier_id';
+        $voucher = PaymentVoucher::where($partyColumn, $subcontract->{$partyColumn})->findOrFail($data['payment_voucher_id']);
 
         if ($voucher->subcontractPayments()->exists()) {
             return back()->with('status', __('That voucher is already linked to a subcontract.'));
@@ -548,7 +554,7 @@ class SubcontractController extends Controller
 
     public function reportPdf(Subcontract $subcontract)
     {
-        $subcontract->load('project', 'supplier', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
+        $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'payments.milestone', 'payments.paymentVoucher', 'reportCategories');
 
         $pdf = app(MpdfRenderer::class)->render('user.subcontracts.pdf.receiving-report', [
             'company' => Auth::user()->company,
@@ -565,9 +571,18 @@ class SubcontractController extends Controller
 
     private function validatedContract(Request $request): array
     {
-        return $request->validate([
+        // Defaults to 'supplier' when not sent at all — every subcontract
+        // before this feature existed was implicitly one, so a request
+        // that still only ever sends supplier_id (an older client, or a
+        // test fixture predating the employee party option) keeps working
+        // exactly as before rather than failing on a newly-required field.
+        $request->merge(['party_type' => $request->input('party_type', 'supplier')]);
+
+        $data = $request->validate([
             'project_id' => ['required', Rule::exists('projects', 'id')],
-            'supplier_id' => ['required', Rule::exists('suppliers', 'id')],
+            'party_type' => ['required', Rule::in(['supplier', 'employee'])],
+            'supplier_id' => ['required_if:party_type,supplier', 'nullable', Rule::exists('suppliers', 'id')],
+            'employee_id' => ['required_if:party_type,employee', 'nullable', Rule::exists('employees', 'id')],
             'contract_number' => ['nullable', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:255'],
             'contract_value' => ['required', 'numeric', 'min:0'],
@@ -576,6 +591,18 @@ class SubcontractController extends Controller
             'status' => ['required', Rule::in(['active', 'completed', 'cancelled'])],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        // Whichever party_type isn't the one actually chosen gets nulled
+        // out rather than left as whatever stray value the form posted
+        // (or, on an edit, whatever the record previously held before a
+        // party_type switch) — a subcontract is with exactly one party.
+        if ($data['party_type'] === 'supplier') {
+            $data['employee_id'] = null;
+        } else {
+            $data['supplier_id'] = null;
+        }
+
+        return $data;
     }
 
     private function syncBoqItems(Subcontract $subcontract, Request $request): void

@@ -721,7 +721,7 @@
                     @foreach ($project->subcontracts as $subcontract)
                         <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.subcontracts.show', $subcontract) }}'">
                             <td class="px-6 py-3 font-medium text-brand-700">{{ $subcontract->contract_number }}</td>
-                            <td class="px-6 py-3 text-slate-900">{{ $subcontract->supplier->display_name ?? '—' }}</td>
+                            <td class="px-6 py-3 text-slate-900">{{ $subcontract->partyName() ?: '—' }}</td>
                             <td class="px-6 py-3 text-slate-500">{{ $subcontract->title }}</td>
                             <td class="px-6 py-3 text-end font-medium">{{ \App\Support\Money::format($subcontract->contract_value) }}</td>
                             <td class="px-6 py-3">{{ ucfirst($subcontract->status) }}</td>

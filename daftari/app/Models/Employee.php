@@ -14,7 +14,7 @@ class Employee extends Model
     protected $fillable = [
         'company_id', 'branch_id', 'employee_number', 'full_name', 'full_name_ar',
         'national_id', 'nationality', 'is_saudi', 'date_of_birth', 'gender',
-        'mobile', 'email', 'address', 'job_title', 'department',
+        'mobile', 'email', 'address', 'job_title', 'department', 'employment_type',
         'is_operator', 'license_number', 'license_expiry_date',
         'hire_date', 'termination_date', 'status',
         'iban', 'bank_name', 'gosi_subscription_number',

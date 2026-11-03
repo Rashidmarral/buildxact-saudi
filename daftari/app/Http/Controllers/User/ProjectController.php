@@ -69,7 +69,7 @@ class ProjectController extends Controller
             'projectManager', 'businessLocation', 'costCenter', 'attachments.uploader',
             'boqItems.unit', 'budgetLines.creator', 'projectCosts.creator', 'tasks.assignee',
             'timesheets.employee', 'materialIssues.item', 'machineryDeployments.machinery',
-            'subcontracts.supplier', 'changeOrders', 'siteDiaryEntries',
+            'subcontracts.supplier', 'subcontracts.employee', 'changeOrders', 'siteDiaryEntries',
             'workOrders.technician', 'workOrders.machinery',
             'uninvoicedBillableTimesheets.employee', 'uninvoicedBillableCosts',
         ]);

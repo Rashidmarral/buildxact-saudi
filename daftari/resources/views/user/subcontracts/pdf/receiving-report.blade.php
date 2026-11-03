@@ -30,7 +30,7 @@
 
 @include('documents.print.partials.report.header', [
     'titleEn' => __('Receiving Payments Report'), 'titleAr' => 'تقرير استلام الدفعات',
-    'subtitleEn' => $subcontract->project->name.' — '.$subcontract->supplier->name,
+    'subtitleEn' => $subcontract->project->name.' — '.$subcontract->partyName(),
     'subtitleAr' => '',
     'template' => $template ?? null,
 ])
@@ -44,7 +44,7 @@
         </td>
         <td style="width: 50%;">
             <div class="k">{{ __('Subcontractor') }}</div>
-            <div class="v" style="font-size: 12px;">{{ $subcontract->supplier->name }}</div>
+            <div class="v" style="font-size: 12px;">{{ $subcontract->partyName() }}</div>
         </td>
     </tr>
     <tr>
@@ -252,7 +252,7 @@
         <td>
             <div class="sign-line">
                 {{ __('Subcontractor signature & date') }}<br>
-                <span style="font-size: 9px;">{{ $subcontract->supplier->name }}</span>
+                <span style="font-size: 9px;">{{ $subcontract->partyName() }}</span>
             </div>
         </td>
         <td>

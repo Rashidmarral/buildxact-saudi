@@ -9,20 +9,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * A subcontractor's (Supplier's) agreed scope on one Project: a contract
- * value, a retention percentage withheld until handover, an optional BOQ
+ * One party's (a Supplier's, or — per party_type — an Employee acting as
+ * a project manager) agreed scope on one Project: a contract value, a
+ * retention percentage withheld until handover, an optional BOQ
  * breakdown behind that value, and a milestone-wise payment schedule.
  * See subcontracts migration docblock for why this is its own entity
- * rather than fields on Project/Supplier — the same supplier can hold
- * subcontracts on several projects, and a project can have several
- * subcontractors (different trades).
+ * rather than fields on Project/Supplier/Employee — the same party can
+ * hold subcontracts on several projects, and a project can have several
+ * parties (different trades, or cash advanced to an employee who then
+ * manages a work package themselves).
  */
 class Subcontract extends Model
 {
     use BelongsToCompany, SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'project_id', 'supplier_id', 'contract_number', 'title',
+        'company_id', 'project_id', 'party_type', 'supplier_id', 'employee_id', 'contract_number', 'title',
         'contract_value', 'retention_percent', 'start_date', 'status', 'notes', 'created_by',
     ];
 
@@ -43,6 +45,27 @@ class Subcontract extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function isEmployeeParty(): bool
+    {
+        return $this->party_type === 'employee';
+    }
+
+    /** The supplier or employee this contract is actually with, whichever party_type says applies. */
+    public function party(): Supplier|Employee|null
+    {
+        return $this->isEmployeeParty() ? $this->employee : $this->supplier;
+    }
+
+    public function partyName(): string
+    {
+        return $this->isEmployeeParty() ? (string) $this->employee?->full_name : (string) $this->supplier?->name;
     }
 
     public function creator(): BelongsTo

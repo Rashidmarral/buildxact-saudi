@@ -46,7 +46,7 @@
             @forelse ($subcontracts as $sc)
                 <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                     <td class="px-5 py-3"><a href="{{ route('app.subcontracts.show', $sc) }}" class="font-medium text-brand-700 hover:underline">{{ $sc->project->name }}</a></td>
-                    <td class="px-5 py-3">{{ $sc->supplier->name }}</td>
+                    <td class="px-5 py-3">{{ $sc->partyName() }}</td>
                     <td class="px-5 py-3">
                         <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold
                             {{ $sc->status === 'active' ? 'bg-teal-50 text-teal-700' : ($sc->status === 'completed' ? 'bg-slate-100 text-slate-600' : 'bg-red-50 text-red-700') }}">

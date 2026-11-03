@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $subcontract->supplier->name.' — '.$subcontract->project->name)
+@section('title', $subcontract->partyName().' — '.$subcontract->project->name)
 
 @section('content')
 @php
@@ -14,7 +14,7 @@
 <div class="flex items-start justify-between mb-6">
     <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ $subcontract->title ?: __('Subcontract') }}</h2>
-        <p class="text-sm text-slate-500 mt-1">{{ $subcontract->supplier->name }} — {{ $subcontract->project->name }} @if($subcontract->contract_number) · {{ $subcontract->contract_number }} @endif</p>
+        <p class="text-sm text-slate-500 mt-1">{{ $subcontract->partyName() }} — {{ $subcontract->project->name }} @if($subcontract->contract_number) · {{ $subcontract->contract_number }} @endif</p>
     </div>
     <div class="flex items-center gap-2">
         <a href="{{ route('app.subcontracts.report.pdf', $subcontract) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Receiving Payments Report (PDF)') }}</a>

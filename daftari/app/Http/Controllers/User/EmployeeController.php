@@ -174,6 +174,7 @@ class EmployeeController extends Controller
             'address' => ['nullable', 'string', 'max:255'],
             'job_title' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
+            'employment_type' => ['nullable', Rule::in(['full_time', 'contract'])],
             'license_number' => ['nullable', 'string', 'max:30'],
             'license_expiry_date' => ['nullable', 'date'],
             'hire_date' => ['required', 'date'],
@@ -189,6 +190,7 @@ class EmployeeController extends Controller
 
         $data['is_saudi'] = $request->boolean('is_saudi', true);
         $data['is_operator'] = $request->boolean('is_operator');
+        $data['employment_type'] = $data['employment_type'] ?? $employee?->employment_type ?? 'full_time';
 
         return $data;
     }

@@ -30,7 +30,12 @@
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-6 py-3 text-slate-500">{{ $employee->employee_number }}</td>
                         <td class="px-6 py-3 font-medium text-slate-800">{{ $employee->full_name }}</td>
-                        <td class="px-6 py-3 text-slate-500">{{ $employee->job_title ?: '—' }}</td>
+                        <td class="px-6 py-3 text-slate-500">
+                            {{ $employee->job_title ?: '—' }}
+                            @if ($employee->employment_type === 'contract')
+                                <span class="ms-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ __('Contract') }}</span>
+                            @endif
+                        </td>
                         <td class="px-6 py-3 text-slate-500">{{ $employee->is_saudi ? __('Saudi') : ($employee->nationality ?: __('Non-Saudi')) }}</td>
                         <td class="px-6 py-3 text-slate-500 tabular-nums">{{ number_format($employee->grossSalary(), 2) }}</td>
                         <td class="px-6 py-3">

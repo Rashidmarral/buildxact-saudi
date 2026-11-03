@@ -23,7 +23,7 @@
 
 @include('documents.print.partials.report.header', [
     'titleEn' => __('Payment Breakdown by Category'), 'titleAr' => 'تفصيل الدفعات حسب الفئة',
-    'subtitleEn' => $subcontract->project->name.' — '.$subcontract->supplier->name,
+    'subtitleEn' => $subcontract->project->name.' — '.$subcontract->partyName(),
     'subtitleAr' => '',
     'template' => $template ?? null,
 ])

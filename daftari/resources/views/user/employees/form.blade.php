@@ -79,6 +79,13 @@
                 <input type="text" name="department" value="{{ old('department', $employee->department) }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
             <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Employment type') }}</label>
+                <select name="employment_type" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <option value="full_time" @selected(old('employment_type', $employee->employment_type ?? 'full_time') === 'full_time')>{{ __('Full-time') }}</option>
+                    <option value="contract" @selected(old('employment_type', $employee->employment_type ?? 'full_time') === 'contract')>{{ __('Contract') }}</option>
+                </select>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-slate-700">{{ __('Hire date') }}</label>
                 <input type="date" name="hire_date" value="{{ old('hire_date', optional($employee->hire_date)->toDateString()) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
             </div>
