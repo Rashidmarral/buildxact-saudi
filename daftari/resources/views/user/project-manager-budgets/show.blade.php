@@ -329,7 +329,7 @@ function categoryBreakdownForm(initialRows) {
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Link existing Payment Vouchers') }}</h3>
         @if ($linkableVouchers->isEmpty())
-            <p class="text-sm text-slate-400">{{ __('No unlinked, issued payment vouchers found for this project manager.') }}</p>
+            <p class="text-sm text-slate-400">{{ __('No unlinked, issued payment vouchers found on this project.') }}</p>
         @else
             <form method="POST" action="{{ route('app.project-manager-budgets.link-voucher', $subcontract) }}" x-data="{ selected: [] }">
                 @csrf
@@ -347,6 +347,9 @@ function categoryBreakdownForm(initialRows) {
                                 <input type="checkbox" name="payment_voucher_id[]" value="{{ $v->id }}" x-model="selected" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                                 <span class="font-medium text-slate-700 truncate">{{ $v->voucher_number }}</span>
                                 <span class="text-slate-400 shrink-0">{{ $v->date->format('Y-m-d') }}</span>
+                                @unless ($v->employee_id === $subcontract->employee_id)
+                                    <span class="text-slate-400 truncate" title="{{ __('Currently assigned to') }}">— {{ $v->payee_name }}</span>
+                                @endunless
                             </span>
                             <span class="tabular-nums text-slate-600 shrink-0">{{ number_format((float) $v->amount, 2) }}</span>
                         </label>
@@ -370,7 +373,7 @@ function categoryBreakdownForm(initialRows) {
                 </div>
             </form>
         @endif
-        <p class="text-xs text-slate-400 mt-3">{{ __('Leave the applied amount blank to apply the full voucher amount — it only applies when exactly one voucher is selected. Leave milestone blank to fill whichever milestone is next due, spilling any remainder into the one after it. The voucher must be paid to this same employee (party_type = Employee) — create it from Cash & Banks > Payment Vouchers if it doesn\'t exist yet.') }}</p>
+        <p class="text-xs text-slate-400 mt-3">{{ __('Leave the applied amount blank to apply the full voucher amount — it only applies when exactly one voucher is selected. Leave milestone blank to fill whichever milestone is next due, spilling any remainder into the one after it. Any unlinked, issued voucher on this project can be linked here, whichever party it was originally issued under — create it from Cash & Banks > Payment Vouchers if it doesn\'t exist yet.') }}</p>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-5">

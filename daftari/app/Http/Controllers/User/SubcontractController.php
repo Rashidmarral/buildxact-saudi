@@ -195,10 +195,17 @@ class SubcontractController extends Controller
 
         $subcontract->load('project', 'supplier', 'employee', 'boqItems', 'milestones.payments', 'works.payments', 'payments.milestone', 'payments.work', 'payments.paymentVoucher', 'reportCategories');
 
-        $partyColumn = $subcontract->isEmployeeParty() ? 'employee_id' : 'supplier_id';
-
-        $linkableVouchers = PaymentVoucher::where($partyColumn, $subcontract->{$partyColumn})
-            ->where('status', 'issued')
+        // "i am unable to select vouchers that is not assign to project
+        // manager... i can select any voucher if that voucher assign or
+        // not assign to project manager" — a real voucher is routinely
+        // issued under one party_type/payee (e.g. a supplier, or no
+        // party at all) and only later turns out to really be cash that
+        // went through Shahid, so this list is every unlinked issued
+        // voucher on the project, regardless of which party it's
+        // currently tagged to — not just the ones that already happen
+        // to match this subcontract's own party_type/employee_id or
+        // supplier_id.
+        $linkableVouchers = PaymentVoucher::where('status', 'issued')
             ->whereDoesntHave('subcontractPayments')
             ->when($subcontract->project_id, fn ($q) => $q->where(fn ($q2) => $q2->whereNull('project_id')->orWhere('project_id', $subcontract->project_id)))
             ->orderByDesc('date')
@@ -652,9 +659,12 @@ class SubcontractController extends Controller
             'net_amount' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
-        $partyColumn = $subcontract->isEmployeeParty() ? 'employee_id' : 'supplier_id';
+        // No party_type/employee_id/supplier_id filter here either — see
+        // the matching note on $linkableVouchers in show(): any issued,
+        // not-yet-linked voucher can be linked to this subcontract,
+        // whichever party it was originally issued under.
         $ids = $data['payment_voucher_id'];
-        $vouchers = PaymentVoucher::where($partyColumn, $subcontract->{$partyColumn})->whereIn('id', $ids)->get()->keyBy('id');
+        $vouchers = PaymentVoucher::whereIn('id', $ids)->get()->keyBy('id');
 
         $linkedCount = 0;
         $skippedCount = 0;

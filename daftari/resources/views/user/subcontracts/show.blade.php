@@ -309,7 +309,7 @@ function categoryBreakdownForm(initialRows) {
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <h3 class="text-sm font-semibold text-slate-900 mb-3">{{ __('Link existing Payment Vouchers') }}</h3>
         @if ($linkableVouchers->isEmpty())
-            <p class="text-sm text-slate-400">{{ __('No unlinked, issued payment vouchers found for this subcontractor.') }}</p>
+            <p class="text-sm text-slate-400">{{ __('No unlinked, issued payment vouchers found on this project.') }}</p>
         @else
             <form method="POST" action="{{ route('app.subcontracts.link-voucher', $subcontract) }}" x-data="{ selected: [] }">
                 @csrf
@@ -327,6 +327,9 @@ function categoryBreakdownForm(initialRows) {
                                 <input type="checkbox" name="payment_voucher_id[]" value="{{ $v->id }}" x-model="selected" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
                                 <span class="font-medium text-slate-700 truncate">{{ $v->voucher_number }}</span>
                                 <span class="text-slate-400 shrink-0">{{ $v->date->format('Y-m-d') }}</span>
+                                @unless ($v->supplier_id === $subcontract->supplier_id)
+                                    <span class="text-slate-400 truncate" title="{{ __('Currently assigned to') }}">— {{ $v->payee_name }}</span>
+                                @endunless
                             </span>
                             <span class="tabular-nums text-slate-600 shrink-0">{{ number_format((float) $v->amount, 2) }}</span>
                         </label>
