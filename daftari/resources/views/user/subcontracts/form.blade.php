@@ -10,7 +10,7 @@
     $boqRows = $subcontract->exists ? $subcontract->boqItems->map(fn ($i) => ['description' => $i->description, 'quantity' => $i->quantity, 'unit' => $i->unit, 'rate' => $i->rate, 'amount' => (float) $i->amount])->values()->all() : [];
 @endphp
 
-<form method="POST" action="{{ $subcontract->exists ? route('app.subcontracts.update', $subcontract) : route('app.subcontracts.store') }}" class="max-w-4xl" x-data="subcontractForm({{ json_encode($boqRows) }}, {{ json_encode($milestoneRows) }}, {{ (float) old('contract_value', $subcontract->contract_value ?: 0) }})">
+<form method="POST" action="{{ $subcontract->exists ? route('app.subcontracts.update', $subcontract) : route('app.subcontracts.store') }}" class="max-w-4xl" x-data="subcontractForm({{ Illuminate\Support\Js::from($boqRows) }}, {{ Illuminate\Support\Js::from($milestoneRows) }}, {{ (float) old('contract_value', $subcontract->contract_value ?: 0) }})">
     @csrf
     @if ($subcontract->exists) @method('PUT') @endif
 

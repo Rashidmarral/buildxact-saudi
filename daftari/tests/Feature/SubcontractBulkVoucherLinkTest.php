@@ -152,4 +152,60 @@ class SubcontractBulkVoucherLinkTest extends TestCase
 
         $response->assertNotFound();
     }
+
+    /**
+     * Regression guard: the show page's bulk-select x-data attribute embeds
+     * the payment ids via Illuminate\Support\Js::from(), which wraps the
+     * array in JSON.parse('...') with every quote character escaped to a
+     * unicode sequence. An earlier version used @json()/json_encode()
+     * directly inside the double-quoted x-data="..." attribute, which — the
+     * moment a subcontract had more than zero payments — emitted literal "
+     * characters that closed the attribute early. The checkbox/button markup
+     * was still there in the raw HTML (so assertSee() on it passed), but
+     * Alpine threw a JS syntax error on page load and never defined
+     * `selected`, so every x-show/x-model/@change binding silently died and
+     * no delete option ever appeared in the browser. assertSee() alone can't
+     * catch this since it doesn't execute JS — it has to inspect the actual
+     * attribute shape.
+     */
+    public function test_the_bulk_select_x_data_attribute_is_not_broken_by_unescaped_quotes_when_payments_exist(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $subcontract = $this->makeSubcontract($company);
+        $subcontract->payments()->create(['company_id' => $company->id, 'amount' => 1000, 'paid_at' => now()]);
+        $subcontract->payments()->create(['company_id' => $company->id, 'amount' => 2000, 'paid_at' => now()]);
+
+        $html = $this->actingAs($owner)->get(route('app.subcontracts.show', $subcontract))->getContent();
+
+        $this->assertStringNotContainsString(
+            '","',
+            substr($html, strpos($html, 'x-data="{ selected: []'), 80),
+            'A literal quote inside the x-data attribute value means it closed the attribute early and Alpine failed to initialize.'
+        );
+        $this->assertMatchesRegularExpression(
+            "/x-data=\"\{ selected: \[\], allIds: JSON\.parse\(/",
+            $html,
+            'allIds must be built via Js::from() (JSON.parse(...)) so embedded quotes can never break out of the HTML attribute.'
+        );
+    }
+
+    public function test_the_pm_budget_show_page_x_data_attribute_is_not_broken_by_unescaped_quotes_either(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $project = Project::create(['company_id' => $company->id, 'code' => 'PROJ-'.uniqid(), 'name' => 'Jumum Yard Project', 'status' => 'active']);
+        $employee = \App\Models\Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-1', 'full_name' => 'Shahid', 'hire_date' => now(), 'basic_salary' => 6000]);
+        $budget = Subcontract::create([
+            'company_id' => $company->id, 'project_id' => $project->id, 'party_type' => 'employee', 'employee_id' => $employee->id,
+            'contract_value' => 50000, 'retention_percent' => 0, 'status' => 'active',
+        ]);
+        $budget->payments()->create(['company_id' => $company->id, 'amount' => 1000, 'paid_at' => now()]);
+        $budget->payments()->create(['company_id' => $company->id, 'amount' => 2000, 'paid_at' => now()]);
+
+        $html = $this->actingAs($owner)->get(route('app.project-manager-budgets.show', $budget))->getContent();
+
+        $this->assertMatchesRegularExpression(
+            "/x-data=\"\{ selected: \[\], allIds: JSON\.parse\(/",
+            $html
+        );
+    }
 }

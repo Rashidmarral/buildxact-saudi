@@ -7,7 +7,7 @@
     $boqRows = $subcontract->exists ? $subcontract->boqItems->map(fn ($i) => ['description' => $i->description, 'quantity' => $i->quantity, 'unit' => $i->unit, 'rate' => $i->rate, 'amount' => (float) $i->amount])->values()->all() : [];
 @endphp
 
-<form method="POST" action="{{ $subcontract->exists ? route('app.project-manager-budgets.update', $subcontract) : route('app.project-manager-budgets.store') }}" class="max-w-4xl" x-data="pmBudgetForm({{ json_encode($boqRows) }}, {{ (float) old('contract_value', $subcontract->contract_value ?: 0) }})">
+<form method="POST" action="{{ $subcontract->exists ? route('app.project-manager-budgets.update', $subcontract) : route('app.project-manager-budgets.store') }}" class="max-w-4xl" x-data="pmBudgetForm({{ Illuminate\Support\Js::from($boqRows) }}, {{ (float) old('contract_value', $subcontract->contract_value ?: 0) }})">
     @csrf
     @if ($subcontract->exists) @method('PUT') @endif
     <input type="hidden" name="party_type" value="employee">

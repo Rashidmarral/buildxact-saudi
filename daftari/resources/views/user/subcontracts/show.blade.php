@@ -106,7 +106,7 @@
     </table>
 </div>
 
-<div class="bg-white rounded-xl border border-slate-100 mb-6" x-data="{ selected: [], allIds: @json($subcontract->payments->pluck('id')->map('strval')) }">
+<div class="bg-white rounded-xl border border-slate-100 mb-6" x-data="{ selected: [], allIds: {{ Illuminate\Support\Js::from($subcontract->payments->pluck('id')->map('strval')) }} }">
     <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
         <h3 class="text-sm font-semibold text-slate-900">{{ __('Payments') }}</h3>
         <form method="POST" action="{{ route('app.subcontracts.payments.destroy-many', $subcontract) }}" onsubmit="return confirm('{{ __('Remove the selected payments from the tracker? The underlying vouchers, if any, are not affected.') }}')" x-show="selected.length" x-cloak>
@@ -155,7 +155,7 @@
     </table>
 </div>
 
-<div class="bg-white rounded-xl border border-slate-100 mb-6 p-5" x-data="categoryBreakdownForm({{ json_encode(request()->filled('group_label') ? collect(request('group_label'))->map(fn ($l, $i) => ['label' => $l, 'terms' => request('group_terms')[$i] ?? '']) ->values() : collect($defaultCategoryGroups)->map(fn ($terms, $label) => ['label' => $label, 'terms' => $terms])->values()) }})">
+<div class="bg-white rounded-xl border border-slate-100 mb-6 p-5" x-data="categoryBreakdownForm({{ Illuminate\Support\Js::from(request()->filled('group_label') ? collect(request('group_label'))->map(fn ($l, $i) => ['label' => $l, 'terms' => request('group_terms')[$i] ?? '']) ->values() : collect($defaultCategoryGroups)->map(fn ($terms, $label) => ['label' => $label, 'terms' => $terms])->values()) }})">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h3 class="text-sm font-semibold text-slate-900">{{ __('Payment breakdown by category') }}</h3>
         <p class="text-xs text-slate-400">{{ __('Group this contract\'s own payments however you think about the cost — who got paid, what it was for.') }}</p>
@@ -315,7 +315,7 @@ function categoryBreakdownForm(initialRows) {
                 @csrf
                 <div class="flex items-center justify-between mb-2">
                     <label class="inline-flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
-                        <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" :checked="selected.length && selected.length === {{ $linkableVouchers->count() }}" @change="selected = $event.target.checked ? {{ json_encode($linkableVouchers->pluck('id')->map(fn ($id) => (string) $id)) }} : []">
+                        <input type="checkbox" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500" :checked="selected.length && selected.length === {{ $linkableVouchers->count() }}" @change="selected = $event.target.checked ? {{ Illuminate\Support\Js::from($linkableVouchers->pluck('id')->map(fn ($id) => (string) $id)) }} : []">
                         {{ __('Select all') }}
                     </label>
                     <span class="text-xs text-slate-400" x-show="selected.length" x-cloak><span x-text="selected.length"></span> {{ __('selected') }}</span>
