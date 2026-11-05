@@ -38,6 +38,12 @@ class DashboardController extends Controller
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
 
+        // Reuses the same GL-backed indirect-method figures the Income
+        // Statement report shows, rather than a rough sales-minus-expenses
+        // guess — this month's operating profit, exactly as an accountant
+        // would read it there.
+        $incomeStatement = app(FinancialReportService::class)->incomeStatement($company, $monthStart, $monthEnd);
+
         $stats = [
             'total_invoiced' => (clone $invoices)->sum('total'),
             'total_outstanding' => (clone $invoices)->whereIn('status', ['sent', 'partially_paid', 'overdue'])->get()->sum(fn ($i) => $i->balanceDue()),
@@ -47,11 +53,16 @@ class DashboardController extends Controller
             'invoice_count' => (clone $invoices)->count(),
             'overdue_count' => (clone $invoices)->where('status', 'overdue')->count(),
             'open_quotations' => Quotation::whereIn('status', ['draft', 'issued'])->count(),
-            // Reuses the same GL-backed indirect-method figures the Income
-            // Statement report shows, rather than a rough sales-minus-
-            // expenses guess — this month's operating profit, exactly as
-            // an accountant would read it there.
-            'profit_this_month' => app(FinancialReportService::class)->incomeStatement($company, $monthStart, $monthEnd)['netProfit'],
+            'profit_this_month' => $incomeStatement['netProfit'],
+            // "how this showing profit this month... where goes" — when
+            // this month's profit is partly or entirely a reversal from
+            // voiding a PRIOR month's bill/invoice/voucher (see
+            // FinancialReportService::priorPeriodAdjustments()), flag it
+            // here so the dashboard tile itself links straight to the
+            // Income Statement's own explanation instead of leaving a
+            // profit figure with no matching paid/expense/purchase amount
+            // to explain it.
+            'profit_this_month_has_adjustments' => $incomeStatement['priorPeriodAdjustments']->isNotEmpty(),
         ];
 
         $recentInvoices = Invoice::with('client')->latest('issue_date')->latest('id')->take(8)->get();

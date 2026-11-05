@@ -254,11 +254,13 @@ class ReportController extends Controller
         $grossProfit = $statement['grossProfit'];
         $operatingProfit = $statement['operatingProfit'];
         $netProfit = $statement['netProfit'];
+        $priorPeriodAdjustments = $statement['priorPeriodAdjustments'];
 
         if ($request->query('export') === 'csv') {
             $rows = collect()
                 ->concat($revenueLines->map(fn ($r) => [__('Revenue'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]))
-                ->concat($expenseLines->map(fn ($r) => [__('Expenses'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]));
+                ->concat($expenseLines->map(fn ($r) => [__('Expenses'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]))
+                ->concat($priorPeriodAdjustments->map(fn ($r) => [__('Prior-period adjustment'), $r['entry']->entry_number, $r['label'], number_format($r['amount'], 2, '.', '')]));
 
             return $this->csvResponse('income-statement.csv', [__('Section'), __('Code'), __('Account'), __('Amount')], $rows);
         }
@@ -267,6 +269,7 @@ class ReportController extends Controller
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.income-statement', [
                 'company' => $company, 'period' => $period, 'revenueLines' => $revenueLines, 'expenseLines' => $expenseLines,
                 'netSales' => $netSales, 'grossProfit' => $grossProfit, 'operatingProfit' => $operatingProfit, 'netProfit' => $netProfit,
+                'priorPeriodAdjustments' => $priorPeriodAdjustments,
                 'template' => $company->defaultTemplateFor('income_statement'),
             ]);
 
@@ -282,6 +285,7 @@ class ReportController extends Controller
             'grossProfit' => $grossProfit,
             'operatingProfit' => $operatingProfit,
             'netProfit' => $netProfit,
+            'priorPeriodAdjustments' => $priorPeriodAdjustments,
         ]);
     }
 

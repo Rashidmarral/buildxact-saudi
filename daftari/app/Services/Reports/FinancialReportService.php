@@ -5,8 +5,10 @@ namespace App\Services\Reports;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\FixedAsset;
+use App\Models\JournalEntry;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * The GL-derived computations behind the Trial Balance, Balance Sheet and
@@ -128,7 +130,71 @@ class FinancialReportService
             'grossProfit' => $grossProfit,
             'operatingProfit' => $operatingProfit,
             'netProfit' => $operatingProfit,
+            'priorPeriodAdjustments' => $this->priorPeriodAdjustments($company, $from, $to),
         ];
+    }
+
+    /**
+     * "how this showing profit this month... these vouchers assigned to
+     * project manager... this payment will not be considered as used
+     * expenses where goes" — the real cause: voiding a Bill/Invoice/
+     * Payment Voucher/Receipt Voucher posts a reversing entry dated the
+     * moment it's voided (see LedgerPostingService::reverse()), not
+     * back-dated to the original document's own date — correct practice
+     * (a closed period's figures are never silently rewritten), but it
+     * means a prior month's expense/revenue can flip in THIS month's
+     * Income Statement with nothing else around it to explain the swing,
+     * exactly the "0 paid / 0 expenses / 0 purchases but SAR X profit"
+     * pattern reported. This finds every such reversal landing in
+     * [$from, $to] whose own original entry was dated outside it, so the
+     * report can show it as a labelled adjustment instead of a mystery.
+     *
+     * Each row's 'amount' is only the reversal's net effect on THIS
+     * statement's own revenue/expense accounts (a reversal's other leg —
+     * Accounts Payable, Bank, etc. — is a balance-sheet matter and
+     * already excluded), signed so a positive amount means the reversal
+     * INCREASED this period's reported net profit (undoing a prior
+     * period's expense) and a negative amount means it DECREASED it
+     * (undoing a prior period's revenue) — this is a breakdown of what
+     * the totals above already include, not an addition to them.
+     *
+     * @return Collection<int, array{entry: JournalEntry, original: JournalEntry, label: string, originalDate: Carbon, amount: float}>
+     */
+    public function priorPeriodAdjustments(Company $company, Carbon $from, Carbon $to): Collection
+    {
+        return JournalEntry::where('company_id', $company->id)
+            ->whereBetween('entry_date', [$from, $to])
+            ->where('source_type', 'like', '%_reversal')
+            ->with('lines.account')
+            ->get()
+            ->map(function (JournalEntry $entry) use ($company) {
+                $originalType = Str::beforeLast($entry->source_type, '_reversal');
+                $original = JournalEntry::where('company_id', $company->id)
+                    ->where('source_type', $originalType)
+                    ->where('source_id', $entry->source_id)
+                    ->first();
+
+                return ['entry' => $entry, 'original' => $original];
+            })
+            ->filter(fn ($row) => $row['original'] && ! $row['original']->entry_date->between($from, $to))
+            ->map(function ($row) {
+                $pnlDelta = $row['entry']->lines
+                    ->filter(fn ($line) => in_array($line->account->type, ['revenue', 'expense'], true))
+                    ->sum(function ($line) {
+                        $netCredit = $line->account->normal_balance === 'credit' ? $line->credit - $line->debit : $line->debit - $line->credit;
+
+                        return $line->account->type === 'revenue' ? $netCredit : -$netCredit;
+                    });
+
+                return [
+                    'entry' => $row['entry'],
+                    'original' => $row['original'],
+                    'label' => $row['entry']->description,
+                    'originalDate' => $row['original']->entry_date,
+                    'amount' => (float) $pnlDelta,
+                ];
+            })
+            ->values();
     }
 
     /**

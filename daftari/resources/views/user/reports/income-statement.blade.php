@@ -64,4 +64,24 @@
         </div>
     @endif
 </div>
+
+@if ($priorPeriodAdjustments->isNotEmpty())
+    <div class="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-6">
+        <h3 class="font-semibold text-amber-900 mb-1">{{ __('Prior-period adjustments included above') }}</h3>
+        <p class="text-sm text-amber-800 mb-4">{{ __('Voiding a bill, invoice, or voucher reverses it on the date it was voided, not back on its original date — a closed period\'s own figures are never silently rewritten. That reversal lands in THIS period\'s totals above, which is why profit can move with no new sales, payment, expense or purchase to show for it.') }}</p>
+        <div class="space-y-2 text-sm">
+            @foreach ($priorPeriodAdjustments as $row)
+                <div class="flex items-center justify-between gap-4 rounded-lg bg-white/60 px-4 py-2.5">
+                    <div>
+                        <p class="font-medium text-slate-800">{{ $row['label'] }}</p>
+                        <p class="text-xs text-slate-500">{{ __('Originally posted :date — outside this period.', ['date' => $row['originalDate']->format('d M Y')]) }}</p>
+                    </div>
+                    <p class="font-semibold {{ $row['amount'] >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
+                        {{ $row['amount'] >= 0 ? '+' : '' }}{{ number_format($row['amount'], 2) }}
+                    </p>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endif
 @endsection

@@ -47,6 +47,20 @@
     'variant' => $netProfit >= 0 ? 'good' : 'warn',
 ])
 
+@if (($priorPeriodAdjustments ?? collect())->isNotEmpty())
+    @include('documents.print.partials.report.section-title', ['en' => __('PRIOR-PERIOD ADJUSTMENTS INCLUDED ABOVE'), 'ar' => 'تعديلات من فترة سابقة مدرجة أعلاه'])
+    <table class="data-table">
+        <tbody>
+            @foreach ($priorPeriodAdjustments as $row)
+                <tr>
+                    <td>{{ $row['label'] }} ({{ __('originally posted :date', ['date' => $row['originalDate']->format('d M Y')]) }})</td>
+                    <td class="num">{{ number_format($row['amount'], 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+@endif
+
 @include('documents.print.partials.report.footer', ['company' => $company])
 
 </body>
