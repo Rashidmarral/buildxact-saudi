@@ -60,8 +60,13 @@ class FinancialReportService
             ->orderBy('code')
             ->get()
             ->map(function (Account $account) use ($from, $to) {
-                $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<', $from))->sum('debit');
-                $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<', $from))->sum('credit');
+                // whereDate(), not a raw Carbon comparison — see
+                // fixedAssetSchedule()'s note: a lone `<`/`<=` against
+                // this mixed date/datetime column is unreliable for an
+                // entry whose own time isn't midnight (e.g. a month-end
+                // depreciation run or a same-day reversal).
+                $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('debit');
+                $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('credit');
                 $openingBalance = $account->normal_balance === 'debit' ? $openingDebit - $openingCredit : $openingCredit - $openingDebit;
 
                 $lines = $account->journalEntryLines()
@@ -89,6 +94,70 @@ class FinancialReportService
                 ];
             })
             ->filter(fn ($row) => $row['lines']->isNotEmpty() || abs($row['openingBalance']) > 0.005 || abs($row['closingBalance']) > 0.005)
+            ->values();
+    }
+
+    /**
+     * The #2 most-requested document on a year-end audit PBC list after
+     * the General Ledger: a fixed asset roll-forward — opening net book
+     * value + additions − disposals − depreciation for the period =
+     * closing net book value, tied to the GL rather than guessed from
+     * the FixedAsset row's own running accumulated_depreciation (which
+     * is a to-date total, not period-scoped). Depreciation posted for an
+     * asset is found via FixedAssetDepreciationService's own
+     * (source_type='fixed_asset_depreciation', source_id packing) —
+     * each such entry's total debit is that run's depreciation amount,
+     * account-agnostic so this doesn't care which account mapping a
+     * company configured.
+     *
+     * An asset not yet acquired by $to, or already disposed before
+     * $from, has nothing to say about this period and is left out.
+     *
+     * @return Collection<int, array{asset: FixedAsset, openingNbv: float, additions: float, depreciation: float, disposals: float, closingNbv: float}>
+     */
+    public function fixedAssetSchedule(Company $company, Carbon $from, Carbon $to): Collection
+    {
+        $depreciationThrough = function (FixedAsset $asset, Carbon $asOf) {
+            // whereDate() wraps the column in SQL date(...) so a
+            // depreciation entry's end-of-month timestamp (23:59:59, see
+            // AssetDepreciationService) compares correctly against a
+            // plain cutoff date — a raw `where('entry_date', '<=', ...)`
+            // comparison is unreliable for a mixed date/datetime column.
+            return (float) JournalEntry::where('company_id', $asset->company_id)
+                ->where('source_type', 'fixed_asset_depreciation')
+                ->whereBetween('source_id', [$asset->id * 1_000_000, $asset->id * 1_000_000 + 999_999])
+                ->whereDate('entry_date', '<=', $asOf->toDateString())
+                ->with('lines')
+                ->get()
+                ->sum(fn (JournalEntry $je) => $je->totalDebit());
+        };
+
+        return FixedAsset::where('company_id', $company->id)
+            ->where('acquisition_date', '<=', $to)
+            ->where(fn ($q) => $q->whereNull('disposed_at')->orWhere('disposed_at', '>=', $from))
+            ->orderBy('acquisition_date')
+            ->get()
+            ->map(function (FixedAsset $asset) use ($from, $to, $depreciationThrough) {
+                $existedBeforePeriod = $asset->acquisition_date->lt($from);
+                $openingNbv = $existedBeforePeriod
+                    ? round((float) $asset->acquisition_cost - $depreciationThrough($asset, $from->copy()->subDay()), 2)
+                    : 0.0;
+                $additions = $existedBeforePeriod ? 0.0 : round((float) $asset->acquisition_cost, 2);
+                $depreciation = round($depreciationThrough($asset, $to) - $depreciationThrough($asset, $from->copy()->subDay()), 2);
+
+                $disposedThisPeriod = $asset->disposed_at && $asset->disposed_at->between($from, $to);
+                $nbvBeforeDisposal = round($openingNbv + $additions - $depreciation, 2);
+                $disposals = $disposedThisPeriod ? $nbvBeforeDisposal : 0.0;
+
+                return [
+                    'asset' => $asset,
+                    'openingNbv' => $openingNbv,
+                    'additions' => $additions,
+                    'depreciation' => $depreciation,
+                    'disposals' => $disposals,
+                    'closingNbv' => round($nbvBeforeDisposal - $disposals, 2),
+                ];
+            })
             ->values();
     }
 

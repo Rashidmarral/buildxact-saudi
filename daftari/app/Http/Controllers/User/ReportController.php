@@ -263,6 +263,53 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * The #2 most-requested document on a year-end audit PBC list: a
+     * fixed asset roll-forward (opening NBV + additions − disposals −
+     * depreciation = closing NBV), tied to the GL. See
+     * FinancialReportService::fixedAssetSchedule()'s own docblock.
+     */
+    public function fixedAssetSchedule(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $rows = app(FinancialReportService::class)->fixedAssetSchedule($company, $period['from'], $period['to']);
+
+        $totals = [
+            'openingNbv' => (float) $rows->sum('openingNbv'),
+            'additions' => (float) $rows->sum('additions'),
+            'depreciation' => (float) $rows->sum('depreciation'),
+            'disposals' => (float) $rows->sum('disposals'),
+            'closingNbv' => (float) $rows->sum('closingNbv'),
+        ];
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('fixed-asset-schedule.csv',
+                [__('Asset code'), __('Name'), __('Category'), __('Opening NBV'), __('Additions'), __('Depreciation'), __('Disposals'), __('Closing NBV')],
+                $rows->map(fn ($r) => [
+                    $r['asset']->asset_code, $r['asset']->name, $r['asset']->category,
+                    number_format($r['openingNbv'], 2, '.', ''), number_format($r['additions'], 2, '.', ''),
+                    number_format($r['depreciation'], 2, '.', ''), number_format($r['disposals'], 2, '.', ''), number_format($r['closingNbv'], 2, '.', ''),
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.fixed-asset-schedule', [
+                'company' => $company, 'period' => $period, 'rows' => $rows, 'totals' => $totals,
+                'template' => $company->defaultTemplateFor('fixed_asset_schedule'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="fixed-asset-schedule.pdf"']);
+        }
+
+        return view('user.reports.fixed-asset-schedule', [
+            'company' => $company,
+            'period' => $period,
+            'rows' => $rows,
+            'totals' => $totals,
+        ]);
+    }
+
     public function balanceSheet(Request $request)
     {
         $company = Auth::user()->company;
