@@ -59,8 +59,15 @@ class BudgetController extends Controller
 
     public function show(Request $request, Budget $budget)
     {
-        $fromDate = "{$budget->fiscal_year}-01-01";
-        $toDate = "{$budget->fiscal_year}-12-31";
+        // "add more detailed reports... more wide options" — the
+        // budget's own fiscal year is still the default range (an
+        // annual budget vs. an annual actual), but a custom from/to
+        // lets you check progress against it mid-year without waiting
+        // for the year to close, the same "Custom" option every other
+        // report's period selector already offers.
+        $fromDate = $request->filled('from') ? $request->query('from') : "{$budget->fiscal_year}-01-01";
+        $toDate = $request->filled('to') ? $request->query('to') : "{$budget->fiscal_year}-12-31";
+        $isCustomRange = $request->filled('from') || $request->filled('to');
 
         $rows = $budget->lines()->with('account')->get()->map(function (BudgetLine $line) use ($fromDate, $toDate) {
             $account = $line->account;
@@ -85,9 +92,10 @@ class BudgetController extends Controller
 
         $totalBudgeted = (float) $rows->sum('budgeted');
         $totalActual = (float) $rows->sum('actual');
+        $filenameSuffix = $isCustomRange ? $fromDate.'-to-'.$toDate : (string) $budget->fiscal_year;
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse('budget-vs-actual-'.$budget->fiscal_year.'.csv',
+            return $this->csvResponse('budget-vs-actual-'.$filenameSuffix.'.csv',
                 [__('Code'), __('Account'), __('Budgeted'), __('Actual'), __('Variance')],
                 $rows->map(fn (array $r) => [
                     $r['account']->code, $r['account']->name,
@@ -99,10 +107,11 @@ class BudgetController extends Controller
             $pdf = app(MpdfRenderer::class)->render('user.budgets.pdf.show', [
                 'company' => Auth::user()->company, 'budget' => $budget, 'rows' => $rows,
                 'totalBudgeted' => $totalBudgeted, 'totalActual' => $totalActual,
+                'fromDate' => $fromDate, 'toDate' => $toDate, 'isCustomRange' => $isCustomRange,
                 'template' => Auth::user()->company->defaultTemplateFor('budget_vs_actual'),
             ]);
 
-            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="budget-vs-actual-'.$budget->fiscal_year.'.pdf"']);
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="budget-vs-actual-'.$filenameSuffix.'.pdf"']);
         }
 
         return view('user.budgets.show', [
@@ -110,6 +119,9 @@ class BudgetController extends Controller
             'rows' => $rows,
             'totalBudgeted' => $totalBudgeted,
             'totalActual' => $totalActual,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
+            'isCustomRange' => $isCustomRange,
         ]);
     }
 

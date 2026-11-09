@@ -6,7 +6,12 @@
 <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-xl font-bold text-slate-900">{{ $budget->name }}</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ __('Fiscal year') }} {{ $budget->fiscal_year }}</p>
+        <p class="text-sm text-slate-500 mt-1">
+            {{ __('Fiscal year') }} {{ $budget->fiscal_year }}
+            @if ($isCustomRange)
+                &middot; {{ __('Showing :from to :to', ['from' => $fromDate, 'to' => $toDate]) }}
+            @endif
+        </p>
     </div>
     <div class="flex items-center gap-2">
         <a href="{{ route('app.budgets.show', array_merge(request()->query(), ['budget' => $budget, 'export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
@@ -26,6 +31,19 @@
             <button type="submit" class="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">{{ __('Delete') }}</button>
         </form>
     </div>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-100 p-4 mb-6">
+    <form method="GET" class="flex flex-wrap items-center gap-3">
+        <label class="text-xs text-slate-400">{{ __('Compare actuals for') }}</label>
+        <input type="date" name="from" value="{{ $fromDate }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <span class="text-slate-400 text-sm">{{ __('to') }}</span>
+        <input type="date" name="to" value="{{ $toDate }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Apply') }}</button>
+        @if ($isCustomRange)
+            <a href="{{ route('app.budgets.show', $budget) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('Reset to fiscal year') }}</a>
+        @endif
+    </form>
 </div>
 
 <div class="grid sm:grid-cols-3 gap-4 mb-6">

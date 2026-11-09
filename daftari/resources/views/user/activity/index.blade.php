@@ -3,10 +3,35 @@
 @section('title', __('Activity log'))
 
 @section('content')
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-slate-900">{{ __('Activity log') }}</h1>
-    <p class="text-sm text-slate-500 mt-1">{{ __('A record of who did what across your company account.') }}</p>
+<div class="flex items-start justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">{{ __('Activity log') }}</h1>
+        <p class="text-sm text-slate-500 mt-1">{{ __('A record of who did what across your company account.') }}</p>
+    </div>
+    <a href="{{ route('app.activity.index', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 shrink-0">{{ __('Download CSV') }}</a>
 </div>
+
+<form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex flex-wrap items-center gap-3">
+    <select name="user_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <option value="">{{ __('All users') }}</option>
+        @foreach ($users as $user)
+            <option value="{{ $user->id }}" @selected((string) request('user_id') === (string) $user->id)>{{ $user->name }}</option>
+        @endforeach
+    </select>
+    <select name="action" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <option value="">{{ __('All actions') }}</option>
+        @foreach ($actions as $action)
+            <option value="{{ $action }}" @selected(request('action') === $action)>{{ $action }}</option>
+        @endforeach
+    </select>
+    <input type="date" name="from" value="{{ request('from') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+    <span class="text-slate-400 text-sm">{{ __('to') }}</span>
+    <input type="date" name="to" value="{{ request('to') }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+    <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Filter') }}</button>
+    @if (request()->anyFilled(['user_id', 'action', 'from', 'to']))
+        <a href="{{ route('app.activity.index') }}" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('Clear') }}</a>
+    @endif
+</form>
 
 <x-list-toolbar>
 <div class="bg-white rounded-xl border border-slate-100">

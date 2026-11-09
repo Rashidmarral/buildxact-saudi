@@ -9,7 +9,11 @@
 </head>
 <body>
 
-@include('documents.print.partials.report.header', ['titleEn' => __('BUDGET VS ACTUAL'), 'titleAr' => 'الموازنة مقابل الفعلي', 'subtitleEn' => $budget->name.' — '.__('Fiscal year').' '.$budget->fiscal_year, 'template' => $template ?? null])
+@include('documents.print.partials.report.header', [
+    'titleEn' => __('BUDGET VS ACTUAL'), 'titleAr' => 'الموازنة مقابل الفعلي',
+    'subtitleEn' => $budget->name.' — '.(($isCustomRange ?? false) ? ($fromDate.' to '.$toDate) : (__('Fiscal year').' '.$budget->fiscal_year)),
+    'template' => $template ?? null,
+])
 @include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
 
 @php($totalVariance = $totalActual - $totalBudgeted)
