@@ -111,8 +111,12 @@ class ZakatController extends Controller
             ->where('type', 'equity')
             ->get()
             ->sum(function (Account $account) use ($asOf) {
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
+                // whereDate(), not a raw Carbon comparison — a lone `<=`
+                // against this mixed date/datetime column is unreliable
+                // when an entry's own time isn't midnight (see
+                // FinancialReportService::fixedAssetSchedule()'s note).
+                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
+                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
 
                 return $credit - $debit;
             });
@@ -121,8 +125,8 @@ class ZakatController extends Controller
             ->whereIn('type', ['revenue', 'expense'])
             ->get()
             ->sum(function (Account $account) use ($asOf) {
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
+                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
+                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
 
                 return $account->type === 'revenue' ? $credit - $debit : -($debit - $credit);
             });

@@ -20,13 +20,29 @@
     ['label_en' => __('Net profit'), 'label_ar' => 'صافي الربح', 'value' => \App\Support\Money::format($netProfit), 'variant' => $netProfit >= 0 ? 'good' : 'bad'],
 ]])
 
+@php($priorStatement = $priorStatement ?? null)
 @include('documents.print.partials.report.section-title', ['en' => __('REVENUE'), 'ar' => 'الإيرادات'])
 <table class="data-table">
+    <thead>
+        <tr>
+            <th></th>
+            <th class="num">{{ __('Amount') }}</th>
+            @if ($priorStatement)<th class="num">{{ __('Prior') }}</th>@endif
+        </tr>
+    </thead>
     <tbody>
         @foreach ($revenueLines as $row)
-            <tr><td>{{ $row['account']->name }}</td><td class="num">{{ number_format($row['amount'], 2) }}</td></tr>
+            <tr>
+                <td>{{ $row['account']->name }}</td>
+                <td class="num">{{ number_format($row['amount'], 2) }}</td>
+                @if ($priorStatement)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
+            </tr>
         @endforeach
-        <tr class="total-row"><td>{{ __('NET SALES') }}</td><td class="num">{{ number_format($netSales, 2) }}</td></tr>
+        <tr class="total-row">
+            <td>{{ __('NET SALES') }}</td>
+            <td class="num">{{ number_format($netSales, 2) }}</td>
+            @if ($priorStatement)<td class="num">{{ number_format($priorStatement['netSales'], 2) }}</td>@endif
+        </tr>
     </tbody>
 </table>
 
@@ -34,7 +50,11 @@
 <table class="data-table">
     <tbody>
         @foreach ($expenseLines as $row)
-            <tr><td>{{ $row['account']->name }}</td><td class="num">{{ number_format($row['amount'], 2) }}</td></tr>
+            <tr>
+                <td>{{ $row['account']->name }}</td>
+                <td class="num">{{ number_format($row['amount'], 2) }}</td>
+                @if ($priorStatement)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
+            </tr>
         @endforeach
     </tbody>
 </table>

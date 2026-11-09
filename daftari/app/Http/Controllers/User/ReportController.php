@@ -310,37 +310,81 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * "add more detailed reports... compare" — an optional `compare`
+     * query param (prior_period = prior month-end, prior_year = same
+     * date last year) puts a second column of figures next to the
+     * current ones, the same "Compare with" every competitor's balance
+     * sheet offers. See FinancialReportService::mergeComparison().
+     */
     public function balanceSheet(Request $request)
     {
         $company = Auth::user()->company;
         $asOf = $request->filled('as_of') ? Carbon::parse($request->query('as_of'))->endOfDay() : now()->endOfDay();
+        $compare = $request->query('compare', 'none');
 
-        $data = app(FinancialReportService::class)->balanceSheet($company, $asOf);
+        $reportService = app(FinancialReportService::class);
+        $data = $reportService->balanceSheet($company, $asOf);
+
+        $priorAsOf = $this->comparisonAsOf($asOf, $compare);
+        $priorData = $priorAsOf ? $reportService->balanceSheet($company, $priorAsOf) : null;
+
+        if ($priorData) {
+            $data['assets'] = $reportService->mergeComparison($data['assets'], $priorData['assets'], 'balance');
+            $data['liabilities'] = $reportService->mergeComparison($data['liabilities'], $priorData['liabilities'], 'balance');
+            $data['equity'] = $reportService->mergeComparison($data['equity'], $priorData['equity'], 'balance');
+            $data['priorTotalAssets'] = $priorData['totalAssets'];
+            $data['priorTotalLiabilities'] = $priorData['totalLiabilities'];
+            $data['priorTotalEquity'] = $priorData['totalEquity'];
+        }
 
         if ($request->query('export') === 'csv') {
-            $rows = collect()
-                ->concat($data['assets']->map(fn ($r) => [__('Assets'), $r['account']->code, $r['account']->name, number_format($r['balance'], 2, '.', '')]))
-                ->concat($data['liabilities']->map(fn ($r) => [__('Liabilities'), $r['account']->code, $r['account']->name, number_format($r['balance'], 2, '.', '')]))
-                ->concat($data['equity']->map(fn ($r) => [__('Equity'), $r['account']->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', '')]));
+            $rowFor = fn ($r) => $priorData
+                ? [$r['account']->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', ''), number_format($r['priorAmount'], 2, '.', '')]
+                : [$r['account']->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', '')];
 
-            return $this->csvResponse('balance-sheet.csv', [__('Section'), __('Code'), __('Account'), __('Balance')], $rows);
+            $rows = collect()
+                ->concat($data['assets']->map(fn ($r) => [__('Assets'), ...$rowFor($r)]))
+                ->concat($data['liabilities']->map(fn ($r) => [__('Liabilities'), ...$rowFor($r)]))
+                ->concat($data['equity']->map(fn ($r) => [__('Equity'), ...$rowFor($r)]));
+
+            $header = $priorData
+                ? [__('Section'), __('Code'), __('Account'), __('Balance'), __('Prior')]
+                : [__('Section'), __('Code'), __('Account'), __('Balance')];
+
+            return $this->csvResponse('balance-sheet.csv', $header, $rows);
         }
 
         if ($request->query('export') === 'pdf') {
-            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.balance-sheet', ['company' => $company, 'asOf' => $asOf, 'template' => $company->defaultTemplateFor('balance_sheet')] + $data);
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.balance-sheet', [
+                'company' => $company, 'asOf' => $asOf, 'priorAsOf' => $priorAsOf, 'compare' => $compare,
+                'template' => $company->defaultTemplateFor('balance_sheet'),
+            ] + $data);
 
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="balance-sheet.pdf"']);
         }
 
-        return view('user.reports.balance-sheet', ['company' => $company, 'asOf' => $asOf] + $data);
+        return view('user.reports.balance-sheet', ['company' => $company, 'asOf' => $asOf, 'priorAsOf' => $priorAsOf, 'compare' => $compare] + $data);
     }
 
+    /**
+     * "add more detailed reports... compare" — an optional `compare`
+     * query param (prior_period / prior_year) puts last period's or
+     * last year's figures next to the current ones on every line, the
+     * same "Compare with" every competitor's P&L offers. Kept entirely
+     * separate from priorPeriodAdjustments (a different, pre-existing
+     * concept: a reversal landing in this period whose own original
+     * entry was dated in an earlier one) — this is a side-by-side
+     * comparison of two whole periods, not a same-period breakdown.
+     */
     public function incomeStatement(Request $request)
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
+        $compare = $request->query('compare', 'none');
 
-        $statement = app(FinancialReportService::class)->incomeStatement($company, $period['from'], $period['to']);
+        $reportService = app(FinancialReportService::class);
+        $statement = $reportService->incomeStatement($company, $period['from'], $period['to']);
         $revenueLines = $statement['revenueLines'];
         $expenseLines = $statement['expenseLines'];
         $netSales = $statement['netSales'];
@@ -349,13 +393,29 @@ class ReportController extends Controller
         $netProfit = $statement['netProfit'];
         $priorPeriodAdjustments = $statement['priorPeriodAdjustments'];
 
+        $comparisonPeriod = $this->comparisonPeriod($period, $compare);
+        $priorStatement = $comparisonPeriod ? $reportService->incomeStatement($company, $comparisonPeriod['from'], $comparisonPeriod['to']) : null;
+
+        if ($priorStatement) {
+            $revenueLines = $reportService->mergeComparison($revenueLines, $priorStatement['revenueLines'], 'amount');
+            $expenseLines = $reportService->mergeComparison($expenseLines, $priorStatement['expenseLines'], 'amount');
+        }
+
         if ($request->query('export') === 'csv') {
+            $rowFor = fn ($r) => $priorStatement
+                ? [$r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', ''), number_format($r['priorAmount'], 2, '.', '')]
+                : [$r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')];
+
             $rows = collect()
-                ->concat($revenueLines->map(fn ($r) => [__('Revenue'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]))
-                ->concat($expenseLines->map(fn ($r) => [__('Expenses'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]))
+                ->concat($revenueLines->map(fn ($r) => [__('Revenue'), ...$rowFor($r)]))
+                ->concat($expenseLines->map(fn ($r) => [__('Expenses'), ...$rowFor($r)]))
                 ->concat($priorPeriodAdjustments->map(fn ($r) => [__('Prior-period adjustment'), $r['entry']->entry_number, $r['label'], number_format($r['amount'], 2, '.', '')]));
 
-            return $this->csvResponse('income-statement.csv', [__('Section'), __('Code'), __('Account'), __('Amount')], $rows);
+            $header = $priorStatement
+                ? [__('Section'), __('Code'), __('Account'), __('Amount'), __('Prior')]
+                : [__('Section'), __('Code'), __('Account'), __('Amount')];
+
+            return $this->csvResponse('income-statement.csv', $header, $rows);
         }
 
         if ($request->query('export') === 'pdf') {
@@ -363,6 +423,7 @@ class ReportController extends Controller
                 'company' => $company, 'period' => $period, 'revenueLines' => $revenueLines, 'expenseLines' => $expenseLines,
                 'netSales' => $netSales, 'grossProfit' => $grossProfit, 'operatingProfit' => $operatingProfit, 'netProfit' => $netProfit,
                 'priorPeriodAdjustments' => $priorPeriodAdjustments,
+                'compare' => $compare, 'comparisonPeriod' => $comparisonPeriod, 'priorStatement' => $priorStatement,
                 'template' => $company->defaultTemplateFor('income_statement'),
             ]);
 
@@ -378,6 +439,9 @@ class ReportController extends Controller
             'grossProfit' => $grossProfit,
             'operatingProfit' => $operatingProfit,
             'netProfit' => $netProfit,
+            'compare' => $compare,
+            'comparisonPeriod' => $comparisonPeriod,
+            'priorStatement' => $priorStatement,
             'priorPeriodAdjustments' => $priorPeriodAdjustments,
         ]);
     }

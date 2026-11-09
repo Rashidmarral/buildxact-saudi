@@ -161,6 +161,44 @@ class FinancialReportService
             ->values();
     }
 
+    /**
+     * "add more detailed reports... compare" — merges a report's current-
+     * period line rows with the same shape computed for a comparison
+     * period (prior period / prior year), matching how Zoho/QuickBooks/
+     * Xero show both side by side rather than making you run the report
+     * twice. Keys on the account id where there is one, or on the
+     * pseudo-row's own 'key'/'label' (balanceSheet()'s synthesized
+     * "Current period earnings" row has no account). An account that
+     * only has activity in one of the two periods still gets a row,
+     * with the other side at 0 — never silently dropped.
+     *
+     * @param  Collection<int, array<string, mixed>>  $current
+     * @param  Collection<int, array<string, mixed>>  $prior
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function mergeComparison(Collection $current, Collection $prior, string $valueKey): Collection
+    {
+        $keyFor = fn ($row) => $row['account']?->id ?? 'pseudo:'.($row['key'] ?? $row['label'] ?? '');
+        $merged = [];
+
+        foreach ($current as $row) {
+            $merged[$keyFor($row)] = $row + ['priorAmount' => 0.0];
+        }
+
+        foreach ($prior as $row) {
+            $key = $keyFor($row);
+            if (isset($merged[$key])) {
+                $merged[$key]['priorAmount'] = (float) $row[$valueKey];
+            } else {
+                $merged[$key] = [...$row, $valueKey => 0.0, 'priorAmount' => (float) $row[$valueKey]];
+            }
+        }
+
+        return collect($merged)
+            ->sortBy(fn ($row) => $row['account']?->code ?? $row['label'] ?? '')
+            ->values();
+    }
+
     public function balanceSheet(Company $company, Carbon $asOf): array
     {
         $balances = Account::where('company_id', $company->id)
@@ -169,8 +207,12 @@ class FinancialReportService
             ->orderBy('code')
             ->get()
             ->map(function (Account $account) use ($asOf) {
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
+                // whereDate(), not a raw Carbon comparison — see
+                // FixedAssetSchedule's note: a lone `<=` against this
+                // mixed date/datetime column is unreliable when an
+                // entry's own time isn't midnight.
+                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
+                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
                 $balance = $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
 
                 return ['account' => $account, 'balance' => $balance];
@@ -186,8 +228,8 @@ class FinancialReportService
             ->whereIn('type', ['revenue', 'expense'])
             ->get()
             ->sum(function (Account $account) use ($asOf) {
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
+                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
+                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
 
                 return $account->type === 'revenue' ? $credit - $debit : -($debit - $credit);
             });
@@ -352,8 +394,11 @@ class FinancialReportService
         $fixedAssetCodes = ['1500', '1550'];
 
         $balanceAt = function (Account $account, Carbon $asOf) {
-            $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('debit');
-            $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<=', $asOf))->sum('credit');
+            // whereDate(), not a raw Carbon comparison — see
+            // fixedAssetSchedule()'s note on why a lone `<=` against this
+            // mixed date/datetime column is unreliable.
+            $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
+            $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
 
             return $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
         };

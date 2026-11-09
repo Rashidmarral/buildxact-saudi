@@ -6,6 +6,7 @@
 @php
     $logoData = $embed($company->logo_path ?? null);
     $balances = $totalAssets - ($totalLiabilities + $totalEquity);
+    $priorAsOf = $priorAsOf ?? null;
 @endphp
 <!DOCTYPE html>
 <html>
@@ -28,11 +29,22 @@
 
 @include('documents.print.partials.report.section-title', ['en' => __('ASSETS'), 'ar' => 'الأصول'])
 <table class="data-table">
+    @if ($priorAsOf)
+        <thead><tr><th></th><th class="num">{{ __('Amount') }}</th><th class="num">{{ __('Prior') }}</th></tr></thead>
+    @endif
     <tbody>
         @foreach ($assets as $row)
-            <tr><td>{{ $row['account']->label() }}</td><td class="num">{{ number_format($row['balance'], 2) }}</td></tr>
+            <tr>
+                <td>{{ $row['account']->label() }}</td>
+                <td class="num">{{ number_format($row['balance'], 2) }}</td>
+                @if ($priorAsOf)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
+            </tr>
         @endforeach
-        <tr class="total-row"><td>{{ __('TOTAL ASSETS') }}</td><td class="num">{{ number_format($totalAssets, 2) }}</td></tr>
+        <tr class="total-row">
+            <td>{{ __('TOTAL ASSETS') }}</td>
+            <td class="num">{{ number_format($totalAssets, 2) }}</td>
+            @if ($priorAsOf)<td class="num">{{ number_format($priorTotalAssets, 2) }}</td>@endif
+        </tr>
     </tbody>
 </table>
 
@@ -40,9 +52,17 @@
 <table class="data-table">
     <tbody>
         @foreach ($liabilities as $row)
-            <tr><td>{{ $row['account']->label() }}</td><td class="num">{{ number_format($row['balance'], 2) }}</td></tr>
+            <tr>
+                <td>{{ $row['account']->label() }}</td>
+                <td class="num">{{ number_format($row['balance'], 2) }}</td>
+                @if ($priorAsOf)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
+            </tr>
         @endforeach
-        <tr class="total-row"><td>{{ __('TOTAL LIABILITIES') }}</td><td class="num">{{ number_format($totalLiabilities, 2) }}</td></tr>
+        <tr class="total-row">
+            <td>{{ __('TOTAL LIABILITIES') }}</td>
+            <td class="num">{{ number_format($totalLiabilities, 2) }}</td>
+            @if ($priorAsOf)<td class="num">{{ number_format($priorTotalLiabilities, 2) }}</td>@endif
+        </tr>
     </tbody>
 </table>
 
@@ -50,9 +70,17 @@
 <table class="data-table">
     <tbody>
         @foreach ($equity as $row)
-            <tr><td>{{ $row['account']?->label() ?? $row['label'] }}</td><td class="num">{{ number_format($row['balance'], 2) }}</td></tr>
+            <tr>
+                <td>{{ $row['account']?->label() ?? $row['label'] }}</td>
+                <td class="num">{{ number_format($row['balance'], 2) }}</td>
+                @if ($priorAsOf)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
+            </tr>
         @endforeach
-        <tr class="total-row"><td>{{ __('TOTAL EQUITY') }}</td><td class="num">{{ number_format($totalEquity, 2) }}</td></tr>
+        <tr class="total-row">
+            <td>{{ __('TOTAL EQUITY') }}</td>
+            <td class="num">{{ number_format($totalEquity, 2) }}</td>
+            @if ($priorAsOf)<td class="num">{{ number_format($priorTotalEquity, 2) }}</td>@endif
+        </tr>
     </tbody>
 </table>
 

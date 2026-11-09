@@ -12,24 +12,28 @@
     <a href="{{ route('app.reports.income-statement', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
 </div>
 
-@include('user.reports.partials.period-selector')
+@include('user.reports.partials.period-selector', ['showCompare' => true])
 
 <div class="grid sm:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net sales') }}</p>
         <p class="text-2xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($netSales) }}</p>
+        @if ($priorStatement)<p class="text-xs text-slate-400 mt-1">{{ __('Prior') }}: {{ \App\Support\Money::format($priorStatement['netSales']) }}</p>@endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Gross profit') }}</p>
         <p class="text-2xl font-bold text-slate-900 mt-1">{{ \App\Support\Money::format($grossProfit) }}</p>
+        @if ($priorStatement)<p class="text-xs text-slate-400 mt-1">{{ __('Prior') }}: {{ \App\Support\Money::format($priorStatement['grossProfit']) }}</p>@endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Operating profit (loss)') }}</p>
         <p class="text-2xl font-bold {{ $operatingProfit >= 0 ? 'text-slate-900' : 'text-red-600' }} mt-1">{{ \App\Support\Money::format($operatingProfit) }}</p>
+        @if ($priorStatement)<p class="text-xs text-slate-400 mt-1">{{ __('Prior') }}: {{ \App\Support\Money::format($priorStatement['operatingProfit']) }}</p>@endif
     </div>
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Net profit') }}</p>
         <p class="text-2xl font-bold {{ $netProfit >= 0 ? 'text-slate-900' : 'text-red-600' }} mt-1">{{ \App\Support\Money::format($netProfit) }}</p>
+        @if ($priorStatement)<p class="text-xs text-slate-400 mt-1">{{ __('Prior') }}: {{ \App\Support\Money::format($priorStatement['netProfit']) }}</p>@endif
     </div>
 </div>
 
@@ -49,7 +53,10 @@
                 <p class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Revenue') }}</p>
                 <div class="space-y-2 text-sm">
                     @foreach ($revenueLines as $row)
-                        <div class="flex justify-between text-slate-600"><span>{{ $row['account']->label() }}</span><span>{{ number_format($row['amount'], 2) }}</span></div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>{{ $row['account']->label() }}</span>
+                            <span>{{ number_format($row['amount'], 2) }}@if ($priorStatement) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+                        </div>
                     @endforeach
                 </div>
             </div>
@@ -57,11 +64,17 @@
                 <p class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Expenses') }}</p>
                 <div class="space-y-2 text-sm">
                     @foreach ($expenseLines as $row)
-                        <div class="flex justify-between text-slate-600"><span>{{ $row['account']->label() }}</span><span>{{ number_format($row['amount'], 2) }}</span></div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>{{ $row['account']->label() }}</span>
+                            <span>{{ number_format($row['amount'], 2) }}@if ($priorStatement) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+                        </div>
                     @endforeach
                 </div>
             </div>
         </div>
+        @if ($priorStatement)
+            <p class="text-xs text-slate-400 mt-4">{{ __('Figures in parentheses are the comparison period (:from to :to).', ['from' => $comparisonPeriod['from']->format('d M Y'), 'to' => $comparisonPeriod['to']->format('d M Y')]) }}</p>
+        @endif
     @endif
 </div>
 

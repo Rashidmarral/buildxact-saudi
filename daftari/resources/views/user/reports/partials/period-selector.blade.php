@@ -1,4 +1,5 @@
 @php($extra = $extra ?? [])
+@php($showCompare = $showCompare ?? false)
 <div class="bg-white rounded-xl border border-slate-100 p-4 mb-6">
     <p class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Period') }} {{ \App\Support\PlatformFormat::date($period['from']) }} &rarr; {{ \App\Support\PlatformFormat::date($period['to']) }}</p>
     <form method="GET" class="flex flex-wrap items-center gap-3">
@@ -33,5 +34,15 @@
             <input type="date" name="to" value="{{ $period['to']->toDateString() }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
             <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Apply') }}</button>
         </span>
+        @if ($showCompare)
+            <span class="flex items-center gap-2 ms-auto">
+                <label class="text-xs text-slate-400">{{ __('Compare with') }}</label>
+                <select name="compare" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                    <option value="none" @selected(($compare ?? 'none') === 'none')>{{ __('Nothing') }}</option>
+                    <option value="prior_period" @selected(($compare ?? 'none') === 'prior_period')>{{ __('Prior period') }}</option>
+                    <option value="prior_year" @selected(($compare ?? 'none') === 'prior_year')>{{ __('Prior year') }}</option>
+                </select>
+            </span>
+        @endif
     </form>
 </div>
