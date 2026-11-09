@@ -283,6 +283,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.balance-sheet', 'label' => __('Balance Sheet')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.statement-of-changes-in-equity', 'label' => __('Statement of Changes in Equity')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.audit-pack', 'label' => __('Year-End Audit Pack')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.bank-reconciliation-summary', 'label' => __('Bank Reconciliation Summary')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.vat', 'label' => __('VAT Return')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.vat-returns.index', 'label' => __('VAT Return Filings')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.account-statement', 'label' => __('Account Statement')])

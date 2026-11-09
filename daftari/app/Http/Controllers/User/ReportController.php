@@ -477,6 +477,41 @@ class ReportController extends Controller
     }
 
     /**
+     * "add more reports... every reports section report detail should
+     * be exportable" — a single page listing every bank statement
+     * reconciled within the period, across every bank/cash account,
+     * instead of opening each account's Bank Reconciliation workflow
+     * one at a time to see which ones are actually squared off.
+     */
+    public function bankReconciliationSummary(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $rows = app(FinancialReportService::class)->bankReconciliationSummary($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('bank-reconciliation-summary.csv',
+                [__('Bank account'), __('Statement date'), __('Statement balance'), __('Book balance'), __('Difference'), __('Outstanding items'), __('Status')],
+                $rows->map(fn (array $r) => [
+                    $r['bankAccount']?->name ?? '—', $r['reconciliation']->statement_date->format('Y-m-d'),
+                    number_format($r['statementBalance'], 2, '.', ''), number_format($r['bookBalance'], 2, '.', ''), number_format($r['difference'], 2, '.', ''),
+                    $r['outstandingCount'], $r['reconciliation']->status,
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.bank-reconciliation-summary', [
+                'company' => $company, 'period' => $period, 'rows' => $rows,
+                'template' => $company->defaultTemplateFor('bank_reconciliation_summary'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="bank-reconciliation-summary.pdf"']);
+        }
+
+        return view('user.reports.bank-reconciliation-summary', ['company' => $company, 'period' => $period, 'rows' => $rows]);
+    }
+
+    /**
      * "add more reports... keep in mind final year Audit" — one click
      * that bundles every statement above (Trial Balance, the full
      * General Ledger, Balance Sheet, Income Statement, Cash Flow,

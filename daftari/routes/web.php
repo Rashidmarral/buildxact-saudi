@@ -457,6 +457,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('fixed-asset-schedule', [ReportController::class, 'fixedAssetSchedule'])->name('fixed-asset-schedule');
         Route::get('audit-pack', [ReportController::class, 'auditPack'])->name('audit-pack')->middleware('feature:financial_statements');
         Route::get('audit-pack/pdf', [ReportController::class, 'auditPackPdf'])->name('audit-pack.pdf')->middleware('feature:financial_statements');
+        Route::get('bank-reconciliation-summary', [ReportController::class, 'bankReconciliationSummary'])->name('bank-reconciliation-summary');
         Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
         Route::get('customers', [ReportController::class, 'customers'])->name('customers');

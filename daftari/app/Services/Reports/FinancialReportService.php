@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\Account;
+use App\Models\BankReconciliation;
 use App\Models\Company;
 use App\Models\FixedAsset;
 use App\Models\JournalEntry;
@@ -532,5 +533,40 @@ class FinancialReportService
             'actualClosingCash' => $actualClosingCash,
             'reconciled' => abs(($openingCash + $netChange) - $actualClosingCash) < 0.01,
         ];
+    }
+
+    /**
+     * "add more reports... bank reconciliation" — one row per bank
+     * statement reconciled within the period, across every bank/cash
+     * account, so an owner or auditor can see at a glance which
+     * accounts are actually reconciled (and whether the book balance
+     * their own ledger shows as of that statement date agrees with
+     * what the bank said) without opening each account's reconciliation
+     * workflow one at a time.
+     *
+     * @return Collection<int, array{reconciliation: BankReconciliation, bankAccount: \App\Models\BankAccount, statementBalance: float, bookBalance: float, difference: float, outstandingCount: int}>
+     */
+    public function bankReconciliationSummary(Company $company, Carbon $from, Carbon $to): Collection
+    {
+        return BankReconciliation::where('company_id', $company->id)
+            ->whereBetween('statement_date', [$from, $to])
+            ->with('bankAccount.account', 'lines')
+            ->orderBy('statement_date')
+            ->get()
+            ->map(function (BankReconciliation $reconciliation) {
+                $bankAccount = $reconciliation->bankAccount;
+                $glAccount = $bankAccount?->account;
+                $statementBalance = (float) $reconciliation->statement_ending_balance;
+                $bookBalance = $glAccount ? $this->accountBalanceAsOf($glAccount, $reconciliation->statement_date) : 0.0;
+
+                return [
+                    'reconciliation' => $reconciliation,
+                    'bankAccount' => $bankAccount,
+                    'statementBalance' => $statementBalance,
+                    'bookBalance' => $bookBalance,
+                    'difference' => round($statementBalance - $bookBalance, 2),
+                    'outstandingCount' => $reconciliation->lines->whereNull('matched_type')->count(),
+                ];
+            });
     }
 }
