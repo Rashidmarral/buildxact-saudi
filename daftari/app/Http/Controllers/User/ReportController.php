@@ -476,6 +476,74 @@ class ReportController extends Controller
         return view('user.reports.statement-of-changes-in-equity', ['company' => $company, 'period' => $period] + $data);
     }
 
+    /**
+     * "add more reports... keep in mind final year Audit" — one click
+     * that bundles every statement above (Trial Balance, the full
+     * General Ledger, Balance Sheet, Income Statement, Cash Flow,
+     * Statement of Changes in Equity, Fixed Asset Schedule) plus Aged
+     * Receivables/Payables for the chosen period into a single PDF, so
+     * handing a year-end audit its evidence pack is one download
+     * instead of eight.
+     */
+    public function auditPack(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+
+        return view('user.reports.audit-pack', ['company' => $company, 'period' => $period]);
+    }
+
+    public function auditPackPdf(Request $request)
+    {
+        $data = $this->auditPackData($request);
+
+        $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.audit-pack', $data + [
+            'template' => $data['company']->defaultTemplateFor('audit_pack'),
+        ]);
+
+        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="year-end-audit-pack.pdf"']);
+    }
+
+    private function auditPackData(Request $request): array
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $service = app(FinancialReportService::class);
+
+        $trialBalanceRows = $service->trialBalance($company, $period['from'], $period['to']);
+        $fixedAssetRows = $service->fixedAssetSchedule($company, $period['from'], $period['to']);
+        $receivables = $this->agedReceivablesRows();
+        $payables = $this->agedPayablesRows();
+        $bucketTotals = fn ($rows) => collect(['current', 'days_1_30', 'days_31_60', 'days_61_90', 'days_over_90'])
+            ->mapWithKeys(fn ($bucket) => [$bucket => (float) $rows->sum(fn ($r) => $r['buckets'][$bucket])])
+            ->put('total', (float) $rows->sum('total'))
+            ->all();
+
+        return [
+            'company' => $company,
+            'period' => $period,
+            'trialBalanceRows' => $trialBalanceRows,
+            'trialBalanceTotals' => ['debit' => (float) $trialBalanceRows->sum('debit'), 'credit' => (float) $trialBalanceRows->sum('credit')],
+            'generalLedgerAccounts' => $service->generalLedger($company, $period['from'], $period['to']),
+            'balanceSheet' => $service->balanceSheet($company, $period['to']),
+            'incomeStatement' => $service->incomeStatement($company, $period['from'], $period['to']),
+            'cashFlow' => $service->cashFlow($company, $period['from'], $period['to']),
+            'equity' => $service->statementOfChangesInEquity($company, $period['from'], $period['to']),
+            'fixedAssetRows' => $fixedAssetRows,
+            'fixedAssetTotals' => [
+                'openingNbv' => (float) $fixedAssetRows->sum('openingNbv'),
+                'additions' => (float) $fixedAssetRows->sum('additions'),
+                'depreciation' => (float) $fixedAssetRows->sum('depreciation'),
+                'disposals' => (float) $fixedAssetRows->sum('disposals'),
+                'closingNbv' => (float) $fixedAssetRows->sum('closingNbv'),
+            ],
+            'receivables' => $receivables,
+            'receivablesTotals' => $bucketTotals($receivables),
+            'payables' => $payables,
+            'payablesTotals' => $bucketTotals($payables),
+        ];
+    }
+
     public function sales(Request $request)
     {
         $company = Auth::user()->company;
