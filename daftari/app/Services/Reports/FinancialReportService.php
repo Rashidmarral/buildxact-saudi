@@ -3,10 +3,17 @@
 namespace App\Services\Reports;
 
 use App\Models\Account;
+use App\Models\BankAccount;
 use App\Models\BankReconciliation;
+use App\Models\BankStatementLine;
+use App\Models\BankTransfer;
 use App\Models\Company;
+use App\Models\Expense;
 use App\Models\FixedAsset;
 use App\Models\JournalEntry;
+use App\Models\JournalEntryLine;
+use App\Models\PaymentVoucher;
+use App\Models\ReceiptVoucher;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -359,6 +366,70 @@ class FinancialReportService
     }
 
     /**
+     * "add more reports... Profit & Loss by month" — one column per
+     * calendar month of the period, to spot trends and seasonality the
+     * single-total Income Statement can't show. Pulls each account's
+     * lines once (not once per month) and buckets them in PHP, so this
+     * stays two queries per account type regardless of how many months
+     * the period spans.
+     *
+     * @return array{months: Collection<int, Carbon>, revenueLines: Collection, expenseLines: Collection, monthlyIncome: Collection, monthlyExpenses: Collection, monthlyNetProfit: Collection, totalIncome: float, totalExpenses: float, netProfit: float}
+     */
+    public function incomeStatementByMonth(Company $company, Carbon $from, Carbon $to): array
+    {
+        $months = collect();
+        for ($cursor = $from->copy()->startOfMonth(); $cursor->lte($to); $cursor->addMonth()) {
+            $months->push($cursor->copy());
+        }
+
+        $revenueLines = $this->monthlyAmountsByType($company, 'revenue', $from, $to, $months);
+        $expenseLines = $this->monthlyAmountsByType($company, 'expense', $from, $to, $months);
+
+        $monthlyIncome = $months->mapWithKeys(fn (Carbon $m) => [$m->format('Y-m') => (float) $revenueLines->sum(fn ($r) => $r['monthly'][$m->format('Y-m')])]);
+        $monthlyExpenses = $months->mapWithKeys(fn (Carbon $m) => [$m->format('Y-m') => (float) $expenseLines->sum(fn ($r) => $r['monthly'][$m->format('Y-m')])]);
+        $monthlyNetProfit = $months->mapWithKeys(fn (Carbon $m) => [$m->format('Y-m') => $monthlyIncome[$m->format('Y-m')] - $monthlyExpenses[$m->format('Y-m')]]);
+
+        return [
+            'months' => $months,
+            'revenueLines' => $revenueLines,
+            'expenseLines' => $expenseLines,
+            'monthlyIncome' => $monthlyIncome,
+            'monthlyExpenses' => $monthlyExpenses,
+            'monthlyNetProfit' => $monthlyNetProfit,
+            'totalIncome' => (float) $monthlyIncome->sum(),
+            'totalExpenses' => (float) $monthlyExpenses->sum(),
+            'netProfit' => (float) $monthlyNetProfit->sum(),
+        ];
+    }
+
+    /**
+     * @return Collection<int, array{account: Account, monthly: Collection<string, float>, total: float}>
+     */
+    private function monthlyAmountsByType(Company $company, string $type, Carbon $from, Carbon $to, Collection $months): Collection
+    {
+        $accounts = Account::where('company_id', $company->id)->where('is_active', true)->where('type', $type)->orderBy('code')->get();
+
+        $lines = JournalEntryLine::whereIn('account_id', $accounts->pluck('id'))
+            ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+            ->with('journalEntry:id,entry_date')
+            ->get(['id', 'account_id', 'journal_entry_id', 'debit', 'credit']);
+
+        return $accounts->map(function (Account $account) use ($lines, $months) {
+            $accountLines = $lines->where('account_id', $account->id);
+            $monthly = $months->mapWithKeys(function (Carbon $month) use ($accountLines, $account) {
+                $monthLines = $accountLines->filter(fn ($l) => $l->journalEntry->entry_date->isSameMonth($month) && $l->journalEntry->entry_date->isSameYear($month));
+                $amount = $account->normal_balance === 'credit'
+                    ? (float) $monthLines->sum('credit') - (float) $monthLines->sum('debit')
+                    : (float) $monthLines->sum('debit') - (float) $monthLines->sum('credit');
+
+                return [$month->format('Y-m') => $amount];
+            });
+
+            return ['account' => $account, 'monthly' => $monthly, 'total' => (float) $monthly->sum()];
+        })->filter(fn ($row) => abs($row['total']) > 0.005)->values();
+    }
+
+    /**
      * "how this showing profit this month... these vouchers assigned to
      * project manager... this payment will not be considered as used
      * expenses where goes" — the real cause: voiding a Bill/Invoice/
@@ -568,5 +639,61 @@ class FinancialReportService
                     'outstandingCount' => $reconciliation->lines->whereNull('matched_type')->count(),
                 ];
             });
+    }
+
+    /**
+     * "add more reports... uncleared bank items" — deposits not yet on
+     * the bank statement and payments/cheques not yet presented, as at
+     * a date: every issued receipt/payment voucher, bank transfer leg
+     * and directly-paid expense through this account that isn't matched
+     * to a statement line in any reconciliation yet. Mirrors
+     * BankReconciliationController::unmatchedBookTransactions() — kept
+     * as a separate read here (not shared) so this standalone report
+     * has no dependency on the reconciliation workflow's own controller,
+     * same as every other report in this service.
+     *
+     * @return Collection<int, array{type: string, id: int, date: Carbon, amount: float, label: string}>
+     */
+    public function unclearedBankItems(BankAccount $bankAccount, Carbon $asOf): Collection
+    {
+        $accountId = $bankAccount->id;
+        $alreadyMatched = fn (string $type) => BankStatementLine::where('matched_type', $type)->pluck('matched_id')->all();
+
+        $receipts = ReceiptVoucher::where('bank_account_id', $accountId)
+            ->where('status', 'issued')
+            ->whereDate('date', '<=', $asOf->toDateString())
+            ->whereNotIn('id', $alreadyMatched('receipt_voucher'))
+            ->get()
+            ->map(fn ($v) => ['type' => 'receipt_voucher', 'id' => $v->id, 'date' => $v->date, 'amount' => (float) $v->amount, 'label' => __('Receipt :number — :party', ['number' => $v->voucher_number, 'party' => $v->payer_name])]);
+
+        $payments = PaymentVoucher::where('bank_account_id', $accountId)
+            ->where('status', 'issued')
+            ->whereDate('date', '<=', $asOf->toDateString())
+            ->whereNotIn('id', $alreadyMatched('payment_voucher'))
+            ->get()
+            ->map(fn ($v) => ['type' => 'payment_voucher', 'id' => $v->id, 'date' => $v->date, 'amount' => -(float) $v->amount, 'label' => __('Payment :number — :party', ['number' => $v->voucher_number, 'party' => $v->payee_name])]);
+
+        $transfersOut = BankTransfer::where('from_bank_account_id', $accountId)
+            ->where('status', 'issued')
+            ->whereDate('date', '<=', $asOf->toDateString())
+            ->whereNotIn('id', $alreadyMatched('bank_transfer'))
+            ->get()
+            ->map(fn ($t) => ['type' => 'bank_transfer', 'id' => $t->id, 'date' => $t->date, 'amount' => -(float) $t->amount, 'label' => __('Transfer to :account', ['account' => $t->toAccount->name])]);
+
+        $transfersIn = BankTransfer::where('to_bank_account_id', $accountId)
+            ->where('status', 'issued')
+            ->whereDate('date', '<=', $asOf->toDateString())
+            ->whereNotIn('id', $alreadyMatched('bank_transfer'))
+            ->get()
+            ->map(fn ($t) => ['type' => 'bank_transfer', 'id' => $t->id, 'date' => $t->date, 'amount' => (float) $t->amount, 'label' => __('Transfer from :account', ['account' => $t->fromAccount->name])]);
+
+        $expenses = Expense::where('bank_account_id', $accountId)
+            ->where('status', 'approved')
+            ->whereDate('expense_date', '<=', $asOf->toDateString())
+            ->whereNotIn('id', $alreadyMatched('expense'))
+            ->get()
+            ->map(fn (Expense $e) => ['type' => 'expense', 'id' => $e->id, 'date' => $e->expense_date, 'amount' => -(float) ($e->gross_amount ?? ($e->amount + $e->vat_amount)), 'label' => __('Expense — :vendor', ['vendor' => $e->vendor_name ?: $e->description])]);
+
+        return $receipts->concat($payments)->concat($transfersOut)->concat($transfersIn)->concat($expenses)->sortBy('date')->values();
     }
 }

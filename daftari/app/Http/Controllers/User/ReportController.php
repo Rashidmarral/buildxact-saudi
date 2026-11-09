@@ -34,6 +34,7 @@ use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class ReportController extends Controller
 {
@@ -447,6 +448,45 @@ class ReportController extends Controller
     }
 
     /**
+     * "add more reports... Profit & Loss by month" — Income Statement
+     * with one column per calendar month, to see trend/seasonality a
+     * single period total can't show.
+     */
+    public function incomeStatementByMonth(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $data = app(FinancialReportService::class)->incomeStatementByMonth($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            $monthKeys = $data['months']->map(fn ($m) => $m->format('Y-m'));
+            $header = array_merge([__('Account')], $monthKeys->map(fn ($k) => $k)->all(), [__('Total')]);
+
+            $rowFor = fn ($r, $label) => array_merge([$label], $monthKeys->map(fn ($k) => number_format($r['monthly'][$k], 2, '.', ''))->all(), [number_format($r['total'], 2, '.', '')]);
+
+            $rows = collect()
+                ->concat($data['revenueLines']->map(fn ($r) => $rowFor($r, $r['account']->name)))
+                ->concat([array_merge([__('TOTAL INCOME')], $monthKeys->map(fn ($k) => number_format($data['monthlyIncome'][$k], 2, '.', ''))->all(), [number_format($data['totalIncome'], 2, '.', '')])])
+                ->concat($data['expenseLines']->map(fn ($r) => $rowFor($r, $r['account']->name)))
+                ->concat([array_merge([__('TOTAL EXPENSES')], $monthKeys->map(fn ($k) => number_format($data['monthlyExpenses'][$k], 2, '.', ''))->all(), [number_format($data['totalExpenses'], 2, '.', '')])])
+                ->concat([array_merge([__('NET PROFIT')], $monthKeys->map(fn ($k) => number_format($data['monthlyNetProfit'][$k], 2, '.', ''))->all(), [number_format($data['netProfit'], 2, '.', '')])]);
+
+            return $this->csvResponse('profit-and-loss-by-month.csv', $header, $rows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.income-statement-by-month', [
+                'company' => $company, 'period' => $period,
+                'template' => $company->defaultTemplateFor('income_statement_by_month'),
+            ] + $data);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="profit-and-loss-by-month.pdf"']);
+        }
+
+        return view('user.reports.income-statement-by-month', ['company' => $company, 'period' => $period] + $data);
+    }
+
+    /**
      * The fourth standard financial statement a full year-end audit
      * expects — see FinancialReportService::statementOfChangesInEquity()'s
      * own docblock.
@@ -509,6 +549,42 @@ class ReportController extends Controller
         }
 
         return view('user.reports.bank-reconciliation-summary', ['company' => $company, 'period' => $period, 'rows' => $rows]);
+    }
+
+    /**
+     * "add more reports... uncleared bank items" — deposits not yet on
+     * the bank statement and payments/cheques not yet presented, for
+     * one bank/cash account as at a date.
+     */
+    public function unclearedBankItems(Request $request)
+    {
+        $company = Auth::user()->company;
+        $accounts = BankAccount::where('company_id', $company->id)->orderBy('name')->get();
+        $bankAccount = $accounts->firstWhere('id', (int) $request->query('bank_account_id')) ?? $accounts->first();
+        $asOf = $request->filled('as_at') ? \Carbon\Carbon::parse($request->query('as_at')) : now();
+
+        $rows = $bankAccount ? app(FinancialReportService::class)->unclearedBankItems($bankAccount, $asOf) : collect();
+        $total = (float) $rows->sum('amount');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('uncleared-bank-items.csv',
+                [__('Date'), __('Description'), __('Amount')],
+                $rows->map(fn (array $r) => [$r['date']->format('Y-m-d'), $r['label'], number_format($r['amount'], 2, '.', '')]));
+        }
+
+        if ($request->query('export') === 'pdf' && $bankAccount) {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.uncleared-bank-items', [
+                'company' => $company, 'bankAccount' => $bankAccount, 'asOf' => $asOf, 'rows' => $rows, 'total' => $total,
+                'template' => $company->defaultTemplateFor('uncleared_bank_items'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="uncleared-bank-items.pdf"']);
+        }
+
+        return view('user.reports.uncleared-bank-items', [
+            'company' => $company, 'accounts' => $accounts, 'bankAccount' => $bankAccount,
+            'asOf' => $asOf, 'rows' => $rows, 'total' => $total,
+        ]);
     }
 
     /**
@@ -966,6 +1042,137 @@ class ReportController extends Controller
     }
 
     /**
+     * "add more reports... Receivables/Payables by contact" — every
+     * customer's or supplier's own balance on the receivable/payable
+     * control account, with opening, movement and closing for the
+     * period — distinct from the Aged Receivables/Payables report
+     * (which only ever shows today's outstanding balance, bucketed by
+     * how overdue it is, never a period's opening/movement/closing).
+     * Reuses the exact same customerStatementLines()/
+     * supplierStatementLines() reconstruction the single-party Account
+     * Statement already relies on, just run across every party instead
+     * of one at a time, so the two reports can never quietly disagree.
+     */
+    public function receivablesPayablesByContact(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $type = $request->query('type', 'receivables') === 'payables' ? 'payables' : 'receivables';
+
+        $rows = $type === 'receivables'
+            ? Client::where('company_id', $company->id)->orderBy('name')->get()->map(fn (Client $client) => $this->contactBalanceRow($client, $this->customerStatementLines($client, $period)))
+            : Supplier::where('company_id', $company->id)->orderBy('name')->get()->map(fn (Supplier $supplier) => $this->contactBalanceRow($supplier, $this->supplierStatementLines($supplier, $period)));
+
+        $rows = $rows->filter(fn (array $r) => abs($r['opening']) > 0.005 || abs($r['debit']) > 0.005 || abs($r['credit']) > 0.005)->values();
+
+        $totals = [
+            'opening' => (float) $rows->sum('opening'), 'debit' => (float) $rows->sum('debit'),
+            'credit' => (float) $rows->sum('credit'), 'closing' => (float) $rows->sum('closing'),
+        ];
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('receivables-payables-by-contact-'.$type.'.csv',
+                [__('Contact'), __('Opening balance'), __('Debit'), __('Credit'), __('Closing balance')],
+                $rows->map(fn (array $r) => [
+                    $r['party']->name, number_format($r['opening'], 2, '.', ''),
+                    number_format($r['debit'], 2, '.', ''), number_format($r['credit'], 2, '.', ''), number_format($r['closing'], 2, '.', ''),
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.receivables-payables-by-contact', [
+                'company' => $company, 'period' => $period, 'type' => $type, 'rows' => $rows, 'totals' => $totals,
+                'template' => $company->defaultTemplateFor('receivables_payables_by_contact'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="receivables-payables-by-contact-'.$type.'.pdf"']);
+        }
+
+        return view('user.reports.receivables-payables-by-contact', [
+            'company' => $company, 'period' => $period, 'type' => $type, 'rows' => $rows, 'totals' => $totals,
+        ]);
+    }
+
+    /**
+     * @param array{0: \Illuminate\Support\Collection, 1: float} $statement
+     * @return array{party: Client|Supplier, opening: float, debit: float, credit: float, closing: float}
+     */
+    private function contactBalanceRow(Client|Supplier $party, array $statement): array
+    {
+        [$lines, $opening] = $statement;
+        $debit = (float) $lines->sum('debit');
+        $credit = (float) $lines->sum('credit');
+
+        return ['party' => $party, 'opening' => $opening, 'debit' => $debit, 'credit' => $credit, 'closing' => $opening + $debit - $credit];
+    }
+
+    /**
+     * "add more reports... Bank/Cash Account Statement" — money in and
+     * out of ONE bank or cash account for a period, straight from its
+     * own ledger: a dedicated, bank-account-picker version of the
+     * single-account Ledger (JournalController::ledger()) that only
+     * ever offers bank/cash accounts, not the full chart of accounts.
+     */
+    public function bankAccountStatement(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $bankAccounts = BankAccount::where('company_id', $company->id)->orderBy('name')->get();
+        $bankAccount = $bankAccounts->firstWhere('id', (int) $request->query('bank_account_id')) ?? $bankAccounts->first();
+
+        $lines = collect();
+        $openingBalance = 0.0;
+        $glAccount = $bankAccount?->account;
+
+        if ($glAccount) {
+            $query = $glAccount->journalEntryLines()->with('journalEntry');
+
+            $openingDebit = (clone $query)->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $period['from']->toDateString()))->sum('debit');
+            $openingCredit = (clone $query)->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $period['from']->toDateString()))->sum('credit');
+            $openingBalance = $glAccount->normal_balance === 'debit' ? $openingDebit - $openingCredit : $openingCredit - $openingDebit;
+
+            $query->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$period['from'], $period['to']]));
+            $lines = $query->get()->sortBy(fn ($l) => $l->journalEntry->entry_date.'-'.$l->id);
+
+            $running = $openingBalance;
+            $lines = $lines->map(function ($line) use (&$running, $glAccount) {
+                $running += $glAccount->normal_balance === 'debit' ? ($line->debit - $line->credit) : ($line->credit - $line->debit);
+                $line->running_balance = $running;
+
+                return $line;
+            });
+        }
+
+        $closingBalance = $lines->isNotEmpty() ? $lines->last()->running_balance : $openingBalance;
+
+        if ($request->query('export') === 'csv' && $bankAccount) {
+            $rows = collect([['', __('Opening balance'), '', '', number_format($openingBalance, 2, '.', '')]])
+                ->concat($lines->map(fn ($l) => [
+                    $l->journalEntry->entry_date->format('Y-m-d'), $l->journalEntry->description,
+                    $l->debit > 0 ? number_format($l->debit, 2, '.', '') : '', $l->credit > 0 ? number_format($l->credit, 2, '.', '') : '',
+                    number_format($l->running_balance, 2, '.', ''),
+                ]));
+
+            return $this->csvResponse('bank-account-statement-'.Str::slug($bankAccount->name).'.csv', [__('Date'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
+        }
+
+        if ($request->query('export') === 'pdf' && $bankAccount) {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.bank-account-statement', [
+                'company' => $company, 'period' => $period, 'bankAccount' => $bankAccount,
+                'lines' => $lines, 'openingBalance' => $openingBalance, 'closingBalance' => $closingBalance,
+                'template' => $company->defaultTemplateFor('bank_account_statement'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="bank-account-statement.pdf"']);
+        }
+
+        return view('user.reports.bank-account-statement', [
+            'company' => $company, 'period' => $period, 'bankAccounts' => $bankAccounts, 'bankAccount' => $bankAccount,
+            'lines' => $lines, 'openingBalance' => $openingBalance, 'closingBalance' => $closingBalance,
+        ]);
+    }
+
+    /**
      * @return array{0: \Illuminate\Support\Collection, 1: array<string, float>}
      */
     private function partyOutstandingSummary(Client|Supplier|null $party, string $type): array
@@ -1221,6 +1428,50 @@ class ReportController extends Controller
     }
 
     /**
+     * "add more reports... Account Receivable/Payable Ageing Details" —
+     * the bucketed aging() report above answers "how much is overdue
+     * per customer"; this answers "which invoices exactly", one row
+     * per still-open invoice/bill instead of one row per party.
+     */
+    public function agingDetails(Request $request)
+    {
+        $company = Auth::user()->company;
+        $type = $request->query('type', 'receivables') === 'payables' ? 'payables' : 'receivables';
+
+        $rows = $type === 'receivables' ? $this->agedReceivablesDetailRows() : $this->agedPayablesDetailRows();
+
+        if ($request->query('export') === 'csv') {
+            $header = $type === 'receivables'
+                ? [__('Date'), __('Transaction Type'), __('Invoice No.'), __('Customer'), __('Due Date'), __('Due')]
+                : [__('Date'), __('Transaction Type'), __('Reference No'), __('Supplier'), __('Due Date'), __('Due')];
+
+            $csvRows = $rows->map(fn (array $r) => [
+                $r['date']->format('Y-m-d'), $r['transactionType'], $r['reference'], $r['party'],
+                $r['dueDate']->format('Y-m-d'), number_format($r['due'], 2, '.', ''),
+            ]);
+
+            return $this->csvResponse('aged-'.$type.'-details.csv', $header, $csvRows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.aging-details', [
+                'company' => $company, 'type' => $type, 'rows' => $rows,
+                'totalDue' => (float) $rows->sum('due'),
+                'template' => $company->defaultTemplateFor('aging_details_report'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="aged-'.$type.'-details.pdf"']);
+        }
+
+        return view('user.reports.aging-details', [
+            'company' => $company,
+            'type' => $type,
+            'rows' => $rows,
+            'totalDue' => (float) $rows->sum('due'),
+        ]);
+    }
+
+    /**
      * Audit finding CASH-02: every active employee's running cash-advance
      * balance — what they've been given via Payment Vouchers, minus what
      * they've repaid via Receipt Vouchers, minus what they've actually
@@ -1318,6 +1569,50 @@ class ReportController extends Controller
                 'total' => (float) $bills->sum(fn (Bill $b) => $b->balanceDue()),
             ])
             ->sortByDesc('total')
+            ->values();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{date: \Carbon\Carbon, transactionType: string, reference: string, party: string, dueDate: \Carbon\Carbon, due: float}>
+     */
+    private function agedReceivablesDetailRows()
+    {
+        return Invoice::with('client')
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->whereHas('client')
+            ->get()
+            ->filter(fn (Invoice $invoice) => $invoice->balanceDue() > 0.004)
+            ->map(fn (Invoice $i) => [
+                'date' => $i->issue_date,
+                'transactionType' => __('Invoice'),
+                'reference' => $i->invoice_number,
+                'party' => $i->client->name,
+                'dueDate' => $i->due_date ?? $i->issue_date,
+                'due' => (float) $i->balanceDue(),
+            ])
+            ->sortBy('dueDate')
+            ->values();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{date: \Carbon\Carbon, transactionType: string, reference: string, party: string, dueDate: \Carbon\Carbon, due: float}>
+     */
+    private function agedPayablesDetailRows()
+    {
+        return Bill::with('supplier')
+            ->whereNotIn('status', ['draft', 'void'])
+            ->whereHas('supplier')
+            ->get()
+            ->filter(fn (Bill $bill) => $bill->balanceDue() > 0.004)
+            ->map(fn (Bill $b) => [
+                'date' => $b->bill_date,
+                'transactionType' => __('Bill'),
+                'reference' => $b->bill_number,
+                'party' => $b->supplier->name,
+                'dueDate' => $b->due_date ?? $b->bill_date,
+                'due' => (float) $b->balanceDue(),
+            ])
+            ->sortBy('dueDate')
             ->values();
     }
 

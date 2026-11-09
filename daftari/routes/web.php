@@ -449,6 +449,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('sales', [ReportController::class, 'sales'])->name('sales');
         Route::get('purchase-sale-summary', [ReportController::class, 'purchaseSaleSummary'])->name('purchase-sale-summary');
         Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement')->middleware('feature:financial_statements');
+        Route::get('income-statement-by-month', [ReportController::class, 'incomeStatementByMonth'])->name('income-statement-by-month')->middleware('feature:financial_statements');
         Route::get('statement-of-changes-in-equity', [ReportController::class, 'statementOfChangesInEquity'])->name('statement-of-changes-in-equity')->middleware('feature:financial_statements');
         Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
         Route::get('cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
@@ -458,11 +459,15 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('audit-pack', [ReportController::class, 'auditPack'])->name('audit-pack')->middleware('feature:financial_statements');
         Route::get('audit-pack/pdf', [ReportController::class, 'auditPackPdf'])->name('audit-pack.pdf')->middleware('feature:financial_statements');
         Route::get('bank-reconciliation-summary', [ReportController::class, 'bankReconciliationSummary'])->name('bank-reconciliation-summary');
+        Route::get('uncleared-bank-items', [ReportController::class, 'unclearedBankItems'])->name('uncleared-bank-items');
         Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
+        Route::get('receivables-payables-by-contact', [ReportController::class, 'receivablesPayablesByContact'])->name('receivables-payables-by-contact');
+        Route::get('bank-account-statement', [ReportController::class, 'bankAccountStatement'])->name('bank-account-statement');
         Route::get('customers', [ReportController::class, 'customers'])->name('customers');
         Route::get('suppliers', [ReportController::class, 'suppliers'])->name('suppliers');
         Route::get('aging', [ReportController::class, 'aging'])->name('aging');
+        Route::get('aging-details', [ReportController::class, 'agingDetails'])->name('aging-details');
         Route::get('employee-advances', [ReportController::class, 'employeeAdvances'])->name('employee-advances');
         Route::get('withholding-tax', [ReportController::class, 'whtReturn'])->name('wht-return');
     });
