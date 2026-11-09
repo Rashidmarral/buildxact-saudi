@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\InvoiceTemplate;
 use App\Models\Item;
+use App\Models\PaymentMode;
 use App\Models\PosRegister;
 use App\Models\PosSale;
 use App\Models\PosShift;
@@ -41,11 +42,28 @@ class PosController extends Controller
             return view('user.pos.open-shift', compact('register', 'registers'));
         }
 
+        PaymentMode::seedDefaults(Auth::user()->company_id);
+
         return view('user.pos.terminal', [
             'register' => $register,
             'registers' => $registers,
             'shift' => $shift,
+            'extraPaymentModes' => $this->extraPaymentModes(),
         ]);
+    }
+
+    /**
+     * Any company-added payment mode beyond the three the terminal's
+     * Cash/Card/+Split controls already send ('cash'/'card'/'other') —
+     * offered as additional options in the "+ Split" line's dropdown.
+     */
+    private function extraPaymentModes()
+    {
+        return PaymentMode::where('company_id', Auth::user()->company_id)
+            ->where('is_active', true)
+            ->whereNotIn('code', ['cash', 'card', 'other'])
+            ->orderBy('sort_order')
+            ->get(['code', 'name']);
     }
 
     public function lookupItem(Request $request)
@@ -129,6 +147,8 @@ class PosController extends Controller
         // tenant's client record. Scoping all four here closes that and
         // matches the pattern used everywhere else in the codebase.
         $companyId = Auth::user()->company_id;
+        PaymentMode::seedDefaults($companyId);
+        $validMethods = PaymentMode::where('company_id', $companyId)->where('is_active', true)->pluck('code')->all() ?: ['cash', 'card', 'other'];
 
         $data = $request->validate([
             'register_id' => ['required', Rule::exists('pos_registers', 'id')->where('company_id', $companyId)],
@@ -139,7 +159,7 @@ class PosController extends Controller
             'lines.*.unit_price' => ['nullable', 'numeric', 'min:0'],
             'lines.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
             'payments' => ['required', 'array', 'min:1'],
-            'payments.*.method' => ['required', 'in:cash,card,other'],
+            'payments.*.method' => ['required', Rule::in($validMethods)],
             'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
             'payments.*.reference' => ['nullable', 'string', 'max:255'],
         ]);

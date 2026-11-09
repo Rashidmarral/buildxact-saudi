@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\AuditLog;
 use App\Models\Company;
+use App\Models\PaymentMode;
 use App\Models\Plan;
 use App\Models\Role;
 use App\Models\Setting;
@@ -174,6 +175,7 @@ class AuthController extends Controller
             TaxRate::seedDefaults($company->id);
             WhtRate::seedDefaults($company->id);
             Unit::seedDefaults($company->id);
+            PaymentMode::seedDefaults($company->id);
 
             $user = User::create([
                 'company_id' => $company->id,

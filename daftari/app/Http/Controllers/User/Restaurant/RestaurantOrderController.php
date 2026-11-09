@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User\Restaurant;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Item;
+use App\Models\PaymentMode;
 use App\Models\RestaurantOrder;
 use App\Models\RestaurantOrderItem;
 use App\Models\RestaurantTable;
@@ -52,8 +53,16 @@ class RestaurantOrderController extends Controller
     public function show(RestaurantOrder $order)
     {
         $order->load(['items.item', 'table', 'sale']);
+        PaymentMode::seedDefaults(Auth::user()->company_id);
 
-        return view('user.restaurant.orders.show', compact('order'));
+        return view('user.restaurant.orders.show', [
+            'order' => $order,
+            'extraPaymentModes' => PaymentMode::where('company_id', Auth::user()->company_id)
+                ->where('is_active', true)
+                ->whereNotIn('code', ['cash', 'card', 'other', 'loyalty_card'])
+                ->orderBy('sort_order')
+                ->get(['code', 'name']),
+        ]);
     }
 
     public function lookupItem(Request $request)
@@ -118,11 +127,13 @@ class RestaurantOrderController extends Controller
     public function checkout(Request $request, RestaurantOrder $order, RestaurantOrderService $service, LedgerPostingService $ledger)
     {
         $companyId = Auth::user()->company_id;
+        PaymentMode::seedDefaults($companyId);
+        $validMethods = PaymentMode::where('company_id', $companyId)->where('is_active', true)->pluck('code')->all() ?: ['cash', 'card', 'other', 'loyalty_card'];
 
         $data = $request->validate([
             'register_id' => ['nullable', Rule::exists('pos_registers', 'id')->where('company_id', $companyId)],
             'payments' => ['required', 'array', 'min:1'],
-            'payments.*.method' => ['required', 'in:cash,card,other,loyalty_card'],
+            'payments.*.method' => ['required', Rule::in($validMethods)],
             'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
             'payments.*.reference' => ['nullable', 'string', 'max:255'],
             'payments.*.loyalty_card_id' => ['required_if:payments.*.method,loyalty_card', Rule::exists('loyalty_cards', 'id')->where('company_id', $companyId)],

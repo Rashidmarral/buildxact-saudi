@@ -19,6 +19,7 @@ use App\Models\Income;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
+use App\Models\PaymentMode;
 use App\Models\PaymentVoucher;
 use App\Models\PayrollRun;
 use App\Models\PosSale;
@@ -918,11 +919,14 @@ class LedgerPostingService
      * A POS sale is paid in full at the point of sale (split across one
      * or more tender methods), so unlike postInvoiceIssued() there's no
      * Accounts Receivable leg — each payment method's own settlement
-     * account is debited directly instead: DEFAULT_CASH for cash,
-     * POS_CARD_CLEARING for card (a real merchant-account settlement lag
-     * exists even though the sale is instant), DEFAULT_BANK for anything
-     * else. subtotal is already net of line-level discounts, so it
-     * (not gross) is what's credited to revenue.
+     * account is debited directly instead. Which account that is comes
+     * from the company's own PaymentMode row for that method's code
+     * when one exists (company-configurable — see PaymentMode::seed
+     * Defaults()'s own doc block), falling back to the original
+     * hardcoded three-way split (DEFAULT_CASH/POS_CARD_CLEARING/
+     * DEFAULT_BANK) for a company that predates PaymentMode or never
+     * seeded it. subtotal is already net of line-level discounts, so
+     * it (not gross) is what's credited to revenue.
      */
     public function postPosSale(PosSale $sale): ?JournalEntry
     {
@@ -935,11 +939,13 @@ class LedgerPostingService
 
         $this->requireAccounts(['DEFAULT_SALES_REVENUE' => $revenue, 'VAT_OUTPUT' => $vatOutput], 'POS sale');
 
-        $paymentAccounts = ['cash' => $cash, 'card' => $cardClearing, 'other' => $bank];
+        $fallbackAccounts = ['cash' => $cash, 'card' => $cardClearing, 'other' => $bank];
+        $paymentModes = PaymentMode::where('company_id', $company->id)->where('is_active', true)->get()->keyBy('code');
         $lines = [];
 
         foreach ($sale->payments as $payment) {
-            $account = $paymentAccounts[$payment->method] ?? $bank;
+            $mode = $paymentModes->get($payment->method);
+            $account = $mode?->linkedAccount ?? $fallbackAccounts[$payment->method] ?? $bank;
             $this->requireAccounts(['payment account' => $account], 'POS sale payment');
             $lines[] = ['account_id' => $account->id, 'debit' => $payment->amount, 'memo' => $sale->sale_number];
         }

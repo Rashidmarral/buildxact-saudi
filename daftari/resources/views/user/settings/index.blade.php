@@ -508,6 +508,7 @@
             ['title' => __('Approvals'), 'desc' => __('Require sign-off on purchase orders or expenses above a set amount.'), 'route' => 'app.settings.approvals'],
             ['title' => __('Custom fields'), 'desc' => __('Add your own fields to clients, suppliers, and items.'), 'route' => 'app.settings.custom-fields.index'],
             ['title' => __('Barcode & SKU'), 'desc' => __('Auto-generate SKUs with your own prefix, and set the barcode length the Generate button uses.'), 'route' => 'app.settings.barcode-sku'],
+            ['title' => __('Payment Modes'), 'desc' => __('Map each POS/restaurant/repair-shop tender type to its own GL account, and add new tender types beyond cash and card.'), 'route' => 'app.settings.payment-modes.index'],
         ] as $card)
             <div class="bg-white rounded-xl border border-slate-100 p-6 flex flex-col justify-between">
                 <div>

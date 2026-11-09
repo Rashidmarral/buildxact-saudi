@@ -102,6 +102,7 @@ use App\Http\Controllers\User\ManualJournalEntryController;
 use App\Http\Controllers\User\OpeningBalanceController;
 use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OwnerReimbursementController;
+use App\Http\Controllers\User\PaymentModeController;
 use App\Http\Controllers\User\PaymentVoucherController;
 use App\Http\Controllers\User\AdvanceCreditController;
 use App\Http\Controllers\User\PrepaymentInvoiceController;
@@ -1006,6 +1007,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
         Route::get('settings/barcode-sku', [ItemSettingsController::class, 'show'])->name('settings.barcode-sku');
         Route::post('settings/barcode-sku', [ItemSettingsController::class, 'update'])->name('settings.barcode-sku.update');
+        Route::resource('settings/payment-modes', PaymentModeController::class)->except(['show', 'create', 'edit'])->names('settings.payment-modes');
         Route::post('settings/approvals/chain-steps', [ApprovalChainController::class, 'store'])->name('settings.approvals.chain-steps.store');
         Route::delete('settings/approvals/chain-steps/{approvalChainStep}', [ApprovalChainController::class, 'destroy'])->name('settings.approvals.chain-steps.destroy');
     });

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\Item;
+use App\Models\PaymentMode;
 use App\Models\RepairJob;
 use App\Models\SmsConfig;
 use App\Models\WhatsappConfig;
@@ -52,8 +53,16 @@ class RepairJobController extends Controller
     public function show(RepairJob $job)
     {
         $job->load(['items.item', 'client', 'sale']);
+        PaymentMode::seedDefaults(Auth::user()->company_id);
 
-        return view('user.repair-jobs.show', compact('job'));
+        return view('user.repair-jobs.show', [
+            'job' => $job,
+            'extraPaymentModes' => PaymentMode::where('company_id', Auth::user()->company_id)
+                ->where('is_active', true)
+                ->whereNotIn('code', ['cash', 'card', 'other'])
+                ->orderBy('sort_order')
+                ->get(['code', 'name']),
+        ]);
     }
 
     public function lookupItem(Request $request)
@@ -146,11 +155,13 @@ class RepairJobController extends Controller
     public function checkout(Request $request, RepairJob $job, RepairJobService $service, LedgerPostingService $ledger)
     {
         $companyId = Auth::user()->company_id;
+        PaymentMode::seedDefaults($companyId);
+        $validMethods = PaymentMode::where('company_id', $companyId)->where('is_active', true)->pluck('code')->all() ?: ['cash', 'card', 'other'];
 
         $data = $request->validate([
             'register_id' => ['nullable', Rule::exists('pos_registers', 'id')->where('company_id', $companyId)],
             'payments' => ['required', 'array', 'min:1'],
-            'payments.*.method' => ['required', 'in:cash,card,other'],
+            'payments.*.method' => ['required', Rule::in($validMethods)],
             'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
             'payments.*.reference' => ['nullable', 'string', 'max:255'],
         ]);

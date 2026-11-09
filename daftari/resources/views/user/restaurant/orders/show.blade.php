@@ -161,6 +161,9 @@
                     <option value="card">{{ __('Card') }}</option>
                     <option value="other">{{ __('Other') }}</option>
                     <option value="loyalty_card">{{ __('Loyalty card') }}</option>
+                    @foreach ($extraPaymentModes ?? [] as $extraMode)
+                        <option value="{{ $extraMode->code }}">{{ $extraMode->name }}</option>
+                    @endforeach
                 </select>
                 <input type="number" min="0" step="0.01" x-model.number="payment.amount" class="w-24 rounded-lg border border-slate-200 text-sm text-end focus:border-brand-500 focus:ring-brand-500">
                 <button type="button" @click="payments.splice(index, 1)" class="text-red-500 hover:text-red-700">✕</button>
