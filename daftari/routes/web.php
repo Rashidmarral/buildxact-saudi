@@ -464,6 +464,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
         Route::get('receivables-payables-by-contact', [ReportController::class, 'receivablesPayablesByContact'])->name('receivables-payables-by-contact');
         Route::get('bank-account-statement', [ReportController::class, 'bankAccountStatement'])->name('bank-account-statement');
+        Route::get('journal-export', [ReportController::class, 'journalExport'])->name('journal-export');
+        Route::get('ledger-account-statement', [ReportController::class, 'ledgerAccountStatement'])->name('ledger-account-statement');
+        Route::get('profit-loss-by-cost-centre', [ReportController::class, 'profitLossByCostCentre'])->name('profit-loss-by-cost-centre');
         Route::get('customers', [ReportController::class, 'customers'])->name('customers');
         Route::get('suppliers', [ReportController::class, 'suppliers'])->name('suppliers');
         Route::get('aging', [ReportController::class, 'aging'])->name('aging');

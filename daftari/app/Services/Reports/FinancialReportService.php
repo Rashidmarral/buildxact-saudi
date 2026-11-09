@@ -7,9 +7,13 @@ use App\Models\BankAccount;
 use App\Models\BankReconciliation;
 use App\Models\BankStatementLine;
 use App\Models\BankTransfer;
+use App\Models\Bill;
 use App\Models\Company;
+use App\Models\CostCenter;
+use App\Models\CostCenterLink;
 use App\Models\Expense;
 use App\Models\FixedAsset;
+use App\Models\Invoice;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\PaymentVoucher;
@@ -102,6 +106,73 @@ class FinancialReportService
                 ];
             })
             ->filter(fn ($row) => $row['lines']->isNotEmpty() || abs($row['openingBalance']) > 0.005 || abs($row['closingBalance']) > 0.005)
+            ->values();
+    }
+
+    /**
+     * "add more reports... Account Statement" with filters by
+     * "location, transaction type and user" — a statement of one OR
+     * MORE ledger accounts at once (not the single account
+     * JournalController::ledger() offers), each with its own opening
+     * balance, filtered postings and running balance, narrowable by
+     * source type (invoice/bill/manual/...) and the user who posted
+     * it. No location filter: a journal line carries no branch/location
+     * column of its own in this ledger (only specific source documents
+     * like Invoice/Bill do), so a line-level location filter would
+     * silently drop every manual/payment-voucher/expense posting —
+     * worse than not offering it.
+     *
+     * When $sourceType or $userId narrows the lines shown, the opening
+     * balance stays the account's real, unfiltered balance as of the
+     * day before $from (so it still means something), but the running/
+     * closing balance in this view is then a running total of only the
+     * filtered lines — it will not equal the account's true closing
+     * balance unless every excluded line happens to be outside the
+     * filter too. That's the deliberate trade-off of an
+     * audit/investigation view ("every posting of this type/by this
+     * user"), not a bug.
+     *
+     * @return Collection<int, array{account: Account, openingBalance: float, lines: Collection, closingBalance: float, periodDebit: float, periodCredit: float}>
+     */
+    public function accountStatementMulti(Company $company, Collection $accountIds, Carbon $from, Carbon $to, ?string $sourceType, ?int $userId): Collection
+    {
+        return Account::where('company_id', $company->id)
+            ->whereIn('id', $accountIds)
+            ->orderBy('code')
+            ->get()
+            ->map(function (Account $account) use ($from, $to, $sourceType, $userId) {
+                $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('debit');
+                $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('credit');
+                $openingBalance = $account->normal_balance === 'debit' ? $openingDebit - $openingCredit : $openingCredit - $openingDebit;
+
+                $lines = $account->journalEntryLines()
+                    ->with('journalEntry.creator')
+                    ->whereHas('journalEntry', function ($q) use ($from, $to, $sourceType, $userId) {
+                        $q->whereBetween('entry_date', [$from, $to])
+                            ->when($sourceType, fn ($q2) => $q2->where('source_type', $sourceType))
+                            ->when($userId, fn ($q2) => $q2->where('created_by', $userId));
+                    })
+                    ->get()
+                    ->sortBy(fn ($l) => $l->journalEntry->entry_date.'-'.$l->id)
+                    ->values();
+
+                $running = $openingBalance;
+                $lines = $lines->map(function ($line) use (&$running, $account) {
+                    $running += $account->normal_balance === 'debit' ? ($line->debit - $line->credit) : ($line->credit - $line->debit);
+                    $line->running_balance = $running;
+
+                    return $line;
+                });
+
+                return [
+                    'account' => $account,
+                    'openingBalance' => $openingBalance,
+                    'lines' => $lines,
+                    'closingBalance' => $running,
+                    'periodDebit' => (float) $lines->sum('debit'),
+                    'periodCredit' => (float) $lines->sum('credit'),
+                ];
+            })
             ->values();
     }
 
@@ -695,5 +766,138 @@ class FinancialReportService
             ->map(fn (Expense $e) => ['type' => 'expense', 'id' => $e->id, 'date' => $e->expense_date, 'amount' => -(float) ($e->gross_amount ?? ($e->amount + $e->vat_amount)), 'label' => __('Expense — :vendor', ['vendor' => $e->vendor_name ?: $e->description])]);
 
         return $receipts->concat($payments)->concat($transfersOut)->concat($transfersIn)->concat($expenses)->sortBy('date')->values();
+    }
+
+    /**
+     * "add more reports... journal export (all postings)" — every
+     * posting line in the period in one flat list for auditors/external
+     * accountants: date, reference, source, account code, debit,
+     * credit, cost centre, contact, location and user. Contact/location
+     * are only ever as good as the source document carries them — this
+     * ledger has no company-wide "location"/"contact" column on
+     * JournalEntry itself, so they're a best-effort lookup through the
+     * invoice/bill that posted the entry (the two source types with a
+     * branch and a party) and come back blank for every other source
+     * type (manual, payment_voucher, expense, ...) rather than guessed.
+     *
+     * @return Collection<int, array{date: Carbon, reference: string, source: ?string, code: string, account: string, description: ?string, debit: float, credit: float, costCentre: ?string, contact: ?string, location: ?string, user: ?string}>
+     */
+    public function journalExport(Company $company, Carbon $from, Carbon $to): Collection
+    {
+        $lines = JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->whereBetween('entry_date', [$from, $to]))
+            ->with(['account', 'costCenter', 'journalEntry.creator'])
+            ->get();
+
+        $invoiceIds = $lines->filter(fn (JournalEntryLine $l) => $l->journalEntry->source_type === 'invoice')->pluck('journalEntry.source_id')->unique();
+        $billIds = $lines->filter(fn (JournalEntryLine $l) => $l->journalEntry->source_type === 'bill')->pluck('journalEntry.source_id')->unique();
+
+        $invoices = Invoice::whereIn('id', $invoiceIds)->with('client', 'branch')->get()->keyBy('id');
+        $bills = Bill::whereIn('id', $billIds)->with('supplier', 'branch')->get()->keyBy('id');
+
+        return $lines->map(function (JournalEntryLine $line) use ($invoices, $bills) {
+            $entry = $line->journalEntry;
+            $contact = null;
+            $location = null;
+
+            if ($entry->source_type === 'invoice' && $invoice = $invoices->get($entry->source_id)) {
+                $contact = $invoice->client?->name;
+                $location = $invoice->branch?->name;
+            } elseif ($entry->source_type === 'bill' && $bill = $bills->get($entry->source_id)) {
+                $contact = $bill->supplier?->name;
+                $location = $bill->branch?->name;
+            }
+
+            return [
+                'date' => $entry->entry_date,
+                'reference' => $entry->entry_number,
+                'source' => $entry->source_type,
+                'code' => $line->account->code,
+                'account' => $line->account->name,
+                'description' => $entry->description,
+                'debit' => (float) $line->debit,
+                'credit' => (float) $line->credit,
+                'costCentre' => $line->costCenter?->label(),
+                'contact' => $contact,
+                'location' => $location,
+                'user' => $entry->creator?->name,
+            ];
+        })->sortBy('date')->values();
+    }
+
+    /**
+     * "add more reports... Profit & Loss by cost centre" — income and
+     * expenses split by cost centre, with lines that carry no cost
+     * centre shown separately as "Unassigned", matching Hamly's own
+     * report. A line counts toward a cost centre two ways: tagged
+     * directly on the journal line itself (journal_entry_lines.
+     * cost_center_id — the fully general mechanism, for whenever a
+     * posting path sets it), or for a revenue line posted from an
+     * invoice, through that invoice's own CostCenterLink allocation
+     * (split by its allocation_percent when more than one cost centre
+     * is linked to the same invoice). Every other line — most expenses
+     * today, since nothing yet threads a cost centre onto a bill or
+     * expense posting — lands in Unassigned; that's an honest reflection
+     * of how little of the ledger is actually cost-centre-tagged yet,
+     * not a bug in this report.
+     *
+     * @return array{rows: Collection<int, array{costCentre: ?CostCenter, income: float, expenses: float, net: float}>, totalIncome: float, totalExpenses: float}
+     */
+    public function profitLossByCostCentre(Company $company, Carbon $from, Carbon $to): array
+    {
+        $costCenters = CostCenter::where('company_id', $company->id)->where('is_active', true)->orderBy('code')->get();
+
+        $lines = JournalEntryLine::whereHas('account', fn ($q) => $q->where('company_id', $company->id)->whereIn('type', ['revenue', 'expense']))
+            ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+            ->with('account', 'journalEntry')
+            ->get();
+
+        $invoiceLinks = CostCenterLink::where('company_id', $company->id)->where('entity_type', 'invoice')->get()->groupBy('entity_id');
+
+        $totals = $costCenters->mapWithKeys(fn (CostCenter $cc) => [$cc->id => ['income' => 0.0, 'expenses' => 0.0]])->all();
+        $unassigned = ['income' => 0.0, 'expenses' => 0.0];
+
+        foreach ($lines as $line) {
+            $account = $line->account;
+            $signed = $account->normal_balance === 'credit' ? ((float) $line->credit - (float) $line->debit) : ((float) $line->debit - (float) $line->credit);
+            $bucket = $account->type === 'revenue' ? 'income' : 'expenses';
+
+            if ($line->cost_center_id && isset($totals[$line->cost_center_id])) {
+                $totals[$line->cost_center_id][$bucket] += $signed;
+
+                continue;
+            }
+
+            if ($account->type === 'revenue' && $line->journalEntry->source_type === 'invoice' && $invoiceLinks->has($line->journalEntry->source_id)) {
+                foreach ($invoiceLinks[$line->journalEntry->source_id] as $link) {
+                    if (isset($totals[$link->cost_center_id])) {
+                        $totals[$link->cost_center_id][$bucket] += $signed * ((float) $link->allocation_percent / 100);
+                    }
+                }
+
+                continue;
+            }
+
+            $unassigned[$bucket] += $signed;
+        }
+
+        $rows = $costCenters->map(fn (CostCenter $cc) => [
+            'costCentre' => $cc,
+            'income' => round($totals[$cc->id]['income'], 2),
+            'expenses' => round($totals[$cc->id]['expenses'], 2),
+            'net' => round($totals[$cc->id]['income'] - $totals[$cc->id]['expenses'], 2),
+        ])->filter(fn (array $r) => abs($r['income']) > 0.005 || abs($r['expenses']) > 0.005)->values();
+
+        $rows->push([
+            'costCentre' => null,
+            'income' => round($unassigned['income'], 2),
+            'expenses' => round($unassigned['expenses'], 2),
+            'net' => round($unassigned['income'] - $unassigned['expenses'], 2),
+        ]);
+
+        return [
+            'rows' => $rows,
+            'totalIncome' => round((float) $rows->sum('income'), 2),
+            'totalExpenses' => round((float) $rows->sum('expenses'), 2),
+        ];
     }
 }

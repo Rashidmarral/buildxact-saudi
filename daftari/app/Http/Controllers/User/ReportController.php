@@ -26,6 +26,7 @@ use App\Models\Project;
 use App\Models\ReceiptVoucherAllocation;
 use App\Models\Salesperson;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\Accounting\VatApportionmentService;
 use App\Services\MpdfRenderer;
@@ -1170,6 +1171,132 @@ class ReportController extends Controller
             'company' => $company, 'period' => $period, 'bankAccounts' => $bankAccounts, 'bankAccount' => $bankAccount,
             'lines' => $lines, 'openingBalance' => $openingBalance, 'closingBalance' => $closingBalance,
         ]);
+    }
+
+    /**
+     * "add more reports... journal export (all postings)" — every
+     * posting line in the period, flat, with every dimension this
+     * ledger can attach to it — for an auditor or an external
+     * accountant who wants the raw data, not a formatted statement.
+     */
+    public function journalExport(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $rows = app(FinancialReportService::class)->journalExport($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('journal-export.csv',
+                [__('Date'), __('Reference No'), __('Source'), __('Code'), __('Account'), __('Description'), __('Debit'), __('Credit'), __('Cost centre'), __('Contact'), __('Location'), __('User')],
+                $rows->map(fn (array $r) => [
+                    $r['date']->format('Y-m-d'), $r['reference'], $r['source'], $r['code'], $r['account'], $r['description'],
+                    $r['debit'] > 0 ? number_format($r['debit'], 2, '.', '') : '', $r['credit'] > 0 ? number_format($r['credit'], 2, '.', '') : '',
+                    $r['costCentre'], $r['contact'], $r['location'], $r['user'],
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.journal-export', [
+                'company' => $company, 'period' => $period, 'rows' => $rows,
+                'totalDebit' => (float) $rows->sum('debit'), 'totalCredit' => (float) $rows->sum('credit'),
+                'template' => $company->defaultTemplateFor('journal_export'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="journal-export.pdf"']);
+        }
+
+        return view('user.reports.journal-export', [
+            'company' => $company, 'period' => $period, 'rows' => $rows,
+            'totalDebit' => (float) $rows->sum('debit'), 'totalCredit' => (float) $rows->sum('credit'),
+        ]);
+    }
+
+    /**
+     * "add more reports... Account Statement" filtered by "location,
+     * transaction type, user and currency" — a statement of ONE OR
+     * MORE ledger accounts at once (vs JournalController::ledger(),
+     * which only ever offers one), narrowable by source type and user.
+     * See FinancialReportService::accountStatementMulti()'s own
+     * docblock for why there's no location filter.
+     */
+    public function ledgerAccountStatement(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $accounts = Account::where('company_id', $company->id)->where('is_active', true)->orderBy('code')->get();
+        $accountIds = collect($request->query('account_ids', []))->map(fn ($id) => (int) $id)->filter();
+        $sourceType = $request->filled('source_type') ? $request->query('source_type') : null;
+        $userId = $request->filled('user_id') ? (int) $request->query('user_id') : null;
+
+        $rows = $accountIds->isNotEmpty()
+            ? app(FinancialReportService::class)->accountStatementMulti($company, $accountIds, $period['from'], $period['to'], $sourceType, $userId)
+            : collect();
+
+        $sourceTypes = $company->journalEntries()->distinct()->pluck('source_type');
+        $users = User::where('company_id', $company->id)->orderBy('name')->get(['id', 'name']);
+
+        if ($request->query('export') === 'csv') {
+            $rowsCsv = collect();
+            foreach ($rows as $row) {
+                $rowsCsv->push([$row['account']->code, $row['account']->name, __('Opening balance'), '', '', number_format($row['openingBalance'], 2, '.', '')]);
+                foreach ($row['lines'] as $line) {
+                    $rowsCsv->push([
+                        $row['account']->code, $row['account']->name, $line->journalEntry->entry_date->format('Y-m-d'),
+                        $line->debit > 0 ? number_format($line->debit, 2, '.', '') : '', $line->credit > 0 ? number_format($line->credit, 2, '.', '') : '',
+                        number_format($line->running_balance, 2, '.', ''),
+                    ]);
+                }
+            }
+
+            return $this->csvResponse('ledger-account-statement.csv', [__('Code'), __('Account'), __('Date'), __('Debit'), __('Credit'), __('Balance')], $rowsCsv);
+        }
+
+        if ($request->query('export') === 'pdf' && $rows->isNotEmpty()) {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.ledger-account-statement', [
+                'company' => $company, 'period' => $period, 'rows' => $rows,
+                'template' => $company->defaultTemplateFor('ledger_account_statement'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="ledger-account-statement.pdf"']);
+        }
+
+        return view('user.reports.ledger-account-statement', [
+            'company' => $company, 'period' => $period, 'accounts' => $accounts, 'accountIds' => $accountIds,
+            'sourceTypes' => $sourceTypes, 'users' => $users, 'sourceType' => $sourceType, 'userId' => $userId, 'rows' => $rows,
+        ]);
+    }
+
+    /**
+     * "add more reports... Profit & Loss by cost centre" — see
+     * FinancialReportService::profitLossByCostCentre()'s own docblock
+     * for what counts toward a cost centre today and why most lines
+     * currently land in "Unassigned".
+     */
+    public function profitLossByCostCentre(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $data = app(FinancialReportService::class)->profitLossByCostCentre($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('profit-and-loss-by-cost-centre.csv',
+                [__('Cost centre'), __('Income'), __('Expenses'), __('Net')],
+                $data['rows']->map(fn (array $r) => [
+                    $r['costCentre']?->label() ?? __('Unassigned'),
+                    number_format($r['income'], 2, '.', ''), number_format($r['expenses'], 2, '.', ''), number_format($r['net'], 2, '.', ''),
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.profit-loss-by-cost-centre', [
+                'company' => $company, 'period' => $period,
+                'template' => $company->defaultTemplateFor('profit_loss_by_cost_centre'),
+            ] + $data);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="profit-and-loss-by-cost-centre.pdf"']);
+        }
+
+        return view('user.reports.profit-loss-by-cost-centre', ['company' => $company, 'period' => $period] + $data);
     }
 
     /**
