@@ -199,6 +199,40 @@ class FinancialReportService
             ->values();
     }
 
+    /**
+     * A single account's balance as of a date, reused by balanceSheet(),
+     * netIncomeToDate(), and statementOfChangesInEquity() so the
+     * whereDate()-safe comparison (see FixedAssetSchedule's note: a
+     * lone `<=` against this mixed date/datetime column is unreliable
+     * when an entry's own time isn't midnight) lives in exactly one
+     * place.
+     */
+    private function accountBalanceAsOf(Account $account, Carbon $asOf): float
+    {
+        $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
+        $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
+
+        return $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
+    }
+
+    /**
+     * Retained earnings as of a date: without formal period-close
+     * entries, net income to date (revenue minus expenses, since
+     * inception) is the equity the books imply but never explicitly
+     * post — without it, Assets would never actually equal Liabilities
+     * + Equity on the Balance Sheet, or the Statement of Changes in
+     * Equity's own opening balance would be short by exactly this.
+     */
+    private function netIncomeToDate(Company $company, Carbon $asOf): float
+    {
+        return (float) Account::where('company_id', $company->id)
+            ->whereIn('type', ['revenue', 'expense'])
+            ->get()
+            ->sum(fn (Account $account) => $account->type === 'revenue'
+                ? $this->accountBalanceAsOf($account, $asOf)
+                : -$this->accountBalanceAsOf($account, $asOf));
+    }
+
     public function balanceSheet(Company $company, Carbon $asOf): array
     {
         $balances = Account::where('company_id', $company->id)
@@ -206,33 +240,11 @@ class FinancialReportService
             ->whereIn('type', ['asset', 'liability', 'equity'])
             ->orderBy('code')
             ->get()
-            ->map(function (Account $account) use ($asOf) {
-                // whereDate(), not a raw Carbon comparison — see
-                // FixedAssetSchedule's note: a lone `<=` against this
-                // mixed date/datetime column is unreliable when an
-                // entry's own time isn't midnight.
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
-                $balance = $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
-
-                return ['account' => $account, 'balance' => $balance];
-            })
+            ->map(fn (Account $account) => ['account' => $account, 'balance' => $this->accountBalanceAsOf($account, $asOf)])
             ->filter(fn ($row) => abs($row['balance']) > 0.005)
             ->groupBy(fn ($row) => $row['account']->type);
 
-        // Retained earnings: without formal period-close entries, net income
-        // to date (revenue minus expenses, since inception) is the equity
-        // the books imply but never explicitly post — without it, Assets
-        // would never actually equal Liabilities + Equity.
-        $netIncomeToDate = Account::where('company_id', $company->id)
-            ->whereIn('type', ['revenue', 'expense'])
-            ->get()
-            ->sum(function (Account $account) use ($asOf) {
-                $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
-                $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
-
-                return $account->type === 'revenue' ? $credit - $debit : -($debit - $credit);
-            });
+        $netIncomeToDate = $this->netIncomeToDate($company, $asOf);
 
         $equity = $balances->get('equity', collect());
         if (abs($netIncomeToDate) > 0.005) {
@@ -253,6 +265,56 @@ class FinancialReportService
             'totalLiabilities' => $totalLiabilities,
             'totalEquity' => $totalEquity,
             'balanced' => abs($totalAssets - ($totalLiabilities + $totalEquity)) < 0.01,
+        ];
+    }
+
+    /**
+     * The fourth standard financial statement a full year-end audit
+     * expects alongside the Balance Sheet, Income Statement and Cash
+     * Flow — "add more detailed reports... keep in mind final year
+     * Audit". Per real equity account (Owner's Capital, Drawings, …):
+     * opening balance (as of the day before $from) + this period's own
+     * movement (contributions/drawings actually posted to it) =
+     * closing balance. Net income for the period is added as its own
+     * line, same as balanceSheet()'s synthesized "Current period
+     * earnings" row — this ledger never auto-posts profit into a real
+     * equity account (see balanceSheet()'s own note on why), so without
+     * it the statement's closing total would silently be short.
+     *
+     * @return array{rows: Collection, openingRetainedEarnings: float, netIncomeForPeriod: float, totalOpening: float, totalMovement: float, totalClosing: float}
+     */
+    public function statementOfChangesInEquity(Company $company, Carbon $from, Carbon $to): array
+    {
+        $openingAsOf = $from->copy()->subDay();
+
+        $rows = Account::where('company_id', $company->id)
+            ->where('is_active', true)
+            ->where('type', 'equity')
+            ->orderBy('code')
+            ->get()
+            ->map(function (Account $account) use ($openingAsOf, $to) {
+                $opening = $this->accountBalanceAsOf($account, $openingAsOf);
+                $closing = $this->accountBalanceAsOf($account, $to);
+
+                return ['account' => $account, 'opening' => $opening, 'movement' => round($closing - $opening, 2), 'closing' => $closing];
+            })
+            ->filter(fn ($row) => abs($row['opening']) > 0.005 || abs($row['movement']) > 0.005 || abs($row['closing']) > 0.005)
+            ->values();
+
+        $openingRetainedEarnings = $this->netIncomeToDate($company, $openingAsOf);
+        $netIncomeForPeriod = $this->incomeStatement($company, $from, $to)['netProfit'];
+
+        $totalOpening = round((float) $rows->sum('opening') + $openingRetainedEarnings, 2);
+        $totalMovement = round((float) $rows->sum('movement'), 2);
+        $totalClosing = round($totalOpening + $totalMovement + $netIncomeForPeriod, 2);
+
+        return [
+            'rows' => $rows,
+            'openingRetainedEarnings' => $openingRetainedEarnings,
+            'netIncomeForPeriod' => $netIncomeForPeriod,
+            'totalOpening' => $totalOpening,
+            'totalMovement' => $totalMovement,
+            'totalClosing' => $totalClosing,
         ];
     }
 

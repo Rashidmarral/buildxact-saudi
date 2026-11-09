@@ -281,6 +281,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.general-ledger', 'label' => __('General Ledger')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.fixed-asset-schedule', 'label' => __('Fixed Asset Schedule')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.balance-sheet', 'label' => __('Balance Sheet')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.statement-of-changes-in-equity', 'label' => __('Statement of Changes in Equity')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.vat', 'label' => __('VAT Return')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.vat-returns.index', 'label' => __('VAT Return Filings')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.account-statement', 'label' => __('Account Statement')])

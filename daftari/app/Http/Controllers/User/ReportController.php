@@ -446,6 +446,36 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * The fourth standard financial statement a full year-end audit
+     * expects — see FinancialReportService::statementOfChangesInEquity()'s
+     * own docblock.
+     */
+    public function statementOfChangesInEquity(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $data = app(FinancialReportService::class)->statementOfChangesInEquity($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            $rows = $data['rows']->map(fn ($r) => [$r['account']->code, $r['account']->name, number_format($r['opening'], 2, '.', ''), number_format($r['movement'], 2, '.', ''), '', number_format($r['closing'], 2, '.', '')]);
+            $rows->push([__('Retained earnings'), '', number_format($data['openingRetainedEarnings'], 2, '.', ''), '', number_format($data['netIncomeForPeriod'], 2, '.', ''), number_format($data['openingRetainedEarnings'] + $data['netIncomeForPeriod'], 2, '.', '')]);
+
+            return $this->csvResponse('statement-of-changes-in-equity.csv', [__('Code'), __('Account'), __('Opening'), __('Movement'), __('Net income'), __('Closing')], $rows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.statement-of-changes-in-equity', [
+                'company' => $company, 'period' => $period,
+                'template' => $company->defaultTemplateFor('statement_of_changes_in_equity'),
+            ] + $data);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="statement-of-changes-in-equity.pdf"']);
+        }
+
+        return view('user.reports.statement-of-changes-in-equity', ['company' => $company, 'period' => $period] + $data);
+    }
+
     public function sales(Request $request)
     {
         $company = Auth::user()->company;

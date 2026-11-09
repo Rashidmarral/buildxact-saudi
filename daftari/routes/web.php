@@ -449,6 +449,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('sales', [ReportController::class, 'sales'])->name('sales');
         Route::get('purchase-sale-summary', [ReportController::class, 'purchaseSaleSummary'])->name('purchase-sale-summary');
         Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement')->middleware('feature:financial_statements');
+        Route::get('statement-of-changes-in-equity', [ReportController::class, 'statementOfChangesInEquity'])->name('statement-of-changes-in-equity')->middleware('feature:financial_statements');
         Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
         Route::get('cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
         Route::get('trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
