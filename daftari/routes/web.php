@@ -467,6 +467,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('journal-export', [ReportController::class, 'journalExport'])->name('journal-export');
         Route::get('ledger-account-statement', [ReportController::class, 'ledgerAccountStatement'])->name('ledger-account-statement');
         Route::get('profit-loss-by-cost-centre', [ReportController::class, 'profitLossByCostCentre'])->name('profit-loss-by-cost-centre');
+        Route::get('profit-loss-by-location', [ReportController::class, 'profitLossByLocation'])->name('profit-loss-by-location');
         Route::get('customers', [ReportController::class, 'customers'])->name('customers');
         Route::get('suppliers', [ReportController::class, 'suppliers'])->name('suppliers');
         Route::get('aging', [ReportController::class, 'aging'])->name('aging');

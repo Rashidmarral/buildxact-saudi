@@ -1300,6 +1300,39 @@ class ReportController extends Controller
     }
 
     /**
+     * "add more reports... Profit & Loss by location" — see
+     * FinancialReportService::profitLossByLocation()'s own docblock for
+     * how a line's branch is derived and why most non-invoice/bill
+     * postings land in "Unassigned".
+     */
+    public function profitLossByLocation(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $data = app(FinancialReportService::class)->profitLossByLocation($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('profit-and-loss-by-location.csv',
+                [__('Location'), __('Income'), __('Expenses'), __('Net')],
+                $data['rows']->map(fn (array $r) => [
+                    $r['branch']?->name ?? __('Unassigned'),
+                    number_format($r['income'], 2, '.', ''), number_format($r['expenses'], 2, '.', ''), number_format($r['net'], 2, '.', ''),
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.profit-loss-by-location', [
+                'company' => $company, 'period' => $period,
+                'template' => $company->defaultTemplateFor('profit_loss_by_location'),
+            ] + $data);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="profit-and-loss-by-location.pdf"']);
+        }
+
+        return view('user.reports.profit-loss-by-location', ['company' => $company, 'period' => $period] + $data);
+    }
+
+    /**
      * @return array{0: \Illuminate\Support\Collection, 1: array<string, float>}
      */
     private function partyOutstandingSummary(Client|Supplier|null $party, string $type): array

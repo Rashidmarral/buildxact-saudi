@@ -8,6 +8,7 @@ use App\Models\BankReconciliation;
 use App\Models\BankStatementLine;
 use App\Models\BankTransfer;
 use App\Models\Bill;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\CostCenterLink;
@@ -889,6 +890,79 @@ class FinancialReportService
 
         $rows->push([
             'costCentre' => null,
+            'income' => round($unassigned['income'], 2),
+            'expenses' => round($unassigned['expenses'], 2),
+            'net' => round($unassigned['income'] - $unassigned['expenses'], 2),
+        ]);
+
+        return [
+            'rows' => $rows,
+            'totalIncome' => round((float) $rows->sum('income'), 2),
+            'totalExpenses' => round((float) $rows->sum('expenses'), 2),
+        ];
+    }
+
+    /**
+     * "add more reports... Profit & Loss by location" — income and
+     * expenses split by business location (branch), with lines that
+     * carry no location shown separately as "Unassigned". Journal
+     * entries themselves carry no branch column, so a line's location
+     * is derived through its source document: Invoice and Bill both
+     * have branch_id, looked up in two batched queries to avoid N+1.
+     * Every other source type (manual, payment_voucher, receipt_voucher,
+     * expense, etc.) has no location to derive and lands in Unassigned.
+     *
+     * @return array{rows: Collection<int, array{branch: ?Branch, income: float, expenses: float, net: float}>, totalIncome: float, totalExpenses: float}
+     */
+    public function profitLossByLocation(Company $company, Carbon $from, Carbon $to): array
+    {
+        $branches = Branch::where('company_id', $company->id)->orderBy('code')->get();
+
+        $lines = JournalEntryLine::whereHas('account', fn ($q) => $q->where('company_id', $company->id)->whereIn('type', ['revenue', 'expense']))
+            ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+            ->with('account', 'journalEntry')
+            ->get();
+
+        $invoiceIds = $lines->filter(fn (JournalEntryLine $l) => $l->journalEntry->source_type === 'invoice')->pluck('journalEntry.source_id')->unique();
+        $billIds = $lines->filter(fn (JournalEntryLine $l) => $l->journalEntry->source_type === 'bill')->pluck('journalEntry.source_id')->unique();
+
+        $invoices = Invoice::whereIn('id', $invoiceIds)->get()->keyBy('id');
+        $bills = Bill::whereIn('id', $billIds)->get()->keyBy('id');
+
+        $totals = $branches->mapWithKeys(fn (Branch $b) => [$b->id => ['income' => 0.0, 'expenses' => 0.0]])->all();
+        $unassigned = ['income' => 0.0, 'expenses' => 0.0];
+
+        foreach ($lines as $line) {
+            $account = $line->account;
+            $entry = $line->journalEntry;
+            $signed = $account->normal_balance === 'credit' ? ((float) $line->credit - (float) $line->debit) : ((float) $line->debit - (float) $line->credit);
+            $bucket = $account->type === 'revenue' ? 'income' : 'expenses';
+
+            $branchId = null;
+            if ($entry->source_type === 'invoice' && $invoice = $invoices->get($entry->source_id)) {
+                $branchId = $invoice->branch_id;
+            } elseif ($entry->source_type === 'bill' && $bill = $bills->get($entry->source_id)) {
+                $branchId = $bill->branch_id;
+            }
+
+            if ($branchId && isset($totals[$branchId])) {
+                $totals[$branchId][$bucket] += $signed;
+
+                continue;
+            }
+
+            $unassigned[$bucket] += $signed;
+        }
+
+        $rows = $branches->map(fn (Branch $b) => [
+            'branch' => $b,
+            'income' => round($totals[$b->id]['income'], 2),
+            'expenses' => round($totals[$b->id]['expenses'], 2),
+            'net' => round($totals[$b->id]['income'] - $totals[$b->id]['expenses'], 2),
+        ])->filter(fn (array $r) => abs($r['income']) > 0.005 || abs($r['expenses']) > 0.005)->values();
+
+        $rows->push([
+            'branch' => null,
             'income' => round($unassigned['income'], 2),
             'expenses' => round($unassigned['expenses'], 2),
             'net' => round($unassigned['income'] - $unassigned['expenses'], 2),

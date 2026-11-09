@@ -294,6 +294,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.journal-export', 'label' => __('Journal Export (All Postings)')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.ledger-account-statement', 'label' => __('Ledger Account Statement')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.profit-loss-by-cost-centre', 'label' => __('Profit & Loss by Cost Centre')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.profit-loss-by-location', 'label' => __('Profit & Loss by Location')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.customers', 'label' => __('Customer Report')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.suppliers', 'label' => __('Supplier Report')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.aging', 'label' => __('Aged Receivables/Payables')])
