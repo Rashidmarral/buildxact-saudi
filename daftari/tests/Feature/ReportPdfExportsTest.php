@@ -94,6 +94,17 @@ class ReportPdfExportsTest extends TestCase
         $response->assertHeader('Content-Type', 'application/pdf');
     }
 
+    public function test_general_ledger_pdf_downloads(): void
+    {
+        $company = Company::create(['name' => 'GL Co', 'slug' => 'gl-'.uniqid()]);
+        \App\Models\Account::seedSystemAccounts($company->id);
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $response = $this->actingAs($owner)->get(route('app.reports.general-ledger', ['export' => 'pdf']));
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/pdf');
+    }
+
     public function test_income_statement_pdf_downloads(): void
     {
         $company = Company::create(['name' => 'IS Co', 'slug' => 'is-'.uniqid()]);

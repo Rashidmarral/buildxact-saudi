@@ -6,8 +6,8 @@
 @include('user.accounting.partials.tabs')
 
 <div class="mb-6">
-    <h2 class="text-lg font-semibold text-slate-900">{{ __('General Ledger') }}</h2>
-    <p class="text-sm text-slate-500 mt-1">{{ __('Every journal line posted to a single account, with a running balance.') }}</p>
+    <h2 class="text-lg font-semibold text-slate-900">{{ __('Account Ledger') }}</h2>
+    <p class="text-sm text-slate-500 mt-1">{{ __('Every journal line posted to a single account, with a running balance. For every account at once, see the') }} <a href="{{ route('app.reports.general-ledger') }}" class="text-brand-700 hover:underline">{{ __('General Ledger report') }}</a>.</p>
 </div>
 
 <form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex flex-wrap items-center gap-3">

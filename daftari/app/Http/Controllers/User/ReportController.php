@@ -217,6 +217,52 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * "add more reports... everything should be trackable in reports" —
+     * the full, multi-account General Ledger (every account, opening
+     * balance, every line in the period, closing balance), the single
+     * most-requested document on a year-end audit PBC list. Distinct
+     * from JournalController::ledger(), which only shows one account the
+     * user picks and has no export.
+     */
+    public function generalLedger(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $accounts = app(FinancialReportService::class)->generalLedger($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            $rows = $accounts->flatMap(function ($row) {
+                return collect([[$row['account']->code, $row['account']->name, '', __('Opening balance'), '', '', '', number_format($row['openingBalance'], 2, '.', '')]])
+                    ->concat($row['lines']->map(fn ($line) => [
+                        $row['account']->code, $row['account']->name, $line->journalEntry->entry_date->format('Y-m-d'),
+                        $line->journalEntry->entry_number, $line->journalEntry->description,
+                        $line->debit > 0 ? number_format($line->debit, 2, '.', '') : '',
+                        $line->credit > 0 ? number_format($line->credit, 2, '.', '') : '',
+                        number_format($line->running_balance, 2, '.', ''),
+                    ]))
+                    ->push([$row['account']->code, $row['account']->name, '', __('Closing balance'), '', '', '', number_format($row['closingBalance'], 2, '.', '')]);
+            });
+
+            return $this->csvResponse('general-ledger.csv', [__('Code'), __('Account'), __('Date'), __('Entry'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.general-ledger', [
+                'company' => $company, 'period' => $period, 'accounts' => $accounts,
+                'template' => $company->defaultTemplateFor('general_ledger'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="general-ledger.pdf"']);
+        }
+
+        return view('user.reports.general-ledger', [
+            'company' => $company,
+            'period' => $period,
+            'accounts' => $accounts,
+        ]);
+    }
+
     public function balanceSheet(Request $request)
     {
         $company = Auth::user()->company;

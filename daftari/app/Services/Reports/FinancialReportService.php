@@ -42,6 +42,56 @@ class FinancialReportService
             ->values();
     }
 
+    /**
+     * The full, multi-account General Ledger — the single most-requested
+     * document in any year-end audit PBC list (every account, its opening
+     * balance, every line posted to it in the period, and its closing
+     * balance), as distinct from JournalController::ledger() which only
+     * ever shows one account the user picks from a dropdown with no
+     * export. An account with no opening balance and no activity in the
+     * period is left out entirely — same convention as trialBalance().
+     *
+     * @return Collection<int, array{account: Account, openingBalance: float, lines: Collection, closingBalance: float, periodDebit: float, periodCredit: float}>
+     */
+    public function generalLedger(Company $company, Carbon $from, Carbon $to): Collection
+    {
+        return Account::where('company_id', $company->id)
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get()
+            ->map(function (Account $account) use ($from, $to) {
+                $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<', $from))->sum('debit');
+                $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->where('entry_date', '<', $from))->sum('credit');
+                $openingBalance = $account->normal_balance === 'debit' ? $openingDebit - $openingCredit : $openingCredit - $openingDebit;
+
+                $lines = $account->journalEntryLines()
+                    ->with('journalEntry')
+                    ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+                    ->get()
+                    ->sortBy(fn ($l) => $l->journalEntry->entry_date.'-'.$l->id)
+                    ->values();
+
+                $running = $openingBalance;
+                $lines = $lines->map(function ($line) use (&$running, $account) {
+                    $running += $account->normal_balance === 'debit' ? ($line->debit - $line->credit) : ($line->credit - $line->debit);
+                    $line->running_balance = $running;
+
+                    return $line;
+                });
+
+                return [
+                    'account' => $account,
+                    'openingBalance' => $openingBalance,
+                    'lines' => $lines,
+                    'closingBalance' => $running,
+                    'periodDebit' => (float) $lines->sum('debit'),
+                    'periodCredit' => (float) $lines->sum('credit'),
+                ];
+            })
+            ->filter(fn ($row) => $row['lines']->isNotEmpty() || abs($row['openingBalance']) > 0.005 || abs($row['closingBalance']) > 0.005)
+            ->values();
+    }
+
     public function balanceSheet(Company $company, Carbon $asOf): array
     {
         $balances = Account::where('company_id', $company->id)
