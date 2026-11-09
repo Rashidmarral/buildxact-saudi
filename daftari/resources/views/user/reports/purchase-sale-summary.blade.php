@@ -8,7 +8,10 @@
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Purchase & Sale Summary') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Sales (issued invoices) and purchases (posted bills) for the selected period, side by side by month.') }}</p>
     </div>
-    <a href="{{ route('app.reports.purchase-sale-summary', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('app.reports.purchase-sale-summary', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+        <a href="{{ route('app.reports.purchase-sale-summary', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
+    </div>
 </div>
 
 @include('user.reports.partials.period-selector')

@@ -9,6 +9,8 @@
         <p class="text-sm text-slate-500 mt-1">{{ __('Fiscal year') }} {{ $budget->fiscal_year }}</p>
     </div>
     <div class="flex items-center gap-2">
+        <a href="{{ route('app.budgets.show', array_merge(request()->query(), ['budget' => $budget, 'export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+        <a href="{{ route('app.budgets.show', array_merge(request()->query(), ['budget' => $budget, 'export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
         @if ($budget->status === 'draft')
             <form method="POST" action="{{ route('app.budgets.activate', $budget) }}">
                 @csrf

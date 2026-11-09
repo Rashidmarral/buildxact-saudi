@@ -669,6 +669,15 @@ class ReportController extends Controller
                 $rows->map(fn ($r) => [$r['month']->format('Y-m'), number_format($r['sales'], 2, '.', ''), number_format($r['purchases'], 2, '.', ''), number_format($r['net'], 2, '.', '')]));
         }
 
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.purchase-sale-summary', [
+                'company' => $company, 'period' => $period, 'rows' => $rows,
+                'template' => $company->defaultTemplateFor('purchase_sale_summary'),
+            ] + $summary);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="purchase-sale-summary.pdf"']);
+        }
+
         return view('user.reports.purchase-sale-summary', [
             'company' => $company,
             'period' => $period,
@@ -1223,6 +1232,15 @@ class ReportController extends Controller
                     number_format($r['advanced'], 2, '.', ''), number_format($r['settled'], 2, '.', ''),
                     number_format($r['spent'], 2, '.', ''), number_format($r['outstanding'], 2, '.', ''),
                 ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.employee-advances', [
+                'company' => $company, 'rows' => $rows,
+                'template' => $company->defaultTemplateFor('employee_advances'),
+            ] + $summary);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="employee-advances.pdf"']);
         }
 
         return view('user.reports.employee-advances', ['company' => $company, 'rows' => $rows] + $summary);

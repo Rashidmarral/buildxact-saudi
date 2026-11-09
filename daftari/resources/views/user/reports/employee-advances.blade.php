@@ -8,7 +8,10 @@
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Employee Advances') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Every employee with a cash advance on record — what they\'ve been given via Payment Vouchers, minus what they\'ve repaid via Receipt Vouchers and what they\'ve actually spent on real company expenses, as of today.') }}</p>
     </div>
-    <a href="{{ route('app.reports.employee-advances', ['export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+    <div class="flex items-center gap-2">
+        <a href="{{ route('app.reports.employee-advances', ['export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+        <a href="{{ route('app.reports.employee-advances', ['export' => 'pdf']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
+    </div>
 </div>
 
 <div class="grid sm:grid-cols-4 gap-4 mb-6">

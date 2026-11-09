@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\Budget;
 use App\Models\BudgetLine;
+use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +17,7 @@ use Illuminate\Validation\Rule;
 
 class BudgetController extends Controller
 {
-    use ResolvesPerPage;
+    use ExportsCsv, ResolvesPerPage;
 
     public function index(Request $request)
     {
@@ -55,7 +57,7 @@ class BudgetController extends Controller
         return redirect()->route('app.budgets.show', $budget)->with('status', __('Budget created.'));
     }
 
-    public function show(Budget $budget)
+    public function show(Request $request, Budget $budget)
     {
         $fromDate = "{$budget->fiscal_year}-01-01";
         $toDate = "{$budget->fiscal_year}-12-31";
@@ -81,11 +83,33 @@ class BudgetController extends Controller
             ];
         })->sortBy(fn ($row) => $row['account']->code)->values();
 
+        $totalBudgeted = (float) $rows->sum('budgeted');
+        $totalActual = (float) $rows->sum('actual');
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('budget-vs-actual-'.$budget->fiscal_year.'.csv',
+                [__('Code'), __('Account'), __('Budgeted'), __('Actual'), __('Variance')],
+                $rows->map(fn (array $r) => [
+                    $r['account']->code, $r['account']->name,
+                    number_format($r['budgeted'], 2, '.', ''), number_format($r['actual'], 2, '.', ''), number_format($r['variance'], 2, '.', ''),
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.budgets.pdf.show', [
+                'company' => Auth::user()->company, 'budget' => $budget, 'rows' => $rows,
+                'totalBudgeted' => $totalBudgeted, 'totalActual' => $totalActual,
+                'template' => Auth::user()->company->defaultTemplateFor('budget_vs_actual'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="budget-vs-actual-'.$budget->fiscal_year.'.pdf"']);
+        }
+
         return view('user.budgets.show', [
             'budget' => $budget,
             'rows' => $rows,
-            'totalBudgeted' => $rows->sum('budgeted'),
-            'totalActual' => $rows->sum('actual'),
+            'totalBudgeted' => $totalBudgeted,
+            'totalActual' => $totalActual,
         ]);
     }
 

@@ -137,6 +137,9 @@ class EmployeeAdvanceTrackingTest extends TestCase
         $response->assertOk();
         $response->assertSee('Saeed Al-Qahtani');
         $response->assertDontSee('Untouched Employee');
+
+        $pdf = $this->actingAs($owner)->get(route('app.reports.employee-advances', ['export' => 'pdf']));
+        $pdf->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
 
     public function test_a_voucher_without_an_employee_selected_still_works_as_before(): void

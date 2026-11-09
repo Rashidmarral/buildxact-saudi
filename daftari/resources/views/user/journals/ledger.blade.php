@@ -5,9 +5,17 @@
 @section('content')
 @include('user.accounting.partials.tabs')
 
-<div class="mb-6">
-    <h2 class="text-lg font-semibold text-slate-900">{{ __('Account Ledger') }}</h2>
-    <p class="text-sm text-slate-500 mt-1">{{ __('Every journal line posted to a single account, with a running balance. For every account at once, see the') }} <a href="{{ route('app.reports.general-ledger') }}" class="text-brand-700 hover:underline">{{ __('General Ledger report') }}</a>.</p>
+<div class="flex items-start justify-between mb-6">
+    <div>
+        <h2 class="text-lg font-semibold text-slate-900">{{ __('Account Ledger') }}</h2>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Every journal line posted to a single account, with a running balance. For every account at once, see the') }} <a href="{{ route('app.reports.general-ledger') }}" class="text-brand-700 hover:underline">{{ __('General Ledger report') }}</a>.</p>
+    </div>
+    @if ($account)
+        <div class="flex items-center gap-2 shrink-0">
+            <a href="{{ route('app.ledger.index', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+            <a href="{{ route('app.ledger.index', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
+        </div>
+    @endif
 </div>
 
 <form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex flex-wrap items-center gap-3">

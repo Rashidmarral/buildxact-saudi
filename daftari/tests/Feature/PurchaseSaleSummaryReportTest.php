@@ -88,4 +88,24 @@ class PurchaseSaleSummaryReportTest extends TestCase
         $this->assertStringContainsString('1000.00', $csv);
         $this->assertStringContainsString('400.00', $csv);
     }
+
+    public function test_pdf_export_downloads(): void
+    {
+        $company = $this->makeCompany();
+        $owner = $this->makeOwner($company);
+        $supplier = Supplier::create(['company_id' => $company->id, 'name' => 'Saed Est.']);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Client Co.']);
+
+        Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-0001', 'status' => 'issued',
+            'issue_date' => now()->toDateString(), 'due_date' => now()->toDateString(), 'total' => 1000,
+        ]);
+        Bill::create([
+            'company_id' => $company->id, 'supplier_id' => $supplier->id, 'bill_number' => 'BILL-0001', 'status' => 'posted',
+            'bill_date' => now()->toDateString(), 'due_date' => now()->toDateString(), 'total' => 400,
+        ]);
+
+        $pdf = $this->actingAs($owner)->get(route('app.reports.purchase-sale-summary', ['export' => 'pdf']));
+        $pdf->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
 }
