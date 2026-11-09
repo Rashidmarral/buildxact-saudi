@@ -17,7 +17,9 @@ use App\Models\FixedAsset;
 use App\Models\Invoice;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
+use App\Models\PaymentMode;
 use App\Models\PaymentVoucher;
+use App\Models\PosPayment;
 use App\Models\ReceiptVoucher;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -973,5 +975,75 @@ class FinancialReportService
             'totalIncome' => round((float) $rows->sum('income'), 2),
             'totalExpenses' => round((float) $rows->sum('expenses'), 2),
         ];
+    }
+
+    /**
+     * "add more... Payment Mode Statement" — every POS/restaurant/
+     * repair-shop sale payment in a period for one or all payment modes,
+     * running total included, same idea as the Bank/Cash Account
+     * Statement but for the tender dimension rather than the GL account
+     * one — a voided sale's payments are excluded since its journal
+     * entry was already reversed. $modeId narrows to a single mode;
+     * null returns every active mode's payments together, sorted by date.
+     *
+     * @return Collection<int, array{date: \Illuminate\Support\Carbon, saleNumber: string, mode: string, amount: float, reference: ?string, runningTotal: float}>
+     */
+    public function paymentModeStatement(Company $company, Carbon $from, Carbon $to, ?int $modeId = null): Collection
+    {
+        $modes = PaymentMode::where('company_id', $company->id)
+            ->when($modeId, fn ($q) => $q->where('id', $modeId))
+            ->get()
+            ->keyBy('code');
+
+        $payments = PosPayment::where('company_id', $company->id)
+            ->whereIn('method', $modes->keys())
+            ->whereHas('sale', fn ($q) => $q->where('status', '!=', 'void')->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()]))
+            ->with('sale')
+            ->get()
+            ->sortBy(fn (PosPayment $p) => $p->sale->created_at)
+            ->values();
+
+        $running = 0.0;
+
+        return $payments->map(function (PosPayment $payment) use ($modes, &$running) {
+            $running += (float) $payment->amount;
+
+            return [
+                'date' => $payment->sale->created_at,
+                'saleId' => $payment->sale->id,
+                'saleNumber' => $payment->sale->sale_number,
+                'mode' => $modes->get($payment->method)?->name ?? $payment->method,
+                'amount' => round((float) $payment->amount, 2),
+                'reference' => $payment->reference,
+                'runningTotal' => round($running, 2),
+            ];
+        });
+    }
+
+    /**
+     * "add more... Payment Mode Balances" — one row per active payment
+     * mode: how much it collected in the period (summed straight off
+     * PosPayment, matching paymentModeStatement()'s own filtering) next
+     * to its linked GL account's actual closing balance as of the
+     * period end — ties day-to-day POS takings back to the ledger, the
+     * way a cash/bank reconciliation does for a bank account.
+     *
+     * @return Collection<int, array{mode: PaymentMode, periodTotal: float, accountBalance: ?float}>
+     */
+    public function paymentModeBalances(Company $company, Carbon $from, Carbon $to): Collection
+    {
+        $modes = PaymentMode::where('company_id', $company->id)->where('is_active', true)->with('linkedAccount')->orderBy('sort_order')->orderBy('name')->get();
+
+        $totals = PosPayment::where('company_id', $company->id)
+            ->whereHas('sale', fn ($q) => $q->where('status', '!=', 'void')->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()]))
+            ->selectRaw('method, sum(amount) as total')
+            ->groupBy('method')
+            ->pluck('total', 'method');
+
+        return $modes->map(fn (PaymentMode $mode) => [
+            'mode' => $mode,
+            'periodTotal' => round((float) ($totals->get($mode->code) ?? 0), 2),
+            'accountBalance' => $mode->linkedAccount ? round($this->accountBalanceAsOf($mode->linkedAccount, $to), 2) : null,
+        ]);
     }
 }

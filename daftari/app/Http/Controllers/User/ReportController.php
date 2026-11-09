@@ -17,6 +17,7 @@ use App\Models\ExpenseCategory;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Invoice;
+use App\Models\PaymentMode;
 use App\Models\PaymentVoucher;
 use App\Models\InvoicePayment;
 use App\Models\Item;
@@ -1330,6 +1331,74 @@ class ReportController extends Controller
         }
 
         return view('user.reports.profit-loss-by-location', ['company' => $company, 'period' => $period] + $data);
+    }
+
+    /**
+     * "add more... Payment Mode Statement" — see FinancialReportService
+     * ::paymentModeStatement()'s own doc block for what counts as a
+     * payment mode's own transaction and why a voided sale's payments
+     * are excluded.
+     */
+    public function paymentModeStatement(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        PaymentMode::seedDefaults($company->id);
+        $modes = PaymentMode::where('company_id', $company->id)->orderBy('sort_order')->orderBy('name')->get();
+        $modeId = $request->query('payment_mode_id') ? (int) $request->query('payment_mode_id') : null;
+        $rows = app(FinancialReportService::class)->paymentModeStatement($company, $period['from'], $period['to'], $modeId);
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('payment-mode-statement.csv',
+                [__('Date'), __('Sale'), __('Mode'), __('Amount'), __('Reference'), __('Running total')],
+                $rows->map(fn (array $r) => [
+                    $r['date']->format('Y-m-d'), $r['saleNumber'], $r['mode'],
+                    number_format($r['amount'], 2, '.', ''), $r['reference'], number_format($r['runningTotal'], 2, '.', ''),
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.payment-mode-statement', [
+                'company' => $company, 'period' => $period, 'rows' => $rows,
+                'template' => $company->defaultTemplateFor('payment_mode_statement'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="payment-mode-statement.pdf"']);
+        }
+
+        return view('user.reports.payment-mode-statement', ['company' => $company, 'period' => $period, 'modes' => $modes, 'modeId' => $modeId, 'rows' => $rows]);
+    }
+
+    /**
+     * "add more... Payment Mode Balances" — see FinancialReportService
+     * ::paymentModeBalances()'s own doc block.
+     */
+    public function paymentModeBalances(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        PaymentMode::seedDefaults($company->id);
+        $rows = app(FinancialReportService::class)->paymentModeBalances($company, $period['from'], $period['to']);
+
+        if ($request->query('export') === 'csv') {
+            return $this->csvResponse('payment-mode-balances.csv',
+                [__('Payment mode'), __('Collected this period'), __('Account balance')],
+                $rows->map(fn (array $r) => [
+                    $r['mode']->name, number_format($r['periodTotal'], 2, '.', ''),
+                    $r['accountBalance'] === null ? '' : number_format($r['accountBalance'], 2, '.', ''),
+                ]));
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.payment-mode-balances', [
+                'company' => $company, 'period' => $period, 'rows' => $rows,
+                'template' => $company->defaultTemplateFor('payment_mode_balances'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="payment-mode-balances.pdf"']);
+        }
+
+        return view('user.reports.payment-mode-balances', ['company' => $company, 'period' => $period, 'rows' => $rows]);
     }
 
     /**
