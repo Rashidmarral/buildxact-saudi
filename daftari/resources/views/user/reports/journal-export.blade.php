@@ -14,7 +14,31 @@
     </div>
 </div>
 
-@include('user.reports.partials.period-selector')
+@include('user.reports.partials.period-selector', ['extra' => array_filter([
+    'cost_center_id' => $costCenterId,
+    'location_id' => $locationId,
+])])
+
+<form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex flex-wrap items-center gap-3">
+    <input type="hidden" name="period" value="{{ $period['preset'] }}">
+    <input type="hidden" name="from" value="{{ $period['from']->toDateString() }}">
+    <input type="hidden" name="to" value="{{ $period['to']->toDateString() }}">
+    <select name="cost_center_id" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <option value="">{{ __('All cost centres') }}</option>
+        @foreach ($costCenters as $cc)
+            <option value="{{ $cc->id }}" @selected($costCenterId === $cc->id)>{{ $cc->label() }}</option>
+        @endforeach
+    </select>
+    <select name="location_id" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <option value="">{{ __('All locations') }}</option>
+        @foreach ($branches as $branch)
+            <option value="{{ $branch->id }}" @selected($locationId === $branch->id)>{{ $branch->name }}</option>
+        @endforeach
+    </select>
+    @if ($locationId)
+        <p class="text-xs text-amber-600">{{ __('A manual journal entry, payment voucher, or expense carries no location and is always excluded when a location filter is on.') }}</p>
+    @endif
+</form>
 
 <div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
     <table class="w-full text-sm">

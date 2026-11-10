@@ -1315,7 +1315,11 @@ class ReportController extends Controller
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
-        $rows = app(FinancialReportService::class)->journalExport($company, $period['from'], $period['to']);
+        $costCenterId = $request->filled('cost_center_id') ? (int) $request->query('cost_center_id') : null;
+        $locationId = $request->filled('location_id') ? (int) $request->query('location_id') : null;
+        $rows = app(FinancialReportService::class)->journalExport($company, $period['from'], $period['to'], $costCenterId, $locationId);
+        $costCenters = CostCenter::where('is_active', true)->orderBy('name')->get();
+        $branches = Branch::orderBy('name')->get();
 
         if ($request->query('export') === 'csv') {
             return $this->csvResponse('journal-export.csv',
@@ -1340,6 +1344,7 @@ class ReportController extends Controller
         return view('user.reports.journal-export', [
             'company' => $company, 'period' => $period, 'rows' => $rows,
             'totalDebit' => (float) $rows->sum('debit'), 'totalCredit' => (float) $rows->sum('credit'),
+            'costCenters' => $costCenters, 'costCenterId' => $costCenterId, 'branches' => $branches, 'locationId' => $locationId,
         ]);
     }
 
@@ -1347,9 +1352,10 @@ class ReportController extends Controller
      * "add more reports... Account Statement" filtered by "location,
      * transaction type, user and currency" — a statement of ONE OR
      * MORE ledger accounts at once (vs JournalController::ledger(),
-     * which only ever offers one), narrowable by source type and user.
-     * See FinancialReportService::accountStatementMulti()'s own
-     * docblock for why there's no location filter.
+     * which only ever offers one), narrowable by source type, user,
+     * and location. See FinancialReportService::accountStatementMulti()'s
+     * own docblock for how the location filter works and why a
+     * manual/payment-voucher/expense posting is excluded when it's on.
      */
     public function ledgerAccountStatement(Request $request)
     {
@@ -1359,13 +1365,15 @@ class ReportController extends Controller
         $accountIds = collect($request->query('account_ids', []))->map(fn ($id) => (int) $id)->filter();
         $sourceType = $request->filled('source_type') ? $request->query('source_type') : null;
         $userId = $request->filled('user_id') ? (int) $request->query('user_id') : null;
+        $locationId = $request->filled('location_id') ? (int) $request->query('location_id') : null;
 
         $rows = $accountIds->isNotEmpty()
-            ? app(FinancialReportService::class)->accountStatementMulti($company, $accountIds, $period['from'], $period['to'], $sourceType, $userId)
+            ? app(FinancialReportService::class)->accountStatementMulti($company, $accountIds, $period['from'], $period['to'], $sourceType, $userId, $locationId)
             : collect();
 
         $sourceTypes = $company->journalEntries()->distinct()->pluck('source_type');
         $users = User::where('company_id', $company->id)->orderBy('name')->get(['id', 'name']);
+        $branches = Branch::orderBy('name')->get();
 
         if ($request->query('export') === 'csv') {
             $rowsCsv = collect();
@@ -1395,6 +1403,7 @@ class ReportController extends Controller
         return view('user.reports.ledger-account-statement', [
             'company' => $company, 'period' => $period, 'accounts' => $accounts, 'accountIds' => $accountIds,
             'sourceTypes' => $sourceTypes, 'users' => $users, 'sourceType' => $sourceType, 'userId' => $userId, 'rows' => $rows,
+            'branches' => $branches, 'locationId' => $locationId,
         ]);
     }
 

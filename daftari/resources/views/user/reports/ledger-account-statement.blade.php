@@ -43,10 +43,16 @@
                 <option value="{{ $u->id }}" @selected($userId === $u->id)>{{ $u->name }}</option>
             @endforeach
         </select>
+        <select name="location_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <option value="">{{ __('All locations') }}</option>
+            @foreach ($branches as $branch)
+                <option value="{{ $branch->id }}" @selected($locationId === $branch->id)>{{ $branch->name }}</option>
+            @endforeach
+        </select>
         <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Show statement') }}</button>
     </div>
-    @if ($sourceType || $userId)
-        <p class="text-xs text-amber-600">{{ __('A transaction-type or user filter is active: the running/closing balance below reflects only the filtered postings, not the account\'s true balance.') }}</p>
+    @if ($sourceType || $userId || $locationId)
+        <p class="text-xs text-amber-600">{{ __('A transaction-type, user, or location filter is active: the running/closing balance below reflects only the filtered postings, not the account\'s true balance.') }}@if ($locationId) {{ __('A manual journal entry, payment voucher, or expense carries no location and is always excluded when a location filter is on.') }}@endif</p>
     @endif
 </form>
 

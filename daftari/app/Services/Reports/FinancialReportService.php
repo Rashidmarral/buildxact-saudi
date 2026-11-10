@@ -250,14 +250,16 @@ class FinancialReportService
      * MORE ledger accounts at once (not the single account
      * JournalController::ledger() offers), each with its own opening
      * balance, filtered postings and running balance, narrowable by
-     * source type (invoice/bill/manual/...) and the user who posted
-     * it. No location filter: a journal line carries no branch/location
-     * column of its own in this ledger (only specific source documents
-     * like Invoice/Bill do), so a line-level location filter would
-     * silently drop every manual/payment-voucher/expense posting —
-     * worse than not offering it.
+     * source type (invoice/bill/manual/...), the user who posted it,
+     * and — like generalLedger()'s own $locationId — the branch of the
+     * invoice/bill that generated the line, resolved the same
+     * best-effort way since a journal line carries no branch/location
+     * column of its own. A manual/payment-voucher/expense posting has
+     * no location to match, so it's excluded whenever $locationId is
+     * set; the view says so plainly rather than letting that look like
+     * "every posting at this location."
      *
-     * When $sourceType or $userId narrows the lines shown, the opening
+     * When $sourceType, $userId, or $locationId narrows the lines shown, the opening
      * balance stays the account's real, unfiltered balance as of the
      * day before $from (so it still means something), but the running/
      * closing balance in this view is then a running total of only the
@@ -269,23 +271,33 @@ class FinancialReportService
      *
      * @return Collection<int, array{account: Account, openingBalance: float, lines: Collection, closingBalance: float, periodDebit: float, periodCredit: float}>
      */
-    public function accountStatementMulti(Company $company, Collection $accountIds, Carbon $from, Carbon $to, ?string $sourceType, ?int $userId): Collection
+    public function accountStatementMulti(Company $company, Collection $accountIds, Carbon $from, Carbon $to, ?string $sourceType, ?int $userId, ?int $locationId = null): Collection
     {
+        $invoiceIdsForLocation = $billIdsForLocation = null;
+        if ($locationId) {
+            $invoiceIdsForLocation = Invoice::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+            $billIdsForLocation = Bill::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+        }
+
         return Account::where('company_id', $company->id)
             ->whereIn('id', $accountIds)
             ->orderBy('code')
             ->get()
-            ->map(function (Account $account) use ($from, $to, $sourceType, $userId) {
+            ->map(function (Account $account) use ($from, $to, $sourceType, $userId, $locationId, $invoiceIdsForLocation, $billIdsForLocation) {
                 $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('debit');
                 $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('credit');
                 $openingBalance = $account->normal_balance === 'debit' ? $openingDebit - $openingCredit : $openingCredit - $openingDebit;
 
                 $lines = $account->journalEntryLines()
                     ->with('journalEntry.creator')
-                    ->whereHas('journalEntry', function ($q) use ($from, $to, $sourceType, $userId) {
+                    ->whereHas('journalEntry', function ($q) use ($from, $to, $sourceType, $userId, $locationId, $invoiceIdsForLocation, $billIdsForLocation) {
                         $q->whereBetween('entry_date', [$from, $to])
                             ->when($sourceType, fn ($q2) => $q2->where('source_type', $sourceType))
-                            ->when($userId, fn ($q2) => $q2->where('created_by', $userId));
+                            ->when($userId, fn ($q2) => $q2->where('created_by', $userId))
+                            ->when($locationId, fn ($q2) => $q2->where(
+                                fn ($q3) => $q3->where(fn ($q4) => $q4->where('source_type', 'invoice')->whereIn('source_id', $invoiceIdsForLocation))
+                                    ->orWhere(fn ($q4) => $q4->where('source_type', 'bill')->whereIn('source_id', $billIdsForLocation))
+                            ));
                     })
                     ->get()
                     ->sortBy(fn ($l) => $l->journalEntry->entry_date.'-'.$l->id)
@@ -917,11 +929,31 @@ class FinancialReportService
      *
      * @return Collection<int, array{date: Carbon, reference: string, source: ?string, code: string, account: string, description: ?string, debit: float, credit: float, costCentre: ?string, contact: ?string, location: ?string, user: ?string}>
      */
-    public function journalExport(Company $company, Carbon $from, Carbon $to): Collection
+    /**
+     * $costCenterId/$locationId default to "no filter" — see
+     * generalLedger()'s own note on why a location filter has to go
+     * through the invoice/bill that generated the entry rather than a
+     * column on the line itself.
+     */
+    public function journalExport(Company $company, Carbon $from, Carbon $to, ?int $costCenterId = null, ?int $locationId = null): Collection
     {
-        $lines = JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->whereBetween('entry_date', [$from, $to]))
-            ->with(['account', 'costCenter', 'journalEntry.creator'])
-            ->get();
+        $query = JournalEntryLine::whereHas('journalEntry', fn ($q) => $q->where('company_id', $company->id)->whereBetween('entry_date', [$from, $to]))
+            ->with(['account', 'costCenter', 'journalEntry.creator']);
+
+        if ($costCenterId) {
+            $query->where('cost_center_id', $costCenterId);
+        }
+
+        if ($locationId) {
+            $invoiceIdsForLocation = Invoice::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+            $billIdsForLocation = Bill::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+            $query->whereHas('journalEntry', fn ($jq) => $jq->where(
+                fn ($q) => $q->where(fn ($q2) => $q2->where('source_type', 'invoice')->whereIn('source_id', $invoiceIdsForLocation))
+                    ->orWhere(fn ($q2) => $q2->where('source_type', 'bill')->whereIn('source_id', $billIdsForLocation))
+            ));
+        }
+
+        $lines = $query->get();
 
         $invoiceIds = $lines->filter(fn (JournalEntryLine $l) => $l->journalEntry->source_type === 'invoice')->pluck('journalEntry.source_id')->unique();
         $billIds = $lines->filter(fn (JournalEntryLine $l) => $l->journalEntry->source_type === 'bill')->pluck('journalEntry.source_id')->unique();
