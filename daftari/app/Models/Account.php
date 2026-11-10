@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Account extends Model
@@ -11,7 +12,7 @@ class Account extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'code', 'name', 'name_ar', 'type', 'normal_balance', 'is_system', 'is_active',
+        'company_id', 'code', 'name', 'name_ar', 'type', 'parent_account_id', 'normal_balance', 'is_system', 'is_active',
     ];
 
     protected function casts(): array
@@ -124,6 +125,16 @@ class Account extends Model
     public function journalEntryLines(): HasMany
     {
         return $this->hasMany(JournalEntryLine::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_account_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_account_id');
     }
 
     /**

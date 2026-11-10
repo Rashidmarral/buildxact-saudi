@@ -19,6 +19,7 @@ class AccountController extends Controller
     public function index(Request $request)
     {
         $company = Auth::user()->company;
+        $view = $request->query('view', 'list') === 'tree' ? 'tree' : 'list';
 
         $accounts = $company->accounts()
             ->when($request->filled('search'), fn ($q) => $q->where(fn ($q2) => $q2
@@ -40,6 +41,8 @@ class AccountController extends Controller
             'mappingCatalog' => AccountMapping::catalog(),
             'activeAccounts' => $activeAccounts,
             'branches' => $company->branches()->orderBy('name')->get(),
+            'view' => $view,
+            'allAccounts' => $company->accounts()->orderBy('code')->get(),
         ]);
     }
 
@@ -110,6 +113,7 @@ class AccountController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in(self::TYPES)],
+            'parent_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
             'normal_balance' => ['required', 'in:debit,credit'],
         ]);
 
@@ -127,14 +131,20 @@ class AccountController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in(self::TYPES)],
+            'parent_account_id' => [
+                'nullable',
+                Rule::exists('accounts', 'id')->where('company_id', $companyId),
+                Rule::notIn([$account->id]),
+            ],
             'normal_balance' => ['required', 'in:debit,credit'],
         ]);
 
         if ($account->is_system) {
             // System accounts keep their code/type/normal balance stable —
             // mappings and the posting engine rely on these being fixed —
-            // only the display name is editable.
-            $account->update(['name' => $data['name'], 'name_ar' => $data['name_ar']]);
+            // only the display name and parent (for tree-view grouping)
+            // are editable.
+            $account->update(['name' => $data['name'], 'name_ar' => $data['name_ar'], 'parent_account_id' => $data['parent_account_id']]);
 
             return back()->with('status', __('Account updated.'));
         }

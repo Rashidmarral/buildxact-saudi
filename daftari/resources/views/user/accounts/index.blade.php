@@ -10,6 +10,24 @@
         'revenue' => __('Revenue'),
         'expense' => __('Expenses'),
     ];
+    $renderAccountRow = function (\App\Models\Account $account, $depth = 0) use ($typeLabels) {
+        $padding = 1.25 + $depth * 1.5;
+        echo '<div class="flex items-center justify-between px-5 py-3" style="padding-inline-start: '.$padding.'rem">';
+        echo '<div><span class="font-semibold text-slate-900">'.e($account->code.' '.$account->name).'</span>';
+        if ($account->is_system) echo ' <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">'.e(__('System Account')).'</span>';
+        if (! $account->is_active) echo ' <span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-500">'.e(__('Inactive')).'</span>';
+        echo '</div>';
+        echo '<div class="flex items-center gap-3 text-xs">';
+        echo '<button type="button" onclick="openEditAccount('.$account->id.', \''.e(addslashes($account->code)).'\', \''.e(addslashes($account->name)).'\', \''.e(addslashes($account->name_ar)).'\', \''.$account->type.'\', \''.$account->normal_balance.'\', '.($account->is_system ? 'true' : 'false').', '.($account->parent_account_id ?? 'null').')" class="text-brand-700 hover:underline">'.e(__('Edit')).'</button>';
+        echo '</div></div>';
+    };
+    $renderAccountTree = function ($nodes, $all, $depth = 0) use (&$renderAccountTree, $renderAccountRow) {
+        foreach ($nodes as $node) {
+            $renderAccountRow($node, $depth);
+            $children = $all->where('parent_account_id', $node->id);
+            if ($children->isNotEmpty()) $renderAccountTree($children, $all, $depth + 1);
+        }
+    };
 @endphp
 
 @section('content')
@@ -38,43 +56,58 @@
     <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Refresh') }}</button>
 </form>
 
+<div class="flex items-center gap-2 mb-4 text-sm">
+    <a href="{{ route('app.accounts.index', array_merge(request()->query(), ['view' => 'list'])) }}" class="rounded-lg px-3 py-1.5 {{ $view === 'list' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('List View') }}</a>
+    <a href="{{ route('app.accounts.index', array_merge(request()->query(), ['view' => 'tree'])) }}" class="rounded-lg px-3 py-1.5 {{ $view === 'tree' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('Tree View') }}</a>
+</div>
+
 <div class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50">
-    @forelse ($accounts as $account)
-        <div class="flex items-center justify-between px-5 py-3">
-            <div>
-                <div class="flex items-center gap-2">
-                    <span class="font-semibold text-slate-900">{{ $account->code }} {{ $account->name }}</span>
-                    @if ($account->is_system)<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{{ __('System Account') }}</span>@endif
-                    @unless ($account->is_active)<span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-500">{{ __('Inactive') }}</span>@endunless
-                </div>
-                <p class="text-xs text-slate-400 mt-0.5">{{ $typeLabels[$account->type] }} — {{ $account->normal_balance === 'debit' ? __('Debit') : __('Credit') }}</p>
-            </div>
-            <div class="flex items-center gap-3 text-xs">
-                <button type="button"
-                    onclick="openEditAccount({{ $account->id }}, '{{ addslashes($account->code) }}', '{{ addslashes($account->name) }}', '{{ addslashes($account->name_ar) }}', '{{ $account->type }}', '{{ $account->normal_balance }}', {{ $account->is_system ? 'true' : 'false' }})"
-                    class="text-brand-700 hover:underline">{{ __('Edit') }}</button>
-                @if ($account->is_active)
-                    <form method="POST" action="{{ route('app.accounts.deactivate', $account) }}">
-                        @csrf
-                        <button type="submit" class="text-slate-500 hover:underline">{{ __('Deactivate') }}</button>
-                    </form>
-                @else
-                    <form method="POST" action="{{ route('app.accounts.activate', $account) }}">
-                        @csrf
-                        <button type="submit" class="text-emerald-600 hover:underline">{{ __('Activate') }}</button>
-                    </form>
-                @endif
-                @unless ($account->is_system)
-                    <form method="POST" action="{{ route('app.accounts.destroy', $account) }}" onsubmit="return confirm('{{ __('Delete this account?') }}')">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                    </form>
-                @endunless
-            </div>
-        </div>
-    @empty
+    @if ($accounts->isEmpty())
         <p class="px-5 py-10 text-center text-sm text-slate-400">{{ __('No accounts match your filters.') }}</p>
-    @endforelse
+    @elseif ($view === 'tree')
+        @foreach ($types as $t)
+            @php($accountsOfType = $accounts->where('type', $t))
+            @continue($accountsOfType->isEmpty())
+            <div class="px-5 py-2 bg-slate-50 text-xs font-semibold uppercase text-slate-500">{{ $typeLabels[$t] }}</div>
+            @php($roots = $accountsOfType->filter(fn ($a) => ! $a->parent_account_id || ! $accountsOfType->firstWhere('id', $a->parent_account_id)))
+            @php($renderAccountTree($roots, $accountsOfType))
+        @endforeach
+    @else
+        @foreach ($accounts as $account)
+            <div class="flex items-center justify-between px-5 py-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-semibold text-slate-900">{{ $account->code }} {{ $account->name }}</span>
+                        @if ($account->is_system)<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{{ __('System Account') }}</span>@endif
+                        @unless ($account->is_active)<span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-500">{{ __('Inactive') }}</span>@endunless
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ $typeLabels[$account->type] }} — {{ $account->normal_balance === 'debit' ? __('Debit') : __('Credit') }}</p>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <button type="button"
+                        onclick="openEditAccount({{ $account->id }}, '{{ addslashes($account->code) }}', '{{ addslashes($account->name) }}', '{{ addslashes($account->name_ar) }}', '{{ $account->type }}', '{{ $account->normal_balance }}', {{ $account->is_system ? 'true' : 'false' }}, {{ $account->parent_account_id ?? 'null' }})"
+                        class="text-brand-700 hover:underline">{{ __('Edit') }}</button>
+                    @if ($account->is_active)
+                        <form method="POST" action="{{ route('app.accounts.deactivate', $account) }}">
+                            @csrf
+                            <button type="submit" class="text-slate-500 hover:underline">{{ __('Deactivate') }}</button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('app.accounts.activate', $account) }}">
+                            @csrf
+                            <button type="submit" class="text-emerald-600 hover:underline">{{ __('Activate') }}</button>
+                        </form>
+                    @endif
+                    @unless ($account->is_system)
+                        <form method="POST" action="{{ route('app.accounts.destroy', $account) }}" onsubmit="return confirm('{{ __('Delete this account?') }}')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
+                        </form>
+                    @endunless
+                </div>
+            </div>
+        @endforeach
+    @endif
 </div>
 
 <div class="bg-white rounded-xl border border-slate-100 p-6 mt-8">
@@ -164,6 +197,14 @@
                 <option value="credit">{{ __('Credit') }}</option>
             </select>
         </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Parent account (optional)') }}</label>
+            <select name="parent_account_id" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None — top level') }}</option>
+                @foreach ($allAccounts as $acc)<option value="{{ $acc->id }}">{{ $acc->label() }}</option>@endforeach
+            </select>
+            <p class="mt-1 text-xs text-slate-400">{{ __('Nests this account under another in Tree View.') }}</p>
+        </div>
         <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add Account') }}</button>
     </form>
 </dialog>
@@ -205,12 +246,19 @@
             </select>
             <input type="hidden" name="normal_balance" id="edit-account-balance-hidden">
         </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Parent account (optional)') }}</label>
+            <select name="parent_account_id" id="edit-account-parent" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="">{{ __('None — top level') }}</option>
+                @foreach ($allAccounts as $acc)<option value="{{ $acc->id }}" data-id="{{ $acc->id }}">{{ $acc->label() }}</option>@endforeach
+            </select>
+        </div>
         <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save changes') }}</button>
     </form>
 </dialog>
 
 <script>
-function openEditAccount(id, code, name, nameAr, type, balance, isSystem) {
+function openEditAccount(id, code, name, nameAr, type, balance, isSystem, parentId) {
     const form = document.getElementById('edit-account-form');
     form.action = '{{ url('app/accounting/accounts') }}/' + id;
     document.getElementById('edit-account-code').value = code;
@@ -223,6 +271,9 @@ function openEditAccount(id, code, name, nameAr, type, balance, isSystem) {
     document.getElementById('edit-account-balance').disabled = isSystem;
     document.getElementById('edit-account-balance-hidden').value = balance;
     document.getElementById('edit-account-system-note').classList.toggle('hidden', !isSystem);
+    const parentSelect = document.getElementById('edit-account-parent');
+    parentSelect.value = parentId ?? '';
+    Array.from(parentSelect.options).forEach((opt) => { opt.disabled = Number(opt.value) === Number(id); });
     document.getElementById('edit-account-modal').showModal();
 }
 </script>
