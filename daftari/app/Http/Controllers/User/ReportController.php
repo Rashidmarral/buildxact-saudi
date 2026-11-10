@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\ResolvesReportPeriod;
 use App\Models\Account;
+use App\Models\AccountMapping;
 use App\Models\AdvanceCreditApplication;
 use App\Models\BankAccount;
 use App\Models\Bill;
@@ -149,6 +150,15 @@ class ReportController extends Controller
             'suppliers' => Supplier::orderBy('name')->get(),
             'warehouses' => Warehouse::orderBy('name')->get(),
             'salespersons' => Salesperson::where('is_active', true)->orderBy('name')->get(),
+            // Hamly-parity: Hamly's VAT return embeds a mini "record
+            // payment" form directly on the report. Rather than build a
+            // second, less-governed way to move money alongside the
+            // existing Payment Voucher flow (approval thresholds, GL
+            // posting, audit trail), this deep-links into that same
+            // flow with the VAT Output account and net amount due
+            // already filled in — one click to get there, but still
+            // through the one real path a payment is ever recorded.
+            'vatOutputAccount' => AccountMapping::resolve($company->id, 'VAT_OUTPUT'),
         ] + $summary);
     }
 
@@ -577,6 +587,79 @@ class ReportController extends Controller
             'comparisonPeriod' => $comparisonPeriod,
             'priorStatement' => $priorStatement,
             'priorPeriodAdjustments' => $priorPeriodAdjustments,
+        ]);
+    }
+
+    /**
+     * Hamly-parity: a simple Income / Expenses / Net profit view with
+     * no Direct/Indirect (COGS vs Operating) staging — the quick
+     * glance Hamly's plain "profit-loss" page offers, distinct from
+     * the formal Income Statement above. Reuses incomeStatement()'s
+     * own revenue/expense lines rather than re-querying them; this
+     * route just presents the same figures as one Income total and one
+     * Expenses total instead of the staged Gross/Operating breakdown.
+     */
+    public function profitLoss(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $statement = app(FinancialReportService::class)->incomeStatement($company, $period['from'], $period['to']);
+        $totalIncome = (float) $statement['netSales'];
+        $totalExpenses = (float) $statement['expenseLines']->sum('amount');
+        $netProfit = (float) $statement['netProfit'];
+
+        if ($request->query('export') === 'csv') {
+            $rows = collect()
+                ->concat($statement['revenueLines']->map(fn ($r) => [__('Income'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]))
+                ->concat($statement['expenseLines']->map(fn ($r) => [__('Expenses'), $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]));
+
+            return $this->csvResponse('profit-and-loss.csv', [__('Section'), __('Code'), __('Account'), __('Amount')], $rows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.profit-loss', [
+                'company' => $company, 'period' => $period,
+                'revenueLines' => $statement['revenueLines'], 'expenseLines' => $statement['expenseLines'],
+                'totalIncome' => $totalIncome, 'totalExpenses' => $totalExpenses, 'netProfit' => $netProfit,
+                'template' => $company->defaultTemplateFor('profit_loss'),
+            ]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="profit-and-loss.pdf"']);
+        }
+
+        return view('user.reports.profit-loss', [
+            'company' => $company, 'period' => $period,
+            'revenueLines' => $statement['revenueLines'], 'expenseLines' => $statement['expenseLines'],
+            'totalIncome' => $totalIncome, 'totalExpenses' => $totalExpenses, 'netProfit' => $netProfit,
+        ]);
+    }
+
+    /**
+     * Hamly-parity: the traditional two-sided ledger T-account format
+     * (Expenses on the debit/left side, Revenue on the credit/right
+     * side, a balancing "Net Profit"/"Net Loss" line carried on
+     * whichever side is smaller so both totals match) as an alternate
+     * presentation of the same incomeStatement() figures the formal,
+     * single-column Income Statement already shows.
+     */
+    public function incomeStatementTraditional(Request $request)
+    {
+        $company = Auth::user()->company;
+        $period = $this->resolvePeriod($request);
+        $statement = app(FinancialReportService::class)->incomeStatement($company, $period['from'], $period['to']);
+        $totalExpenses = (float) $statement['expenseLines']->sum('amount');
+        $netProfit = (float) $statement['netProfit'];
+        // The balancing line always lands on the side with less real
+        // activity (a profit tops up the expense/debit side so both
+        // totals match; a loss tops up the revenue/credit side) — this
+        // is what makes it a genuine T-account, not just two lists.
+        $debitTotal = $netProfit >= 0 ? $totalExpenses + $netProfit : $totalExpenses;
+        $creditTotal = $netProfit >= 0 ? $statement['netSales'] : $statement['netSales'] + abs($netProfit);
+
+        return view('user.reports.income-statement-traditional', [
+            'company' => $company, 'period' => $period,
+            'revenueLines' => $statement['revenueLines'], 'expenseLines' => $statement['expenseLines'],
+            'netProfit' => $netProfit, 'debitTotal' => $debitTotal, 'creditTotal' => $creditTotal,
         ]);
     }
 

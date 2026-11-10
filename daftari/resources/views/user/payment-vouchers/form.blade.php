@@ -100,7 +100,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Party name (English)') }}</label>
-                    <input type="text" name="payee_name" id="payee_name" value="{{ old('payee_name', $voucher->payee_name ?? ($prefillExpense->vendor_name ?? '')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="text" name="payee_name" id="payee_name" value="{{ old('payee_name', $voucher->payee_name ?? ($prefillExpense->vendor_name ?? request()->query('payee_name', ''))) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('VAT number') }}</label>
@@ -145,7 +145,7 @@
                         <select name="counter_account_id" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                             <option value="">{{ __('Automatic') }}</option>
                             @foreach ($glAccounts as $gl)
-                                <option value="{{ $gl->id }}" @selected(old('counter_account_id', $voucher->counter_account_id ?? null) == $gl->id)>{{ $gl->label() }}</option>
+                                <option value="{{ $gl->id }}" @selected(old('counter_account_id', $voucher->counter_account_id ?? ($prefillExpense ? null : request()->query('counter_account_id'))) == $gl->id)>{{ $gl->label() }}</option>
                             @endforeach
                         </select>
                         <p class="mt-1 text-xs text-slate-400">{{ __('Leave on Automatic to post against Accounts Payable / Operating Expenses as usual.') }}</p>
@@ -165,7 +165,7 @@
                 @endif
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Amount') }}</label>
-                    <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount', $voucher->amount ?? ($prefillExpense ? $prefillExpense->gross_amount ?? ($prefillExpense->amount + $prefillExpense->vat_amount) : '')) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" step="0.01" min="0.01" name="amount" id="amount" value="{{ old('amount', $voucher->amount ?? ($prefillExpense ? $prefillExpense->gross_amount ?? ($prefillExpense->amount + $prefillExpense->vat_amount) : request()->query('amount', ''))) }}" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Payment method') }}</label>
@@ -208,7 +208,7 @@
                 <input type="text" name="reference" placeholder="{{ __('e.g. IBAN, transaction ID, cheque number') }}" value="{{ old('reference', $voucher->reference ?? '') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
                 <p class="mt-1 text-xs text-slate-400">{{ __('For an online bank transfer, note the recipient\'s IBAN/account or the transfer\'s transaction ID here so it\'s easy to match against the bank statement later.') }}</p>
                 <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('For') }}</label>
-                <textarea name="notes" id="notes" rows="2" placeholder="{{ __('What is this payment for? e.g. a service or product description.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $voucher->notes ?? '') }}</textarea>
+                <textarea name="notes" id="notes" rows="2" placeholder="{{ __('What is this payment for? e.g. a service or product description.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $voucher->notes ?? request()->query('notes', '')) }}</textarea>
                 <p class="mt-1 text-xs text-slate-400">{{ __('Printed on the voucher next to "For".') }}</p>
                 <label class="block text-xs font-semibold uppercase text-slate-500 mt-4">{{ __('For (Arabic)') }}</label>
                 <textarea name="notes_ar" id="notes_ar" dir="rtl" rows="2" placeholder="{{ __('Arabic description, if different from the "For" text above.') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes_ar', $voucher->notes_ar ?? '') }}</textarea>

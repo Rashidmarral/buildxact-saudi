@@ -275,6 +275,8 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.sales', 'label' => __('Sales Report')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.purchase-sale-summary', 'label' => __('Purchase & Sale Summary')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.income-statement', 'label' => __('Income Statement (P&L)')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.profit-loss', 'label' => __('Profit & Loss (Simple)')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.income-statement-traditional', 'label' => __('Income Statement (Traditional T-Account)')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.income-statement-by-month', 'label' => __('Profit & Loss by Month')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.expenses', 'label' => __('Expense Report')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.cash-flow', 'label' => __('Cash Flow')])
