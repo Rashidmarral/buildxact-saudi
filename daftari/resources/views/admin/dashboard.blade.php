@@ -3,6 +3,11 @@
 @section('title', __('Overview'))
 
 @section('content')
+<section class="workspace-intro mb-6 rounded-2xl px-5 py-6 text-white sm:px-8 sm:py-8" aria-labelledby="workspace-intro-title">
+    <h2 id="workspace-intro-title" class="text-2xl font-bold sm:text-3xl">{{ __('Platform administration') }}</h2>
+    <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-200">{{ __('Monitor companies, subscriptions and platform health.') }}</p>
+</section>
+
 @php
     // Same brand-led palette as the company dashboard's Chart.js charts,
     // reused here so both dashboards read as one product.

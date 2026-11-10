@@ -482,3 +482,44 @@
 .dark .hover\:file\:bg-slate-200:hover::-webkit-file-upload-button {
     background-color: #475569; /* slate-600 */
 }
+
+/* Shared presentation for the public site and authenticated workspaces. */
+.daftari-hero {
+    background: radial-gradient(ellipse at 78% 25%, #d7f5e9, transparent 65%), #f5faf8;
+}
+
+.daftari-product-preview,
+.workspace-intro {
+    background: radial-gradient(ellipse at 95% 0%, #164e46, transparent 65%), #102332;
+}
+
+.workspace-shell {
+    background-color: #f4f7fa;
+}
+
+.workspace-rail {
+    background: linear-gradient(165deg, #102332, #142b37 65%, #0d2427);
+}
+
+.workspace-topbar {
+    border-color: #e2e8f0;
+}
+
+.dark .workspace-shell {
+    background-color: #0f172a;
+}
+
+.dark .workspace-topbar {
+    border-color: #334155;
+}
+
+@media print {
+    .workspace-intro {
+        display: none;
+    }
+}
+
+.daftari-site-header {
+    border-color: #dce8e4;
+    background-color: rgb(255 255 255 / 94%);
+}

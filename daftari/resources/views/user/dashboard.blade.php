@@ -3,6 +3,11 @@
 @section('title', __('Dashboard'))
 
 @section('content')
+<section class="workspace-intro mb-6 rounded-2xl px-5 py-6 text-white sm:px-8 sm:py-8" aria-labelledby="workspace-intro-title">
+    <h2 id="workspace-intro-title" class="text-2xl font-bold sm:text-3xl">{{ __('Company workspace') }}</h2>
+    <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-200">{{ __('Track sales, collections and what needs your attention.') }}</p>
+</section>
+
 @if ($vatDue)
     <div class="mb-6 rounded-2xl border {{ $vatDue['overdue'] ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50' }} p-4 flex items-center justify-between">
         <div class="flex items-center gap-3">

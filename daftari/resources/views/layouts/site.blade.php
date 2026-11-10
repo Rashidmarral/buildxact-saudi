@@ -50,7 +50,7 @@
     @endif
 
     @php($__mainNav = \App\Models\CmsSection::globalBlock('main_nav'))
-    <header class="sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-md">
+    <header class="daftari-site-header sticky top-0 z-40 border-b border-slate-100 bg-white/80 backdrop-blur-md">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
             <a href="{{ route('home') }}" class="flex items-center gap-2 text-xl font-bold text-brand-800">
                 @if ($__branding['logo_path'])

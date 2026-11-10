@@ -36,7 +36,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @include('partials.branding-overrides')
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false, notificationsOpen: false, darkMode: document.documentElement.classList.contains('dark') }" x-init="$watch('darkMode', value => { document.documentElement.classList.toggle('dark', value); try { localStorage.setItem('theme', value ? 'dark' : 'light'); } catch (e) {} })">
+<body class="workspace-shell min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false, notificationsOpen: false, darkMode: document.documentElement.classList.contains('dark') }" x-init="$watch('darkMode', value => { document.documentElement.classList.toggle('dark', value); try { localStorage.setItem('theme', value ? 'dark' : 'light'); } catch (e) {} })">
     @php
         $company = auth()->user()->company;
         $sub = $company?->activeSubscription();
@@ -49,7 +49,7 @@
         <div x-show="mobileNavOpen" x-transition:enter="transition-opacity ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden print:hidden" style="display: none;"></div>
 
         <aside
-            class="fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-slate-950 to-slate-900 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0 print:hidden"
+            class="workspace-rail fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-slate-950 to-slate-900 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0 print:hidden"
             :class="mobileNavOpen ? 'translate-x-0' : (document.dir === 'rtl' ? 'translate-x-full' : '-translate-x-full')"
         >
             <div class="flex items-center justify-between gap-2 border-b border-white/5 px-6 py-5">
@@ -361,7 +361,7 @@
              padding on top of that doubled the gap between sidebar and
              content on every screen in the panel. --}}
         <div class="flex min-w-0 flex-1 flex-col">
-            <header class="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-6 print:hidden">
+            <header class="workspace-topbar sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-100 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-6 print:hidden">
                 <div class="flex items-center gap-3">
                     <button type="button" @click="mobileNavOpen = true" aria-label="{{ __('Open menu') }}" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden">
                         @include('partials.icon', ['name' => 'menu', 'class' => 'h-5 w-5'])
@@ -520,7 +520,7 @@
                 </div>
             @endif
 
-            <main class="flex-1 px-4 py-6 sm:px-6 sm:py-8 print:p-0">
+            <main class="workspace-main min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 print:p-0">
                 @if (session('status'))
                     <div class="mb-6 animate-fade-up rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800 shadow-soft print:hidden">{{ session('status') }}</div>
                 @endif

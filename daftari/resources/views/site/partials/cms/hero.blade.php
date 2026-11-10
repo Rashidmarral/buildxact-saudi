@@ -1,12 +1,7 @@
 @if ($section->page === 'home')
-<section class="relative overflow-hidden">
-    <div class="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_60%_60%_at_50%_0%,black,transparent)]"></div>
-    <div class="orb-3d pointer-events-none -top-24 start-1/2 h-96 w-96 -translate-x-1/2 bg-brand-200/40"></div>
-    <div class="orb-3d pointer-events-none top-1/3 -end-20 h-64 w-64 bg-emerald-200/30 [animation-delay:-4s] [animation-duration:16s]"></div>
-    <div class="orb-3d pointer-events-none bottom-0 start-0 h-56 w-56 bg-brand-300/20 [animation-delay:-8s] [animation-duration:14s]"></div>
-
-    <div class="relative mx-auto grid max-w-7xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-2 lg:pt-24">
-        <div class="animate-fade-up">
+<section class="daftari-hero relative overflow-hidden">
+    <div class="relative mx-auto grid max-w-7xl items-center gap-10 px-6 py-14 lg:grid-cols-2 lg:gap-16 lg:py-24">
+        <div class="min-w-0">
             @if ($section->badge())
                 <span class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-100">
                     @include('partials.icon', ['name' => 'sparkle', 'class' => 'h-3.5 w-3.5'])
@@ -14,45 +9,51 @@
                 </span>
             @endif
             @if ($section->title())
-                <h1 class="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 md:text-5xl">{{ $section->title() }}</h1>
+                <h1 class="mt-5 text-4xl font-extrabold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">{{ $section->title() }}</h1>
             @endif
             @if ($section->subtitle())
-                <p class="mt-5 text-lg text-slate-600">{{ $section->subtitle() }}</p>
+                <p class="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">{{ $section->subtitle() }}</p>
             @endif
             <div class="mt-8 flex flex-wrap gap-4">
                 <a href="{{ $section->link_url ?: route('register') }}" class="btn-shine rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white shadow-card transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-card-hover">{{ $section->linkText() ?: __('Start your free trial') }}</a>
                 <a href="{{ route('pricing') }}" class="rounded-lg border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-soft">{{ __('See pricing') }}</a>
             </div>
-            <p class="mt-4 text-sm text-slate-400">{{ __('No credit card required · :days-day free trial', ['days' => config('daftari.trial_days')]) }}</p>
+            <p class="mt-4 text-sm text-slate-600">{{ __('No credit card required · :days-day free trial', ['days' => config('daftari.trial_days')]) }}</p>
         </div>
 
-        <div class="perspective relative animate-fade-up [animation-delay:150ms]">
+        <div class="min-w-0">
             @if ($section->image_path)
-                <img x-data x-tilt.lg src="{{ \Illuminate\Support\Facades\Storage::url($section->image_path) }}" alt="" class="animate-float rounded-2xl border border-slate-100 shadow-card-hover">
+                <img src="{{ \Illuminate\Support\Facades\Storage::url($section->image_path) }}" alt="" class="h-auto w-full rounded-3xl border border-slate-200 shadow-card-hover">
             @else
-                <div x-data x-tilt.lg class="animate-float rounded-2xl border border-slate-100 bg-white p-6 shadow-card-hover">
-                    <div class="tilt-pop rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 p-5 text-white">
-                        <div class="flex items-center justify-between text-sm text-slate-300">
-                            <span>{{ __('Tax Invoice') }} · INV-00042</span>
-                            <span class="rounded-full bg-brand-500/90 px-2 py-0.5 text-xs">{{ __('Paid') }}</span>
-                        </div>
-                        <div class="mt-4 text-2xl font-bold">SAR 11,500.00</div>
-                        <div class="mt-1 text-xs text-slate-400">{{ __('VAT (15%) included') }}: SAR 1,500.00</div>
-                        <div class="mt-4 grid h-24 w-24 grid-cols-4 grid-rows-4 gap-0.5 rounded bg-white p-2">
-                            @for ($i = 0; $i < 16; $i++)
-                                <div class="{{ rand(0, 1) ? 'bg-slate-900' : 'bg-white' }}"></div>
-                            @endfor
+                <figure class="daftari-product-preview rounded-3xl border border-white/10 p-4 text-white shadow-card-hover sm:p-6">
+                    <figcaption class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4 text-xs font-semibold">
+                        <span>{{ __('Product preview') }}</span>
+                        <span class="rounded-full bg-white/10 px-2.5 py-1 text-slate-200">{{ __('Illustrative data') }}</span>
+                    </figcaption>
+                    <div class="pt-5">
+                        <p class="text-xl font-bold">{{ __('Business overview') }}</p>
+                        <dl class="mt-4 grid grid-cols-1 gap-2 min-[380px]:grid-cols-3">
+                            @foreach ([
+                                ['label' => __('Invoices'), 'value' => '128'],
+                                ['label' => __('Revenue'), 'value' => 'SAR 342k'],
+                                ['label' => __('Collections'), 'value' => 'SAR 286k'],
+                            ] as $metric)
+                                <div class="min-w-0 rounded-xl bg-white/10 px-3 py-3">
+                                    <dt class="text-xs text-slate-200">{{ $metric['label'] }}</dt>
+                                    <dd class="mt-1 text-sm font-bold tabular-nums sm:text-base"><bdi>{{ $metric['value'] }}</bdi></dd>
+                                </div>
+                            @endforeach
+                        </dl>
+                        <div class="mt-4 rounded-xl bg-white/5 p-4">
+                            <p class="text-xs font-semibold text-slate-200">{{ __('Monthly revenue') }}</p>
+                            <svg viewBox="0 0 320 90" class="mt-3 h-24 w-full text-emerald-300" aria-hidden="true" preserveAspectRatio="none">
+                                <path d="M0 20H320 M0 50H320 M0 80H320" fill="none" stroke="white" stroke-opacity=".14" />
+                                <path d="M0 74 C24 75 38 55 62 58 S106 73 135 47 S170 57 198 31 S238 43 262 23 S297 27 320 7" fill="none" stroke="currentColor" stroke-width="3" vector-effect="non-scaling-stroke" />
+                            </svg>
                         </div>
                     </div>
-                    <div class="mt-4 grid grid-cols-3 gap-3 text-center text-xs text-slate-500">
-                        <div class="rounded-lg bg-slate-50 py-3"><div class="text-lg font-bold text-slate-800">128</div>{{ __('Invoices') }}</div>
-                        <div class="rounded-lg bg-slate-50 py-3"><div class="text-lg font-bold text-slate-800">SAR 342K</div>{{ __('Revenue') }}</div>
-                        <div class="rounded-lg bg-slate-50 py-3"><div class="text-lg font-bold text-slate-800">SAR 51K</div>{{ __('VAT collected') }}</div>
-                    </div>
-                </div>
+                </figure>
             @endif
-            <div class="absolute -bottom-4 -start-4 -z-10 h-full w-full rounded-2xl bg-gradient-to-br from-brand-100/70 to-emerald-100/40 sm:-bottom-6 sm:-start-6"></div>
-            <div class="absolute -top-6 -end-6 -z-10 h-20 w-20 animate-spin-slow rounded-2xl border-4 border-dashed border-brand-200/60"></div>
         </div>
     </div>
 </section>
