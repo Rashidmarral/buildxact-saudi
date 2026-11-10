@@ -279,6 +279,7 @@
                         @include('partials.nav-subitem', ['route' => 'app.reports.expenses', 'label' => __('Expense Report')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.cash-flow', 'label' => __('Cash Flow')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.trial-balance', 'label' => __('Trial Balance')])
+                        @include('partials.nav-subitem', ['route' => 'app.reports.trial-balance-detailed', 'label' => __('Trial Balance (Detailed)')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.general-ledger', 'label' => __('General Ledger')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.fixed-asset-schedule', 'label' => __('Fixed Asset Schedule')])
                         @include('partials.nav-subitem', ['route' => 'app.reports.balance-sheet', 'label' => __('Balance Sheet')])

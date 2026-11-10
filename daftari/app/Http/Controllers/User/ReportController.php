@@ -188,36 +188,67 @@ class ReportController extends Controller
         return $amountPaid > 0 ? __('Partial') : __('Unpaid');
     }
 
+    /**
+     * Hamly-parity redesign: category-grouped (Cash and cash
+     * equivalents, Accounts Receivable, ...) with Opening/Transactions/
+     * Closing Dr/Cr column-pairs, instead of a flat per-account
+     * Debit/Credit-for-the-period list. The plain view here shows only
+     * each category's subtotal row; trialBalanceDetailed() below
+     * renders the same data down to individual accounts.
+     */
     public function trialBalance(Request $request)
+    {
+        return $this->renderTrialBalance($request, detailed: false);
+    }
+
+    public function trialBalanceDetailed(Request $request)
+    {
+        return $this->renderTrialBalance($request, detailed: true);
+    }
+
+    private function renderTrialBalance(Request $request, bool $detailed)
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
-        $rows = app(FinancialReportService::class)->trialBalance($company, $period['from'], $period['to']);
+        $data = app(FinancialReportService::class)->trialBalanceGrouped($company, $period['from'], $period['to']);
 
-        $totalDebit = $rows->sum('debit');
-        $totalCredit = $rows->sum('credit');
+        $view = $detailed ? 'trial-balance-detailed' : 'trial-balance';
+        $routeName = $detailed ? 'app.reports.trial-balance-detailed' : 'app.reports.trial-balance';
 
         if ($request->query('export') === 'csv') {
-            return $this->csvResponse('trial-balance.csv', [__('Code'), __('Account'), __('Debit'), __('Credit')],
-                $rows->map(fn ($r) => [$r['account']->code, $r['account']->name, number_format($r['debit'], 2, '.', ''), number_format($r['credit'], 2, '.', '')]));
+            $header = [__('Type'), __('Category'), __('Code'), __('Account'), __('Opening Dr'), __('Opening Cr'), __('Dr'), __('Cr'), __('Closing Dr'), __('Closing Cr')];
+            $rows = collect();
+            foreach ($data['types'] as $type) {
+                foreach ($type['categories'] as $categoryLabel => $category) {
+                    if ($detailed) {
+                        foreach ($category['rows'] as $r) {
+                            $rows->push([$type['label'], $categoryLabel, $r['account']->code, $r['account']->name,
+                                number_format($r['openingDebit'], 2, '.', ''), number_format($r['openingCredit'], 2, '.', ''),
+                                number_format($r['periodDebit'], 2, '.', ''), number_format($r['periodCredit'], 2, '.', ''),
+                                number_format($r['closingDebit'], 2, '.', ''), number_format($r['closingCredit'], 2, '.', '')]);
+                        }
+                    } else {
+                        $rows->push([$type['label'], $categoryLabel, '', __('Subtotal'),
+                            number_format($category['openingDebit'], 2, '.', ''), number_format($category['openingCredit'], 2, '.', ''),
+                            number_format($category['periodDebit'], 2, '.', ''), number_format($category['periodCredit'], 2, '.', ''),
+                            number_format($category['closingDebit'], 2, '.', ''), number_format($category['closingCredit'], 2, '.', '')]);
+                    }
+                }
+            }
+
+            return $this->csvResponse(($detailed ? 'trial-balance-detailed' : 'trial-balance').'.csv', $header, $rows);
         }
 
         if ($request->query('export') === 'pdf') {
-            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.trial-balance', [
-                'company' => $company, 'period' => $period, 'rows' => $rows, 'totalDebit' => $totalDebit, 'totalCredit' => $totalCredit,
-                'template' => $company->defaultTemplateFor('trial_balance'),
-            ]);
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.'.$view, [
+                'company' => $company, 'period' => $period,
+                'template' => $company->defaultTemplateFor($detailed ? 'trial_balance_detailed' : 'trial_balance'),
+            ] + $data);
 
-            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="trial-balance.pdf"']);
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.($detailed ? 'trial-balance-detailed' : 'trial-balance').'.pdf"']);
         }
 
-        return view('user.reports.trial-balance', [
-            'company' => $company,
-            'period' => $period,
-            'rows' => $rows,
-            'totalDebit' => $totalDebit,
-            'totalCredit' => $totalCredit,
-        ]);
+        return view('user.reports.'.$view, ['company' => $company, 'period' => $period, 'routeName' => $routeName] + $data);
     }
 
     /**

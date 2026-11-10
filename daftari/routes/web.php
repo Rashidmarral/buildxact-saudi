@@ -456,6 +456,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
         Route::get('cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
         Route::get('trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
+        Route::get('trial-balance-detailed', [ReportController::class, 'trialBalanceDetailed'])->name('trial-balance-detailed');
         Route::get('general-ledger', [ReportController::class, 'generalLedger'])->name('general-ledger');
         Route::get('fixed-asset-schedule', [ReportController::class, 'fixedAssetSchedule'])->name('fixed-asset-schedule');
         Route::get('audit-pack', [ReportController::class, 'auditPack'])->name('audit-pack')->middleware('feature:financial_statements');

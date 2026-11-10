@@ -58,6 +58,105 @@ class FinancialReportService
     }
 
     /**
+     * A normal_balance-signed amount (positive = normal side, negative =
+     * an overdrawn/abnormal balance) split into the Dr/Cr pair a Trial
+     * Balance actually prints — never both columns filled, never a
+     * negative number.
+     *
+     * @return array{debit: float, credit: float}
+     */
+    private function signedBalanceToDrCr(Account $account, float $signedBalance): array
+    {
+        if ($account->normal_balance === 'debit') {
+            return $signedBalance >= 0 ? ['debit' => $signedBalance, 'credit' => 0.0] : ['debit' => 0.0, 'credit' => -$signedBalance];
+        }
+
+        return $signedBalance >= 0 ? ['debit' => 0.0, 'credit' => $signedBalance] : ['debit' => -$signedBalance, 'credit' => 0.0];
+    }
+
+    private function accountTypeLabel(string $type): string
+    {
+        return match ($type) {
+            'asset' => __('Assets'),
+            'liability' => __('Liabilities'),
+            'equity' => __('Equity'),
+            'revenue' => __('Revenue'),
+            'expense' => __('Expenses'),
+            default => $type,
+        };
+    }
+
+    /**
+     * Hamly-parity gap: the plain trialBalance() above is a flat list
+     * with period activity only — three existing callers
+     * (ReportApiController, CompanyAuditService, the Year-End Audit
+     * Pack) already depend on that exact shape, so it's left alone and
+     * this is a separate method rather than a breaking change to it.
+     *
+     * Groups every account under its category (Account::categoryForCode()
+     * — "Cash and cash equivalents", "Accounts Receivable", ...; an
+     * account with no category, i.e. a company's own custom one, falls
+     * into an "Other <type>" bucket) with Opening balance / Transactions
+     * / Closing balance Dr/Cr column-pairs and a subtotal per category
+     * and per account type, mirroring Hamly's Trial Balance exactly. The
+     * grouped `rows` are always included (needed to compute the
+     * subtotals anyway) — the view decides whether to print them
+     * (trial-balance-detailed) or only the category subtotal line
+     * (plain trial-balance).
+     *
+     * @return array{types: Collection, grand: array}
+     */
+    public function trialBalanceGrouped(Company $company, Carbon $from, Carbon $to): array
+    {
+        $openingAsOf = $from->copy()->subDay();
+
+        $rows = Account::where('company_id', $company->id)
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get()
+            ->map(function (Account $account) use ($from, $to, $openingAsOf) {
+                $openingSigned = $this->accountBalanceAsOf($account, $openingAsOf);
+                $periodDebit = (float) $account->journalEntryLines()
+                    ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+                    ->sum('debit');
+                $periodCredit = (float) $account->journalEntryLines()
+                    ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+                    ->sum('credit');
+                $closingSigned = $openingSigned + ($account->normal_balance === 'debit' ? $periodDebit - $periodCredit : $periodCredit - $periodDebit);
+
+                $opening = $this->signedBalanceToDrCr($account, $openingSigned);
+                $closing = $this->signedBalanceToDrCr($account, $closingSigned);
+
+                return [
+                    'account' => $account,
+                    'category' => $account->category ?? __('Other :type', ['type' => strtolower($this->accountTypeLabel($account->type))]),
+                    'openingDebit' => $opening['debit'], 'openingCredit' => $opening['credit'],
+                    'periodDebit' => $periodDebit, 'periodCredit' => $periodCredit,
+                    'closingDebit' => $closing['debit'], 'closingCredit' => $closing['credit'],
+                ];
+            })
+            ->filter(fn ($r) => $r['openingDebit'] || $r['openingCredit'] || $r['periodDebit'] || $r['periodCredit'] || $r['closingDebit'] || $r['closingCredit']);
+
+        $sumPairs = fn (Collection $rows) => [
+            'openingDebit' => $rows->sum('openingDebit'), 'openingCredit' => $rows->sum('openingCredit'),
+            'periodDebit' => $rows->sum('periodDebit'), 'periodCredit' => $rows->sum('periodCredit'),
+            'closingDebit' => $rows->sum('closingDebit'), 'closingCredit' => $rows->sum('closingCredit'),
+        ];
+
+        $types = $rows->groupBy(fn ($r) => $r['account']->type)
+            ->map(function (Collection $typeRows, string $type) use ($sumPairs) {
+                $categories = $typeRows->groupBy('category')
+                    ->map(fn (Collection $categoryRows) => ['rows' => $categoryRows->values()] + $sumPairs($categoryRows));
+
+                return ['label' => $this->accountTypeLabel($type), 'categories' => $categories] + $sumPairs($typeRows);
+            });
+
+        $grand = $sumPairs($rows);
+
+        return ['types' => $types, 'grand' => $grand];
+    }
+
+    /**
      * The full, multi-account General Ledger — the single most-requested
      * document in any year-end audit PBC list (every account, its opening
      * balance, every line posted to it in the period, and its closing
