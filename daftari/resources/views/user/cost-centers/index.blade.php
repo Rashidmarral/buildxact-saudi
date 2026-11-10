@@ -71,19 +71,25 @@
     <h3 class="font-semibold text-slate-900 mb-1">{{ __('Cost Center Links') }}</h3>
     <p class="text-sm text-slate-500 mb-4">{{ __('Link entities to cost centers with an allocation percentage.') }}</p>
 
-    <form method="POST" action="{{ route('app.cost-centers.links.store') }}" class="flex flex-wrap items-end gap-3 mb-6">
+    <form method="POST" action="{{ route('app.cost-centers.links.store') }}" class="flex flex-wrap items-end gap-3 mb-6" x-data="{ entityType: 'invoice' }">
         @csrf
         <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Entity type') }}</label>
-            <select name="entity_type" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <select name="entity_type" x-model="entityType" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="invoice">{{ __('Invoice') }}</option>
+                <option value="bill">{{ __('Bill') }}</option>
             </select>
         </div>
         <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Document') }}</label>
-            <select name="entity_id" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[10rem]">
+            <select name="entity_id" x-show="entityType === 'invoice'" :disabled="entityType !== 'invoice'" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[10rem]">
                 @foreach ($invoices as $invoice)
                     <option value="{{ $invoice->id }}">{{ $invoice->invoice_number }}</option>
+                @endforeach
+            </select>
+            <select name="entity_id" x-show="entityType === 'bill'" :disabled="entityType !== 'bill'" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[10rem]">
+                @foreach ($bills as $bill)
+                    <option value="{{ $bill->id }}">{{ $bill->bill_number }}</option>
                 @endforeach
             </select>
         </div>
@@ -122,6 +128,69 @@
     @endif
 </div>
 
+<div class="bg-white rounded-xl border border-slate-100 p-6 mt-8">
+    <h3 class="font-semibold text-slate-900 mb-1">{{ __('Cost Centre Settings') }}</h3>
+    <p class="text-sm text-slate-500 mb-4">{{ __('Require every sent invoice or posted bill to carry a cost centre tag, and narrow which cost centre types this company uses.') }}</p>
+
+    <form method="POST" action="{{ route('app.cost-centers.settings.update') }}" class="space-y-4">
+        @csrf
+        <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="cost_center_required_on_sales" value="1" @checked($requiredOnSales) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+            {{ __('Require a cost centre on every invoice before it can be sent') }}
+        </label>
+        <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="cost_center_required_on_expenses" value="1" @checked($requiredOnExpenses) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+            {{ __('Require a cost centre on every bill before it can be posted') }}
+        </label>
+        <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Cost centre types in use') }}</label>
+            <div class="flex items-center gap-4">
+                @foreach ($types as $t)
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="cost_center_scope[]" value="{{ $t }}" @checked(in_array($t, $scopedTypes)) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                        {{ $typeLabels[$t] }}
+                    </label>
+                @endforeach
+            </div>
+            <p class="mt-1 text-xs text-slate-400">{{ __('Narrows the "Cost centre type" choice on new cost centres — an existing one of an unchecked type is unaffected.') }}</p>
+        </div>
+        <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save settings') }}</button>
+    </form>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-100 p-6 mt-8">
+    <h3 class="font-semibold text-slate-900 mb-1">{{ __('Re-tag a Period') }}</h3>
+    <p class="text-sm text-slate-500 mb-4">{{ __('Bulk-correct a date range: every invoice or bill in it gets its cost centre tag replaced with the one chosen here (100% allocation), including documents that currently have no tag at all.') }}</p>
+
+    <form method="POST" action="{{ route('app.cost-centers.retag') }}" class="flex flex-wrap items-end gap-3" onsubmit="return confirm('{{ __('This replaces every cost centre tag on documents in this period. Continue?') }}')">
+        @csrf
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Entity type') }}</label>
+            <select name="entity_type" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+                <option value="invoice">{{ __('Invoices') }}</option>
+                <option value="bill">{{ __('Bills') }}</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('From') }}</label>
+            <input type="date" name="from" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('To') }}</label>
+            <input type="date" name="to" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Retag to') }}</label>
+            <select name="cost_center_id" required class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[12rem]">
+                @foreach ($costCenters->where('is_active', true) as $cc)
+                    <option value="{{ $cc->id }}">{{ $cc->label() }}</option>
+                @endforeach
+            </select>
+        </div>
+        <button type="submit" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">{{ __('Retag period') }}</button>
+    </form>
+</div>
+
 <dialog id="add-cc-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" action="{{ route('app.cost-centers.store') }}" class="p-6 space-y-4">
         @csrf
@@ -138,7 +207,7 @@
             <div>
                 <label class="block text-xs font-medium text-slate-500">{{ __('Cost center type') }}</label>
                 <select name="type" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
-                    @foreach ($types as $t)<option value="{{ $t }}">{{ $typeLabels[$t] }}</option>@endforeach
+                    @foreach ($scopedTypes as $t)<option value="{{ $t }}">{{ $typeLabels[$t] }}</option>@endforeach
                 </select>
             </div>
             <div>

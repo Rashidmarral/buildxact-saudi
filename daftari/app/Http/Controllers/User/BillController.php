@@ -13,6 +13,7 @@ use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\BillItem;
+use App\Models\CostCenterLink;
 use App\Models\Item;
 use App\Models\ItemStock;
 use App\Models\Project;
@@ -263,6 +264,10 @@ class BillController extends Controller
 
     public function post(Bill $bill, LedgerPostingService $ledger)
     {
+        if ($bill->status === 'draft' && $blocked = $this->blockedByMissingCostCentre($bill)) {
+            return $blocked;
+        }
+
         $status = __('Bill posted.');
 
         if ($bill->status === 'draft') {
@@ -270,6 +275,25 @@ class BillController extends Controller
         }
 
         return back()->with('status', $status);
+    }
+
+    /**
+     * "add more... required-on-expenses toggle" — a company can require
+     * every posted bill to carry a cost centre tag (set from the Cost
+     * Centers page's own "Cost Center Links" section). Off by default,
+     * so a company that never visits Cost Center settings is unaffected.
+     */
+    private function blockedByMissingCostCentre(Bill $bill): ?\Illuminate\Http\RedirectResponse
+    {
+        if (! $bill->company->cost_center_required_on_expenses) {
+            return null;
+        }
+
+        if (CostCenterLink::where('company_id', $bill->company_id)->where('entity_type', 'bill')->where('entity_id', $bill->id)->exists()) {
+            return null;
+        }
+
+        return back()->withErrors(['bill' => __('This company requires a cost center on every bill before it can be posted — tag it from the Cost Centers page first.')]);
     }
 
     /**

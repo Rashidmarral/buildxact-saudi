@@ -12,6 +12,7 @@ use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\BankAccount;
 use App\Models\Client;
+use App\Models\CostCenterLink;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoicePayment;
@@ -576,6 +577,10 @@ class InvoiceController extends Controller
             return $blocked;
         }
 
+        if ($blocked = $this->blockedByMissingCostCentre($invoice)) {
+            return $blocked;
+        }
+
         $this->requestSend($invoice, $ledger);
 
         return back()->with('status', $invoice->fresh()->status === 'pending_approval'
@@ -598,6 +603,26 @@ class InvoiceController extends Controller
         }
 
         return back()->withErrors(['invoice' => __('This client is on credit hold and cannot be sent new invoices (:reason). Release the hold on the client record first.', ['reason' => $invoice->client->credit_hold_reason ?: __('no reason given')])]);
+    }
+
+    /**
+     * "add more... required-on-sales toggle" — a company can require
+     * every sent invoice to carry a cost centre tag (set from the Cost
+     * Centers page's own "Cost Center Links" section, since that's the
+     * one place a tag is ever recorded today). Off by default, so a
+     * company that never visits Cost Center settings is unaffected.
+     */
+    private function blockedByMissingCostCentre(Invoice $invoice): ?\Illuminate\Http\RedirectResponse
+    {
+        if (! $invoice->company->cost_center_required_on_sales) {
+            return null;
+        }
+
+        if (CostCenterLink::where('company_id', $invoice->company_id)->where('entity_type', 'invoice')->where('entity_id', $invoice->id)->exists()) {
+            return null;
+        }
+
+        return back()->withErrors(['invoice' => __('This company requires a cost center on every invoice before it can be sent — tag it from the Cost Centers page first.')]);
     }
 
     /**

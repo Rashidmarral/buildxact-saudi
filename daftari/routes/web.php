@@ -533,6 +533,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
             Route::delete('{costCenter}', [CostCenterController::class, 'destroy'])->name('destroy');
             Route::post('links', [CostCenterController::class, 'storeLink'])->name('links.store');
             Route::delete('links/{costCenterLink}', [CostCenterController::class, 'destroyLink'])->name('links.destroy');
+            Route::post('settings', [CostCenterController::class, 'updateSettings'])->name('settings.update');
+            Route::post('retag', [CostCenterController::class, 'retagPeriod'])->name('retag');
         });
 
         Route::prefix('zakat')->name('zakat.')->group(function () {

@@ -51,6 +51,7 @@ class Company extends Model
         'po_approval_threshold', 'expense_approval_threshold', 'accounting_lock_date',
         'invoice_approval_threshold', 'quotation_approval_threshold', 'manual_journal_approval_threshold',
         'payment_voucher_approval_threshold', 'receipt_voucher_approval_threshold', 'bill_approval_threshold', 'invoice_dunning_enabled',
+        'cost_center_required_on_sales', 'cost_center_required_on_expenses', 'cost_center_scope',
         'default_payment_terms_days',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_common_name', 'zatca_organization_unit_name',
@@ -169,6 +170,8 @@ class Company extends Model
             'bill_approval_threshold' => 'decimal:2',
             'document_numbering_resets_yearly' => 'boolean',
             'invoice_dunning_enabled' => 'boolean',
+            'cost_center_required_on_sales' => 'boolean',
+            'cost_center_required_on_expenses' => 'boolean',
             'default_payment_terms_days' => 'integer',
             'accounting_lock_date' => 'date',
         ];
@@ -707,6 +710,23 @@ class Company extends Model
     public function billRequiresApproval(float $total): bool
     {
         return $this->bill_approval_threshold !== null && $total >= (float) $this->bill_approval_threshold;
+    }
+
+    /**
+     * Which cost centre types (department/project/branch) this company
+     * actually uses — a comma-separated subset of CostCenterController::
+     * TYPES, or every type when left unset (every company's behavior
+     * before this setting existed, and the default for a new one).
+     *
+     * @return array<int, string>
+     */
+    public function costCenterScopeTypes(): array
+    {
+        if (! $this->cost_center_scope) {
+            return ['department', 'project', 'branch'];
+        }
+
+        return array_values(array_filter(explode(',', $this->cost_center_scope)));
     }
 
     public function formatNumber(float $amount, int $decimals = 2): string
