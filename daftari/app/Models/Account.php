@@ -12,8 +12,32 @@ class Account extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'code', 'name', 'name_ar', 'type', 'parent_account_id', 'normal_balance', 'is_system', 'is_active',
+        'company_id', 'code', 'name', 'name_ar', 'type', 'category', 'parent_account_id', 'normal_balance', 'is_system', 'is_active',
     ];
+
+    /**
+     * The sub-heading a grouped Trial Balance/Balance Sheet files this
+     * account's code under — see the 2026_12_03 migration's note. Only
+     * covers codes systemAccounts() seeds; a company's own custom
+     * account (any other code) has no category and the grouped reports
+     * fall back to showing it under its bare `type`.
+     */
+    public static function categoryForCode(string $code): ?string
+    {
+        return match (true) {
+            in_array($code, ['1000', '1100'], true) => 'Cash and cash equivalents',
+            in_array($code, ['1150', '1200', '1250'], true) => 'Accounts Receivable',
+            in_array($code, ['1260', '1270', '1300', '1310', '1400'], true) => 'Current Assets',
+            in_array($code, ['1500', '1550'], true) => 'Fixed Assets',
+            in_array($code, ['2280'], true) => 'Non-current Liabilities',
+            in_array($code, ['2000', '2100', '2110', '2150', '2200', '2240', '2250', '2260', '2270', '2290'], true) => 'Current Liabilities',
+            in_array($code, ['3000', '3100'], true) => "Owner's Equity",
+            in_array($code, ['4000', '4100', '4150', '4200', '9100'], true) => 'Revenue',
+            in_array($code, ['5000'], true) => 'Cost of Goods Sold',
+            in_array($code, ['5100', '5150', '5180', '5200', '5300', '5350', '5360', '5370', '5900', '5950', '9000', '9200', '9300'], true) => 'Operating Expenses',
+            default => null,
+        };
+    }
 
     protected function casts(): array
     {
@@ -117,7 +141,7 @@ class Account extends Model
         foreach (self::systemAccounts() as $account) {
             self::withoutGlobalScope('company')->firstOrCreate(
                 ['company_id' => $companyId, 'code' => $account['code']],
-                $account + ['company_id' => $companyId, 'is_system' => true]
+                $account + ['company_id' => $companyId, 'is_system' => true, 'category' => self::categoryForCode($account['code'])]
             );
         }
     }
