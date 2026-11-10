@@ -58,18 +58,18 @@
                         </td>
                         <td class="px-6 py-3">{{ $declaration->bills->count() }}</td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
-                            <div class="flex items-center justify-end gap-1.5">
+                            <x-row-actions>
                                 @if ($declaration->customs_duty > 0 && ! $declaration->landed_cost_allocated_at)
                                     <form method="POST" action="{{ route('app.customs-declarations.allocate-landed-cost', $declaration) }}" onsubmit="return confirm('{{ __('Allocate this declaration\'s customs duty across the linked bills\' item costs?') }}')">
                                         @csrf
-                                        <x-icon-button type="submit" icon="check-circle" color="brand" title="{{ __('Allocate landed cost') }}" />
+                                        <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Allocate landed cost') }}" />
                                     </form>
                                 @endif
                                 <form method="POST" action="{{ route('app.customs-declarations.destroy', $declaration) }}" onsubmit="return confirm('{{ __('Delete this declaration?') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

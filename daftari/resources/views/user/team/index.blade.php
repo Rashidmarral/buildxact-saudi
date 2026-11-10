@@ -51,20 +51,20 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-right">
-                        <div class="flex items-center justify-end gap-1.5">
+                        <x-row-actions>
                             @if ($member->status === 'invited')
                                 <form method="POST" action="{{ route('app.team.resend-invite', $member) }}">
                                     @csrf
-                                    <x-icon-button type="submit" icon="check-circle" color="brand" title="{{ __('Resend invite') }}" />
+                                    <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Resend invite') }}" />
                                 </form>
                             @endif
                             @if ($member->id !== auth()->id())
                                 <form method="POST" action="{{ route('app.team.destroy', $member) }}" onsubmit="return confirm('{{ __('Remove this team member?') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Remove') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Remove') }}" />
                                 </form>
                             @endif
-                        </div>
+                        </x-row-actions>
                     </td>
                 </tr>
             @endforeach

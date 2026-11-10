@@ -40,10 +40,10 @@
                             @endif
                         </td>
                         <td class="px-6 py-3 text-right">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <x-icon-button href="{{ route('app.budgets.show', $budget) }}" icon="eye" title="{{ __('View') }}" />
-                                <x-icon-button href="{{ route('app.budgets.edit', $budget) }}" icon="pencil" title="{{ __('Edit') }}" />
-                            </div>
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('app.budgets.show', $budget) }}" icon="eye" title="{{ __('View') }}" />
+                                <x-icon-button menu href="{{ route('app.budgets.edit', $budget) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

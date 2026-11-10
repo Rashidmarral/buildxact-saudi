@@ -81,20 +81,20 @@
                     </td>
                     <td class="px-5 py-3 text-end">
                         @if ($leaveRequest->isPending())
-                            <div class="flex items-center justify-end gap-1.5">
+                            <x-row-actions>
                                 <form method="POST" action="{{ route('app.leave-requests.approve', $leaveRequest) }}">
                                     @csrf
-                                    <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
+                                    <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
                                 </form>
                                 <form method="POST" action="{{ route('app.leave-requests.reject', $leaveRequest) }}">
                                     @csrf
-                                    <x-icon-button type="submit" icon="x-circle" color="red" title="{{ __('Reject') }}" />
+                                    <x-icon-button menu type="submit" icon="x-circle" color="red" title="{{ __('Reject') }}" />
                                 </form>
                                 <form method="POST" action="{{ route('app.leave-requests.cancel', $leaveRequest) }}" onsubmit="return confirm('{{ __('Cancel this leave request?') }}')">
                                     @csrf
-                                    <x-icon-button type="submit" icon="x-circle" color="amber" title="{{ __('Cancel') }}" />
+                                    <x-icon-button menu type="submit" icon="x-circle" color="amber" title="{{ __('Cancel') }}" />
                                 </form>
-                            </div>
+                            </x-row-actions>
                         @endif
                     </td>
                 </tr>

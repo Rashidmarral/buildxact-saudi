@@ -64,16 +64,16 @@
                         </td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
                             @if ($transfer->status === 'in_transit')
-                                <div class="flex items-center justify-end gap-1.5">
+                                <x-row-actions>
                                     <form method="POST" action="{{ route('app.stock-transfers.receive', $transfer) }}">
                                         @csrf
-                                        <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('Receive') }}" />
+                                        <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Receive') }}" />
                                     </form>
                                     <form method="POST" action="{{ route('app.stock-transfers.reverse', $transfer) }}" onsubmit="return confirm('{{ __('Reverse this transfer?') }}')">
                                         @csrf
-                                        <x-icon-button type="submit" icon="x-circle" color="red" title="{{ __('Cancel') }}" />
+                                        <x-icon-button menu type="submit" icon="x-circle" color="red" title="{{ __('Cancel') }}" />
                                     </form>
-                                </div>
+                                </x-row-actions>
                             @elseif ($transfer->status === 'completed')
                                 <div class="flex items-center justify-end gap-1.5">
                                     <form method="POST" action="{{ route('app.stock-transfers.reverse', $transfer) }}" onsubmit="return confirm('{{ __('Reverse this transfer?') }}')">

@@ -40,24 +40,24 @@
                             </span>
                         </td>
                         <td class="px-6 py-3 text-end">
-                            <div class="flex items-center justify-end gap-1.5">
+                            <x-row-actions>
                                 @if ($recurringInvoice->status === 'active')
                                     <form method="POST" action="{{ route('app.recurring-invoices.pause', $recurringInvoice) }}">
                                         @csrf
-                                        <x-icon-button type="submit" icon="x-circle" title="{{ __('Pause') }}" />
+                                        <x-icon-button menu type="submit" icon="x-circle" title="{{ __('Pause') }}" />
                                     </form>
                                 @elseif ($recurringInvoice->status === 'paused')
                                     <form method="POST" action="{{ route('app.recurring-invoices.resume', $recurringInvoice) }}">
                                         @csrf
-                                        <x-icon-button type="submit" icon="check-circle" color="brand" title="{{ __('Resume') }}" />
+                                        <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Resume') }}" />
                                     </form>
                                 @endif
-                                <x-icon-button href="{{ route('app.recurring-invoices.edit', $recurringInvoice) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <x-icon-button menu href="{{ route('app.recurring-invoices.edit', $recurringInvoice) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 <form method="POST" action="{{ route('app.recurring-invoices.destroy', $recurringInvoice) }}" onsubmit="return confirm('{{ __('Delete this recurring invoice? This does not affect invoices already generated.') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

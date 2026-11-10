@@ -53,6 +53,7 @@
                         <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Balance') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
                     </tr>
                 </thead>
                 <tbody x-ref="rows">
@@ -65,6 +66,34 @@
                             <td class="px-6 py-3">{{ \App\Support\Money::format($bill->total) }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format(max($bill->balanceDue(), 0)) }}</td>
                             <td class="px-6 py-3">@include('user.bills.partials.status-badge', ['status' => $bill->status])</td>
+                            <td class="px-6 py-3" onclick="event.stopPropagation()">
+                                <x-row-actions>
+                                    <x-icon-button menu href="{{ route('app.bills.show', $bill) }}" icon="eye" title="{{ __('View') }}" />
+                                    @if ($bill->status === 'draft')
+                                        <form method="POST" action="{{ route('app.bills.post', $bill) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Post to ledger') }}" />
+                                        </form>
+                                    @elseif ($bill->status === 'pending_approval')
+                                        <form method="POST" action="{{ route('app.bills.approve', $bill) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Approve') }}" />
+                                        </form>
+                                        <form method="POST" action="{{ route('app.bills.reject', $bill) }}" onsubmit="return confirm('{{ __('Reject this bill? It will return to draft.') }}')">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="x-circle" color="amber" title="{{ __('Reject') }}" />
+                                        </form>
+                                    @endif
+                                    <x-icon-button menu href="{{ route('app.bills.pdf', $bill) }}" icon="printer" title="{{ __('Download PDF') }}" />
+                                    <x-icon-button menu href="{{ route('app.payment-vouchers.create') }}" icon="document" title="{{ __('Record payment') }}" />
+                                    @if (! in_array($bill->status, ['void', 'pending_approval'], true))
+                                        <form method="POST" action="{{ route('app.bills.void', $bill) }}" onsubmit="return confirm('{{ __('Void this bill?') }}')">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Void') }}" />
+                                        </form>
+                                    @endif
+                                </x-row-actions>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

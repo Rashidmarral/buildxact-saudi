@@ -56,6 +56,7 @@
                         <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Balance due') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
                     </tr>
                 </thead>
                 <tbody x-ref="rows">
@@ -69,6 +70,39 @@
                             <td class="px-6 py-3">{{ \App\Support\Money::format($invoice->total) }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format(max($invoice->balanceDue(), 0)) }}</td>
                             <td class="px-6 py-3">@include('user.invoices.partials.status-badge', ['status' => $invoice->status])</td>
+                            <td class="px-6 py-3" onclick="event.stopPropagation()">
+                                <x-row-actions>
+                                    <x-icon-button menu href="{{ route('app.invoices.show', $invoice) }}" icon="eye" title="{{ __('View') }}" />
+                                    @if ($invoice->status === 'draft')
+                                        <x-icon-button menu href="{{ route('app.invoices.edit', $invoice) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                    @endif
+                                    <x-icon-button menu href="{{ route('app.invoices.pdf', $invoice) }}" icon="printer" title="{{ __('Download PDF') }}" />
+                                    @if ($invoice->isZatcaLocked())
+                                        <x-icon-button menu href="{{ route('app.invoices.xml', $invoice) }}" icon="download" title="{{ __('Download XML') }}" />
+                                    @endif
+                                    @if ($invoice->client->email)
+                                        <form method="POST" action="{{ route('app.invoices.email', $invoice) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="mail" title="{{ __('Email invoice') }}" />
+                                        </form>
+                                    @endif
+                                    @if (in_array($invoice->status, ['sent', 'partially_paid', 'paid', 'overdue']) && $invoice->remainingCreditableTotal() > 0.01)
+                                        <x-icon-button menu href="{{ route('app.credit-notes.create', ['invoice_id' => $invoice->id]) }}" icon="document" title="{{ __('Create credit note') }}" />
+                                    @endif
+                                    @if (! in_array($invoice->status, ['draft', 'cancelled']) && ! $invoice->isZatcaLocked())
+                                        <form method="POST" action="{{ route('app.invoices.cancel', $invoice) }}" onsubmit="return confirm('{{ __('Cancel this invoice?') }}')">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="x-circle" color="amber" title="{{ __('Cancel') }}" />
+                                        </form>
+                                    @endif
+                                    @if ($invoice->status === 'draft')
+                                        <form method="POST" action="{{ route('app.invoices.destroy', $invoice) }}" onsubmit="return confirm('{{ __('Delete this invoice?') }}')">
+                                            @csrf @method('DELETE')
+                                            <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                        </form>
+                                    @endif
+                                </x-row-actions>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

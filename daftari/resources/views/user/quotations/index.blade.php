@@ -64,6 +64,7 @@
                         <th class="px-6 py-3 font-medium">{{ __('Issue date') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
                         <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                        <th class="px-6 py-3"></th>
                     </tr>
                 </thead>
                 <tbody x-ref="rows">
@@ -76,6 +77,49 @@
                             <td class="px-6 py-3">{{ $quotation->issue_date->format('Y-m-d') }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format($quotation->total) }}</td>
                             <td class="px-6 py-3">@include('user.quotations.partials.status-badge', ['status' => $quotation->status])</td>
+                            <td class="px-6 py-3" onclick="event.stopPropagation()">
+                                <x-row-actions>
+                                    <x-icon-button menu href="{{ route('app.quotations.show', $quotation) }}" icon="eye" title="{{ __('View') }}" />
+                                    @if ($quotation->status !== 'converted')
+                                        <x-icon-button menu href="{{ route('app.quotations.edit', $quotation) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                    @endif
+                                    @if ($quotation->status === 'draft')
+                                        <form method="POST" action="{{ route('app.quotations.send', $quotation) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Mark as issued') }}" />
+                                        </form>
+                                    @endif
+                                    @if (in_array($quotation->status, ['draft', 'issued']))
+                                        <form method="POST" action="{{ route('app.quotations.accept', $quotation) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Mark as accepted') }}" />
+                                        </form>
+                                        <form method="POST" action="{{ route('app.quotations.reject', $quotation) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="x-circle" color="red" title="{{ __('Mark as rejected') }}" />
+                                        </form>
+                                    @endif
+                                    @if ($quotation->status === 'accepted' && ! $quotation->is_staged)
+                                        <form method="POST" action="{{ route('app.quotations.convert', $quotation) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="arrow-right" color="brand" title="{{ __('Convert to invoice') }}" />
+                                        </form>
+                                    @endif
+                                    <x-icon-button menu href="{{ route('app.quotations.pdf', $quotation) }}" icon="printer" title="{{ __('Download PDF') }}" />
+                                    @if ($quotation->client->email)
+                                        <form method="POST" action="{{ route('app.quotations.email', $quotation) }}">
+                                            @csrf
+                                            <x-icon-button menu type="submit" icon="mail" title="{{ __('Email to client') }}" />
+                                        </form>
+                                    @endif
+                                    @if ($quotation->status === 'draft')
+                                        <form method="POST" action="{{ route('app.quotations.destroy', $quotation) }}" onsubmit="return confirm('{{ __('Delete this quotation?') }}')">
+                                            @csrf @method('DELETE')
+                                            <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                        </form>
+                                    @endif
+                                </x-row-actions>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

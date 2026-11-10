@@ -63,16 +63,16 @@
                                 @endif
                             </td>
                             <td class="px-6 py-3">
-                                <div class="flex items-center justify-end gap-1.5">
+                                <x-row-actions>
                                     @if ($canSeeStatements)
-                                        <x-icon-button href="{{ route('app.client-statements.show', $client) }}" icon="eye" title="{{ __('Statement') }}" />
+                                        <x-icon-button menu href="{{ route('app.client-statements.show', $client) }}" icon="eye" title="{{ __('Statement') }}" />
                                     @endif
-                                    <x-icon-button href="{{ route('app.clients.edit', $client) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                    <x-icon-button menu href="{{ route('app.clients.edit', $client) }}" icon="pencil" title="{{ __('Edit') }}" />
                                     <form method="POST" action="{{ route('app.clients.destroy', $client) }}" onsubmit="return confirm('{{ __('Delete this client?') }}')">
                                         @csrf @method('DELETE')
-                                        <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                        <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                     </form>
-                                </div>
+                                </x-row-actions>
                             </td>
                         </tr>
                     @endforeach

@@ -48,12 +48,12 @@
                             @endif
                         </td>
                         <td class="px-6 py-3">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <x-icon-button href="{{ route('app.employees.edit', $employee) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('app.employees.edit', $employee) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 @if ($employee->status === 'active')
-                                    <x-icon-button type="button" onclick="document.getElementById('terminate-{{ $employee->id }}').showModal()" icon="x-circle" color="amber" title="{{ __('Terminate') }}" />
+                                    <x-icon-button menu type="button" onclick="document.getElementById('terminate-{{ $employee->id }}').showModal()" icon="x-circle" color="amber" title="{{ __('Terminate') }}" />
                                 @endif
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
 

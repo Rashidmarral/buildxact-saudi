@@ -43,8 +43,8 @@
                             @endif
                         </td>
                         <td class="px-6 py-3 text-right">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <x-icon-button type="button" icon="pencil" title="{{ __('Edit') }}"
+                            <x-row-actions>
+                                <x-icon-button menu type="button" icon="pencil" title="{{ __('Edit') }}"
                                     data-edit-register
                                     data-update-url="{{ route('app.pos-registers.update', $register) }}"
                                     data-name="{{ $register->name }}"
@@ -54,9 +54,9 @@
                                 />
                                 <form method="POST" action="{{ route('app.pos-registers.destroy', $register) }}" onsubmit="return confirm('{{ __('Delete this register?') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

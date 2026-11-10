@@ -39,24 +39,24 @@
                             </span>
                         </td>
                         <td class="px-6 py-3 text-end">
-                            <div class="flex items-center justify-end gap-1.5">
+                            <x-row-actions>
                                 @if ($recurringEntry->status === 'active')
                                     <form method="POST" action="{{ route('app.recurring-journal-entries.pause', $recurringEntry) }}">
                                         @csrf
-                                        <x-icon-button type="submit" icon="x-circle" title="{{ __('Pause') }}" />
+                                        <x-icon-button menu type="submit" icon="x-circle" title="{{ __('Pause') }}" />
                                     </form>
                                 @elseif ($recurringEntry->status === 'paused')
                                     <form method="POST" action="{{ route('app.recurring-journal-entries.resume', $recurringEntry) }}">
                                         @csrf
-                                        <x-icon-button type="submit" icon="check-circle" color="brand" title="{{ __('Resume') }}" />
+                                        <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Resume') }}" />
                                     </form>
                                 @endif
-                                <x-icon-button href="{{ route('app.recurring-journal-entries.edit', $recurringEntry) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <x-icon-button menu href="{{ route('app.recurring-journal-entries.edit', $recurringEntry) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 <form method="POST" action="{{ route('app.recurring-journal-entries.destroy', $recurringEntry) }}" onsubmit="return confirm('{{ __('Delete this recurring journal entry? This does not affect entries already posted.') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

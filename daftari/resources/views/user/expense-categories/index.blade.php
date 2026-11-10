@@ -56,13 +56,13 @@
                             @endif
                         </td>
                         <td class="px-6 py-3 text-right">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <x-icon-button href="{{ route('app.expense-categories.edit', $category) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('app.expense-categories.edit', $category) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 <form method="POST" action="{{ route('app.expense-categories.destroy', $category) }}" onsubmit="return confirm('{{ __('Delete this category?') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

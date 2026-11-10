@@ -59,23 +59,23 @@
                             </span>
                         </td>
                         <td class="px-6 py-3">
-                            <div class="flex items-center justify-end gap-1.5">
+                            <x-row-actions>
                                 @if ($expense->status === 'pending_approval' && auth()->user()->hasPermission('approvals'))
                                     <form method="POST" action="{{ route('app.expenses.approve', $expense) }}">
                                         @csrf
-                                        <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
+                                        <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
                                     </form>
                                     <form method="POST" action="{{ route('app.expenses.reject', $expense) }}" onsubmit="return confirm('{{ __('Reject this expense?') }}')">
                                         @csrf
-                                        <x-icon-button type="submit" icon="x-circle" color="red" title="{{ __('Reject') }}" />
+                                        <x-icon-button menu type="submit" icon="x-circle" color="red" title="{{ __('Reject') }}" />
                                     </form>
                                 @endif
-                                <x-icon-button href="{{ route('app.expenses.edit', $expense) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <x-icon-button menu href="{{ route('app.expenses.edit', $expense) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 <form method="POST" action="{{ route('app.expenses.destroy', $expense) }}" onsubmit="return confirm('{{ __('Delete this expense?') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

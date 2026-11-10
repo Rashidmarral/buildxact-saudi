@@ -37,10 +37,10 @@
                         <td class="px-6 py-3 text-slate-500">{{ $tracker->entries_count }}</td>
                         <td class="px-6 py-3 text-right font-semibold tabular-nums">{{ \App\Support\Money::format($tracker->balance(), $tracker->currency) }}</td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <x-icon-button href="{{ route('app.cash-trackers.show', $tracker) }}" icon="eye" color="brand" title="{{ __('Open') }}" />
-                                <x-icon-button href="{{ route('app.cash-trackers.pdf', $tracker) }}" icon="printer" title="{{ __('Report') }}" />
-                            </div>
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('app.cash-trackers.show', $tracker) }}" icon="eye" color="brand" title="{{ __('Open') }}" />
+                                <x-icon-button menu href="{{ route('app.cash-trackers.pdf', $tracker) }}" icon="printer" title="{{ __('Report') }}" />
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

@@ -53,13 +53,13 @@
                             @endif
                         </td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <x-icon-button href="{{ route('app.bank-transfers.create', ['to_bank_account_id' => $account->id]) }}" icon="trend-up" color="brand" title="{{ __('Give advance') }}" />
-                                <x-icon-button href="{{ route('app.expenses.create', ['bank_account_id' => $account->id]) }}" icon="clipboard" color="brand" title="{{ __('Record spend') }}" />
-                                <x-icon-button href="{{ route('app.bank-transfers.create', ['from_bank_account_id' => $account->id]) }}" icon="trend-down" title="{{ __('Return cash') }}" />
-                                <x-icon-button href="{{ route('app.account-reports.show', $account) }}" icon="statement" title="{{ __('Statement') }}" />
-                                <x-icon-button href="{{ route('app.bank-accounts.edit', $account) }}" icon="pencil" title="{{ __('Edit') }}" />
-                            </div>
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('app.bank-transfers.create', ['to_bank_account_id' => $account->id]) }}" icon="trend-up" color="brand" title="{{ __('Give advance') }}" />
+                                <x-icon-button menu href="{{ route('app.expenses.create', ['bank_account_id' => $account->id]) }}" icon="clipboard" color="brand" title="{{ __('Record spend') }}" />
+                                <x-icon-button menu href="{{ route('app.bank-transfers.create', ['from_bank_account_id' => $account->id]) }}" icon="trend-down" title="{{ __('Return cash') }}" />
+                                <x-icon-button menu href="{{ route('app.account-reports.show', $account) }}" icon="statement" title="{{ __('Statement') }}" />
+                                <x-icon-button menu href="{{ route('app.bank-accounts.edit', $account) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

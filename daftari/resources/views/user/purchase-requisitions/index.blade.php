@@ -56,14 +56,14 @@
                         <td class="px-6 py-3 text-slate-500">{{ $requisition->items->pluck('description')->take(2)->implode(', ') }}{{ $requisition->items->count() > 2 ? ' +'.($requisition->items->count() - 2) : '' }}</td>
                         <td class="px-6 py-3"><span class="inline-block rounded-full px-2.5 py-1 text-xs font-medium {{ $badge }}">{{ __(ucfirst($requisition->status)) }}</span></td>
                         <td class="px-6 py-3 text-right whitespace-nowrap">
-                            <div class="flex items-center justify-end gap-1.5">
+                            <x-row-actions>
                                 @if ($requisition->status === 'requested')
                                     <form method="POST" action="{{ route('app.purchase-requisitions.approve', $requisition) }}">
                                         @csrf
-                                        <x-icon-button type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
+                                        <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
                                     </form>
-                                    <x-icon-button type="button" icon="x-circle" color="red" title="{{ __('Reject') }}" onclick="document.getElementById('reject-{{ $requisition->id }}').showModal()" />
-                                    <x-icon-button href="{{ route('app.purchase-requisitions.edit', $requisition) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                    <x-icon-button menu type="button" icon="x-circle" color="red" title="{{ __('Reject') }}" onclick="document.getElementById('reject-{{ $requisition->id }}').showModal()" />
+                                    <x-icon-button menu href="{{ route('app.purchase-requisitions.edit', $requisition) }}" icon="pencil" title="{{ __('Edit') }}" />
                                     <dialog id="reject-{{ $requisition->id }}" class="rounded-xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
                                         <form method="POST" action="{{ route('app.purchase-requisitions.reject', $requisition) }}" class="p-6 space-y-3">
                                             @csrf
@@ -76,11 +76,11 @@
                                         </form>
                                     </dialog>
                                 @elseif ($requisition->status === 'approved')
-                                    <x-icon-button href="{{ route('app.purchase-requisitions.create-po', $requisition) }}" icon="arrow-right" color="brand" title="{{ __('Create purchase order') }}" />
+                                    <x-icon-button menu href="{{ route('app.purchase-requisitions.create-po', $requisition) }}" icon="arrow-right" color="brand" title="{{ __('Create purchase order') }}" />
                                 @elseif ($requisition->status === 'converted' && $requisition->purchase_order_id)
-                                    <x-icon-button href="{{ route('app.purchase-orders.show', $requisition->purchase_order_id) }}" icon="eye" title="{{ __('View purchase order') }}" />
+                                    <x-icon-button menu href="{{ route('app.purchase-orders.show', $requisition->purchase_order_id) }}" icon="eye" title="{{ __('View purchase order') }}" />
                                 @endif
-                            </div>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

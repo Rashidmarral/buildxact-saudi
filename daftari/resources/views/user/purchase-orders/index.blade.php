@@ -47,6 +47,7 @@
                     <th class="px-6 py-3 font-medium">{{ __('Order date') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
                     <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                    <th class="px-6 py-3"></th>
                 </tr>
             </thead>
             <tbody>
@@ -57,6 +58,30 @@
                         <td class="px-6 py-3">{{ $order->order_date->format('Y-m-d') }}</td>
                         <td class="px-6 py-3">{{ \App\Support\Money::format($order->total) }}</td>
                         <td class="px-6 py-3">@include('user.purchase-orders.partials.status-badge', ['status' => $order->status])</td>
+                        <td class="px-6 py-3" onclick="event.stopPropagation()">
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('app.purchase-orders.show', $order) }}" icon="eye" title="{{ __('View') }}" />
+                                @if ($order->status === 'draft')
+                                    <x-icon-button menu href="{{ route('app.purchase-orders.edit', $order) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                @endif
+                                @if (in_array($order->status, ['draft', 'pending_approval']) && auth()->user()->hasPermission('approvals'))
+                                    <form method="POST" action="{{ route('app.purchase-orders.approve', $order) }}">
+                                        @csrf
+                                        <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
+                                    </form>
+                                @endif
+                                @if (in_array($order->status, ['approved', 'partially_billed']))
+                                    <x-icon-button menu href="{{ route('app.purchase-orders.bill-form', $order) }}" icon="document" color="brand" title="{{ __('Bill this order') }}" />
+                                @endif
+                                <x-icon-button menu href="{{ route('app.purchase-orders.pdf', $order) }}" icon="printer" title="{{ __('Download PDF') }}" />
+                                @if (! in_array($order->status, ['converted', 'partially_billed', 'void']))
+                                    <form method="POST" action="{{ route('app.purchase-orders.void', $order) }}" onsubmit="return confirm('{{ __('Void this purchase order?') }}')">
+                                        @csrf
+                                        <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Void') }}" />
+                                    </form>
+                                @endif
+                            </x-row-actions>
+                        </td>
                     </tr>
                 @endforeach
             </tbody>

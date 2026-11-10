@@ -33,16 +33,16 @@
                     </td>
                     <td class="px-6 py-3 text-slate-500">{{ $role->users_count }}</td>
                     <td class="px-6 py-3 text-right">
-                        <div class="flex items-center justify-end gap-1.5">
-                            <x-icon-button href="{{ route('app.roles.show', $role) }}" icon="eye" title="{{ __('View') }}" />
+                        <x-row-actions>
+                            <x-icon-button menu href="{{ route('app.roles.show', $role) }}" icon="eye" title="{{ __('View') }}" />
                             @unless ($role->is_system)
-                                <x-icon-button href="{{ route('app.roles.edit', $role) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                <x-icon-button menu href="{{ route('app.roles.edit', $role) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 <form method="POST" action="{{ route('app.roles.destroy', $role) }}" onsubmit="return confirm('{{ __('Delete this role?') }}')">
                                     @csrf @method('DELETE')
-                                    <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                                 </form>
                             @endunless
-                        </div>
+                        </x-row-actions>
                     </td>
                 </tr>
             @endforeach
