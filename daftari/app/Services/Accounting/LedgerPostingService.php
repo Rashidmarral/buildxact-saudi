@@ -9,6 +9,7 @@ use App\Models\BankAccount;
 use App\Models\BankTransfer;
 use App\Models\Bill;
 use App\Models\BillPayment;
+use App\Models\CardSettlement;
 use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\CustomsDeclaration;
@@ -982,6 +983,46 @@ class LedgerPostingService
         }
 
         return $this->post($company, 'pos_sale', $sale->id, __('POS sale :number', ['number' => $sale->sale_number]), $sale->created_at, $lines);
+    }
+
+    /**
+     * "add more... Card/POS Settlement workflow" — a card/POS sale's
+     * gross amount sits in a clearing account (POS_CARD_CLEARING, or
+     * whichever account the settled payment mode is mapped to) from the
+     * moment it's rung up, since the money isn't actually in the bank
+     * yet. This is the processor settling: the bank nets off its fee
+     * (MDR) and VAT on that fee before depositing the rest, so the
+     * clearing account is relieved for the FULL gross amount while the
+     * bank only gains the net — the fee and its VAT are real costs,
+     * booked here rather than silently absorbed into an unexplained gap
+     * between what was sold and what landed in the bank.
+     */
+    public function postCardSettlement(CardSettlement $settlement): ?JournalEntry
+    {
+        $company = $settlement->company;
+        $clearing = $settlement->paymentMode?->linkedAccount ?? $this->account($company, 'POS_CARD_CLEARING');
+        $bank = $this->bankOrCashAccount($company, $settlement->bankAccount);
+        $feeExpense = $this->account($company, 'CARD_PROCESSING_FEE_EXPENSE');
+        $vatInput = $this->account($company, 'VAT_INPUT');
+
+        $this->requireAccounts(['clearing account' => $clearing, 'bank account' => $bank], 'card settlement');
+
+        $lines = [
+            ['account_id' => $bank->id, 'debit' => $settlement->net_amount],
+            ['account_id' => $clearing->id, 'credit' => $settlement->gross_amount],
+        ];
+
+        if ((float) $settlement->fee_amount > 0) {
+            $this->requireAccounts(['CARD_PROCESSING_FEE_EXPENSE' => $feeExpense], 'card settlement fee');
+            $lines[] = ['account_id' => $feeExpense->id, 'debit' => $settlement->fee_amount];
+        }
+
+        if ((float) $settlement->fee_vat_amount > 0) {
+            $this->requireAccounts(['VAT_INPUT' => $vatInput], 'card settlement fee VAT');
+            $lines[] = ['account_id' => $vatInput->id, 'debit' => $settlement->fee_vat_amount];
+        }
+
+        return $this->post($company, 'card_settlement', $settlement->id, __('Card settlement :reference', ['reference' => $settlement->reference ?: $settlement->settlement_date->toDateString()]), $settlement->settlement_date, $lines);
     }
 
     public function postExpense(Expense $expense): ?JournalEntry

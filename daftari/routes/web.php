@@ -59,6 +59,7 @@ use App\Http\Controllers\User\CashCustodyController;
 use App\Http\Controllers\User\CashTrackerController;
 use App\Http\Controllers\User\BankReconciliationController;
 use App\Http\Controllers\User\BankTransferController;
+use App\Http\Controllers\User\CardSettlementController;
 use App\Http\Controllers\User\BillController;
 use App\Http\Controllers\User\BillingController;
 use App\Http\Controllers\User\BranchController;
@@ -600,6 +601,9 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('bank-transfers/{bankTransfer}/void', [BankTransferController::class, 'void'])->name('bank-transfers.void');
         Route::post('bank-transfers/{bankTransfer}/attachments', [BankTransferController::class, 'storeAttachment'])->name('bank-transfers.attachments.store');
         Route::delete('bank-transfers/{bankTransfer}/attachments/{attachment}', [BankTransferController::class, 'destroyAttachment'])->name('bank-transfers.attachments.destroy');
+        Route::resource('card-settlements', CardSettlementController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+        Route::post('card-settlements/{cardSettlement}/void', [CardSettlementController::class, 'void'])->name('card-settlements.void');
+        Route::get('card-settlements/{cardSettlement}/pdf', [CardSettlementController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('card-settlements.pdf');
 
         Route::get('bank-accounts/{bankAccount}/reconciliations', [BankReconciliationController::class, 'index'])->name('bank-reconciliations.index');
         Route::get('bank-accounts/{bankAccount}/reconciliations/create', [BankReconciliationController::class, 'create'])->name('bank-reconciliations.create');

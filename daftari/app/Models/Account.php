@@ -80,6 +80,7 @@ class Account extends Model
             ['code' => '5000', 'name' => 'Cost of Goods Sold', 'name_ar' => 'تكلفة البضاعة المباعة', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5100', 'name' => 'Operating Expenses', 'name_ar' => 'مصاريف تشغيلية', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5150', 'name' => 'Depreciation Expense', 'name_ar' => 'مصروف الإهلاك', 'type' => 'expense', 'normal_balance' => 'debit'],
+            ['code' => '5180', 'name' => 'Bank & Card Processing Fees', 'name_ar' => 'رسوم بنكية ومعالجة البطاقات', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5200', 'name' => 'Inventory Adjustment', 'name_ar' => 'تسوية المخزون', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5300', 'name' => 'Zakat / Income Tax', 'name_ar' => 'الزكاة / ضريبة الدخل', 'type' => 'expense', 'normal_balance' => 'debit'],
             ['code' => '5350', 'name' => 'Salaries & Wages Expense', 'name_ar' => 'مصروف الرواتب والأجور', 'type' => 'expense', 'normal_balance' => 'debit'],
