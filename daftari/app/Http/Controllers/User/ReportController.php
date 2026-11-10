@@ -10,7 +10,9 @@ use App\Models\AdvanceCreditApplication;
 use App\Models\BankAccount;
 use App\Models\Bill;
 use App\Models\BillPayment;
+use App\Models\Branch;
 use App\Models\Client;
+use App\Models\CostCenter;
 use App\Models\CreditNote;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
@@ -258,12 +260,24 @@ class ReportController extends Controller
      * most-requested document on a year-end audit PBC list. Distinct
      * from JournalController::ledger(), which only shows one account the
      * user picks and has no export.
+     *
+     * Hamly-parity gap: this used to have no filters at all and always
+     * dumped every account, unbounded. account_ids/cost_center_id/
+     * location_id mirror the filter pattern ledgerAccountStatement()
+     * already established for a single-account statement.
      */
     public function generalLedger(Request $request)
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
-        $accounts = app(FinancialReportService::class)->generalLedger($company, $period['from'], $period['to']);
+        $accountIds = collect($request->query('account_ids', []))->map(fn ($id) => (int) $id)->filter();
+        $costCenterId = $request->filled('cost_center_id') ? (int) $request->query('cost_center_id') : null;
+        $locationId = $request->filled('location_id') ? (int) $request->query('location_id') : null;
+
+        $accounts = app(FinancialReportService::class)->generalLedger($company, $period['from'], $period['to'], $accountIds, $costCenterId, $locationId);
+        $allAccounts = Account::where('company_id', $company->id)->where('is_active', true)->orderBy('code')->get();
+        $costCenters = CostCenter::where('is_active', true)->orderBy('name')->get();
+        $branches = Branch::orderBy('name')->get();
 
         if ($request->query('export') === 'csv') {
             $rows = $accounts->flatMap(function ($row) {
@@ -293,6 +307,12 @@ class ReportController extends Controller
         return view('user.reports.general-ledger', [
             'company' => $company,
             'period' => $period,
+            'allAccounts' => $allAccounts,
+            'accountIds' => $accountIds,
+            'costCenters' => $costCenters,
+            'costCenterId' => $costCenterId,
+            'branches' => $branches,
+            'locationId' => $locationId,
             'accounts' => $accounts,
         ]);
     }

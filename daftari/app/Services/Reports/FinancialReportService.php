@@ -165,27 +165,60 @@ class FinancialReportService
      * export. An account with no opening balance and no activity in the
      * period is left out entirely — same convention as trialBalance().
      *
+     * Hamly-parity gap: this used to take no filters at all and always
+     * dumped every account, unbounded — $accountIds/$costCenterId/
+     * $locationId are optional and all default to "no filter" so the
+     * two existing callers (ReportController's own export paths, the
+     * Year-End Audit Pack) are unaffected. A location has no column on
+     * journal_entry_lines itself, so it's resolved the same best-effort
+     * way journalExport() does: through the branch of the invoice/bill
+     * that actually generated the entry.
+     *
      * @return Collection<int, array{account: Account, openingBalance: float, lines: Collection, closingBalance: float, periodDebit: float, periodCredit: float}>
      */
-    public function generalLedger(Company $company, Carbon $from, Carbon $to): Collection
+    public function generalLedger(Company $company, Carbon $from, Carbon $to, ?Collection $accountIds = null, ?int $costCenterId = null, ?int $locationId = null): Collection
     {
-        return Account::where('company_id', $company->id)
-            ->where('is_active', true)
+        $invoiceIdsForLocation = $billIdsForLocation = null;
+        if ($locationId) {
+            $invoiceIdsForLocation = Invoice::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+            $billIdsForLocation = Bill::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+        }
+
+        $applyFilters = function ($query) use ($costCenterId, $locationId, $invoiceIdsForLocation, $billIdsForLocation) {
+            if ($costCenterId) {
+                $query->where('cost_center_id', $costCenterId);
+            }
+
+            if ($locationId) {
+                $query->whereHas('journalEntry', fn ($jq) => $jq->where(
+                    fn ($q) => $q->where(fn ($q2) => $q2->where('source_type', 'invoice')->whereIn('source_id', $invoiceIdsForLocation))
+                        ->orWhere(fn ($q2) => $q2->where('source_type', 'bill')->whereIn('source_id', $billIdsForLocation))
+                ));
+            }
+        };
+
+        $accountsQuery = Account::where('company_id', $company->id)->where('is_active', true);
+        if ($accountIds && $accountIds->isNotEmpty()) {
+            $accountsQuery->whereIn('id', $accountIds);
+        }
+
+        return $accountsQuery
             ->orderBy('code')
             ->get()
-            ->map(function (Account $account) use ($from, $to) {
+            ->map(function (Account $account) use ($from, $to, $applyFilters) {
                 // whereDate(), not a raw Carbon comparison — see
                 // fixedAssetSchedule()'s note: a lone `<`/`<=` against
                 // this mixed date/datetime column is unreliable for an
                 // entry whose own time isn't midnight (e.g. a month-end
                 // depreciation run or a same-day reversal).
-                $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('debit');
-                $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->sum('credit');
+                $openingDebit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->tap($applyFilters)->sum('debit');
+                $openingCredit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<', $from->toDateString()))->tap($applyFilters)->sum('credit');
                 $openingBalance = $account->normal_balance === 'debit' ? $openingDebit - $openingCredit : $openingCredit - $openingDebit;
 
                 $lines = $account->journalEntryLines()
                     ->with('journalEntry')
                     ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+                    ->tap($applyFilters)
                     ->get()
                     ->sortBy(fn ($l) => $l->journalEntry->entry_date.'-'.$l->id)
                     ->values();

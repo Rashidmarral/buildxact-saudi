@@ -12,7 +12,39 @@
     <a href="{{ route('app.reports.general-ledger', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
 </div>
 
-@include('user.reports.partials.period-selector')
+<form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 space-y-3">
+    <div>
+        <label class="text-xs font-semibold uppercase text-slate-400 mb-1 block">{{ __('Accounts') }}</label>
+        <select name="account_ids[]" multiple size="6" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            @foreach ($allAccounts as $acc)
+                <option value="{{ $acc->id }}" @selected($accountIds->contains($acc->id))>{{ $acc->label() }}</option>
+            @endforeach
+        </select>
+        <p class="text-xs text-slate-400 mt-1">{{ __('Ctrl/Cmd-click to select more than one. Leave empty for every account.') }}</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+        <input type="date" name="from" value="{{ $period['from']->toDateString() }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <span class="text-slate-400 text-sm">{{ __('to') }}</span>
+        <input type="date" name="to" value="{{ $period['to']->toDateString() }}" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+        <input type="hidden" name="period" value="custom">
+        <select name="cost_center_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <option value="">{{ __('All cost centres') }}</option>
+            @foreach ($costCenters as $cc)
+                <option value="{{ $cc->id }}" @selected($costCenterId === $cc->id)>{{ $cc->label() ?? $cc->name }}</option>
+            @endforeach
+        </select>
+        <select name="location_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <option value="">{{ __('All locations') }}</option>
+            @foreach ($branches as $branch)
+                <option value="{{ $branch->id }}" @selected($locationId === $branch->id)>{{ $branch->name }}</option>
+            @endforeach
+        </select>
+        <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Apply') }}</button>
+    </div>
+    @if ($locationId)
+        <p class="text-xs text-amber-600">{{ __('A location filter is active: only entries sourced from an invoice or bill at that location are included — manual journal lines carry no location and are always excluded when this filter is on.') }}</p>
+    @endif
+</form>
 
 @if ($accounts->isEmpty())
     <div class="bg-white rounded-xl border border-slate-100 px-6 py-16 text-center text-sm text-slate-400">{{ __('No account has an opening balance or activity in this period.') }}</div>
