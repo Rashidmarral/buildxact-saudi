@@ -24,13 +24,13 @@
         <div x-show="mobileNavOpen" x-transition:enter="transition-opacity ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden" style="display: none;"></div>
 
         <aside
-            class="fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0"
+            class="fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-brand-950 to-slate-950 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0"
             :class="mobileNavOpen ? 'translate-x-0' : (document.dir === 'rtl' ? 'translate-x-full' : '-translate-x-full')"
         >
             <div class="flex items-center justify-between gap-2 border-b border-white/5 px-6 py-5">
                 <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-2.5 text-lg font-bold text-white">
                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-glow">د</span>
-                    <span>Daftari <span class="text-xs font-normal text-slate-500">Admin</span></span>
+                    <span>Daftari <span class="rounded-full bg-accent-500/15 px-1.5 py-0.5 text-[11px] font-semibold tracking-wide text-accent-300">Admin</span></span>
                 </a>
                 <button type="button" @click="mobileNavOpen = false" aria-label="{{ __('Close menu') }}" class="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white lg:hidden">
                     @include('partials.icon', ['name' => 'close', 'class' => 'h-5 w-5'])

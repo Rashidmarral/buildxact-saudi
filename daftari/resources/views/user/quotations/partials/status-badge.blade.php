@@ -2,11 +2,11 @@
     $colors = [
         'draft' => 'bg-slate-100 text-slate-600',
         'issued' => 'bg-blue-50 text-blue-700',
-        'accepted' => 'bg-brand-50 text-brand-700',
+        'accepted' => 'bg-emerald-50 text-emerald-700',
         'converted' => 'bg-purple-50 text-purple-700',
-        'expired' => 'bg-amber-50 text-amber-700',
+        'expired' => 'bg-accent-50 text-accent-700',
         'rejected' => 'bg-red-50 text-red-700',
-        'pending_approval' => 'bg-amber-50 text-amber-700',
+        'pending_approval' => 'bg-accent-50 text-accent-700',
     ];
     $labels = [
         'draft' => __('Draft'),

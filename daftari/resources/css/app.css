@@ -258,6 +258,36 @@
     [class*='rounded-2xl'][class*='border-slate-100'] {
         @apply shadow-card;
     }
+
+    /* Data-table retrofit, same "two classes beat one" trick as the input/
+       button rules above: nearly every list/table view across the app
+       hand-rolls an identical pattern (<table class="w-full text-sm">
+       <thead><tr class="... text-slate-500">...), so chaining the table's
+       own two classes with the row's one gives enough specificity to win
+       over each view's inline utility classes without !important, and
+       without editing every file. PDF templates use a separate `data-table`
+       class and are untouched by this. */
+    table.w-full.text-sm thead tr.text-slate-500,
+    table.w-full.text-sm thead tr.text-slate-400 {
+        @apply border-slate-200 bg-slate-50/70;
+    }
+
+    table.w-full.text-sm thead tr.text-slate-500 th,
+    table.w-full.text-sm thead tr.text-slate-400 th {
+        @apply text-[11px] font-bold uppercase tracking-wide text-brand-800;
+    }
+
+    table.w-full.text-sm tbody tr {
+        @apply transition-colors duration-150;
+    }
+
+    table.w-full.text-sm tbody tr:nth-child(even):not([class*='bg-']) {
+        @apply bg-slate-50/50;
+    }
+
+    table.w-full.text-sm tbody tr:hover {
+        @apply bg-brand-50/70;
+    }
 }
 
 /*
@@ -425,6 +455,12 @@
 }
 .dark .text-amber-700 {
     color: #fbbf24; /* amber-400 */
+}
+.dark .bg-accent-50 {
+    background-color: rgb(184 128 44 / 0.16);
+}
+.dark .text-accent-700 {
+    color: #e0ac56; /* accent-300 */
 }
 .dark .bg-blue-50 {
     background-color: rgb(59 130 246 / 0.12);

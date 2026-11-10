@@ -4,31 +4,31 @@
 
 @section('content')
 @php
-    // Same brand-led palette as the company dashboard's Chart.js charts,
+    // Same navy/gold-led palette as the company dashboard's Chart.js charts,
     // reused here so both dashboards read as one product.
-    $chartPalette = ['#1ab27e', '#8b5cf6', '#f59e0b', '#f43f5e', '#06b6d4', '#94a3b8'];
+    $chartPalette = ['#334e82', '#b8802c', '#10b981', '#ef4444', '#64748b', '#94a3b8'];
     $planLabels = $planDistribution->map(fn ($plan) => app()->getLocale() === 'ar' && $plan->name_ar ? $plan->name_ar : $plan->name)->all();
     $planCounts = $planDistribution->map(fn ($plan) => $plan->subscriptions_count)->all();
 @endphp
 
 <div class="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3 xl:grid-cols-6">
     @foreach ([
-        ['label' => __('MRR'), 'value' => 'SAR '.number_format($stats['mrr'], 0), 'icon' => 'trend-up', 'accent' => 'from-brand-500 to-emerald-500'],
-        ['label' => __('ARR'), 'value' => 'SAR '.number_format($stats['arr'], 0), 'icon' => 'trend-up', 'accent' => 'from-emerald-500 to-teal-500'],
-        ['label' => __('Revenue this month'), 'value' => 'SAR '.number_format($stats['revenue_this_month'], 0), 'icon' => 'billing', 'accent' => 'from-sky-500 to-blue-500'],
-        ['label' => __('Total companies'), 'value' => number_format($stats['total_companies']), 'icon' => 'building', 'accent' => 'from-violet-500 to-purple-500'],
-        ['label' => __('Active companies'), 'value' => number_format($stats['active_companies']), 'icon' => 'shield', 'accent' => 'from-teal-500 to-cyan-500'],
-        ['label' => __('Active subscriptions'), 'value' => number_format($stats['active_subscriptions']), 'icon' => 'shield', 'accent' => 'from-cyan-500 to-sky-500'],
-        ['label' => __('Trial companies'), 'value' => number_format($stats['trialing_companies']), 'icon' => 'building', 'accent' => 'from-indigo-500 to-violet-500'],
-        ['label' => __('Trial conversion rate'), 'value' => number_format($stats['trial_conversion_rate'], 1).'%', 'icon' => 'trend-up', 'accent' => 'from-purple-500 to-fuchsia-500'],
-        ['label' => __('Avg. revenue / company'), 'value' => 'SAR '.number_format($stats['arpc'], 0), 'icon' => 'sales', 'accent' => 'from-amber-500 to-orange-500'],
-        ['label' => __('Avg. revenue / customer'), 'value' => 'SAR '.number_format($stats['arpu_this_month'], 0), 'icon' => 'sales', 'accent' => 'from-orange-500 to-amber-500'],
-        ['label' => __('Outstanding revenue'), 'value' => 'SAR '.number_format($stats['outstanding_revenue'], 0), 'icon' => 'billing', 'accent' => 'from-yellow-500 to-amber-500'],
-        ['label' => __('Failed payments'), 'value' => number_format($stats['failed_payments_total']), 'icon' => 'trend-down', 'accent' => 'from-red-500 to-rose-500'],
-        ['label' => __('Past-due subscriptions'), 'value' => number_format($stats['past_due_subscriptions']), 'icon' => 'trend-down', 'accent' => 'from-orange-500 to-red-500'],
-        ['label' => __('Suspended companies'), 'value' => number_format($stats['suspended_companies']), 'icon' => 'building', 'accent' => 'from-slate-500 to-slate-600'],
-        ['label' => __('Cancelled subscriptions'), 'value' => number_format($stats['cancelled_subscriptions']), 'icon' => 'trend-down', 'accent' => 'from-rose-500 to-pink-500'],
-        ['label' => __('Churned this month'), 'value' => number_format($stats['churned_this_month']), 'icon' => 'trend-down', 'accent' => 'from-rose-500 to-red-500'],
+        ['label' => __('MRR'), 'value' => 'SAR '.number_format($stats['mrr'], 0), 'icon' => 'trend-up', 'accent' => 'from-brand-700 to-brand-500'],
+        ['label' => __('ARR'), 'value' => 'SAR '.number_format($stats['arr'], 0), 'icon' => 'trend-up', 'accent' => 'from-brand-600 to-brand-400'],
+        ['label' => __('Revenue this month'), 'value' => 'SAR '.number_format($stats['revenue_this_month'], 0), 'icon' => 'billing', 'accent' => 'from-emerald-600 to-emerald-400'],
+        ['label' => __('Total companies'), 'value' => number_format($stats['total_companies']), 'icon' => 'building', 'accent' => 'from-slate-600 to-slate-400'],
+        ['label' => __('Active companies'), 'value' => number_format($stats['active_companies']), 'icon' => 'shield', 'accent' => 'from-emerald-600 to-emerald-400'],
+        ['label' => __('Active subscriptions'), 'value' => number_format($stats['active_subscriptions']), 'icon' => 'shield', 'accent' => 'from-emerald-500 to-emerald-300'],
+        ['label' => __('Trial companies'), 'value' => number_format($stats['trialing_companies']), 'icon' => 'building', 'accent' => 'from-accent-600 to-accent-400'],
+        ['label' => __('Trial conversion rate'), 'value' => number_format($stats['trial_conversion_rate'], 1).'%', 'icon' => 'trend-up', 'accent' => 'from-accent-500 to-accent-300'],
+        ['label' => __('Avg. revenue / company'), 'value' => 'SAR '.number_format($stats['arpc'], 0), 'icon' => 'sales', 'accent' => 'from-brand-500 to-brand-300'],
+        ['label' => __('Avg. revenue / customer'), 'value' => 'SAR '.number_format($stats['arpu_this_month'], 0), 'icon' => 'sales', 'accent' => 'from-brand-400 to-brand-300'],
+        ['label' => __('Outstanding revenue'), 'value' => 'SAR '.number_format($stats['outstanding_revenue'], 0), 'icon' => 'billing', 'accent' => 'from-accent-600 to-accent-400'],
+        ['label' => __('Failed payments'), 'value' => number_format($stats['failed_payments_total']), 'icon' => 'trend-down', 'accent' => 'from-red-600 to-red-400'],
+        ['label' => __('Past-due subscriptions'), 'value' => number_format($stats['past_due_subscriptions']), 'icon' => 'trend-down', 'accent' => 'from-red-500 to-red-300'],
+        ['label' => __('Suspended companies'), 'value' => number_format($stats['suspended_companies']), 'icon' => 'building', 'accent' => 'from-slate-500 to-slate-400'],
+        ['label' => __('Cancelled subscriptions'), 'value' => number_format($stats['cancelled_subscriptions']), 'icon' => 'trend-down', 'accent' => 'from-red-600 to-rose-500'],
+        ['label' => __('Churned this month'), 'value' => number_format($stats['churned_this_month']), 'icon' => 'trend-down', 'accent' => 'from-red-500 to-rose-400'],
     ] as $card)
         <div class="card-hover rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
             <div class="flex items-center justify-between">
@@ -421,7 +421,7 @@
                     datasets: [{
                         label: '{{ __('Revenue') }}',
                         data: @json($revenueTrend->pluck('value')),
-                        backgroundColor: '#1ab27e',
+                        backgroundColor: '#334e82',
                         borderRadius: 6,
                         maxBarThickness: 40,
                     }],
@@ -490,7 +490,7 @@
                     datasets: [{
                         label: '{{ __('Signups') }}',
                         data: @json($signupsTrend->pluck('value')),
-                        backgroundColor: '#06b6d4',
+                        backgroundColor: '#b8802c',
                         borderRadius: 6,
                         maxBarThickness: 28,
                     }],
