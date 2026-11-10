@@ -3,6 +3,9 @@
 @section('title', isset($voucher) ? __('Edit Payment Voucher') : __('New Payment Voucher'))
 
 @section('content')
+@php
+    $prefillExpense = $prefillExpense ?? null;
+@endphp
 <div class="mb-2">
     <h2 class="text-lg font-semibold text-slate-900">{{ isset($voucher) ? __('Edit Payment Voucher') : __('New Payment Voucher') }}</h2>
     <p class="text-sm text-slate-500 mt-1">{{ __('Create a clear voucher with the amount, party, and payment details in one place.') }}</p>
