@@ -5,9 +5,14 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalChainStep;
 use App\Models\AuditLog;
+use App\Models\Bill;
+use App\Models\Expense;
+use App\Models\Invoice;
 use App\Models\PeriodClosure;
 use App\Models\Role;
+use App\Services\Reports\FinancialReportService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -82,6 +87,46 @@ class ApprovalSettingsController extends Controller
         );
 
         return back()->with('status', __('Reminder settings saved.'));
+    }
+
+    /**
+     * "add more... Financial Year Close preview step" — closing a
+     * period used to be one click with no visibility into what it
+     * actually implies: the net income for the fiscal year being
+     * closed (the equity the books carry forward but never formally
+     * post, per FinancialReportService's own note on this), and any
+     * draft/pending-approval invoice, bill, or expense dated in that
+     * stretch — none of those are blocked by the date lock itself
+     * (only POSTED documents are), so they'd otherwise sit forgotten
+     * once the period reads as "closed". This never commits anything;
+     * the preview page's own "Confirm & Close" button posts the same
+     * date straight to closePeriod() below, unchanged.
+     */
+    public function previewClosePeriod(Request $request)
+    {
+        $data = $request->validate([
+            'accounting_lock_date' => ['required', 'date'],
+        ]);
+
+        $company = Auth::user()->company;
+        $lockDate = Carbon::parse($data['accounting_lock_date']);
+
+        if ($company->accounting_lock_date && $lockDate->lte($company->accounting_lock_date)) {
+            return back()->withErrors(['accounting_lock_date' => __('The new lock date must be after the current one — use "Reopen" below to move it backward.')]);
+        }
+
+        $fiscalYearStart = $company->fiscalYearStartFor($lockDate);
+        $incomeStatement = app(FinancialReportService::class)->incomeStatement($company, $fiscalYearStart, $lockDate);
+
+        return view('user.settings.close-period-preview', [
+            'company' => $company,
+            'lockDate' => $lockDate,
+            'fiscalYearStart' => $fiscalYearStart,
+            'incomeStatement' => $incomeStatement,
+            'draftInvoices' => Invoice::whereIn('status', ['draft', 'pending_approval'])->whereDate('issue_date', '<=', $lockDate->toDateString())->orderBy('issue_date')->get(),
+            'draftBills' => Bill::whereIn('status', ['draft', 'pending_approval'])->whereDate('bill_date', '<=', $lockDate->toDateString())->orderBy('bill_date')->get(),
+            'pendingExpenses' => Expense::where('status', 'pending_approval')->whereDate('expense_date', '<=', $lockDate->toDateString())->orderBy('expense_date')->get(),
+        ]);
     }
 
     /**

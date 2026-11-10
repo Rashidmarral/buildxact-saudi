@@ -451,6 +451,26 @@ class Company extends Model
     }
 
     /**
+     * The start of the fiscal year that contains $date — same
+     * fiscal_year_start logic as currentFiscalYearLabel(), just not
+     * pinned to "now". Used by the Financial Year Close preview to
+     * show net income for the stretch actually being closed, not an
+     * arbitrary calendar year.
+     */
+    public function fiscalYearStartFor(\Carbon\Carbon $date): \Carbon\Carbon
+    {
+        $startMonth = (int) ($this->fiscal_year_start ?: Setting::get('general_fiscal_year_start', 1));
+        $startMonth = $startMonth >= 1 && $startMonth <= 12 ? $startMonth : 1;
+
+        $start = $date->copy()->startOfMonth()->month($startMonth);
+        if ($date->month < $startMonth) {
+            $start->subYear();
+        }
+
+        return $start->startOfDay();
+    }
+
+    /**
      * Shared formatting for every document type's next*Number(): off by
      * default (document_numbering_resets_yearly = false), identical to
      * today's plain lifetime counter for every company until an owner

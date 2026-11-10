@@ -1011,6 +1011,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('settings/approvals', [ApprovalSettingsController::class, 'show'])->name('settings.approvals');
         Route::post('settings/approvals', [ApprovalSettingsController::class, 'update'])->name('settings.approvals.update');
         Route::post('settings/approvals/close-period', [ApprovalSettingsController::class, 'closePeriod'])->name('settings.approvals.close-period');
+        Route::post('settings/approvals/close-period/preview', [ApprovalSettingsController::class, 'previewClosePeriod'])->name('settings.approvals.close-period.preview');
         Route::post('settings/approvals/reopen-period', [ApprovalSettingsController::class, 'reopenPeriod'])->name('settings.approvals.reopen-period');
         Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
         Route::get('settings/barcode-sku', [ItemSettingsController::class, 'show'])->name('settings.barcode-sku');

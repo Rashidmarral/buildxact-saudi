@@ -127,15 +127,15 @@
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
         <h3 class="text-sm font-semibold text-slate-800">{{ __('Close a period') }}</h3>
-        <form method="POST" action="{{ route('app.settings.approvals.close-period') }}" class="flex items-end gap-3">
+        <form method="POST" action="{{ route('app.settings.approvals.close-period.preview') }}" class="flex items-end gap-3">
             @csrf
             <div>
                 <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Lock through date') }}</label>
                 <input type="date" name="accounting_lock_date" required value="{{ old('accounting_lock_date') }}" class="rounded-lg border border-slate-200 text-sm">
             </div>
-            <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Close') }}</button>
+            <button type="submit" class="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Preview close') }}</button>
         </form>
-        <p class="text-xs text-slate-400">{{ __('Can only move forward — once reported, a period stays closed until explicitly reopened below, with a reason.') }}</p>
+        <p class="text-xs text-slate-400">{{ __('Can only move forward — once reported, a period stays closed until explicitly reopened below, with a reason. Shows a preview (net income, any open items) before it actually locks.') }}</p>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6 space-y-4">
