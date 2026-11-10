@@ -28,25 +28,45 @@ export default {
                 sans: ['Cairo', ...defaultTheme.fontFamily.sans],
             },
             colors: {
+                // Professional-portal redesign: a deep navy primary (trust,
+                // corporate finance — see brand-600 as the flagship button/
+                // link color) replacing the earlier green-fintech identity,
+                // paired with a muted gold/bronze `accent` for highlights and
+                // money-needs-attention cues. Semantic colors (emerald for
+                // success, red/amber for danger/warning) are left as
+                // Tailwind's own palette, used directly, not aliased here.
                 brand: {
-                    50: '#eefdf6',
-                    100: '#d6f9e8',
-                    200: '#aef1d3',
-                    300: '#75e3b6',
-                    400: '#3fcd97',
-                    500: '#1ab27e',
-                    600: '#0f9068',
-                    700: '#0d7355',
-                    800: '#0e5c46',
-                    900: '#0c4b3a',
-                    950: '#052a20',
+                    50: '#f3f6fb',
+                    100: '#e4eaf6',
+                    200: '#c3d0e9',
+                    300: '#9bb0d8',
+                    400: '#7b9bcf',
+                    500: '#52709f',
+                    600: '#334e82',
+                    700: '#28406c',
+                    800: '#1f3254',
+                    900: '#16233c',
+                    950: '#0c1526',
+                },
+                accent: {
+                    50: '#fbf6ec',
+                    100: '#f5e9d2',
+                    200: '#e9cd9e',
+                    300: '#dbb069',
+                    400: '#cc953f',
+                    500: '#b8802c',
+                    600: '#966321',
+                    700: '#734b1a',
+                    800: '#553816',
+                    900: '#3c2912',
+                    950: '#211709',
                 },
             },
             boxShadow: {
                 soft: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.04)',
                 card: '0 1px 2px 0 rgb(15 23 42 / 0.03), 0 8px 24px -8px rgb(15 23 42 / 0.08)',
                 'card-hover': '0 4px 12px 0 rgb(15 23 42 / 0.05), 0 16px 32px -12px rgb(15 23 42 / 0.14)',
-                glow: '0 0 0 4px rgb(26 178 126 / 0.12)',
+                glow: '0 0 0 4px rgb(184 128 44 / 0.16)',
                 nav: '0 1px 0 0 rgb(255 255 255 / 0.06) inset',
             },
             borderRadius: {

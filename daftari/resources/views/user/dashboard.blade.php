@@ -3,6 +3,19 @@
 @section('title', __('Dashboard'))
 
 @section('content')
+<div class="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 px-6 py-6 shadow-card sm:px-8 sm:py-7">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-accent-300">{{ Auth::user()->company->name }}</p>
+            <h1 class="mt-1 text-xl font-bold text-white sm:text-2xl">{{ __('Welcome back, :name', ['name' => explode(' ', Auth::user()->name)[0]]) }}</h1>
+            <p class="mt-1 text-sm text-brand-200">{{ \App\Support\PlatformFormat::date(now()) }}</p>
+        </div>
+        <div class="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-accent-300 shadow-glow sm:flex">
+            @include('partials.icon', ['name' => 'dashboard', 'class' => 'h-6 w-6'])
+        </div>
+    </div>
+</div>
+
 @if ($vatDue)
     <div class="mb-6 rounded-2xl border {{ $vatDue['overdue'] ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50' }} p-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -65,17 +78,27 @@
 @endif
 
 <div class="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+    {{--
+        Professional-portal design pass: this used to pull a different
+        hue from the rainbow for almost every card (teal, cyan, violet,
+        purple, rose, sky...) with no underlying logic. Retinted to a
+        small, intentional system instead — brand/navy for the primary
+        structural metrics, accent/gold for "money pending or held
+        elsewhere, worth a look", emerald for genuine success (cash
+        actually in), red for genuine danger (overdue), slate for
+        routine/neutral outflows that aren't inherently bad news.
+    --}}
     @foreach ([
-        ['label' => __('Total invoiced'), 'value' => \App\Support\Money::format($stats['total_invoiced']), 'icon' => 'sales', 'accent' => 'from-brand-500 to-emerald-500'],
-        ['label' => __('Outstanding'), 'value' => \App\Support\Money::format($stats['total_outstanding']), 'icon' => 'clock', 'accent' => 'from-amber-500 to-orange-500'],
-        ['label' => __('Paid this month'), 'value' => \App\Support\Money::format($stats['total_paid_this_month']), 'icon' => 'check-circle', 'accent' => 'from-teal-500 to-cyan-500'],
-        ['label' => __('Expenses this month'), 'value' => \App\Support\Money::format($stats['total_expenses_this_month']), 'icon' => 'purchases', 'accent' => 'from-rose-500 to-red-500'],
-        ['label' => __('Purchases this month'), 'value' => \App\Support\Money::format($stats['total_purchases_this_month']), 'icon' => 'bank', 'accent' => 'from-sky-500 to-blue-500'],
-        ['label' => __('Open quotations'), 'value' => $stats['open_quotations'], 'icon' => 'clipboard', 'accent' => 'from-violet-500 to-purple-500'],
-        ['label' => __('Overdue invoices'), 'value' => $stats['overdue_count'], 'icon' => 'alert', 'accent' => 'from-red-500 to-rose-600'],
+        ['label' => __('Total invoiced'), 'value' => \App\Support\Money::format($stats['total_invoiced']), 'icon' => 'sales', 'accent' => 'from-brand-700 to-brand-500'],
+        ['label' => __('Outstanding'), 'value' => \App\Support\Money::format($stats['total_outstanding']), 'icon' => 'clock', 'accent' => 'from-accent-600 to-accent-400'],
+        ['label' => __('Paid this month'), 'value' => \App\Support\Money::format($stats['total_paid_this_month']), 'icon' => 'check-circle', 'accent' => 'from-emerald-600 to-emerald-400'],
+        ['label' => __('Expenses this month'), 'value' => \App\Support\Money::format($stats['total_expenses_this_month']), 'icon' => 'purchases', 'accent' => 'from-slate-600 to-slate-400'],
+        ['label' => __('Purchases this month'), 'value' => \App\Support\Money::format($stats['total_purchases_this_month']), 'icon' => 'bank', 'accent' => 'from-slate-700 to-slate-500'],
+        ['label' => __('Open quotations'), 'value' => $stats['open_quotations'], 'icon' => 'clipboard', 'accent' => 'from-brand-400 to-brand-300'],
+        ['label' => __('Overdue invoices'), 'value' => $stats['overdue_count'], 'icon' => 'alert', 'accent' => 'from-red-600 to-rose-500'],
         [
             'label' => __('Profit this month'), 'value' => \App\Support\Money::format($stats['profit_this_month']), 'icon' => 'trend-up',
-            'accent' => $stats['profit_this_month'] >= 0 ? 'from-brand-500 to-teal-500' : 'from-slate-500 to-slate-600',
+            'accent' => $stats['profit_this_month'] >= 0 ? 'from-emerald-600 to-emerald-400' : 'from-slate-600 to-slate-400',
             ...($stats['profit_this_month_has_adjustments'] && Auth::user()->company->hasFeature('financial_statements') ? [
                 'route' => 'app.reports.income-statement', 'routeParams' => ['period' => 'this_month'],
                 'note' => __('Includes a prior-period adjustment — tap for details'),
@@ -83,7 +106,7 @@
         ],
         ...($stats['custody_outstanding'] !== null ? [[
             'label' => __('Cash out with custodians'), 'value' => \App\Support\Money::format($stats['custody_outstanding']),
-            'icon' => 'team', 'accent' => 'from-amber-500 to-yellow-500', 'route' => 'app.cash-custody.index',
+            'icon' => 'team', 'accent' => 'from-accent-500 to-accent-300', 'route' => 'app.cash-custody.index',
         ]] : []),
     ] as $card)
         <{{ isset($card['route']) ? 'a' : 'div' }} @if (isset($card['route'])) href="{{ route($card['route'], $card['routeParams'] ?? []) }}" @endif class="card-hover rounded-2xl border border-slate-100 bg-white p-5 shadow-card block">
@@ -187,7 +210,7 @@
                         <span class="font-semibold {{ $key !== 'current' && $aging[$key] > 0 ? 'text-amber-700' : 'text-slate-900' }}">{{ \App\Support\Money::format($aging[$key]) }}</span>
                     </div>
                     <div class="h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div class="h-full rounded-full {{ $key === 'current' ? 'bg-gradient-to-r from-teal-500 to-cyan-400' : 'bg-gradient-to-r from-amber-500 to-orange-400' }}" style="width: {{ $aging[$key] > 0 ? max(4, round($aging[$key] / $agingMax * 100)) : 0 }}%"></div>
+                        <div class="h-full rounded-full {{ $key === 'current' ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-accent-600 to-accent-400' }}" style="width: {{ $aging[$key] > 0 ? max(4, round($aging[$key] / $agingMax * 100)) : 0 }}%"></div>
                     </div>
                 </div>
             @endforeach
@@ -197,7 +220,7 @@
 
 @if ($charts['anyModuleEnabled'])
     <div class="mt-8 flex items-center gap-2">
-        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 text-white">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-700 to-brand-900 text-white">
             @include('partials.icon', ['name' => 'dashboard', 'class' => 'h-4 w-4'])
         </span>
         <div>
@@ -437,7 +460,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const palette = ['#1ab27e', '#8b5cf6', '#f59e0b', '#f43f5e', '#06b6d4', '#94a3b8'];
+    const palette = ['#334e82', '#b8802c', '#10b981', '#64748b', '#7b9bcf', '#dc2626'];
     const gridColor = 'rgba(148, 163, 184, 0.15)';
     const commonScales = {
         x: { grid: { display: false }, ticks: { font: { size: 11 } } },
@@ -450,8 +473,8 @@ document.addEventListener('DOMContentLoaded', () => {
         data: {
             labels: salesPurchases.labels,
             datasets: [
-                { label: @js(__('Sales')), data: salesPurchases.sales, backgroundColor: '#1ab27e', borderRadius: 6, maxBarThickness: 28 },
-                { label: @js(__('Purchases')), data: salesPurchases.purchases, backgroundColor: '#8b5cf6', borderRadius: 6, maxBarThickness: 28 },
+                { label: @js(__('Sales')), data: salesPurchases.sales, backgroundColor: '#334e82', borderRadius: 6, maxBarThickness: 28 },
+                { label: @js(__('Purchases')), data: salesPurchases.purchases, backgroundColor: '#b8802c', borderRadius: 6, maxBarThickness: 28 },
             ],
         },
         options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
@@ -464,8 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: paymentFlow.labels,
                 datasets: [
-                    { label: @js(__('Received')), data: paymentFlow.received, borderColor: '#1ab27e', backgroundColor: 'rgba(26,178,126,0.12)', fill: true, tension: 0.35, pointRadius: 3 },
-                    { label: @js(__('Sent')), data: paymentFlow.sent, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.10)', fill: true, tension: 0.35, pointRadius: 3 },
+                    { label: @js(__('Received')), data: paymentFlow.received, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.35, pointRadius: 3 },
+                    { label: @js(__('Sent')), data: paymentFlow.sent, borderColor: '#b8802c', backgroundColor: 'rgba(184,128,44,0.10)', fill: true, tension: 0.35, pointRadius: 3 },
                 ],
             },
             options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
@@ -504,8 +527,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: {
                     labels: machineryTop.map(m => m.label),
                     datasets: [
-                        { label: @js(__('Revenue')), data: machineryTop.map(m => m.revenue), backgroundColor: '#1ab27e', borderRadius: 6, maxBarThickness: 28 },
-                        { label: @js(__('Running cost')), data: machineryTop.map(m => m.cost), backgroundColor: '#f43f5e', borderRadius: 6, maxBarThickness: 28 },
+                        { label: @js(__('Revenue')), data: machineryTop.map(m => m.revenue), backgroundColor: '#10b981', borderRadius: 6, maxBarThickness: 28 },
+                        { label: @js(__('Running cost')), data: machineryTop.map(m => m.cost), backgroundColor: '#b8802c', borderRadius: 6, maxBarThickness: 28 },
                     ],
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
@@ -531,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: {
                     labels: machineryTrend.labels,
                     datasets: [
-                        { label: @js(__('Revenue')), data: machineryTrend.revenue, borderColor: '#1ab27e', backgroundColor: 'rgba(26,178,126,0.12)', fill: true, tension: 0.35, pointRadius: 3 },
+                        { label: @js(__('Revenue')), data: machineryTrend.revenue, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', fill: true, tension: 0.35, pointRadius: 3 },
                     ],
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
@@ -546,8 +569,8 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: projectCashFlow.map(p => p.label),
                 datasets: [
-                    { label: @js(__('Revenue')), data: projectCashFlow.map(p => p.revenue), backgroundColor: '#1ab27e', borderRadius: 6, maxBarThickness: 28 },
-                    { label: @js(__('Costs')), data: projectCashFlow.map(p => p.costs), backgroundColor: '#f43f5e', borderRadius: 6, maxBarThickness: 28 },
+                    { label: @js(__('Revenue')), data: projectCashFlow.map(p => p.revenue), backgroundColor: '#10b981', borderRadius: 6, maxBarThickness: 28 },
+                    { label: @js(__('Costs')), data: projectCashFlow.map(p => p.costs), backgroundColor: '#b8802c', borderRadius: 6, maxBarThickness: 28 },
                 ],
             },
             options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
@@ -602,8 +625,8 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: payrollTrend.labels,
                 datasets: [
-                    { label: @js(__('Gross')), data: payrollTrend.gross, backgroundColor: '#8b5cf6', borderRadius: 6, maxBarThickness: 24 },
-                    { label: @js(__('Net')), data: payrollTrend.net, backgroundColor: '#1ab27e', borderRadius: 6, maxBarThickness: 24 },
+                    { label: @js(__('Gross')), data: payrollTrend.gross, backgroundColor: '#64748b', borderRadius: 6, maxBarThickness: 24 },
+                    { label: @js(__('Net')), data: payrollTrend.net, backgroundColor: '#10b981', borderRadius: 6, maxBarThickness: 24 },
                 ],
             },
             options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { position: 'bottom' } } },
@@ -616,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'line',
             data: {
                 labels: posSales.labels,
-                datasets: [{ label: @js(__('Sales')), data: posSales.sales, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.12)', fill: true, tension: 0.35, pointRadius: 3 }],
+                datasets: [{ label: @js(__('Sales')), data: posSales.sales, borderColor: '#334e82', backgroundColor: 'rgba(51,78,130,0.12)', fill: true, tension: 0.35, pointRadius: 3 }],
             },
             options: { responsive: true, maintainAspectRatio: false, scales: commonScales, plugins: { legend: { display: false } } },
         });

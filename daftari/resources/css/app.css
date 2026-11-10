@@ -435,19 +435,19 @@
 
 /* The brand palette (used for the "Paid" status badge, primary links,
    and every "View"/"Edit" list action — text-brand-700 alone appears
-   in 100+ views) is dark green by design (#0d7355) for contrast against
+   in 100+ views) is a deep navy by design (#28406c) for contrast against
    white. Left as-is against a dark-800 card it's nearly unreadable, so
    it moves to the same lighter/translucent treatment as the other
    status colors above. */
 .dark .bg-brand-50 {
-    background-color: rgb(26 178 126 / 0.12);
+    background-color: rgb(51 78 130 / 0.16);
 }
 .dark .bg-brand-100 {
-    background-color: rgb(26 178 126 / 0.16);
+    background-color: rgb(51 78 130 / 0.22);
 }
 .dark .text-brand-700,
 .dark .text-brand-600 {
-    color: #3fcd97; /* brand-400 */
+    color: #9bb0d8; /* brand-300 */
 }
 
 /* The app's <input type="file"> elements are styled via Tailwind's `file:`

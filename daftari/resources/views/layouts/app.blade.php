@@ -24,7 +24,7 @@
         <link rel="icon" href="{{ Storage::url($__favicon) }}">
     @endif
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#0f9068">
+    <meta name="theme-color" content="#28406c">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -49,7 +49,7 @@
         <div x-show="mobileNavOpen" x-transition:enter="transition-opacity ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden print:hidden" style="display: none;"></div>
 
         <aside
-            class="fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-slate-950 to-slate-900 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0 print:hidden"
+            class="fixed inset-y-0 start-0 z-50 flex w-72 shrink-0 flex-col bg-gradient-to-b from-brand-950 to-slate-950 text-slate-300 transition-transform duration-300 ease-smooth lg:static lg:translate-x-0 print:hidden"
             :class="mobileNavOpen ? 'translate-x-0' : (document.dir === 'rtl' ? 'translate-x-full' : '-translate-x-full')"
         >
             <div class="flex items-center justify-between gap-2 border-b border-white/5 px-6 py-5">
