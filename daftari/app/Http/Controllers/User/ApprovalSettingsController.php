@@ -90,6 +90,28 @@ class ApprovalSettingsController extends Controller
     }
 
     /**
+     * "add more... Auto-emailed monthly financial statements" — see
+     * SendMonthlyFinancialStatements's own doc block for what's sent
+     * and to whom.
+     */
+    public function updateFinancialStatementsAutoEmail(Request $request)
+    {
+        $company = Auth::user()->company;
+
+        $company->update(['financial_statements_auto_email_enabled' => $request->boolean('financial_statements_auto_email_enabled')]);
+
+        AuditLog::record(
+            'company.financial_statements_auto_email_update',
+            null,
+            $company->financial_statements_auto_email_enabled
+                ? __('Enabled automated monthly financial statement emails')
+                : __('Disabled automated monthly financial statement emails')
+        );
+
+        return back()->with('status', __('Financial statement email settings saved.'));
+    }
+
+    /**
      * "add more... Financial Year Close preview step" — closing a
      * period used to be one click with no visibility into what it
      * actually implies: the net income for the fiscal year being

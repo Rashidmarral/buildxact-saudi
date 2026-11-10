@@ -1014,6 +1014,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('settings/approvals/close-period/preview', [ApprovalSettingsController::class, 'previewClosePeriod'])->name('settings.approvals.close-period.preview');
         Route::post('settings/approvals/reopen-period', [ApprovalSettingsController::class, 'reopenPeriod'])->name('settings.approvals.reopen-period');
         Route::post('settings/approvals/dunning', [ApprovalSettingsController::class, 'updateDunning'])->name('settings.approvals.dunning');
+        Route::post('settings/approvals/financial-statements', [ApprovalSettingsController::class, 'updateFinancialStatementsAutoEmail'])->name('settings.approvals.financial-statements');
         Route::get('settings/barcode-sku', [ItemSettingsController::class, 'show'])->name('settings.barcode-sku');
         Route::post('settings/barcode-sku', [ItemSettingsController::class, 'update'])->name('settings.barcode-sku.update');
         Route::resource('settings/payment-modes', PaymentModeController::class)->except(['show', 'create', 'edit'])->names('settings.payment-modes');

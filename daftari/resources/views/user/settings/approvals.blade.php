@@ -115,6 +115,20 @@
     </form>
 
     <div>
+        <h2 class="text-lg font-semibold text-slate-900">{{ __('Monthly financial statements') }}</h2>
+        <p class="text-sm text-slate-500 mt-1">{{ __('On the 1st of each month, email a Balance Sheet (as of month-end) and Income Statement (for the month) as PDF attachments to every user with Reports access.') }}</p>
+    </div>
+
+    <form method="POST" action="{{ route('app.settings.approvals.financial-statements') }}" class="bg-white rounded-xl border border-slate-100 p-6">
+        @csrf
+        <label class="flex items-center gap-3">
+            <input type="checkbox" name="financial_statements_auto_email_enabled" value="1" @checked($company->financial_statements_auto_email_enabled) class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+            <span class="text-sm font-medium text-slate-700">{{ __('Email monthly financial statements automatically') }}</span>
+        </label>
+        <button type="submit" class="mt-4 rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Save') }}</button>
+    </form>
+
+    <div>
         <h2 class="text-lg font-semibold text-slate-900">{{ __('Accounting period lock') }}</h2>
         <p class="text-sm text-slate-500 mt-1">{{ __('Once a period is closed and reported, prevent any invoice, bill, expense, payment, or journal entry from being posted with a date on or before the lock date — across every module.') }}</p>
     </div>

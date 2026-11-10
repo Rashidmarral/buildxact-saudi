@@ -33,6 +33,7 @@ Schedule::command('subscriptions:send-expiring-reminders')->dailyAt('07:00')->wi
 Schedule::command('subscriptions:expire-cancelled')->dailyAt('01:00')->withoutOverlapping();
 Schedule::command('subscriptions:run-lifecycle-rules')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('assets:run-depreciation')->monthlyOn(1, '02:00')->withoutOverlapping();
+Schedule::command('financial-statements:send-monthly')->monthlyOn(1, '04:00')->withoutOverlapping();
 Schedule::command('inventory:check-low-stock')->dailyAt('07:00')->withoutOverlapping();
 Schedule::command('machinery:send-expiry-reminders')->dailyAt('07:15')->withoutOverlapping();
 Schedule::command('company-documents:send-expiry-reminders')->dailyAt('07:20')->withoutOverlapping();

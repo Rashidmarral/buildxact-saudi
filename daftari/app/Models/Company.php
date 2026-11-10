@@ -52,6 +52,7 @@ class Company extends Model
         'invoice_approval_threshold', 'quotation_approval_threshold', 'manual_journal_approval_threshold',
         'payment_voucher_approval_threshold', 'receipt_voucher_approval_threshold', 'bill_approval_threshold', 'invoice_dunning_enabled',
         'cost_center_required_on_sales', 'cost_center_required_on_expenses', 'cost_center_scope',
+        'financial_statements_auto_email_enabled', 'financial_statements_last_sent_period',
         'default_payment_terms_days',
         'zatca_environment', 'zatca_sync_frequency', 'zatca_sync_b2b', 'zatca_sync_b2c', 'zatca_integration_mode',
         'zatca_onboarding_status', 'zatca_egs_serial', 'zatca_common_name', 'zatca_organization_unit_name',
@@ -172,6 +173,7 @@ class Company extends Model
             'invoice_dunning_enabled' => 'boolean',
             'cost_center_required_on_sales' => 'boolean',
             'cost_center_required_on_expenses' => 'boolean',
+            'financial_statements_auto_email_enabled' => 'boolean',
             'default_payment_terms_days' => 'integer',
             'accounting_lock_date' => 'date',
         ];
