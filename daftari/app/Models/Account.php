@@ -196,4 +196,20 @@ class Account extends Model
     {
         return $this->code.' — '.$this->name;
     }
+
+    /**
+     * Hamly-parity two-sided Balance Sheet: a balance is printed as a
+     * positive amount with a "Dr"/"Cr" suffix instead of a sign — "Dr"
+     * when the balance sits on this account's own normal side, "Cr"
+     * when it's abnormal (overdrawn/negative) for that account, and
+     * vice versa for a normally-credit account.
+     */
+    public function drCrSuffix(float $signedBalance): string
+    {
+        if ($this->normal_balance === 'debit') {
+            return $signedBalance >= 0 ? __('Dr') : __('Cr');
+        }
+
+        return $signedBalance >= 0 ? __('Cr') : __('Dr');
+    }
 }

@@ -19,6 +19,15 @@
     </div>
 </div>
 
+<div class="mb-4 flex items-center gap-4 text-sm">
+    <a href="{{ route('app.reports.balance-sheet-detailed', request()->except('export')) }}" class="text-brand-600 font-medium hover:underline">{{ __('Detailed (two-sided) view') }}</a>
+    <a href="{{ route('app.reports.balance-sheet-summary', request()->except('export')) }}" class="text-brand-600 font-medium hover:underline">{{ __('Summary (two-sided) view') }}</a>
+</div>
+
+@php(
+    $categoryLabel = fn ($row) => $row['account']?->category ?? ($row['label'] ?? __('Other'))
+)
+
 @php($compare = $compare ?? 'none')
 <form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex items-center gap-3">
     <label class="text-xs font-semibold uppercase text-slate-500">{{ __('As of') }}</label>
@@ -40,11 +49,20 @@
 <div class="grid md:grid-cols-3 gap-6">
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="font-semibold text-slate-900 mb-4">{{ __('Assets') }}</h3>
-        <div class="space-y-2 text-sm">
-            @forelse ($assets as $row)
-                <div class="flex justify-between text-slate-600">
-                    <span>{{ $row['account']->label() }}</span>
-                    <span>{{ number_format($row['balance'], 2) }}@if ($priorAsOf) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+        <div class="space-y-3 text-sm">
+            @forelse ($assets->groupBy($categoryLabel) as $catLabel => $catRows)
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{{ $catLabel }}</p>
+                    @foreach ($catRows as $row)
+                        <div class="flex justify-between text-slate-600">
+                            <span>{{ $row['account']->label() }}</span>
+                            <span>{{ number_format($row['balance'], 2) }}@if ($priorAsOf) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+                        </div>
+                    @endforeach
+                    <div class="flex justify-between text-slate-500 font-medium border-t border-slate-50 pt-1 mt-1">
+                        <span>{{ __('Subtotal') }}</span>
+                        <span>{{ number_format($catRows->sum('balance'), 2) }}</span>
+                    </div>
                 </div>
             @empty
                 <p class="text-slate-400">{{ __('No activity yet.') }}</p>
@@ -58,11 +76,20 @@
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="font-semibold text-slate-900 mb-4">{{ __('Liabilities') }}</h3>
-        <div class="space-y-2 text-sm">
-            @forelse ($liabilities as $row)
-                <div class="flex justify-between text-slate-600">
-                    <span>{{ $row['account']->label() }}</span>
-                    <span>{{ number_format($row['balance'], 2) }}@if ($priorAsOf) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+        <div class="space-y-3 text-sm">
+            @forelse ($liabilities->groupBy($categoryLabel) as $catLabel => $catRows)
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{{ $catLabel }}</p>
+                    @foreach ($catRows as $row)
+                        <div class="flex justify-between text-slate-600">
+                            <span>{{ $row['account']->label() }}</span>
+                            <span>{{ number_format($row['balance'], 2) }}@if ($priorAsOf) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+                        </div>
+                    @endforeach
+                    <div class="flex justify-between text-slate-500 font-medium border-t border-slate-50 pt-1 mt-1">
+                        <span>{{ __('Subtotal') }}</span>
+                        <span>{{ number_format($catRows->sum('balance'), 2) }}</span>
+                    </div>
                 </div>
             @empty
                 <p class="text-slate-400">{{ __('No activity yet.') }}</p>
@@ -76,11 +103,20 @@
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="font-semibold text-slate-900 mb-4">{{ __('Equity') }}</h3>
-        <div class="space-y-2 text-sm">
-            @forelse ($equity as $row)
-                <div class="flex justify-between text-slate-600">
-                    <span>{{ $row['account'] ? $row['account']->label() : ($row['key'].' - '.$row['label']) }}</span>
-                    <span>{{ number_format($row['balance'], 2) }}@if ($priorAsOf) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+        <div class="space-y-3 text-sm">
+            @forelse ($equity->groupBy($categoryLabel) as $catLabel => $catRows)
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{{ $catLabel }}</p>
+                    @foreach ($catRows as $row)
+                        <div class="flex justify-between text-slate-600">
+                            <span>{{ $row['account'] ? $row['account']->label() : ($row['key'].' - '.$row['label']) }}</span>
+                            <span>{{ number_format($row['balance'], 2) }}@if ($priorAsOf) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
+                        </div>
+                    @endforeach
+                    <div class="flex justify-between text-slate-500 font-medium border-t border-slate-50 pt-1 mt-1">
+                        <span>{{ __('Subtotal') }}</span>
+                        <span>{{ number_format($catRows->sum('balance'), 2) }}</span>
+                    </div>
                 </div>
             @empty
                 <p class="text-slate-400">{{ __('No activity yet.') }}</p>

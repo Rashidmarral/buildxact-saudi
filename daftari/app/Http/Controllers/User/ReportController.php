@@ -402,6 +402,86 @@ class ReportController extends Controller
     }
 
     /**
+     * @return \Illuminate\Support\Collection<string, array{rows: \Illuminate\Support\Collection, total: float}>
+     */
+    private function groupBalanceSheetRowsByCategory(\Illuminate\Support\Collection $rows): \Illuminate\Support\Collection
+    {
+        return $rows
+            ->groupBy(fn ($r) => $r['account']?->category ?? ($r['label'] ?? __('Other')))
+            ->map(fn ($categoryRows) => ['rows' => $categoryRows->values(), 'total' => (float) $categoryRows->sum('balance')]);
+    }
+
+    /**
+     * Hamly-parity: the same two-sided ("T-account") Balance Sheet
+     * layout Hamly's -detailed route uses — Assets on the left,
+     * Liabilities + Equity on the right, account-level rows with their
+     * ledger code, a Dr/Cr suffix (Account::drCrSuffix()) instead of a
+     * sign, and the self-check line every real T-account balance sheet
+     * ends with. A distinct, simpler route from balanceSheet() above
+     * (no comparison-period support) since Hamly's own -detailed page
+     * doesn't offer one either.
+     */
+    public function balanceSheetDetailed(Request $request)
+    {
+        return $this->renderTwoSidedBalanceSheet($request, 'balance-sheet-detailed');
+    }
+
+    /**
+     * Same two-sided layout, but category-level only (no individual
+     * account rows) — Hamly's -summary route.
+     */
+    public function balanceSheetSummary(Request $request)
+    {
+        return $this->renderTwoSidedBalanceSheet($request, 'balance-sheet-summary');
+    }
+
+    private function renderTwoSidedBalanceSheet(Request $request, string $view)
+    {
+        $company = Auth::user()->company;
+        $asOf = $request->filled('as_of') ? Carbon::parse($request->query('as_of'))->endOfDay() : now()->endOfDay();
+
+        $data = app(FinancialReportService::class)->balanceSheet($company, $asOf);
+        $assetCategories = $this->groupBalanceSheetRowsByCategory($data['assets']);
+        $liabilityCategories = $this->groupBalanceSheetRowsByCategory($data['liabilities']);
+        $equityCategories = $this->groupBalanceSheetRowsByCategory($data['equity']);
+
+        $viewData = [
+            'company' => $company, 'asOf' => $asOf,
+            'assetCategories' => $assetCategories, 'liabilityCategories' => $liabilityCategories, 'equityCategories' => $equityCategories,
+            'totalAssets' => $data['totalAssets'], 'totalLiabilities' => $data['totalLiabilities'], 'totalEquity' => $data['totalEquity'],
+            'balanced' => $data['balanced'],
+        ];
+
+        if ($request->query('export') === 'csv') {
+            $header = [__('Side'), __('Category'), __('Code'), __('Account'), __('Amount')];
+            $rows = collect();
+            $append = function (string $side, \Illuminate\Support\Collection $categories) use (&$rows, $view) {
+                foreach ($categories as $categoryLabel => $category) {
+                    if ($view === 'balance-sheet-detailed') {
+                        foreach ($category['rows'] as $r) {
+                            $rows->push([$side, $categoryLabel, $r['account']?->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format(abs($r['balance']), 2, '.', '').' '.($r['account']?->drCrSuffix($r['balance']) ?? '')]);
+                        }
+                    }
+                    $rows->push([$side, $categoryLabel, '', __('Subtotal'), number_format(abs($category['total']), 2, '.', '')]);
+                }
+            };
+            $append(__('Assets'), $assetCategories);
+            $append(__('Liabilities'), $liabilityCategories);
+            $append(__('Equity'), $equityCategories);
+
+            return $this->csvResponse($view.'.csv', $header, $rows);
+        }
+
+        if ($request->query('export') === 'pdf') {
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.'.$view, $viewData + ['template' => $company->defaultTemplateFor($view === 'balance-sheet-detailed' ? 'balance_sheet_detailed' : 'balance_sheet_summary')]);
+
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$view.'.pdf"']);
+        }
+
+        return view('user.reports.'.$view, $viewData);
+    }
+
+    /**
      * "add more detailed reports... compare" — an optional `compare`
      * query param (prior_period / prior_year) puts last period's or
      * last year's figures next to the current ones on every line, the

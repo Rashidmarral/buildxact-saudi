@@ -464,6 +464,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('bank-reconciliation-summary', [ReportController::class, 'bankReconciliationSummary'])->name('bank-reconciliation-summary');
         Route::get('uncleared-bank-items', [ReportController::class, 'unclearedBankItems'])->name('uncleared-bank-items');
         Route::get('balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet')->middleware('feature:financial_statements');
+        Route::get('balance-sheet-detailed', [ReportController::class, 'balanceSheetDetailed'])->name('balance-sheet-detailed')->middleware('feature:financial_statements');
+        Route::get('balance-sheet-summary', [ReportController::class, 'balanceSheetSummary'])->name('balance-sheet-summary')->middleware('feature:financial_statements');
         Route::get('account-statement', [ReportController::class, 'accountStatement'])->name('account-statement');
         Route::get('receivables-payables-by-contact', [ReportController::class, 'receivablesPayablesByContact'])->name('receivables-payables-by-contact');
         Route::get('bank-account-statement', [ReportController::class, 'bankAccountStatement'])->name('bank-account-statement');
