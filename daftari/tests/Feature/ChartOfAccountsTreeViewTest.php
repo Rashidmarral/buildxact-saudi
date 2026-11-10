@@ -65,6 +65,18 @@ class ChartOfAccountsTreeViewTest extends TestCase
         $this->assertNull($account->fresh()->parent_account_id);
     }
 
+    public function test_deleting_a_parent_account_leaves_its_children_as_top_level_accounts(): void
+    {
+        [$company, $owner] = $this->makeCompanyAndOwner();
+        $parent = Account::create(['company_id' => $company->id, 'code' => '1991', 'name' => 'Custom Group', 'type' => 'asset', 'normal_balance' => 'debit']);
+        $child = Account::create(['company_id' => $company->id, 'code' => '1992', 'name' => 'Custom Child', 'type' => 'asset', 'normal_balance' => 'debit', 'parent_account_id' => $parent->id]);
+
+        $this->actingAs($owner)->delete(route('app.accounts.destroy', $parent))->assertRedirect();
+
+        $this->assertDatabaseMissing('accounts', ['id' => $parent->id]);
+        $this->assertNull($child->fresh()->parent_account_id);
+    }
+
     public function test_a_system_account_can_still_only_have_its_name_and_parent_changed(): void
     {
         [$company, $owner] = $this->makeCompanyAndOwner();
