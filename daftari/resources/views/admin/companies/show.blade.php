@@ -178,6 +178,12 @@
                 </form>
             @endif
         </div>
+
+        <div class="bg-white rounded-xl border border-red-100 p-6">
+            <h3 class="font-semibold text-red-700 mb-1">{{ __('Company data reset') }}</h3>
+            <p class="text-sm text-slate-500 mb-4">{{ __('Permanently deletes every selected category of transaction record (bills, vouchers, expenses, bank activity, payroll, subcontracts, and more) for this company and restarts that category\'s document numbering at 1 — for when old, pre-Daftari history needs to be re-entered under a clean sequence. Invoices are never touched.') }}</p>
+            <a href="{{ route('admin.companies.data-reset.show', $company) }}" class="inline-flex rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Open data reset') }}</a>
+        </div>
     </div>
 
     {{-- ============ Users ============ --}}

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminRoleController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\CompanyDataResetController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanController;
@@ -1118,6 +1119,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('companies/{company}/resume-subscription', [CompanyController::class, 'resumeSubscription'])->name('companies.resume-subscription');
         Route::post('companies/{company}/reset-settings', [CompanyController::class, 'resetSettings'])->name('companies.reset-settings');
         Route::post('companies/{company}/purge-ledger-orphans', [CompanyController::class, 'purgeLedgerOrphans'])->name('companies.purge-ledger-orphans');
+        Route::post('companies/{company}/data-reset', [CompanyDataResetController::class, 'execute'])->name('companies.data-reset.execute');
         Route::post('companies/{company}/upgrade-plan', [CompanyController::class, 'upgradePlan'])->name('companies.upgrade-plan');
         Route::post('companies/{company}/downgrade-plan', [CompanyController::class, 'downgradePlan'])->name('companies.downgrade-plan');
         Route::post('companies/{company}/add-grace-period', [CompanyController::class, 'addGracePeriod'])->name('companies.add-grace-period');
@@ -1133,6 +1135,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
     Route::middleware('admin.permission:companies')->group(function () {
         Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
         Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
+        Route::get('companies/{company}/data-reset', [CompanyDataResetController::class, 'show'])->name('companies.data-reset.show');
         Route::get('module-requests', [AdminModuleRequestController::class, 'index'])->name('module-requests.index');
     });
 
