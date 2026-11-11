@@ -38,20 +38,22 @@
                         @endforelse
                     </td>
                     <td class="px-6 py-3 text-slate-500">{{ $adminRole->users_count }}</td>
-                    <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
+                    <td class="px-6 py-3 text-right">
                         @unless ($adminRole->is_system)
-                            <button type="button" class="text-brand-700 hover:underline"
-                                data-edit-admin-role
-                                data-update-url="{{ route('admin.admin-roles.update', $adminRole) }}"
-                                data-name="{{ $adminRole->name }}"
-                                data-name-ar="{{ $adminRole->name_ar }}"
-                                data-slug="{{ $adminRole->slug }}"
-                                data-permissions="{{ json_encode($adminRole->permissions ?? []) }}"
-                            >{{ __('Edit') }}</button>
-                            <form method="POST" action="{{ route('admin.admin-roles.destroy', $adminRole) }}" class="inline" onsubmit="return confirm('{{ __('Delete this admin role?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                            <x-row-actions>
+                                <x-icon-button menu type="button" icon="pencil" title="{{ __('Edit') }}"
+                                    data-edit-admin-role
+                                    data-update-url="{{ route('admin.admin-roles.update', $adminRole) }}"
+                                    data-name="{{ $adminRole->name }}"
+                                    data-name-ar="{{ $adminRole->name_ar }}"
+                                    data-slug="{{ $adminRole->slug }}"
+                                    data-permissions="{{ json_encode($adminRole->permissions ?? []) }}"
+                                />
+                                <form method="POST" action="{{ route('admin.admin-roles.destroy', $adminRole) }}" onsubmit="return confirm('{{ __('Delete this admin role?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </x-row-actions>
                         @endunless
                     </td>
                 </tr>

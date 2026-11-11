@@ -59,13 +59,13 @@
                         </td>
                         <td class="px-6 py-3 text-end">
                             @if ($moduleRequest->status === 'requested')
-                                <div class="flex items-center justify-end gap-3">
+                                <x-row-actions>
                                     <form method="POST" action="{{ route('admin.module-requests.approve', $moduleRequest) }}">
                                         @csrf
-                                        <button type="submit" class="text-emerald-700 hover:underline">{{ __('Approve') }}</button>
+                                        <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
                                     </form>
-                                    <button type="button" onclick="document.getElementById('reject-modal-{{ $moduleRequest->id }}').showModal()" class="text-red-600 hover:underline">{{ __('Reject') }}</button>
-                                </div>
+                                    <x-icon-button menu type="button" onclick="document.getElementById('reject-modal-{{ $moduleRequest->id }}').showModal()" icon="x-circle" color="red" title="{{ __('Reject') }}" />
+                                </x-row-actions>
 
                                 <dialog id="reject-modal-{{ $moduleRequest->id }}" class="rounded-2xl border border-slate-100 p-0 w-full max-w-sm backdrop:bg-slate-900/40">
                                     <form method="POST" action="{{ route('admin.module-requests.reject', $moduleRequest) }}" class="p-6 space-y-4 text-start">

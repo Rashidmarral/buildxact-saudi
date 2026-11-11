@@ -44,9 +44,11 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-slate-500">{{ $document->updated_at->format('Y-m-d') }}</td>
-                    <td class="px-6 py-3 text-end space-x-3 rtl:space-x-reverse">
-                        <a href="{{ route('legal', $document->slug) }}" target="_blank" class="text-slate-500 hover:underline">{{ __('Preview') }}</a>
-                        <a href="{{ route('admin.legal-documents.edit', $document) }}" class="text-brand-700 hover:underline font-medium">{{ __('Edit') }}</a>
+                    <td class="px-6 py-3 text-end">
+                        <x-row-actions>
+                            <x-icon-button menu href="{{ route('legal', $document->slug) }}" target="_blank" icon="eye" title="{{ __('Preview') }}" />
+                            <x-icon-button menu href="{{ route('admin.legal-documents.edit', $document) }}" icon="pencil" title="{{ __('Edit') }}" />
+                        </x-row-actions>
                     </td>
                 </tr>
             @endforeach

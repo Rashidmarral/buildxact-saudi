@@ -36,12 +36,14 @@
                             <span class="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-400">{{ __('Inactive') }}</span>
                         @endif
                     </td>
-                    <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                        <a href="{{ route('admin.currencies.edit', $currency) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                        <form method="POST" action="{{ route('admin.currencies.destroy', $currency) }}" class="inline" onsubmit="return confirm('{{ __('Delete this currency?') }}')">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                        </form>
+                    <td class="px-6 py-3 text-right">
+                        <x-row-actions>
+                            <x-icon-button menu href="{{ route('admin.currencies.edit', $currency) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            <form method="POST" action="{{ route('admin.currencies.destroy', $currency) }}" onsubmit="return confirm('{{ __('Delete this currency?') }}')">
+                                @csrf @method('DELETE')
+                                <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                            </form>
+                        </x-row-actions>
                     </td>
                 </tr>
             @endforeach

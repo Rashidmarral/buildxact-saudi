@@ -35,12 +35,14 @@
                         @endif
                     </td>
                     <td class="px-6 py-3">{{ $plan->is_active ? __('Active') : __('Hidden') }}</td>
-                    <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                        <a href="{{ route('admin.plans.edit', $plan) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
-                        <form method="POST" action="{{ route('admin.plans.destroy', $plan) }}" class="inline" onsubmit="return confirm('{{ __('Delete this plan?') }}')">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                        </form>
+                    <td class="px-6 py-3 text-right">
+                        <x-row-actions>
+                            <x-icon-button menu href="{{ route('admin.plans.edit', $plan) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            <form method="POST" action="{{ route('admin.plans.destroy', $plan) }}" onsubmit="return confirm('{{ __('Delete this plan?') }}')">
+                                @csrf @method('DELETE')
+                                <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                            </form>
+                        </x-row-actions>
                     </td>
                 </tr>
             @endforeach

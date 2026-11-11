@@ -87,12 +87,14 @@
                         <td class="px-6 py-3 font-mono text-xs text-slate-700">{{ $file['name'] }}</td>
                         <td class="px-6 py-3 text-slate-500">{{ number_format($file['size'] / 1024, 1) }} KB</td>
                         <td class="px-6 py-3 text-slate-500">{{ \Illuminate\Support\Carbon::createFromTimestamp($file['modified_at'])->format('Y-m-d H:i') }}</td>
-                        <td class="px-6 py-3 text-right space-x-3 rtl:space-x-reverse">
-                            <a href="{{ route('admin.backups.download', $file['name']) }}" class="text-brand-700 hover:underline">{{ __('Download') }}</a>
-                            <form method="POST" action="{{ route('admin.backups.destroy', $file['name']) }}" class="inline" onsubmit="return confirm('{{ __('Delete this backup?') }}')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
-                            </form>
+                        <td class="px-6 py-3 text-right">
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('admin.backups.download', $file['name']) }}" icon="download" title="{{ __('Download') }}" />
+                                <form method="POST" action="{{ route('admin.backups.destroy', $file['name']) }}" onsubmit="return confirm('{{ __('Delete this backup?') }}')">
+                                    @csrf @method('DELETE')
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
+                                </form>
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach

@@ -58,9 +58,11 @@
                                 <span class="text-emerald-700">{{ __('Active') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-3 text-right whitespace-nowrap space-x-3 rtl:space-x-reverse">
-                            <a href="{{ route('admin.coupons.show', $coupon) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
-                            <a href="{{ route('admin.coupons.edit', $coupon) }}" class="text-brand-700 hover:underline">{{ __('Edit') }}</a>
+                        <td class="px-6 py-3 text-right whitespace-nowrap">
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('admin.coupons.show', $coupon) }}" icon="eye" title="{{ __('View') }}" />
+                                <x-icon-button menu href="{{ route('admin.coupons.edit', $coupon) }}" icon="pencil" title="{{ __('Edit') }}" />
+                            </x-row-actions>
                         </td>
                     </tr>
                 @endforeach
