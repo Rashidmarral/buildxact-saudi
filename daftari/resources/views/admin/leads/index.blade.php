@@ -101,7 +101,7 @@
                     <td class="px-4 py-3">{{ $lead->assignedAdmin?->name ?? __('Unassigned') }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $lead->created_at->diffForHumans() }}</td>
                     <td class="px-6 py-3 text-right">
-                        <a href="{{ route('admin.leads.show', $lead) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('admin.leads.show', $lead) }}" icon="eye" title="{{ __('View') }}" />
                     </td>
                 </tr>
             @empty

@@ -80,7 +80,7 @@
                     <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $partner->statusBadgeClasses() }}">{{ $partner->statusLabel() }}</span></td>
                     <td class="px-4 py-3 text-slate-500">{{ $partner->created_at->diffForHumans() }}</td>
                     <td class="px-6 py-3 text-right">
-                        <a href="{{ route('admin.partners.show', $partner) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('admin.partners.show', $partner) }}" icon="eye" title="{{ __('View') }}" />
                     </td>
                 </tr>
             @empty

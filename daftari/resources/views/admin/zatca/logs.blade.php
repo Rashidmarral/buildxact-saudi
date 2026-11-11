@@ -87,7 +87,7 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-right whitespace-nowrap">
-                        <a href="{{ route('admin.zatca.logs.show', ['type' => 'invoice', 'log' => $log->id]) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('admin.zatca.logs.show', ['type' => 'invoice', 'log' => $log->id]) }}" icon="eye" title="{{ __('View') }}" />
                     </td>
                 </tr>
             @empty
@@ -130,7 +130,7 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-right whitespace-nowrap">
-                        <a href="{{ route('admin.zatca.logs.show', ['type' => 'credit_note', 'log' => $log->id]) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('admin.zatca.logs.show', ['type' => 'credit_note', 'log' => $log->id]) }}" icon="eye" title="{{ __('View') }}" />
                     </td>
                 </tr>
             @empty
@@ -173,7 +173,7 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-right whitespace-nowrap">
-                        <a href="{{ route('admin.zatca.logs.show', ['type' => 'debit_note', 'log' => $log->id]) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('admin.zatca.logs.show', ['type' => 'debit_note', 'log' => $log->id]) }}" icon="eye" title="{{ __('View') }}" />
                     </td>
                 </tr>
             @empty

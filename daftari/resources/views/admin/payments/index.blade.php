@@ -138,15 +138,19 @@
                                         @else
                                             <span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{{ __('Phase 1') }}</span>
                                         @endif
-                                        <a href="{{ route('admin.payments.receipt', $payment) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('PDF') }}</a>
-                                        @if ($zatcaLog)
-                                            <a href="{{ route('admin.zatca.logs.xml', ['invoice', $zatcaLog->id]) }}" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('XML') }}</a>
-                                        @endif
                                     </div>
                                 @endif
                             </td>
                             <td class="px-6 py-3 text-right whitespace-nowrap">
-                                <a href="{{ route('admin.payments.show', $payment) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                                <x-row-actions>
+                                    <x-icon-button menu href="{{ route('admin.payments.show', $payment) }}" icon="eye" title="{{ __('View') }}" />
+                                    @if ($invoice)
+                                        <x-icon-button menu href="{{ route('admin.payments.receipt', $payment) }}" icon="printer" title="{{ __('Download PDF receipt') }}" />
+                                        @if ($zatcaLog)
+                                            <x-icon-button menu href="{{ route('admin.zatca.logs.xml', ['invoice', $zatcaLog->id]) }}" icon="download" title="{{ __('Download XML') }}" />
+                                        @endif
+                                    @endif
+                                </x-row-actions>
                             </td>
                         </tr>
                     @endforeach

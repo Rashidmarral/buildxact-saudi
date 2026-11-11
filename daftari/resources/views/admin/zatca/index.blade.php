@@ -121,23 +121,20 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-right whitespace-nowrap">
-                        <div x-data="{ open: false }" class="relative inline-block text-start">
-                            <button type="button" @click="open = !open" class="text-brand-700 hover:underline">{{ __('Actions') }}</button>
-                            <div x-show="open" x-cloak @click.outside="open = false" class="absolute end-0 z-10 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-lg space-y-1 text-start">
-                                <a href="{{ route('admin.companies.show', $company) }}" class="block rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">{{ __('View company') }}</a>
-                                <a href="{{ route('admin.zatca.logs', ['company_id' => $company->id]) }}" class="block rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">{{ __('View logs') }}</a>
-                                <form method="POST" action="{{ route('admin.zatca.companies.test-connection', $company) }}">
+                        <x-row-actions>
+                            <x-icon-button menu href="{{ route('admin.companies.show', $company) }}" icon="eye" title="{{ __('View company') }}" />
+                            <x-icon-button menu href="{{ route('admin.zatca.logs', ['company_id' => $company->id]) }}" icon="document" title="{{ __('View logs') }}" />
+                            <form method="POST" action="{{ route('admin.zatca.companies.test-connection', $company) }}">
+                                @csrf
+                                <x-icon-button menu type="submit" icon="check-circle" color="brand" title="{{ __('Test connection') }}" />
+                            </form>
+                            @if ($company->zatca_onboarding_status !== 'not_started')
+                                <form method="POST" action="{{ route('admin.zatca.companies.reset-onboarding', $company) }}" onsubmit="return confirm('{{ __('Reset this company\'s ZATCA onboarding? They will need to restart from CSR generation.') }}')">
                                     @csrf
-                                    <button type="submit" class="w-full text-start rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">{{ __('Test connection') }}</button>
+                                    <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Re-onboarding workflow (reset)') }}" />
                                 </form>
-                                @if ($company->zatca_onboarding_status !== 'not_started')
-                                    <form method="POST" action="{{ route('admin.zatca.companies.reset-onboarding', $company) }}" onsubmit="return confirm('{{ __('Reset this company\'s ZATCA onboarding? They will need to restart from CSR generation.') }}')">
-                                        @csrf
-                                        <button type="submit" class="w-full text-start rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">{{ __('Re-onboarding workflow (reset)') }}</button>
-                                    </form>
-                                @endif
-                            </div>
-                        </div>
+                            @endif
+                        </x-row-actions>
                     </td>
                 </tr>
             @empty

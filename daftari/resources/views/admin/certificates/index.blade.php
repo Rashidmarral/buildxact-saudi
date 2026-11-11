@@ -29,12 +29,12 @@
                             {{ $document->title }}
                             @if ($document->title_ar)<div class="text-xs text-slate-400">{{ $document->title_ar }}</div>@endif
                         </td>
-                        <td class="px-6 py-3"><a href="{{ Storage::url($document->file_path) }}" target="_blank" class="text-brand-700 hover:underline">{{ __('View') }}</a></td>
+                        <td class="px-6 py-3"><x-icon-button href="{{ Storage::url($document->file_path) }}" target="_blank" icon="eye" title="{{ __('View') }}" /></td>
                         <td class="px-6 py-3 text-slate-500">{{ $document->sort_order }}</td>
                         <td class="px-6 py-3 text-right">
                             <form method="POST" action="{{ route('admin.certificates.destroy', $document) }}" onsubmit="return confirm('{{ __('Delete this certificate?') }}')">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Delete') }}</button>
+                                <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Delete') }}" />
                             </form>
                         </td>
                     </tr>

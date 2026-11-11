@@ -124,7 +124,7 @@
                         @endif
                     </td>
                     <td class="px-6 py-3 text-right whitespace-nowrap">
-                        <a href="{{ route('admin.companies.show', $company) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('admin.companies.show', $company) }}" icon="eye" title="{{ __('View') }}" />
                     </td>
                 </tr>
             @empty

@@ -33,7 +33,7 @@
                         @if ($admin->id !== auth()->id())
                             <form method="POST" action="{{ route('admin.admins.destroy', $admin) }}" onsubmit="return confirm('{{ __('Remove this admin?') }}')">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline">{{ __('Remove') }}</button>
+                                <x-icon-button type="submit" icon="trash" color="red" title="{{ __('Remove') }}" />
                             </form>
                         @endif
                     </td>

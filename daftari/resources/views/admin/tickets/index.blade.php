@@ -100,7 +100,7 @@
                     <td class="px-4 py-3">{{ $ticket->assignedAdmin?->name ?? __('Unassigned') }}</td>
                     <td class="px-4 py-3 text-slate-500">{{ $ticket->updated_at->diffForHumans() }}</td>
                     <td class="px-6 py-3 text-right">
-                        <a href="{{ route('admin.tickets.show', $ticket) }}" class="text-brand-700 hover:underline">{{ __('View') }}</a>
+                        <x-icon-button href="{{ route('admin.tickets.show', $ticket) }}" icon="eye" title="{{ __('View') }}" />
                     </td>
                 </tr>
             @empty
