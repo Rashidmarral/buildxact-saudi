@@ -16,10 +16,16 @@
     }
 
     /* Modern baseline for every text input, select and textarea in the app —
-       applied globally so the hundreds of existing forms upgrade at once. */
-    input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']),
-    select,
-    textarea {
+       applied globally so the hundreds of existing forms upgrade at once.
+       Wrapped in :where() so this selector contributes zero specificity:
+       without it, the four :not() clauses gave this rule's padding (a
+       PHYSICAL px-3.5) higher specificity than a component's own ps-9/pe-10
+       etc. (LOGICAL, lower-specificity utility classes) on the same
+       element — and since both target the same box edge, CSS resolves that
+       conflict by specificity, not source order, so the component's
+       intended padding silently lost and any icon positioned inside an
+       input (e.g. the header search field) overlapped its text. */
+    :where(input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']), select, textarea) {
         @apply px-3.5 py-2.5 text-sm text-slate-900 shadow-soft transition-all duration-200 ease-smooth placeholder:text-slate-400;
     }
 
