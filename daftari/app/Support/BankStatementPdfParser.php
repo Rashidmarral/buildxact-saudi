@@ -24,9 +24,24 @@ class BankStatementPdfParser
 {
     private const DATE_PATTERN = '/^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})/';
 
-    // Bounded on both sides so a reference code like "REF123" doesn't
-    // read its trailing digits as a standalone amount.
-    private const AMOUNT_PATTERN = '/(?<![A-Za-z0-9])-?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?(?![A-Za-z0-9])/';
+    // Bounded on both sides so a reference code like "REF123" doesn't read
+    // its trailing digits as a standalone amount. The decimal suffix is
+    // mandatory, not optional: every genuine amount or running balance on
+    // a real bank statement is shown with exactly 2 decimal places, even a
+    // whole-currency-unit figure ("500.00", not "500") — requiring it is a
+    // safe, currency-specific disambiguator against a bare short integer
+    // that's actually a stray fragment of a reference/ID number split
+    // across lines by PDF text extraction (e.g. a 3-digit tail landing on
+    // its own line), which would otherwise be misread as a tiny real
+    // amount and silently corrupt the import with a wrong figure instead
+    // of just skipping an unparseable line.
+    private const AMOUNT_PATTERN = '/(?<![A-Za-z0-9])-?\d{1,3}(?:,\d{3})*\.\d{1,2}(?![A-Za-z0-9])/';
+
+    // Safety bound on how many extra lines a single transaction's
+    // description is allowed to fold in — see the loop below — so a
+    // genuinely unparseable row can never cascade into swallowing
+    // unrelated content for the rest of the file.
+    private const MAX_CONTINUATION_LINES = 12;
 
     /**
      * @return array<int, array{date: string, description: string, reference: null, amount: string}>
@@ -34,37 +49,93 @@ class BankStatementPdfParser
     public static function parse(UploadedFile $file): array
     {
         $text = (new PdfTextParser)->parseFile($file->getRealPath())->getText();
+        $lines = array_values(preg_split('/\r\n|\r|\n/', $text));
+        $count = count($lines);
 
         $rows = [];
+        $i = 0;
 
-        foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
-            $line = trim(preg_replace('/\s+/', ' ', $line));
+        while ($i < $count) {
+            $line = trim(preg_replace('/\s+/', ' ', $lines[$i]));
+            $i++;
 
             if ($line === '' || ! preg_match(self::DATE_PATTERN, $line, $dateMatch)) {
                 continue;
             }
 
-            $rest = trim(substr($line, strlen($dateMatch[1])));
+            $date = $dateMatch[1];
+            $firstSegment = trim(substr($line, strlen($dateMatch[1])));
+            $segments = $firstSegment === '' ? [] : [$firstSegment];
+            $consumed = 0;
 
-            if (! preg_match_all(self::AMOUNT_PATTERN, $rest, $amountMatches)) {
-                continue;
+            // A transaction's description routinely wraps across several
+            // physical lines in the extracted text (a table cell that
+            // visually spans multiple lines becomes several separate text
+            // lines once extracted) — and when a row straddles a page
+            // break, the date and the rest of the row can even come out
+            // of order entirely, with page header/footer boilerplate
+            // interleaved. Keep folding in one line at a time, checking
+            // only the newest one for a resolvable amount (never the
+            // whole buffer — see amountCandidates()), until one is
+            // found, the next transaction already looks like it's
+            // starting (another date-leading line), or the safety bound
+            // above is hit.
+            $amount = null;
+            $terminalIndex = null;
+            $amountMatches = [];
+
+            while (true) {
+                $lastIndex = count($segments) - 1;
+
+                if ($lastIndex >= 0) {
+                    $candidates = self::amountCandidates($segments[$lastIndex]);
+
+                    if ($candidates !== []) {
+                        $resolved = self::resolveAmount($segments[$lastIndex], $candidates);
+
+                        if ($resolved !== null) {
+                            $amount = $resolved;
+                            $terminalIndex = $lastIndex;
+                            $amountMatches = $candidates;
+                            break;
+                        }
+                    }
+                }
+
+                if ($i >= $count || $consumed >= self::MAX_CONTINUATION_LINES) {
+                    break;
+                }
+
+                $next = trim(preg_replace('/\s+/', ' ', $lines[$i]));
+
+                if ($next !== '' && preg_match(self::DATE_PATTERN, $next)) {
+                    break;
+                }
+
+                $i++;
+                $consumed++;
+
+                if ($next !== '') {
+                    $segments[] = $next;
+                }
             }
-
-            $amount = self::resolveAmount($rest, $amountMatches[0]);
 
             if ($amount === null) {
                 continue;
             }
 
-            $firstAmountPos = strpos($rest, $amountMatches[0][0]);
-            $description = trim(substr($rest, 0, $firstAmountPos));
+            $firstAmountPos = strpos($segments[$terminalIndex], $amountMatches[0]);
+            $description = trim(
+                implode(' ', array_slice($segments, 0, $terminalIndex)).' '.
+                substr($segments[$terminalIndex], 0, $firstAmountPos)
+            );
 
             if ($description === '') {
                 continue;
             }
 
             $rows[] = [
-                'date' => self::normalizeDate($dateMatch[1]),
+                'date' => self::normalizeDate($date),
                 'description' => $description,
                 'reference' => null,
                 'amount' => $amount,
@@ -72,6 +143,33 @@ class BankStatementPdfParser
         }
 
         return $rows;
+    }
+
+    /**
+     * Every AMOUNT_PATTERN match on a line, excluding one immediately
+     * preceded by a "Charges:"-style inline label. A wrapped transfer
+     * description routinely mentions its own incidental bank-charge
+     * figure that way (e.g. "...20261028SANCBKNCBK6B8241182 5594424
+     * Charges: 1.00 REMBK:THE SAUDI NATIONAL BANK..."), well before the
+     * row's actual reference+type+amount+balance line — reading it as
+     * this row's amount would silently record the 1 SAR fee instead of
+     * the real transaction value.
+     */
+    private static function amountCandidates(string $line): array
+    {
+        if (! preg_match_all(self::AMOUNT_PATTERN, $line, $matches, PREG_OFFSET_CAPTURE)) {
+            return [];
+        }
+
+        $kept = [];
+
+        foreach ($matches[0] as [$value, $offset]) {
+            if (! preg_match('/charges\s*:\s*$/i', substr($line, 0, $offset))) {
+                $kept[] = $value;
+            }
+        }
+
+        return $kept;
     }
 
     /**

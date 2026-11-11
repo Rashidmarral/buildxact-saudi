@@ -37,7 +37,7 @@ class BankReconciliation extends Model
 
     public function lines(): HasMany
     {
-        return $this->hasMany(BankStatementLine::class);
+        return $this->hasMany(BankStatementLine::class)->orderBy('date')->orderBy('id');
     }
 
     public function matchedTotal(): float

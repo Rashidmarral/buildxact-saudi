@@ -33,6 +33,35 @@ class BankReconciliationTest extends TestCase
         return [$owner, $bankAccount];
     }
 
+    /**
+     * "make sure the sequence will be consistent like sequence start from
+     * the very 1st transaction of bank and end at the last tranasction" —
+     * a real bank statement is commonly printed newest-first, and import
+     * creates BankStatementLine rows in that same (descending) order, so
+     * the reconciliation screen must sort them itself rather than just
+     * trusting insertion order.
+     */
+    public function test_lines_are_always_returned_oldest_to_newest_regardless_of_import_order(): void
+    {
+        [$owner, $bankAccount] = $this->makeOwner();
+        $reconciliation = BankReconciliation::create([
+            'company_id' => $owner->company_id, 'bank_account_id' => $bankAccount->id,
+            'statement_date' => '2026-06-30', 'statement_ending_balance' => 0, 'status' => 'in_progress',
+            'created_by' => $owner->id,
+        ]);
+
+        // Inserted newest-first, exactly as a descending-order statement
+        // import would create them.
+        BankStatementLine::create(['company_id' => $owner->company_id, 'bank_reconciliation_id' => $reconciliation->id, 'date' => '2026-06-28', 'description' => 'Third', 'amount' => -1]);
+        BankStatementLine::create(['company_id' => $owner->company_id, 'bank_reconciliation_id' => $reconciliation->id, 'date' => '2026-06-15', 'description' => 'Second', 'amount' => -1]);
+        BankStatementLine::create(['company_id' => $owner->company_id, 'bank_reconciliation_id' => $reconciliation->id, 'date' => '2026-06-01', 'description' => 'First', 'amount' => -1]);
+
+        $this->assertSame(
+            ['First', 'Second', 'Third'],
+            $reconciliation->lines->pluck('description')->all()
+        );
+    }
+
     public function test_starting_a_reconciliation_creates_an_in_progress_record(): void
     {
         [$owner, $bankAccount] = $this->makeOwner();
