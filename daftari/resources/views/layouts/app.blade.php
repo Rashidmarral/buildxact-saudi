@@ -410,8 +410,8 @@
                 </div>
                 <div class="flex items-center gap-2 sm:gap-4">
                     <button type="button" @click="darkMode = !darkMode" class="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700" :title="darkMode ? '{{ __('Switch to light mode') }}' : '{{ __('Switch to dark mode') }}'">
-                        <span x-show="!darkMode">@include('partials.icon', ['name' => 'moon', 'class' => 'h-4.5 w-4.5'])</span>
-                        <span x-show="darkMode" style="display: none;">@include('partials.icon', ['name' => 'sun', 'class' => 'h-4.5 w-4.5'])</span>
+                        <span x-show="!darkMode">@include('partials.icon', ['name' => 'moon', 'class' => 'h-[18px] w-[18px]'])</span>
+                        <span x-show="darkMode" style="display: none;">@include('partials.icon', ['name' => 'sun', 'class' => 'h-[18px] w-[18px]'])</span>
                     </button>
                     <a href="{{ route('locale.switch', app()->getLocale() === 'ar' ? 'en' : 'ar') }}" class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-700">
                         @include('partials.icon', ['name' => 'globe', 'class' => 'h-4 w-4'])
