@@ -219,6 +219,40 @@
             </div>
         </div>
     </div>
+
+    <div class="bg-white rounded-xl border border-slate-100 p-6 mt-6"
+         x-data="{
+            lines: {{ old('lines') ? json_encode(old('lines')) : json_encode(($voucher ?? null)?->lines->map(fn ($l) => ['account_id' => $l->account_id, 'amount' => $l->amount, 'description' => $l->description])->values() ?? []) }},
+            addLine() { this.lines.push({ account_id: '', amount: '', description: '' }); },
+            removeLine(index) { this.lines.splice(index, 1); },
+         }">
+        <h3 class="font-semibold text-slate-900">{{ __('Additional entries (optional)') }}</h3>
+        <p class="text-xs text-slate-500 mt-1 mb-4">{{ __('Other amounts that left the same bank account in this same transaction — e.g. a bank service charge and the VAT on it — each posted to its own account. The amount above stays exactly what was paid to the party; these are added on top of it.') }}</p>
+
+        <template x-for="(line, index) in lines" :key="index">
+            <div class="grid sm:grid-cols-[1fr_140px_1fr_auto] gap-3 items-start mb-3">
+                <div>
+                    <select :name="`lines[${index}][account_id]`" x-model="line.account_id" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                        <option value="">{{ __('Select account') }}</option>
+                        @foreach ($glAccounts as $gl)
+                            <option value="{{ $gl->id }}">{{ $gl->label() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <input type="number" step="0.01" min="0.01" :name="`lines[${index}][amount]`" x-model="line.amount" placeholder="{{ __('Amount') }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <div>
+                    <input type="text" :name="`lines[${index}][description]`" x-model="line.description" placeholder="{{ __('Description (optional)') }}" class="w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
+                </div>
+                <button type="button" @click="removeLine(index)" class="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-red-300 hover:text-red-600">
+                    @include('partials.icon', ['name' => 'trash', 'class' => 'h-4 w-4'])
+                </button>
+            </div>
+        </template>
+
+        <button type="button" @click="addLine()" class="mt-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-brand-300">{{ __('+ Add entry') }}</button>
+    </div>
 </form>
 
 @php

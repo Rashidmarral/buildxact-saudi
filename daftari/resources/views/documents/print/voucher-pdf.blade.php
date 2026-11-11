@@ -177,6 +177,17 @@
         @if ($voucher->reference && ! $isCheque)
             <tr><td colspan="2"><span class="k">{{ __('Reference') }}</span> <span class="v">{{ $voucher->reference }}</span></td></tr>
         @endif
+        @if (! $isReceipt && $voucher->lines->isNotEmpty())
+            <tr>
+                <td colspan="2">
+                    <span class="k">{{ __('Additional entries in this same transaction') }}</span><br>
+                    @foreach ($voucher->lines as $line)
+                        <span class="v">{{ $line->description ?: $line->account?->label() }}: {{ \App\Support\Money::format($line->amount) }}</span><br>
+                    @endforeach
+                    <span class="v">{{ __('Total for this transaction') }}: {{ \App\Support\Money::format($voucher->totalAmount()) }}</span>
+                </td>
+            </tr>
+        @endif
     </table>
 
     @if ($stampData)

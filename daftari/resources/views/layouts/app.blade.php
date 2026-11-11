@@ -132,7 +132,7 @@
 
                 @include('partials.nav-item', ['route' => 'app.incomes.index', 'label' => __('Income'), 'icon' => 'income'])
 
-                @php($cashActive = request()->routeIs('app.bank-accounts.*') || request()->routeIs('app.receipt-vouchers.*') || request()->routeIs('app.payment-vouchers.*'))
+                @php($cashActive = request()->routeIs('app.bank-accounts.*') || request()->routeIs('app.bank-account-types.*') || request()->routeIs('app.receipt-vouchers.*') || request()->routeIs('app.payment-vouchers.*'))
                 <details class="group" @if($cashActive) open @endif>
                     <summary class="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2.5 transition-colors {{ $cashActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
                         <span class="shrink-0 text-slate-500">@include('partials.icon', ['name' => 'bank', 'class' => 'h-[18px] w-[18px]'])</span>
@@ -141,6 +141,7 @@
                     </summary>
                     <div class="ms-6 mt-1 space-y-0.5 border-s border-white/5 ps-3">
                         @include('partials.nav-subitem', ['route' => 'app.bank-accounts.index', 'label' => __('Bank Accounts')])
+                        @include('partials.nav-subitem', ['route' => 'app.bank-account-types.index', 'label' => __('Account Types')])
                         @include('partials.nav-subitem', ['route' => 'app.receipt-vouchers.index', 'label' => __('Receipt Vouchers (money in)')])
                         @include('partials.nav-subitem', ['route' => 'app.payment-vouchers.index', 'label' => __('Payment Vouchers (money out)')])
                     </div>

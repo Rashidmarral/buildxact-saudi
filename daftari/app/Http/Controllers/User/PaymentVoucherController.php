@@ -114,7 +114,7 @@ class PaymentVoucherController extends Controller
 
     public function downloadPdf(PaymentVoucher $paymentVoucher, MpdfRenderer $renderer)
     {
-        $paymentVoucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount');
+        $paymentVoucher->loadMissing('bankAccount', 'bill.items', 'expense', 'counterAccount', 'lines.account');
 
         $pdf = $renderer->render('documents.print.voucher-pdf', [
             'voucher' => $paymentVoucher,
@@ -215,6 +215,8 @@ class PaymentVoucherController extends Controller
                 'status' => $requiresApproval ? 'pending_approval' : 'issued',
             ]);
 
+            $voucher->lines()->createMany($data['lines'] ?? []);
+
             if ($requiresApproval) {
                 AuditLog::record('payment_voucher.create_pending', $voucher, __('Submitted payment voucher :number for approval (amount :amount)', ['number' => $voucher->voucher_number, 'amount' => $voucher->amount]));
             } else {
@@ -269,7 +271,7 @@ class PaymentVoucherController extends Controller
         $voucher->status = 'issued';
         $voucher->save();
 
-        $ledger->postPaymentVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense']));
+        $ledger->postPaymentVoucher($voucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense', 'lines']));
     }
 
     public function approvePending(PaymentVoucher $paymentVoucher, LedgerPostingService $ledger)
@@ -310,7 +312,7 @@ class PaymentVoucherController extends Controller
 
     public function show(PaymentVoucher $paymentVoucher)
     {
-        $paymentVoucher->load('bankAccount', 'expense', 'bill.items', 'client', 'supplier', 'counterAccount', 'project', 'attachments');
+        $paymentVoucher->load('bankAccount', 'expense', 'bill.items', 'client', 'supplier', 'counterAccount', 'project', 'attachments', 'lines.account');
 
         $template = $paymentVoucher->company->defaultTemplateFor('payment_voucher');
 
@@ -327,7 +329,7 @@ class PaymentVoucherController extends Controller
             return redirect()->route('app.payment-vouchers.show', $paymentVoucher)->with('status', __('A voucher that is awaiting approval or was rejected cannot be edited.'));
         }
 
-        $paymentVoucher->load('bill.items', 'expense');
+        $paymentVoucher->load('bill.items', 'expense', 'lines');
 
         $company = Auth::user()->company;
         $suppliers = Supplier::orderBy('name')->get();
@@ -472,7 +474,13 @@ class PaymentVoucherController extends Controller
                 'notes_ar' => $data['notes_ar'] ?? null,
             ]);
 
-            $ledger->postPaymentVoucher($paymentVoucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense']));
+            // Rebuilt from scratch rather than diffed in place — same
+            // reasoning as deletePosting() above: the simplest way to
+            // guarantee no stale or duplicated line survives an edit.
+            $paymentVoucher->lines()->delete();
+            $paymentVoucher->lines()->createMany($data['lines'] ?? []);
+
+            $ledger->postPaymentVoucher($paymentVoucher->fresh(['bankAccount', 'counterAccount', 'bill', 'expense', 'lines']));
         });
 
         return redirect()->route('app.payment-vouchers.show', $paymentVoucher)->with('status', __('Payment voucher updated.'));
@@ -643,6 +651,13 @@ class PaymentVoucherController extends Controller
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'notes_ar' => ['nullable', 'string', 'max:2000'],
+            // Extra entries riding along in the same bank transaction as
+            // the main payment above (e.g. the bank's own service charge
+            // and VAT on it) — see PaymentVoucher::lines()/totalAmount().
+            'lines' => ['nullable', 'array'],
+            'lines.*.account_id' => ['required_with:lines', Rule::exists('accounts', 'id')->where('company_id', $companyId)->where('is_active', true)],
+            'lines.*.amount' => ['required_with:lines', 'numeric', 'min:0.01'],
+            'lines.*.description' => ['nullable', 'string', 'max:255'],
         ]);
     }
 }

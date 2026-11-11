@@ -70,6 +70,7 @@
                                         <x-icon-button menu type="submit" icon="x-circle" color="red" title="{{ __('Reject') }}" />
                                     </form>
                                 @endif
+                                <x-icon-button menu href="{{ route('app.expenses.pdf', $expense) }}" target="_blank" icon="printer" title="{{ __('Print voucher') }}" />
                                 <x-icon-button menu href="{{ route('app.expenses.edit', $expense) }}" icon="pencil" title="{{ __('Edit') }}" />
                                 <form method="POST" action="{{ route('app.expenses.destroy', $expense) }}" onsubmit="return confirm('{{ __('Delete this expense?') }}')">
                                     @csrf @method('DELETE')

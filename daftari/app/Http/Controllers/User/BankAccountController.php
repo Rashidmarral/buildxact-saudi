@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\AccountMapping;
 use App\Models\BankAccount;
+use App\Models\BankAccountType;
 use App\Models\BankTransfer;
 use App\Models\JournalEntry;
 use App\Models\PaymentVoucher;
@@ -18,14 +19,17 @@ class BankAccountController extends Controller
 {
     public function index()
     {
-        $accounts = BankAccount::orderBy('name')->get();
+        $accounts = BankAccount::with('bankAccountType')->orderBy('name')->get();
 
         return view('user.bank-accounts.index', compact('accounts'));
     }
 
     public function create()
     {
-        return view('user.bank-accounts.form', ['account' => new BankAccount]);
+        return view('user.bank-accounts.form', [
+            'account' => new BankAccount,
+            'customTypes' => $this->customTypes(),
+        ]);
     }
 
     public function store(Request $request)
@@ -46,7 +50,10 @@ class BankAccountController extends Controller
 
     public function edit(BankAccount $bankAccount)
     {
-        return view('user.bank-accounts.form', ['account' => $bankAccount]);
+        return view('user.bank-accounts.form', [
+            'account' => $bankAccount,
+            'customTypes' => $this->customTypes(),
+        ]);
     }
 
     public function update(Request $request, BankAccount $bankAccount)
@@ -183,11 +190,45 @@ class BankAccountController extends Controller
         return redirect()->route('app.bank-accounts.index')->with('status', __('Bank account deleted.'));
     }
 
+    /**
+     * The "Account type" select offers the two built-in values (bank, cash)
+     * plus every one of the company's own custom BankAccountType rows, each
+     * submitted as "custom:{id}" — never a bare custom type name, so there's
+     * no way for the submitted value itself to smuggle in an untrusted
+     * nature. Whichever custom type is chosen, its own `nature` column
+     * (set once, by the admin managing account types, not by this form) is
+     * what actually gets written to `type` — every existing piece of logic
+     * keyed on `type === 'cash'`/`'bank'` (glAccount(), the shared-account
+     * lookup in transferGlOpeningBalance(), every report) keeps working
+     * completely unchanged, with zero awareness a custom type even exists.
+     */
+    private function customTypes()
+    {
+        return BankAccountType::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
+    }
+
     private function validated(Request $request): array
     {
+        $companyId = Auth::user()->company_id;
+        $rawType = (string) $request->input('type');
+        $customTypeId = str_starts_with($rawType, 'custom:') ? (int) substr($rawType, 7) : null;
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:bank,cash'],
+            'type' => [
+                'required',
+                function ($attribute, $value, $fail) use ($companyId) {
+                    if (in_array($value, ['bank', 'cash'], true)) {
+                        return;
+                    }
+
+                    $id = str_starts_with((string) $value, 'custom:') ? (int) substr($value, 7) : null;
+
+                    if (! $id || ! BankAccountType::where('company_id', $companyId)->whereKey($id)->exists()) {
+                        $fail(__('The selected account type is invalid.'));
+                    }
+                },
+            ],
             'currency' => ['required', 'string', 'size:3'],
             'bank_name' => ['nullable', 'string', 'max:255'],
             'account_holder_name' => ['nullable', 'string', 'max:255'],
@@ -206,6 +247,14 @@ class BankAccountController extends Controller
         // rejects outright — a DEFAULT only applies when the column is
         // omitted from the insert, not when it's present with a NULL value.
         $data['opening_balance'] = $data['opening_balance'] ?? 0;
+
+        if ($customTypeId) {
+            $customType = BankAccountType::where('company_id', $companyId)->findOrFail($customTypeId);
+            $data['type'] = $customType->nature;
+            $data['bank_account_type_id'] = $customType->id;
+        } else {
+            $data['bank_account_type_id'] = null;
+        }
 
         return $data;
     }

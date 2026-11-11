@@ -789,14 +789,25 @@ class LedgerPostingService
         $this->requireAccounts(['DEFAULT_CASH/DEFAULT_BANK' => $cashOrBank, 'counterpart' => $counterpart], 'payment voucher');
 
         $whtAmount = (float) $voucher->wht_amount;
+        $extraLines = $voucher->lines;
+        $extraLinesTotal = round((float) $extraLines->sum('amount'), 2);
 
         // Accounts Payable is relieved for the cash paid out AND the tax
         // withheld on the supplier's behalf — both are real settlements of
         // the payable, one to the supplier and one (eventually) to ZATCA.
+        // Extra lines (e.g. the bank's own service charge and VAT on it,
+        // deducted in the same transfer) each debit their own account and
+        // add to what the bank/cash side is credited for — the actual
+        // total that left the account in this one transaction — without
+        // touching the main counterpart line at all.
         $lines = [
             ['account_id' => $counterpart->id, 'debit' => $voucher->amount + $whtAmount],
-            ['account_id' => $cashOrBank->id, 'credit' => $voucher->amount],
+            ['account_id' => $cashOrBank->id, 'credit' => $voucher->amount + $extraLinesTotal],
         ];
+
+        foreach ($extraLines as $extraLine) {
+            $lines[] = ['account_id' => $extraLine->account_id, 'debit' => (float) $extraLine->amount, 'memo' => $extraLine->description];
+        }
 
         if ($whtAmount > 0) {
             $whtPayable = $this->account($company, 'WHT_PAYABLE');

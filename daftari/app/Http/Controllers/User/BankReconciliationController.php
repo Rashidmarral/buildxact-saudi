@@ -198,11 +198,15 @@ class BankReconciliationController extends Controller
             ->get()
             ->map(fn ($v) => ['type' => 'receipt_voucher', 'id' => $v->id, 'date' => $v->date, 'amount' => (float) $v->amount, 'label' => __('Receipt :number — :party', ['number' => $v->voucher_number, 'party' => $v->payer_name])]);
 
-        $payments = PaymentVoucher::where('bank_account_id', $accountId)
+        $payments = PaymentVoucher::with('lines')
+            ->where('bank_account_id', $accountId)
             ->where('status', 'issued')
             ->whereNotIn('id', $alreadyMatched('payment_voucher'))
             ->get()
-            ->map(fn ($v) => ['type' => 'payment_voucher', 'id' => $v->id, 'date' => $v->date, 'amount' => -(float) $v->amount, 'label' => __('Payment :number — :party', ['number' => $v->voucher_number, 'party' => $v->payee_name])]);
+            // totalAmount(), not amount: a voucher with extra lines (bank
+            // charges, VAT on them, ...) shows on the real bank statement
+            // as one combined figure — this is what has to match it.
+            ->map(fn ($v) => ['type' => 'payment_voucher', 'id' => $v->id, 'date' => $v->date, 'amount' => -$v->totalAmount(), 'label' => __('Payment :number — :party', ['number' => $v->voucher_number, 'party' => $v->payee_name])]);
 
         $transfersOut = BankTransfer::where('from_bank_account_id', $accountId)
             ->where('status', 'issued')

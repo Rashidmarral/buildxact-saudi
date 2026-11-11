@@ -11,10 +11,19 @@
         <div class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Account type') }}</label>
+                @php($currentTypeValue = old('type', $account->bank_account_type_id ? "custom:{$account->bank_account_type_id}" : ($account->type ?? 'bank')))
                 <select name="type" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
-                    <option value="bank" @selected(old('type', $account->type ?? 'bank') === 'bank')>{{ __('Bank') }}</option>
-                    <option value="cash" @selected(old('type', $account->type) === 'cash')>{{ __('Cash') }}</option>
+                    <option value="bank" @selected($currentTypeValue === 'bank')>{{ __('Bank') }}</option>
+                    <option value="cash" @selected($currentTypeValue === 'cash')>{{ __('Cash') }}</option>
+                    @if ($customTypes->isNotEmpty())
+                        <optgroup label="{{ __('Custom types') }}">
+                            @foreach ($customTypes as $customType)
+                                <option value="custom:{{ $customType->id }}" @selected($currentTypeValue === "custom:{$customType->id}")>{{ $customType->name }}</option>
+                            @endforeach
+                        </optgroup>
+                    @endif
                 </select>
+                <a href="{{ route('app.bank-account-types.index') }}" class="mt-1 inline-block text-xs text-brand-600 hover:underline">{{ __('+ Manage account types') }}</a>
             </div>
             <div>
                 <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Currency') }}</label>

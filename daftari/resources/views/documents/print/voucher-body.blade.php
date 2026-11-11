@@ -111,6 +111,24 @@
         @if ($voucher->reference && ! $isCheque)
             <div class="text-xs text-slate-400">{{ __('Reference') }}: <span class="font-medium text-slate-600">{{ $voucher->reference }}</span></div>
         @endif
+
+        @if ($type === 'payment' && $voucher->lines->isNotEmpty())
+            <div class="border-t border-dashed border-slate-200 pt-3">
+                <p class="text-xs text-slate-400 mb-1.5">{{ __('Additional entries in this same transaction') }}</p>
+                <div class="space-y-1">
+                    @foreach ($voucher->lines as $line)
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-600">{{ $line->description ?: $line->account?->label() }}</span>
+                            <span class="font-medium text-slate-800">{{ \App\Support\Money::format($line->amount) }}</span>
+                        </div>
+                    @endforeach
+                    <div class="flex items-center justify-between text-xs font-semibold border-t border-slate-100 pt-1 mt-1">
+                        <span class="text-slate-700">{{ __('Total for this transaction') }}</span>
+                        <span class="text-slate-900">{{ \App\Support\Money::format($voucher->totalAmount()) }}</span>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 
     <div class="mt-10 pt-6 border-t border-slate-200 grid grid-cols-2 gap-6 text-center">

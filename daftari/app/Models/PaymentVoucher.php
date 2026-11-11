@@ -103,6 +103,39 @@ class PaymentVoucher extends Model
     }
 
     /**
+     * Extra entries riding along in the same bank transaction as this
+     * voucher's main payment — e.g. the bank's own service charge and the
+     * VAT on it, deducted in the same transfer that paid the supplier.
+     * Never touches `amount`/`counter_account_id` (still "paid to the
+     * main counterparty" — what bill settlement, subcontract linkage and
+     * WHT all key off) or anything else about the voucher's identity.
+     */
+    public function lines(): HasMany
+    {
+        return $this->hasMany(PaymentVoucherLine::class);
+    }
+
+    public function extraLinesTotal(): float
+    {
+        return round((float) $this->lines->sum('amount'), 2);
+    }
+
+    /**
+     * What actually left the bank account in this one transaction — the
+     * main payment plus every extra line. This is the figure that must
+     * match the real bank statement line, used anywhere that's comparing
+     * against or summing real cash movement (BankAccount::currentBalance(),
+     * bank reconciliation matching) — never for anything keyed to the
+     * main counterparty specifically (bill settlement, subcontract
+     * payments, the voucher list's "total paid to this supplier"), which
+     * stay on `amount` alone.
+     */
+    public function totalAmount(): float
+    {
+        return round((float) $this->amount + $this->extraLinesTotal(), 2);
+    }
+
+    /**
      * What the "For" line on the printed voucher falls back to when no
      * one typed a description — the linked bill's number and item
      * descriptions (what was actually purchased), or the expense's own

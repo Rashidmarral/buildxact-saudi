@@ -54,6 +54,7 @@ use App\Http\Controllers\User\AccountingHealthController;
 use App\Http\Controllers\User\ActivityLogController as UserActivityLogController;
 use App\Http\Controllers\User\ApiTokenController;
 use App\Http\Controllers\User\BankAccountController;
+use App\Http\Controllers\User\BankAccountTypeController;
 use App\Http\Controllers\User\BankAccountReportController;
 use App\Http\Controllers\User\CashCustodyController;
 use App\Http\Controllers\User\CashTrackerController;
@@ -424,6 +425,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::delete('expenses/{expense}/attachments/{attachment}', [ExpenseController::class, 'destroyAttachment'])->name('expenses.attachments.destroy');
         Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expenses.approve');
         Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
+        Route::get('expenses/{expense}/pdf', [ExpenseController::class, 'downloadPdf'])->middleware('throttle:pdf')->name('expenses.pdf');
         Route::resource('expense-categories', ExpenseCategoryController::class)->except(['show']);
         Route::get('owner-reimbursements', [OwnerReimbursementController::class, 'index'])->name('owner-reimbursements.index');
         Route::get('owner-reimbursements/pdf', [OwnerReimbursementController::class, 'pdf'])->middleware('throttle:pdf')->name('owner-reimbursements.pdf');
@@ -569,6 +571,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
 
     Route::middleware('permission:cash_banks')->group(function () {
         Route::resource('bank-accounts', BankAccountController::class)->except(['show']);
+        Route::resource('bank-account-types', BankAccountTypeController::class)->except(['show']);
         Route::post('bank-accounts/{bankAccount}/transfer-gl-opening-balance', [BankAccountController::class, 'transferGlOpeningBalance'])->name('bank-accounts.transfer-gl-opening-balance');
         Route::get('bank-transactions', [BankAccountController::class, 'transactions'])->name('bank-transactions.index');
         Route::get('cash-custody', [CashCustodyController::class, 'index'])->name('cash-custody.index');

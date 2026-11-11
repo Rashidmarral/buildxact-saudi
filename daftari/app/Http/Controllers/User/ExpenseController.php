@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
 use App\Services\ApprovalChainService;
+use App\Services\MpdfRenderer;
 use App\Services\ReceiptOcrService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,6 +37,31 @@ class ExpenseController extends Controller
         $categories = ExpenseCategory::orderBy('name')->get();
 
         return view('user.expenses.index', compact('expenses', 'categories'));
+    }
+
+    /**
+     * "how can i get it's voucher to record it as pdf or in hard form" —
+     * a printable voucher for this expense, reusing the same look as
+     * Payment/Receipt Vouchers. Deliberately does NOT create a
+     * PaymentVoucher record: the expense has already posted straight to
+     * the ledger itself (see LedgerPostingService::postExpense()), so a
+     * second real voucher document here would risk double-posting the
+     * same amount. This is read-only — nothing is recorded by viewing it.
+     */
+    public function downloadPdf(Expense $expense, MpdfRenderer $renderer)
+    {
+        $expense->loadMissing('category', 'bankAccount', 'employee', 'project');
+
+        $pdf = $renderer->render('documents.print.expense-voucher-pdf', [
+            'expense' => $expense,
+            'company' => $expense->company,
+            'template' => $expense->company->defaultTemplateFor('payment_voucher'),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="EXP-'.str_pad((string) $expense->id, 5, '0', STR_PAD_LEFT).'.pdf"',
+        ]);
     }
 
     public function create(Request $request, ReceiptOcrService $ocr)

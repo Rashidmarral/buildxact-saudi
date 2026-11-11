@@ -13,7 +13,7 @@ class BankAccount extends Model
 
     protected $fillable = [
         'company_id', 'name', 'bank_name', 'account_holder_name', 'account_number', 'iban',
-        'bank_phone', 'bank_address', 'type', 'opening_balance', 'opening_balance_date',
+        'bank_phone', 'bank_address', 'type', 'bank_account_type_id', 'opening_balance', 'opening_balance_date',
         'opening_balance_reference', 'currency', 'is_active', 'is_personal', 'personal_owner_name',
         // Not set from form input (see BankAccountController::validated()) —
         // only ever written by glAccount() itself, below.
@@ -32,6 +32,23 @@ class BankAccount extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
+    }
+
+    public function bankAccountType(): BelongsTo
+    {
+        return $this->belongsTo(BankAccountType::class);
+    }
+
+    /**
+     * What the UI actually shows for this account's type — the company's
+     * own custom label when one was chosen, otherwise the plain built-in
+     * "Bank"/"Cash". Never affects accounting treatment: that's always
+     * driven by the `type` column itself (see glAccount()), which a custom
+     * type only ever mirrors, never overrides.
+     */
+    public function displayTypeLabel(): string
+    {
+        return $this->bankAccountType?->name ?? ($this->type === 'cash' ? __('Cash') : __('Bank'));
     }
 
     /**
@@ -129,7 +146,12 @@ class BankAccount extends Model
         $received = $this->receiptVouchers()->where('status', 'issued')->sum('amount')
             + $this->invoicePayments()->sum('amount')
             + $this->incomes()->sum('gross_amount');
-        $paid = $this->paymentVouchers()->where('status', 'issued')->sum('amount');
+        $issuedPaymentVoucherIds = $this->paymentVouchers()->where('status', 'issued')->pluck('id');
+        // Extra lines (bank charges, VAT on them, ...) are real cash that
+        // left this account alongside the main payment — see
+        // PaymentVoucher::totalAmount() — so they count here too.
+        $paid = (float) $this->paymentVouchers()->where('status', 'issued')->sum('amount')
+            + (float) PaymentVoucherLine::whereIn('payment_voucher_id', $issuedPaymentVoucherIds)->sum('amount');
         $expensesPaid = $this->expenses()->where('status', 'approved')->sum('gross_amount');
         $transfersIn = BankTransfer::where('to_bank_account_id', $this->id)->where('status', 'issued')->sum('amount');
         $transfersOut = BankTransfer::where('from_bank_account_id', $this->id)->where('status', 'issued')->sum('amount');

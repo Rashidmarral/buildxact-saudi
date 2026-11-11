@@ -20,7 +20,7 @@
                     @endif
                     {{ $account->name }}
                 </span>
-                <span class="text-xs text-slate-400">{{ $account->type === 'cash' ? __('Cash') : __('Bank') }}</span>
+                <span class="text-xs text-slate-400">{{ $account->displayTypeLabel() }}</span>
             </div>
             @if ($account->bank_name)<p class="text-xs text-slate-400 mt-1">{{ $account->bank_name }}</p>@endif
             @php($balance = $account->currentBalance())
