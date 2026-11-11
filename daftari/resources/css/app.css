@@ -17,15 +17,22 @@
 
     /* Modern baseline for every text input, select and textarea in the app —
        applied globally so the hundreds of existing forms upgrade at once.
-       Wrapped in :where() so this selector contributes zero specificity:
-       without it, the four :not() clauses gave this rule's padding (a
-       PHYSICAL px-3.5) higher specificity than a component's own ps-9/pe-10
-       etc. (LOGICAL, lower-specificity utility classes) on the same
-       element — and since both target the same box edge, CSS resolves that
-       conflict by specificity, not source order, so the component's
-       intended padding silently lost and any icon positioned inside an
-       input (e.g. the header search field) overlapped its text. */
-    :where(input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']), select, textarea) {
+       Only the four :not() EXCLUSIONS are wrapped in :where() (zero
+       specificity), not the bare input/select/textarea themselves: those
+       stay at ordinary element-selector specificity (0,0,1) —
+       deliberately the SAME tier as Tailwind's own Preflight reset
+       (`button, input, optgroup, select, textarea { padding: 0px }`), so
+       source order (this rule is authored after Preflight) decides and
+       our padding wins, while a component's own ps-9/pe-10 etc. utility
+       classes (0,1,0) still rank higher and can still override us. Fully
+       wrapping this whole selector in :where() (as a previous revision of
+       this rule did) dropped it BELOW Preflight's tier instead of only
+       below utility classes — Preflight's padding: 0 then won everywhere,
+       silently zeroing the padding on every plain input/select/textarea
+       in the app with no component-level override to fall back on. */
+    input:where(:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range'])),
+    select,
+    textarea {
         @apply px-3.5 py-2.5 text-sm text-slate-900 shadow-soft transition-all duration-200 ease-smooth placeholder:text-slate-400;
     }
 
@@ -47,8 +54,13 @@
         @apply cursor-not-allowed bg-slate-50 text-slate-400 shadow-none;
     }
 
+    /* bg-white is required explicitly, not left to default: recent Chromium
+       gives <select> a faint default control background even with
+       appearance: none, unless a background-color is set — without this
+       every dropdown in the app rendered on a dull off-white/grey chip
+       instead of the same clean white used by every text input. */
     select {
-        @apply appearance-none bg-no-repeat pe-10;
+        @apply appearance-none bg-white bg-no-repeat pe-10;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2394a3b8'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
         background-position: right 0.75rem center;
         background-size: 1.1em;
@@ -58,9 +70,70 @@
         background-position: left 0.75rem center;
     }
 
+    /* Custom checkbox/radio appearance: the app has no @tailwindcss/forms
+       plugin, so text-brand-600/focus:ring-* classes already scattered
+       across ~hundreds of existing checkbox/radio markup (copied from
+       that plugin's conventions) had ZERO visual effect — every checkbox
+       rendered as the bare OS-native widget (platform-dependent size,
+       square corners, default blue/grey accent), clashing hard with the
+       navy/gold theme around it. This reset gives every checkbox/radio in
+       the app the same look without touching any of that existing
+       markup — a plain element selector (same specificity tier as the
+       Preflight reset it's overriding), not :not()-qualified, so it can't
+       hit the earlier padding bug. */
     input[type='checkbox'],
     input[type='radio'] {
-        @apply text-brand-600 transition-all duration-150 focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-0;
+        @apply h-4 w-4 shrink-0 cursor-pointer appearance-none border border-slate-300 bg-white align-middle transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-0;
+    }
+
+    input[type='checkbox'] {
+        @apply rounded;
+    }
+
+    input[type='radio'] {
+        @apply rounded-full;
+    }
+
+    input[type='checkbox']:hover:not(:disabled),
+    input[type='radio']:hover:not(:disabled) {
+        @apply border-slate-400;
+    }
+
+    input[type='checkbox']:checked,
+    input[type='radio']:checked,
+    input[type='checkbox']:indeterminate {
+        @apply border-brand-600 bg-brand-600 bg-no-repeat hover:border-brand-700;
+        background-position: center;
+        background-size: 100% 100%;
+    }
+
+    input[type='checkbox']:checked {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8.5l2.5 2.5 5.5-6'/%3E%3C/svg%3E");
+    }
+
+    input[type='checkbox']:indeterminate {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+    }
+
+    input[type='radio']:checked {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Ccircle cx='8' cy='8' r='3'/%3E%3C/svg%3E");
+    }
+
+    input[type='checkbox']:disabled,
+    input[type='radio']:disabled {
+        @apply cursor-not-allowed border-slate-200 bg-slate-100;
+    }
+
+    .dark input[type='checkbox'],
+    .dark input[type='radio'] {
+        border-color: #334155; /* slate-700, matching .dark input's border */
+        background-color: #1e293b; /* slate-800, matching .dark input's bg */
+    }
+
+    .dark input[type='checkbox']:disabled,
+    .dark input[type='radio']:disabled {
+        background-color: #0f172a; /* slate-900, matching .dark input:disabled */
+        border-color: #334155;
     }
 
     /* Custom scrollbar */
