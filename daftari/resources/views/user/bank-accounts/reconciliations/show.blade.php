@@ -64,7 +64,19 @@
 
 <div class="grid lg:grid-cols-2 gap-6">
     <div class="bg-white rounded-xl border border-slate-100">
-        <div class="px-5 py-3 border-b border-slate-100 font-semibold text-slate-900 text-sm">{{ __('Statement lines') }}</div>
+        <div class="px-5 py-3 border-b border-slate-100 font-semibold text-slate-900 text-sm flex items-center justify-between gap-3">
+            <span>{{ __('Statement lines') }}</span>
+            <form method="GET" class="flex items-center gap-2 text-xs font-normal text-slate-500">
+                <label for="per_page">{{ __('Show') }}</label>
+                <select id="per_page" name="per_page" onchange="this.form.submit()" class="rounded-lg border border-slate-200 text-xs py-1 focus:border-brand-500 focus:ring-brand-500">
+                    @foreach ([15, 25, 50, 100] as $option)
+                        <option value="{{ $option }}" @selected($perPage === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <span>{{ __('per page') }}</span>
+            </form>
+        </div>
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
                 <tr class="text-left text-slate-500 border-b border-slate-100">
@@ -90,9 +102,9 @@
                                     </form>
                                 @endunless
                             @elseif (! $isDone)
-                                <form method="POST" action="{{ route('app.bank-statement-lines.match', $line) }}" class="inline-flex items-center gap-1">
+                                <form method="POST" action="{{ route('app.bank-statement-lines.match', $line) }}" class="inline-flex flex-wrap items-center justify-end gap-1 max-w-[180px]">
                                     @csrf
-                                    <select name="matched_id_composite" onchange="this.form.matched_type.value=this.value.split(':')[0]; this.form.matched_id.value=this.value.split(':')[1];" class="rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
+                                    <select name="matched_id_composite" onchange="this.form.matched_type.value=this.value.split(':')[0]; this.form.matched_id.value=this.value.split(':')[1];" class="w-full max-w-[160px] rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
                                         <option value="">{{ __('Match to…') }}</option>
                                         @foreach ($candidates->where('amount', (float) $line->amount) as $c)
                                             <option value="{{ $c['type'] }}:{{ $c['id'] }}">{{ $c['label'] }}</option>
@@ -118,6 +130,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         @if ($lines->hasPages())
             <div class="px-5 py-3 border-t border-slate-100">{{ $lines->links() }}</div>
         @endif

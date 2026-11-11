@@ -92,6 +92,17 @@ class BankReconciliationTest extends TestCase
 
         $secondPage = $this->actingAs($owner)->get(route('app.bank-reconciliations.show', $reconciliation).'?page=2');
         $secondPage->assertSee('Line 30');
+
+        $fiftyPerPage = $this->actingAs($owner)->get(route('app.bank-reconciliations.show', $reconciliation).'?per_page=50');
+        $fiftyPerPage->assertSee('Line 1', false);
+        $fiftyPerPage->assertSee('Line 30');
+
+        // An unrecognized value falls back to the 15-per-page default
+        // rather than letting an arbitrary query string blow the page
+        // size open.
+        $invalidPerPage = $this->actingAs($owner)->get(route('app.bank-reconciliations.show', $reconciliation).'?per_page=99999');
+        $invalidPerPage->assertSee('Line 1', false);
+        $invalidPerPage->assertDontSee('Line 16');
     }
 
     public function test_starting_a_reconciliation_creates_an_in_progress_record(): void

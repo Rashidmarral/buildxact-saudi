@@ -20,6 +20,8 @@ class BankReconciliationController extends Controller
 {
     use ImportsCsv;
 
+    private const PER_PAGE_OPTIONS = [15, 25, 50, 100];
+
     public function index(BankAccount $bankAccount)
     {
         return view('user.bank-accounts.reconciliations.index', [
@@ -49,9 +51,12 @@ class BankReconciliationController extends Controller
         return redirect()->route('app.bank-reconciliations.show', $reconciliation)->with('status', __('Reconciliation started.'));
     }
 
-    public function show(BankReconciliation $bankReconciliation)
+    public function show(Request $request, BankReconciliation $bankReconciliation)
     {
         $bankReconciliation->load('bankAccount');
+
+        $perPage = (int) $request->query('per_page', 15);
+        $perPage = in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 15;
 
         // A real bank statement import can easily run into the hundreds
         // of lines, so the table is paginated rather than rendered in
@@ -61,7 +66,8 @@ class BankReconciliationController extends Controller
         // rather than reading it off the paginated page itself.
         return view('user.bank-accounts.reconciliations.show', [
             'reconciliation' => $bankReconciliation,
-            'lines' => $bankReconciliation->lines()->paginate(25)->withQueryString(),
+            'lines' => $bankReconciliation->lines()->paginate($perPage)->withQueryString(),
+            'perPage' => $perPage,
             'unmatchedCount' => $bankReconciliation->lines()->whereNull('matched_type')->count(),
             'candidates' => $this->unmatchedBookTransactions($bankReconciliation),
         ]);
