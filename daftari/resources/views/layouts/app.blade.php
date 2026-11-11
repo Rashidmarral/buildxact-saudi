@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script>
         // Runs synchronously before first paint so the page never flashes
-        // light before switching to dark. Honors the saved preference; with
-        // none stored yet, falls back to the OS preference for that first
-        // visit only — the toggle below always writes an explicit choice.
+        // light before switching to dark. Only ever honors an explicit,
+        // previously-saved choice (set by the toggle below) — deliberately
+        // does NOT fall back to the OS/browser's dark-mode preference, so
+        // a first-time visitor whose device happens to prefer dark always
+        // sees Daftari's normal light theme until they choose otherwise.
         (function () {
             try {
-                var stored = localStorage.getItem('theme');
-                var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-                document.documentElement.classList.toggle('dark', dark);
+                document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark');
             } catch (e) {}
         })();
     </script>
