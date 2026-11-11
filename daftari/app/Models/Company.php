@@ -924,6 +924,27 @@ class Company extends Model
         return $this->hasMany(ZatcaInvoiceLog::class);
     }
 
+    /**
+     * Whether this company has EVER touched ZATCA in any way — onboarding
+     * begun, a certificate issued, or a single invoice/credit-note/debit-
+     * note log row (even a 'simulation' environment one). Deliberately
+     * broader and more conservative than isZatcaOnboarded() (which only
+     * cares about live production clearance): this gates destructive
+     * ledger-correction tooling (see LedgerIntegrityService), where the
+     * question isn't "are we live with ZATCA" but "could this company's
+     * historical records already be referenced by anything ZATCA has
+     * ever seen" — a compliance-environment test submission still counts.
+     */
+    public function hasAnyZatcaActivity(): bool
+    {
+        return $this->zatca_onboarding_status !== 'not_started'
+            || (bool) $this->zatca_production_csid
+            || (bool) $this->zatca_compliance_csid
+            || $this->zatcaInvoiceLogs()->exists()
+            || ZatcaCreditNoteLog::where('company_id', $this->id)->exists()
+            || ZatcaDebitNoteLog::where('company_id', $this->id)->exists();
+    }
+
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);

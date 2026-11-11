@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Account;
 use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Invoice;
+use App\Models\JournalEntry;
 use App\Models\Plan;
 use App\Models\Quotation;
 use App\Models\Role;
@@ -395,6 +397,73 @@ class CompanyManagementTest extends TestCase
         // ...but no proforma invoices exist yet, so that one still resets.
         $this->assertSame('PRO', $company->proforma_prefix);
         $this->assertSame(1, $company->next_proforma_number);
+    }
+
+    // ---------------------------------------------------------------
+    // Ledger cleanup
+    // ---------------------------------------------------------------
+
+    private function makeOrphanedLedgerEntry(Company $company): JournalEntry
+    {
+        $account = Account::create([
+            'company_id' => $company->id, 'code' => '1100', 'name' => 'Accounts Receivable',
+            'type' => 'asset', 'normal_balance' => 'debit',
+        ]);
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Test Client']);
+        $invoice = Invoice::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'invoice_number' => 'INV-'.uniqid(),
+            'type' => 'standard', 'status' => 'draft', 'issue_date' => now()->toDateString(), 'currency' => 'SAR',
+        ]);
+
+        $entry = JournalEntry::create([
+            'company_id' => $company->id, 'entry_number' => 'JE-'.uniqid(), 'entry_date' => now()->toDateString(),
+            'source_type' => 'invoice', 'source_id' => $invoice->id, 'description' => 'Test invoice entry',
+        ]);
+        $entry->lines()->create(['account_id' => $account->id, 'debit' => 115, 'credit' => 0]);
+        $entry->lines()->create(['account_id' => $account->id, 'debit' => 0, 'credit' => 115]);
+
+        $invoice->forceDelete();
+
+        return $entry;
+    }
+
+    public function test_company_show_lists_orphaned_ledger_entries(): void
+    {
+        $company = $this->makeCompany();
+        $this->makeOrphanedLedgerEntry($company);
+
+        $response = $this->actingAs($this->makeAdmin())->get(route('admin.companies.show', $company));
+
+        $response->assertOk()->assertSee('Ledger cleanup')->assertSee('Remove 1 orphaned entries');
+    }
+
+    public function test_purge_ledger_orphans_removes_entries_and_logs_audit(): void
+    {
+        $company = $this->makeCompany();
+        $entry = $this->makeOrphanedLedgerEntry($company);
+
+        $response = $this->withConfirmedPassword($this->makeAdmin())
+            ->post(route('admin.companies.purge-ledger-orphans', $company));
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('journal_entries', ['id' => $entry->id]);
+
+        $log = AuditLog::where('action', 'company.purge_ledger_orphans')->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertSame(1, $log->new_value['entries_removed']);
+    }
+
+    public function test_purge_ledger_orphans_is_refused_once_the_company_has_zatca_activity(): void
+    {
+        $company = $this->makeCompany(['zatca_onboarding_status' => 'onboarded']);
+        $entry = $this->makeOrphanedLedgerEntry($company);
+
+        $response = $this->withConfirmedPassword($this->makeAdmin())
+            ->post(route('admin.companies.purge-ledger-orphans', $company));
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('company');
+        $this->assertDatabaseHas('journal_entries', ['id' => $entry->id]);
     }
 
     // ---------------------------------------------------------------

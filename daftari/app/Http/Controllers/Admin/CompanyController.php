@@ -20,6 +20,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaInvoiceLog;
+use App\Services\Accounting\LedgerIntegrityService;
 use App\Services\Features\FeatureAccessService;
 use App\Services\Limits\UsageLimitService;
 use App\Services\Subscriptions\SubscriptionLifecycleService;
@@ -28,6 +29,7 @@ use App\Support\LimitRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class CompanyController extends Controller
 {
@@ -213,6 +215,9 @@ class CompanyController extends Controller
 
         $overrides = CompanyOverride::where('company_id', $company->id)->get()->keyBy(fn ($o) => "{$o->type}:{$o->key}");
 
+        $hasZatcaActivity = $company->hasAnyZatcaActivity();
+        $orphanedLedgerEntries = app(LedgerIntegrityService::class)->scanOrphans($company);
+
         $featureAccess = app(FeatureAccessService::class);
         $featureCatalog = collect(FeatureRegistry::catalog())->map(fn ($entry, $key) => [
             'key' => $key,
@@ -235,7 +240,8 @@ class CompanyController extends Controller
         return view('admin.companies.show', compact(
             'company', 'plans', 'subscription', 'usage', 'zatca', 'failedZatcaSubmissions',
             'branches', 'roles', 'activeUsersCount', 'inactiveUsersCount', 'failedPayments',
-            'storageUsedBytes', 'auditLogs', 'featureCatalog', 'limitCatalog'
+            'storageUsedBytes', 'auditLogs', 'featureCatalog', 'limitCatalog',
+            'hasZatcaActivity', 'orphanedLedgerEntries'
         ));
     }
 
@@ -652,6 +658,42 @@ class CompanyController extends Controller
         }
 
         return back()->with('status', $status);
+    }
+
+    /**
+     * Super-admin "Ledger cleanup": permanently removes journal entries
+     * left behind by a document that was deleted outside the app's own
+     * void/cancel flow (see LedgerIntegrityService's docblock) — never a
+     * real, currently-existing invoice/bill/voucher/credit-note/debit-note
+     * or its valid postings, and never reachable once the company has
+     * touched ZATCA in any way, since those historical figures may already
+     * be on file with the tax authority.
+     */
+    public function purgeLedgerOrphans(Company $company)
+    {
+        try {
+            $result = app(LedgerIntegrityService::class)->purgeOrphans($company);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['company' => $e->getMessage()]);
+        }
+
+        if ($result['entries_removed'] === 0) {
+            return back()->with('status', __('No orphaned ledger entries were found for :name.', ['name' => $company->name]));
+        }
+
+        AuditLog::record(
+            'company.purge_ledger_orphans',
+            $company,
+            __('Removed :count orphaned ledger entries for :name (gross :amount)', [
+                'count' => $result['entries_removed'],
+                'name' => $company->name,
+                'amount' => number_format($result['gross_amount'], 2),
+            ]),
+            old: null,
+            new: $result
+        );
+
+        return back()->with('status', __(':count orphaned ledger entries removed.', ['count' => $result['entries_removed']]));
     }
 
     /**

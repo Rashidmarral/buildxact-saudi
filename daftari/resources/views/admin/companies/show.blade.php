@@ -131,6 +131,53 @@
                 <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Reset company settings') }}</button>
             </form>
         </div>
+
+        <div class="bg-white rounded-xl border border-red-100 p-6">
+            <h3 class="font-semibold text-red-700 mb-1">{{ __('Ledger cleanup') }}</h3>
+            <p class="text-sm text-slate-500 mb-4">
+                {{ __('Finds journal entries left behind by a document that was deleted outside the normal void/cancel flow — each entry already nets to zero, but still clutters the General Ledger and Journal Export forever. Only removes entries whose source document is already confirmed gone; never touches a real invoice, bill, voucher, credit note, debit note, or its valid postings.') }}
+            </p>
+
+            @if ($hasZatcaActivity)
+                <div class="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-600 flex items-start gap-2">
+                    @include('partials.icon', ['name' => 'shield', 'class' => 'h-5 w-5 text-slate-400 shrink-0 mt-0.5'])
+                    <span>{{ __('This company has ZATCA activity on file (onboarding, a certificate, or a submission log — even a simulation one). Its historical ledger entries are permanently locked and cannot be corrected.') }}</span>
+                </div>
+            @elseif ($orphanedLedgerEntries->isEmpty())
+                <p class="text-sm text-slate-400">{{ __('No orphaned ledger entries found.') }}</p>
+            @else
+                <div class="overflow-x-auto mb-4">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 border-b border-slate-100">
+                                <th class="py-2 pr-4 font-medium">{{ __('Source') }}</th>
+                                <th class="py-2 pr-4 font-medium">{{ __('Entries') }}</th>
+                                <th class="py-2 pr-4 font-medium">{{ __('Description') }}</th>
+                                <th class="py-2 pr-4 font-medium text-right">{{ __('Gross debit') }}</th>
+                                <th class="py-2 font-medium text-right">{{ __('Gross credit') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($orphanedLedgerEntries as $group)
+                                <tr class="border-b border-slate-50 last:border-0">
+                                    <td class="py-2 pr-4 font-medium text-slate-800">{{ class_basename($group['model']) }} #{{ $group['source_id'] }}</td>
+                                    <td class="py-2 pr-4 text-slate-500">{{ $group['entries']->count() }}</td>
+                                    <td class="py-2 pr-4 text-slate-500">{{ $group['entries']->first()->description }}</td>
+                                    <td class="py-2 pr-4 text-right font-medium tabular-nums">{{ number_format($group['total_debit'], 2) }}</td>
+                                    <td class="py-2 text-right font-medium tabular-nums">{{ number_format($group['total_credit'], 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <form method="POST" action="{{ route('admin.companies.purge-ledger-orphans', $company) }}" onsubmit="return confirm('{{ __('Permanently remove these orphaned ledger entries? This cannot be undone.') }}')">
+                    @csrf
+                    <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">
+                        {{ __('Remove :count orphaned entries', ['count' => $orphanedLedgerEntries->sum(fn ($g) => $g['entries']->count())]) }}
+                    </button>
+                </form>
+            @endif
+        </div>
     </div>
 
     {{-- ============ Users ============ --}}
