@@ -51,10 +51,18 @@ class BankReconciliationController extends Controller
 
     public function show(BankReconciliation $bankReconciliation)
     {
-        $bankReconciliation->load('bankAccount', 'lines');
+        $bankReconciliation->load('bankAccount');
 
+        // A real bank statement import can easily run into the hundreds
+        // of lines, so the table is paginated rather than rendered in
+        // full — but the "still need matching" count and the completion
+        // check below must stay correct across every page, not just the
+        // one currently showing, hence the separate whereNull() count
+        // rather than reading it off the paginated page itself.
         return view('user.bank-accounts.reconciliations.show', [
             'reconciliation' => $bankReconciliation,
+            'lines' => $bankReconciliation->lines()->paginate(25)->withQueryString(),
+            'unmatchedCount' => $bankReconciliation->lines()->whereNull('matched_type')->count(),
             'candidates' => $this->unmatchedBookTransactions($bankReconciliation),
         ]);
     }

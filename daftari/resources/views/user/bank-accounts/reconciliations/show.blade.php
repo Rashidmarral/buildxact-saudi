@@ -4,8 +4,6 @@
 
 @section('content')
 @php
-    $unmatchedLines = $reconciliation->lines->whereNull('matched_type');
-    $matchedLines = $reconciliation->lines->whereNotNull('matched_type');
     $isDone = $reconciliation->status === 'completed';
 @endphp
 
@@ -33,7 +31,7 @@
 
 @if ($isDone)
     <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ __('This reconciliation is completed.') }}</div>
-@elseif ($unmatchedLines->isEmpty() && $candidates->isEmpty())
+@elseif ($unmatchedCount === 0 && $candidates->isEmpty())
     <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center justify-between">
         <span>{{ __('Everything is matched — ready to complete.') }}</span>
         <form method="POST" action="{{ route('app.bank-reconciliations.complete', $reconciliation) }}">
@@ -43,7 +41,7 @@
     </div>
 @else
     <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 flex items-center justify-between flex-wrap gap-3">
-        <span>{{ __(':unmatched statement line(s) and :outstanding book transaction(s) still need matching.', ['unmatched' => $unmatchedLines->count(), 'outstanding' => $candidates->count()]) }}</span>
+        <span>{{ __(':unmatched statement line(s) and :outstanding book transaction(s) still need matching.', ['unmatched' => $unmatchedCount, 'outstanding' => $candidates->count()]) }}</span>
         <form method="POST" action="{{ route('app.bank-reconciliations.complete', $reconciliation) }}" onsubmit="return confirm('{{ __('Complete this reconciliation with unmatched items remaining?') }}')">
             @csrf
             <button type="submit" class="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">{{ __('Complete anyway') }}</button>
@@ -77,7 +75,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse ($reconciliation->lines as $line)
+                @forelse ($lines as $line)
                     <tr class="border-b border-slate-50 last:border-0">
                         <td class="px-5 py-2 text-slate-500">{{ $line->date->format('Y-m-d') }}</td>
                         <td class="px-5 py-2">{{ $line->description }}</td>
@@ -120,6 +118,9 @@
                 @endforelse
             </tbody>
         </table>
+        @if ($lines->hasPages())
+            <div class="px-5 py-3 border-t border-slate-100">{{ $lines->links() }}</div>
+        @endif
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100">

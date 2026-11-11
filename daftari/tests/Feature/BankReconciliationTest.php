@@ -62,6 +62,38 @@ class BankReconciliationTest extends TestCase
         );
     }
 
+    /**
+     * A real imported statement can easily run into the hundreds of
+     * lines — the show page paginates them rather than rendering every
+     * one on a single (very long) page, but the "X line(s) still need
+     * matching" count must stay accurate across every page, not just
+     * whichever page is currently showing.
+     */
+    public function test_statement_lines_are_paginated_on_the_show_page(): void
+    {
+        [$owner, $bankAccount] = $this->makeOwner();
+        $reconciliation = BankReconciliation::create([
+            'company_id' => $owner->company_id, 'bank_account_id' => $bankAccount->id,
+            'statement_date' => '2026-06-30', 'statement_ending_balance' => 0, 'status' => 'in_progress',
+            'created_by' => $owner->id,
+        ]);
+
+        for ($day = 1; $day <= 30; $day++) {
+            BankStatementLine::create([
+                'company_id' => $owner->company_id, 'bank_reconciliation_id' => $reconciliation->id,
+                'date' => sprintf('2026-06-%02d', $day), 'description' => "Line $day", 'amount' => -1,
+            ]);
+        }
+
+        $firstPage = $this->actingAs($owner)->get(route('app.bank-reconciliations.show', $reconciliation));
+        $firstPage->assertSee('Line 1', false);
+        $firstPage->assertDontSee('Line 30');
+        $firstPage->assertSee('30 statement line(s)');
+
+        $secondPage = $this->actingAs($owner)->get(route('app.bank-reconciliations.show', $reconciliation).'?page=2');
+        $secondPage->assertSee('Line 30');
+    }
+
     public function test_starting_a_reconciliation_creates_an_in_progress_record(): void
     {
         [$owner, $bankAccount] = $this->makeOwner();
