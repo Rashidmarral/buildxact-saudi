@@ -25,7 +25,7 @@ return new class extends Migration
             $table->text('reason')->nullable(); // required on reopen, optional on close
             $table->timestamps();
 
-            $table->index(['company_id', 'party_type', 'party_id', 'created_at']);
+            $table->index(['company_id', 'party_type', 'party_id', 'created_at'], 'party_period_closures_party_idx');
         });
     }
 
