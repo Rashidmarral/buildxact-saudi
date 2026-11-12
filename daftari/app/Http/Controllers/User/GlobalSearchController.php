@@ -132,7 +132,7 @@ class GlobalSearchController extends Controller
                     'label' => __('Invoices'),
                     'items' => $invoices->map(fn ($inv) => [
                         'title' => $inv->invoice_number,
-                        'subtitle' => $inv->client->name,
+                        'subtitle' => $inv->displayClientName(),
                         'url' => route('app.invoices.show', $inv),
                     ]),
                 ];
@@ -149,7 +149,7 @@ class GlobalSearchController extends Controller
                     'label' => __('Quotations'),
                     'items' => $quotations->map(fn ($q) => [
                         'title' => $q->quotation_number,
-                        'subtitle' => $q->client->name,
+                        'subtitle' => $q->displayClientName(),
                         'url' => route('app.quotations.show', $q),
                     ]),
                 ];

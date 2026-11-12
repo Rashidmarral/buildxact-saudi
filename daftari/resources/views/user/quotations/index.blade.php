@@ -72,7 +72,7 @@
                         <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" data-row-id="{{ $quotation->id }}" onclick="window.location='{{ route('app.quotations.show', $quotation) }}'">
                             <td class="px-6 py-3" onclick="event.stopPropagation()"><input type="checkbox" :checked="selected.includes('{{ $quotation->id }}')" @change="toggleOne('{{ $quotation->id }}', $event.target.checked)"></td>
                             <td class="px-6 py-3 font-medium text-brand-700">{{ $quotation->quotation_number }}</td>
-                            <td class="px-6 py-3">{{ $quotation->client->display_name }}</td>
+                            <td class="px-6 py-3">{{ $quotation->displayClientName() }}</td>
                             <td class="px-6 py-3">{{ $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation') }}</td>
                             <td class="px-6 py-3">{{ $quotation->issue_date->format('Y-m-d') }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format($quotation->total) }}</td>
@@ -106,7 +106,7 @@
                                         </form>
                                     @endif
                                     <x-icon-button menu href="{{ route('app.quotations.pdf', $quotation) }}" icon="printer" title="{{ __('Download PDF') }}" />
-                                    @if ($quotation->client->email)
+                                    @if ($quotation->client?->email)
                                         <form method="POST" action="{{ route('app.quotations.email', $quotation) }}">
                                             @csrf
                                             <x-icon-button menu type="submit" icon="mail" title="{{ __('Email to client') }}" />

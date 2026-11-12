@@ -7,11 +7,13 @@ use App\Models\Attachment;
 use App\Models\BankReconciliation;
 use App\Models\BankTransfer;
 use App\Models\Bill;
+use App\Models\Client;
 use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\CustomsDeclaration;
 use App\Models\DebitNote;
 use App\Models\DeliveryNote;
+use App\Models\Employee;
 use App\Models\EndOfServiceSettlement;
 use App\Models\Expense;
 use App\Models\FixedAsset;
@@ -22,6 +24,11 @@ use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\KafeelPayment;
+use App\Models\MachineryHireInContract;
+use App\Models\MachineryMaintenanceLog;
+use App\Models\MachineryProjectDeployment;
+use App\Models\MachineryRentalContract;
+use App\Models\MachineryTripLog;
 use App\Models\PaymentVoucher;
 use App\Models\PayrollRun;
 use App\Models\PrepaymentInvoice;
@@ -39,6 +46,8 @@ use App\Models\ReceiptVoucher;
 use App\Models\StockAdjustment;
 use App\Models\Subcontract;
 use App\Models\SubcontractorDeduction;
+use App\Models\Supplier;
+use App\Models\User;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -274,6 +283,47 @@ class CompanyDataResetService
                 'models' => [JournalEntry::class], 'journal_source_types' => [],
                 'number_columns' => [['number' => 'next_journal_number']],
                 'extra_where' => fn (Builder $query) => $query->where('source_type', 'manual'),
+            ],
+
+            // Machinery & equipment activity — the equipment register
+            // itself (MachineryAsset) is kept, like Invoices; only its
+            // rental/hire-in contracts and usage logs are a "transaction
+            // record" in the sense this tool means.
+            'machinery_contracts_and_logs' => [
+                'label' => __('Machinery Contracts, Maintenance & Trip Logs'), 'group' => __('Assets & Adjustments'),
+                'models' => [MachineryRentalContract::class, MachineryHireInContract::class, MachineryMaintenanceLog::class, MachineryTripLog::class, MachineryProjectDeployment::class],
+                'journal_source_types' => [], 'number_columns' => [
+                    ['number' => 'next_rental_contract_number'], ['number' => 'next_hire_in_contract_number'],
+                ],
+            ],
+
+            // Master/reference data — kept out of every other group
+            // above on purpose, since these aren't themselves
+            // transaction records; each is only deletable once a
+            // migration (see 2026_11_11_235623_...) made the one "kept"
+            // document type (Invoice/Quotation) that could still
+            // reference it fall back to null instead of blocking the
+            // delete outright.
+            'clients' => [
+                'label' => __('Clients / Customers'), 'group' => __('Master Data'),
+                'models' => [Client::class], 'journal_source_types' => [], 'number_columns' => [],
+            ],
+            'suppliers' => [
+                'label' => __('Suppliers'), 'group' => __('Master Data'),
+                'models' => [Supplier::class], 'journal_source_types' => [], 'number_columns' => [],
+            ],
+            'employees' => [
+                'label' => __('Employees'), 'group' => __('Master Data'),
+                'models' => [Employee::class], 'journal_source_types' => [], 'number_columns' => [],
+            ],
+            // Every user EXCEPT the company's owner(s) — wiping every
+            // single login, with no exception, would lock the company
+            // out of its own account entirely, which is never what this
+            // tool is for even on an otherwise-total reset.
+            'users' => [
+                'label' => __('User Accounts (keeps the Owner)'), 'group' => __('Master Data'),
+                'models' => [User::class], 'journal_source_types' => [], 'number_columns' => [],
+                'extra_where' => fn (Builder $query) => $query->where('role', '!=', 'owner'),
             ],
         ];
     }

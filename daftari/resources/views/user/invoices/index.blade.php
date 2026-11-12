@@ -64,7 +64,7 @@
                         <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" data-row-id="{{ $invoice->id }}" onclick="window.location='{{ route('app.invoices.show', $invoice) }}'">
                             <td class="px-6 py-3" onclick="event.stopPropagation()"><input type="checkbox" :checked="selected.includes('{{ $invoice->id }}')" @change="toggleOne('{{ $invoice->id }}', $event.target.checked)"></td>
                             <td class="px-6 py-3 font-medium text-brand-700">{{ $invoice->invoice_number }}</td>
-                            <td class="px-6 py-3">{{ $invoice->client->display_name }}</td>
+                            <td class="px-6 py-3">{{ $invoice->displayClientName() }}</td>
                             <td class="px-6 py-3 text-slate-500">{{ $invoice->salesperson?->name ?: '—' }}</td>
                             <td class="px-6 py-3">{{ $invoice->issue_date->format('Y-m-d') }}</td>
                             <td class="px-6 py-3">{{ \App\Support\Money::format($invoice->total) }}</td>
@@ -80,7 +80,7 @@
                                     @if ($invoice->isZatcaLocked())
                                         <x-icon-button menu href="{{ route('app.invoices.xml', $invoice) }}" icon="download" title="{{ __('Download XML') }}" />
                                     @endif
-                                    @if ($invoice->client->email)
+                                    @if ($invoice->client?->email)
                                         <form method="POST" action="{{ route('app.invoices.email', $invoice) }}">
                                             @csrf
                                             <x-icon-button menu type="submit" icon="mail" title="{{ __('Email invoice') }}" />

@@ -114,7 +114,7 @@
                         @foreach ($project->invoices as $invoice)
                             <tr class="border-b border-slate-50 last:border-0">
                                 <td class="py-2"><a href="{{ route('app.invoices.show', $invoice) }}" class="text-brand-700 hover:underline">{{ $invoice->invoice_number }}</a></td>
-                                <td class="py-2 text-slate-500">{{ $invoice->client->display_name ?? '—' }}</td>
+                                <td class="py-2 text-slate-500">{{ $invoice->displayClientName() }}</td>
                                 <td class="py-2 text-end">{{ \App\Support\Money::format($invoice->total) }}</td>
                             </tr>
                         @endforeach
@@ -132,7 +132,7 @@
                         @foreach ($project->quotations as $quotation)
                             <tr class="border-b border-slate-50 last:border-0">
                                 <td class="py-2"><a href="{{ route('app.quotations.show', $quotation) }}" class="text-brand-700 hover:underline">{{ $quotation->quotation_number }}</a></td>
-                                <td class="py-2 text-slate-500">{{ $quotation->client->display_name ?? '—' }}</td>
+                                <td class="py-2 text-slate-500">{{ $quotation->displayClientName() }}</td>
                                 <td class="py-2 text-end">{{ \App\Support\Money::format($quotation->total) }}</td>
                             </tr>
                         @endforeach

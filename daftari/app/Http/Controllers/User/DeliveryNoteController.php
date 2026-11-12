@@ -93,7 +93,7 @@ class DeliveryNoteController extends Controller
             ->map(fn (Invoice $invoice) => [
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
-                'client_name' => $invoice->client->name,
+                'client_name' => $invoice->displayClientName(),
                 'issue_date' => $invoice->issue_date->format('Y-m-d'),
             ])
             ->values();

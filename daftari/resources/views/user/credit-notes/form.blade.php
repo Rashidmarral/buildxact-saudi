@@ -6,7 +6,7 @@
 <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ __('Create Credit Note') }}</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ __('Crediting invoice :number for :client', ['number' => $invoice->invoice_number, 'client' => $invoice->client->display_name]) }}</p>
+        <p class="text-sm text-slate-500 mt-1">{{ __('Crediting invoice :number for :client', ['number' => $invoice->invoice_number, 'client' => $invoice->displayClientName()]) }}</p>
     </div>
     <a href="{{ route('app.credit-notes.index') }}" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Cancel') }}</a>
 </div>
@@ -16,7 +16,7 @@
     <div class="grid sm:grid-cols-3 gap-4 text-sm">
         <div><span class="text-slate-400">{{ __('Invoice No.') }}:</span> <span class="font-medium text-slate-800">{{ $invoice->invoice_number }}</span></div>
         <div><span class="text-slate-400">{{ __('Date') }}:</span> <span class="font-medium text-slate-800">{{ $invoice->issue_date->format('Y-m-d') }}</span></div>
-        <div><span class="text-slate-400">{{ __('Customer') }}:</span> <span class="font-medium text-slate-800">{{ $invoice->client->display_name }}</span></div>
+        <div><span class="text-slate-400">{{ __('Customer') }}:</span> <span class="font-medium text-slate-800">{{ $invoice->displayClientName() }}</span></div>
         @if ($invoice->branch)
             <div><span class="text-slate-400">{{ __('Business Location') }}:</span> <span class="font-medium text-slate-800">{{ $invoice->branch->name }}</span></div>
         @endif

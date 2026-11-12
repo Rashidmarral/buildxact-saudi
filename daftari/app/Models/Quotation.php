@@ -70,6 +70,18 @@ class Quotation extends Model
         return $this->belongsTo(Client::class);
     }
 
+    /**
+     * Quotations keep no frozen party snapshot the way Invoice does (see
+     * Invoice::displayClientName()) — a quotation has no ZATCA/legal
+     * retention requirement forcing one — so this just needs to never
+     * crash once client_id can be null (the super-admin company data
+     * reset tool deleting a client a kept quotation still references).
+     */
+    public function displayClientName(): string
+    {
+        return $this->client?->name ?? __('Deleted client');
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);

@@ -118,7 +118,7 @@
                         <tr class="border-b border-slate-50 last:border-0">
                             <td class="py-2 text-slate-500">{{ $row->invoice->issue_date->format('Y-m-d') }}</td>
                             <td class="py-2"><a href="{{ route('app.invoices.show', $row->invoice) }}" class="text-brand-700 hover:underline">{{ $row->invoice->invoice_number }}</a></td>
-                            <td class="py-2">{{ $row->invoice->client->display_name ?? '—' }}</td>
+                            <td class="py-2">{{ $row->invoice->displayClientName() }}</td>
                             <td class="py-2">{{ $row->line->description }}</td>
                             <td class="py-2 text-end">{{ \App\Support\Money::format($row->line->line_total) }}</td>
                         </tr>

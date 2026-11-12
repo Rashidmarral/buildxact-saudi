@@ -183,7 +183,7 @@ class ReportController extends Controller
             default => $this->csvResponse('tax-report-sales.csv',
                 [__('Date'), __('Reference'), __('Customer'), __('Tax Number'), __('Salesperson'), __('Net Amount Excl. Tax'), __('Discount'), __('Tax Amount'), __('Total Amount'), __('Payment Status')],
                 $salesRows->map(fn (Invoice $i) => [
-                    $i->issue_date?->format('Y-m-d'), $i->invoice_number, $i->client->name ?? '', $i->client->vat_number ?? '', $i->salesperson->name ?? '',
+                    $i->issue_date?->format('Y-m-d'), $i->invoice_number, $i->displayClientName(), $i->client->vat_number ?? '', $i->salesperson->name ?? '',
                     number_format((float) $i->subtotal, 2, '.', ''), number_format((float) $i->discount_total, 2, '.', ''),
                     number_format((float) $i->vat_total, 2, '.', ''), number_format((float) $i->total, 2, '.', ''),
                     $this->paymentStatusLabel((float) $i->amount_paid, (float) $i->total),
@@ -907,13 +907,13 @@ class ReportController extends Controller
         $direction = $request->query('direction', 'desc');
         $items = $items->sortBy(fn ($row) => match ($sort) {
             'amount' => $row->line->line_total,
-            'customer' => $row->invoice->client->name ?? '',
+            'customer' => $row->invoice->displayClientName(),
             default => $row->invoice->issue_date,
         }, SORT_REGULAR, $direction === 'desc')->values();
 
         if ($request->query('export') === 'csv') {
             return $this->csvResponse('sales-report.csv', [__('Date'), __('Invoice'), __('Customer'), __('Description'), __('Total')],
-                $items->map(fn ($r) => [$r->invoice->issue_date->format('Y-m-d'), $r->invoice->invoice_number, $r->invoice->client->name ?? '', $r->line->description, number_format($r->line->line_total, 2, '.', '')]));
+                $items->map(fn ($r) => [$r->invoice->issue_date->format('Y-m-d'), $r->invoice->invoice_number, $r->invoice->displayClientName(), $r->line->description, number_format($r->line->line_total, 2, '.', '')]));
         }
 
         $salesSummary = [
@@ -2038,7 +2038,7 @@ class ReportController extends Controller
                 'date' => $i->issue_date,
                 'transactionType' => __('Invoice'),
                 'reference' => $i->invoice_number,
-                'party' => $i->client->name,
+                'party' => $i->displayClientName(),
                 'dueDate' => $i->due_date ?? $i->issue_date,
                 'due' => (float) $i->balanceDue(),
             ])

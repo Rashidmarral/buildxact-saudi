@@ -311,4 +311,62 @@ class CompanyDataResetTest extends TestCase
 
         $this->assertDatabaseHas('audit_logs', ['action' => 'company.data_reset', 'admin_user_id' => $admin->id]);
     }
+
+    // ---------------------------------------------------------------
+    // Master data — clients/suppliers/employees/users
+    // ---------------------------------------------------------------
+
+    /**
+     * "test client and supplier linked with quotation invoice or bill
+     * that will be deleted also" — a Client still referenced by a KEPT
+     * Invoice must still be deletable (the invoice falls back to its own
+     * frozen party_snapshot instead of blocking the delete), while an
+     * Invoice tied to a Client that gets deleted alongside it (both
+     * categories selected) is of course gone too.
+     */
+    public function test_a_client_can_be_deleted_even_though_a_kept_invoice_still_references_it(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeCompany();
+        $invoice = $this->makeInvoice($company);
+        $invoice->update(['status' => 'sent']);
+        $invoice->capturePartySnapshot();
+        $clientId = $invoice->client_id;
+        $clientName = $invoice->client->name;
+
+        $this->actingAs($admin)
+            ->withSession(['auth.password_confirmed_at' => now()->timestamp])
+            ->post(route('admin.companies.data-reset.execute', $company), [
+                'categories' => ['clients'],
+                'confirm_name' => $company->name,
+            ])
+            ->assertRedirect(route('admin.companies.show', $company));
+
+        $this->assertDatabaseMissing('clients', ['id' => $clientId]);
+        $invoice->refresh();
+        $this->assertNull($invoice->client_id);
+        $this->assertSame($clientName, $invoice->displayClientName());
+    }
+
+    public function test_suppliers_employees_and_non_owner_users_are_wiped_while_the_owner_survives(): void
+    {
+        $admin = $this->makeAdmin();
+        $company = $this->makeCompany();
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+        $staff = User::factory()->create(['role' => 'staff', 'company_id' => $company->id, 'status' => 'active']);
+        $supplier = Supplier::create(['company_id' => $company->id, 'type' => 'company', 'name' => 'Old Supplier']);
+        $employee = \App\Models\Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-001', 'full_name' => 'Old Employee', 'hire_date' => now()->toDateString(), 'status' => 'active']);
+
+        $this->actingAs($admin)
+            ->withSession(['auth.password_confirmed_at' => now()->timestamp])
+            ->post(route('admin.companies.data-reset.execute', $company), [
+                'categories' => ['suppliers', 'employees', 'users'],
+                'confirm_name' => $company->name,
+            ]);
+
+        $this->assertDatabaseMissing('suppliers', ['id' => $supplier->id]);
+        $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
+        $this->assertDatabaseMissing('users', ['id' => $staff->id]);
+        $this->assertDatabaseHas('users', ['id' => $owner->id]);
+    }
 }

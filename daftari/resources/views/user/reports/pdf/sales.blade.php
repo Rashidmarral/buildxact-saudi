@@ -35,7 +35,7 @@
             <tr>
                 <td>{{ $row->invoice->issue_date->format('Y-m-d') }}</td>
                 <td>{{ $row->invoice->invoice_number }}</td>
-                <td>{{ $row->invoice->client->name ?? '' }}</td>
+                <td>{{ $row->invoice->displayClientName() }}</td>
                 <td>{{ $row->line->description }}</td>
                 <td class="num">{{ number_format($row->line->line_total, 2) }}</td>
             </tr>

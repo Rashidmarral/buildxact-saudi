@@ -297,6 +297,21 @@ class Invoice extends Model
     }
 
     /**
+     * Just the buyer's name, for places that only ever show a name (search
+     * results, report rows, notification text) rather than a full party —
+     * those don't need partyForDocument()'s richer object, just something
+     * that never crashes once client_id can be null (see the migration
+     * that made it nullable, for the super-admin company data reset tool
+     * deleting a client a kept invoice still references). Prefers the
+     * live client's current name over the frozen snapshot for a
+     * still-open invoice, same as partyForDocument() does.
+     */
+    public function displayClientName(): string
+    {
+        return $this->client?->name ?? ($this->party_snapshot['name'] ?? null) ?? __('Deleted client');
+    }
+
+    /**
      * Seller-side counterpart to partyForDocument() — see
      * capturePartySnapshot() for why pdfData() and ZatcaXmlGenerator
      * both need to go through this rather than reading $this->company

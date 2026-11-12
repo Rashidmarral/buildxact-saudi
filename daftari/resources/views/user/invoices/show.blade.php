@@ -74,19 +74,19 @@
                 <span x-show="copied" style="display: none;">{{ __('Link copied!') }}</span>
             </button>
         @endif
-        @if ($invoice->client->email)
+        @if ($invoice->client?->email)
             <form method="POST" action="{{ route('app.invoices.email', $invoice) }}">
                 @csrf
                 <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Email to client') }}</button>
             </form>
         @endif
-        @if ($whatsappEnabled && ($invoice->client->mobile || $invoice->client->phone))
+        @if ($whatsappEnabled && ($invoice->client?->mobile || $invoice->client?->phone))
             <form method="POST" action="{{ route('app.invoices.whatsapp', $invoice) }}">
                 @csrf
                 <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Send via WhatsApp') }}</button>
             </form>
         @endif
-        @if ($smsEnabled && ($invoice->client->mobile || $invoice->client->phone))
+        @if ($smsEnabled && ($invoice->client?->mobile || $invoice->client?->phone))
             <form method="POST" action="{{ route('app.invoices.sms', $invoice) }}">
                 @csrf
                 <button type="submit" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Send via SMS') }}</button>
@@ -125,7 +125,7 @@
         'date2' => $invoice->due_date,
         'party_label' => __('Bill to'),
         'party_label_ar' => 'العميل',
-        'party' => $invoice->client,
+        'party' => $invoice->partyForDocument(),
         'qr_code' => $invoice->qr_code,
         'zatca_status' => $invoice->zatcaInvoiceLogs()->whereIn('status', ['cleared', 'reported'])->latest('id')->value('status'),
         'payment_status' => $invoice->status,

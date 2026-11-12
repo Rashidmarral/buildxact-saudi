@@ -161,7 +161,7 @@ class InvoiceController extends Controller
     {
         return [
             $invoice->invoice_number,
-            $invoice->client->name,
+            $invoice->displayClientName(),
             $invoice->issue_date->format('Y-m-d'),
             number_format($invoice->total, 2),
             number_format($invoice->balanceDue(), 2),
@@ -353,6 +353,10 @@ class InvoiceController extends Controller
 
     public function emailInvoice(Invoice $invoice, Request $request, MpdfRenderer $renderer, \App\Services\CompanyMailService $mailService)
     {
+        if (! $invoice->client) {
+            return back()->withErrors(['invoice' => __('This client record no longer exists.')]);
+        }
+
         $recipient = $invoice->client->email;
 
         if (! $recipient) {
@@ -385,6 +389,10 @@ class InvoiceController extends Controller
     {
         $config = WhatsappConfig::first();
         abort_unless($config && $config->is_enabled, 404);
+
+        if (! $invoice->client) {
+            return back()->withErrors(['invoice' => __('This client record no longer exists.')]);
+        }
 
         $phone = $invoice->client->mobile ?: $invoice->client->phone;
 
@@ -419,6 +427,10 @@ class InvoiceController extends Controller
     {
         $config = SmsConfig::first();
         abort_unless($config && $config->is_enabled, 404);
+
+        if (! $invoice->client) {
+            return back()->withErrors(['invoice' => __('This client record no longer exists.')]);
+        }
 
         $phone = $invoice->client->mobile ?: $invoice->client->phone;
 
@@ -598,7 +610,7 @@ class InvoiceController extends Controller
      */
     private function blockedByCreditHold(Invoice $invoice): ?\Illuminate\Http\RedirectResponse
     {
-        if (! $invoice->client->credit_hold) {
+        if (! $invoice->client?->credit_hold) {
             return null;
         }
 
@@ -693,7 +705,7 @@ class InvoiceController extends Controller
             if (! $chain->approveStep($currentStep, Auth::user())) {
                 $chain->notifyStepApprovers($chain->currentStep($invoice), fn (User $user) => $user->notify(new GenericNotification(
                     title: __('Invoice awaiting your approval'),
-                    body: __(':amount :currency for :client', ['amount' => number_format((float) $invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->client->name]),
+                    body: __(':amount :currency for :client', ['amount' => number_format((float) $invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->displayClientName()]),
                     url: route('app.invoices.show', $invoice),
                     icon: 'invoices',
                 )));
@@ -1079,7 +1091,7 @@ class InvoiceController extends Controller
             $chain->start($invoice, $steps);
             $chain->notifyStepApprovers($chain->currentStep($invoice), fn (User $user) => $user->notify(new GenericNotification(
                 title: __('Invoice awaiting your approval'),
-                body: __(':amount :currency for :client', ['amount' => number_format((float) $invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->client->name]),
+                body: __(':amount :currency for :client', ['amount' => number_format((float) $invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->displayClientName()]),
                 url: route('app.invoices.show', $invoice),
                 icon: 'invoices',
             )));
@@ -1106,7 +1118,7 @@ class InvoiceController extends Controller
             ->filter(fn (User $user) => $user->hasPermission('approvals'))
             ->each(fn (User $user) => $user->notify(new GenericNotification(
                 title: __('Invoice awaiting approval'),
-                body: __(':amount :currency for :client', ['amount' => number_format($invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->client->name]),
+                body: __(':amount :currency for :client', ['amount' => number_format($invoice->total, 2), 'currency' => $invoice->currency, 'client' => $invoice->displayClientName()]),
                 url: route('app.invoices.show', $invoice),
                 icon: 'invoices',
             )));

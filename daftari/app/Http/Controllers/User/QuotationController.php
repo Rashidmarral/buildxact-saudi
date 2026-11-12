@@ -159,6 +159,10 @@ class QuotationController extends Controller
 
     public function emailQuotation(Quotation $quotation, MpdfRenderer $renderer, \App\Services\CompanyMailService $mailService)
     {
+        if (! $quotation->client) {
+            return back()->withErrors(['quotation' => __('This client record no longer exists.')]);
+        }
+
         $recipient = $quotation->client->email;
 
         if (! $recipient) {
@@ -331,7 +335,7 @@ class QuotationController extends Controller
     {
         return [
             $quotation->quotation_number,
-            $quotation->client->name,
+            $quotation->displayClientName(),
             $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
             $quotation->issue_date->format('Y-m-d'),
             number_format($quotation->total, 2),
@@ -705,7 +709,7 @@ class QuotationController extends Controller
             ->filter(fn (User $user) => $user->hasPermission('approvals'))
             ->each(fn (User $user) => $user->notify(new GenericNotification(
                 title: __('Quotation awaiting approval'),
-                body: __(':amount :currency for :client', ['amount' => number_format($quotation->total, 2), 'currency' => $quotation->currency, 'client' => $quotation->client->name]),
+                body: __(':amount :currency for :client', ['amount' => number_format($quotation->total, 2), 'currency' => $quotation->currency, 'client' => $quotation->displayClientName()]),
                 url: route('app.quotations.show', $quotation),
                 icon: 'quotations',
             )));
