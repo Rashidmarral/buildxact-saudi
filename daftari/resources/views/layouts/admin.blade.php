@@ -22,7 +22,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @include('partials.branding-overrides')
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, darkMode: document.documentElement.classList.contains('dark') }" x-init="$watch('darkMode', value => { document.documentElement.classList.toggle('dark', value); try { localStorage.setItem('theme', value ? 'dark' : 'light'); } catch (e) {} })">
+<body class="min-h-screen bg-slate-50 text-slate-800 antialiased" x-data="{ mobileNavOpen: false, userMenuOpen: false, darkMode: document.documentElement.classList.contains('dark') }" x-init="$watch('darkMode', value => { document.documentElement.classList.toggle('dark', value); try { localStorage.setItem('theme', value ? 'dark' : 'light'); } catch (e) {} })">
     <div class="flex min-h-screen">
         <div x-show="mobileNavOpen" x-transition:enter="transition-opacity ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="mobileNavOpen = false" class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden" style="display: none;"></div>
 
@@ -70,10 +70,32 @@
                         <span x-show="!darkMode">@include('partials.icon', ['name' => 'moon', 'class' => 'h-[18px] w-[18px]'])</span>
                         <span x-show="darkMode" style="display: none;">@include('partials.icon', ['name' => 'sun', 'class' => 'h-[18px] w-[18px]'])</span>
                     </button>
-                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white shadow-soft">
-                        {{ mb_substr(auth()->user()->name, 0, 1) }}
-                    </span>
-                    <span class="hidden text-sm font-medium text-slate-700 sm:block">{{ auth()->user()->name }}</span>
+                    <div class="relative" @click.outside="userMenuOpen = false">
+                        <button type="button" @click="userMenuOpen = !userMenuOpen" class="flex items-center gap-2.5 rounded-lg py-1 ps-1 pe-2 transition-colors hover:bg-slate-100">
+                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-sm font-semibold text-white shadow-soft">
+                                {{ mb_substr(auth()->user()->name, 0, 1) }}
+                            </span>
+                            <span class="hidden text-sm font-medium text-slate-700 sm:block">{{ auth()->user()->name }}</span>
+                            <span class="hidden text-slate-400 transition-transform sm:block" :class="userMenuOpen ? 'rotate-180' : ''">@include('partials.icon', ['name' => 'chevron-down', 'class' => 'h-3.5 w-3.5'])</span>
+                        </button>
+                        <div x-show="userMenuOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95 -translate-y-1" x-transition:enter-end="opacity-100 scale-100 translate-y-0" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute end-0 top-full z-40 mt-2 w-56 rounded-xl border border-slate-100 bg-white py-2 shadow-card-hover" style="display: none;">
+                            <div class="border-b border-slate-50 px-4 py-2.5">
+                                <p class="truncate text-sm font-semibold text-slate-800">{{ auth()->user()->name }}</p>
+                                <p class="truncate text-xs text-slate-400">{{ auth()->user()->email }}</p>
+                            </div>
+                            <a href="{{ route('admin.settings.two-factor') }}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                                @include('partials.icon', ['name' => 'shield', 'class' => 'h-4 w-4 text-slate-400'])
+                                {{ __('Security') }}
+                            </a>
+                            <form method="POST" action="{{ route('logout') }}" class="border-t border-slate-50 pt-1">
+                                @csrf
+                                <button class="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                    @include('partials.icon', ['name' => 'logout', 'class' => 'h-4 w-4'])
+                                    {{ __('Log out') }}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </header>
 
