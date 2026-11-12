@@ -107,6 +107,7 @@ use App\Http\Controllers\User\NotificationController;
 use App\Http\Controllers\User\OwnerReimbursementController;
 use App\Http\Controllers\User\PaymentModeController;
 use App\Http\Controllers\User\PaymentVoucherController;
+use App\Http\Controllers\User\PartyPeriodClosureController;
 use App\Http\Controllers\User\AdvanceCreditController;
 use App\Http\Controllers\User\PrepaymentInvoiceController;
 use App\Http\Controllers\User\ProjectBillingController;
@@ -328,6 +329,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::post('clients/{client}/collection-notes', [CollectionNoteController::class, 'store'])->name('clients.collection-notes.store');
         Route::delete('collection-notes/{collectionNote}', [CollectionNoteController::class, 'destroy'])->name('collection-notes.destroy');
         Route::post('clients/{client}/credit-hold', [CollectionNoteController::class, 'toggleHold'])->name('clients.credit-hold');
+        Route::post('clients/{client}/close-period', [PartyPeriodClosureController::class, 'closeClient'])->name('clients.close-period');
+        Route::post('clients/{client}/reopen-period', [PartyPeriodClosureController::class, 'reopenClient'])->name('clients.reopen-period');
         Route::get('clients-import', [ClientController::class, 'showImport'])->name('clients.import');
         Route::post('clients-import', [ClientController::class, 'import'])->name('clients.import.store');
         Route::get('clients-import/template', [ClientController::class, 'importTemplate'])->name('clients.import.template');
@@ -633,6 +636,8 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('suppliers/{supplier}/outstanding-bills', [SupplierController::class, 'outstandingBills'])->name('suppliers.outstanding-bills');
         Route::post('suppliers/{supplier}/log-contact', [SupplierController::class, 'logContact'])->name('suppliers.log-contact');
         Route::get('suppliers/{supplier}/bills', [SupplierController::class, 'bills'])->name('suppliers.bills');
+        Route::post('suppliers/{supplier}/close-period', [PartyPeriodClosureController::class, 'closeSupplier'])->name('suppliers.close-period');
+        Route::post('suppliers/{supplier}/reopen-period', [PartyPeriodClosureController::class, 'reopenSupplier'])->name('suppliers.reopen-period');
         Route::get('suppliers-import', [SupplierController::class, 'showImport'])->name('suppliers.import');
         Route::post('suppliers-import', [SupplierController::class, 'import'])->name('suppliers.import.store');
         Route::get('suppliers-import/template', [SupplierController::class, 'importTemplate'])->name('suppliers.import.template');

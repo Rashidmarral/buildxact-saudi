@@ -104,23 +104,53 @@ class FinancialReportService
      * (trial-balance-detailed) or only the category subtotal line
      * (plain trial-balance).
      *
+     * $costCenterId/$locationId mirror the same optional dimension
+     * filters generalLedger() already established — left null (the
+     * default), every existing caller's exact pre-filter figures are
+     * unchanged; an account whose activity is all outside the filtered
+     * dimension still contributes its opening balance (computed the same
+     * filtered way) and simply shows no transactions for the period.
+     *
      * @return array{types: Collection, grand: array}
      */
-    public function trialBalanceGrouped(Company $company, Carbon $from, Carbon $to): array
+    public function trialBalanceGrouped(Company $company, Carbon $from, Carbon $to, ?int $costCenterId = null, ?int $locationId = null): array
     {
         $openingAsOf = $from->copy()->subDay();
+
+        $invoiceIdsForLocation = $billIdsForLocation = null;
+        if ($locationId) {
+            $invoiceIdsForLocation = Invoice::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+            $billIdsForLocation = Bill::where('company_id', $company->id)->where('branch_id', $locationId)->pluck('id');
+        }
+
+        $applyFilters = function ($query) use ($costCenterId, $locationId, $invoiceIdsForLocation, $billIdsForLocation) {
+            if ($costCenterId) {
+                $query->where('cost_center_id', $costCenterId);
+            }
+
+            if ($locationId) {
+                $query->whereHas('journalEntry', fn ($jq) => $jq->where(
+                    fn ($q) => $q->where(fn ($q2) => $q2->where('source_type', 'invoice')->whereIn('source_id', $invoiceIdsForLocation))
+                        ->orWhere(fn ($q2) => $q2->where('source_type', 'bill')->whereIn('source_id', $billIdsForLocation))
+                ));
+            }
+        };
 
         $rows = Account::where('company_id', $company->id)
             ->where('is_active', true)
             ->orderBy('code')
             ->get()
-            ->map(function (Account $account) use ($from, $to, $openingAsOf) {
-                $openingSigned = $this->accountBalanceAsOf($account, $openingAsOf);
+            ->map(function (Account $account) use ($from, $to, $openingAsOf, $applyFilters, $costCenterId, $locationId) {
+                $openingSigned = $costCenterId || $locationId
+                    ? $this->filteredAccountBalanceAsOf($account, $openingAsOf, $applyFilters)
+                    : $this->accountBalanceAsOf($account, $openingAsOf);
                 $periodDebit = (float) $account->journalEntryLines()
                     ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+                    ->tap($applyFilters)
                     ->sum('debit');
                 $periodCredit = (float) $account->journalEntryLines()
                     ->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))
+                    ->tap($applyFilters)
                     ->sum('credit');
                 $closingSigned = $openingSigned + ($account->normal_balance === 'debit' ? $periodDebit - $periodCredit : $periodCredit - $periodDebit);
 
@@ -437,6 +467,21 @@ class FinancialReportService
     {
         $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('debit');
         $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->sum('credit');
+
+        return $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
+    }
+
+    /**
+     * Same as accountBalanceAsOf(), restricted to a cost-centre/location
+     * dimension via the same $applyFilters closure trialBalanceGrouped()
+     * builds — kept separate rather than adding filter params to the
+     * plain version so every other caller's unfiltered figure is
+     * provably untouched.
+     */
+    private function filteredAccountBalanceAsOf(Account $account, Carbon $asOf, \Closure $applyFilters): float
+    {
+        $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->tap($applyFilters)->sum('debit');
+        $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereDate('entry_date', '<=', $asOf->toDateString()))->tap($applyFilters)->sum('credit');
 
         return $account->normal_balance === 'debit' ? $debit - $credit : $credit - $debit;
     }

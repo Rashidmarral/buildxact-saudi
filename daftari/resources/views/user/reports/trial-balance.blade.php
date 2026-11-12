@@ -9,13 +9,52 @@
         <p class="text-sm text-slate-500 mt-1">{{ __('Opening balance, this period\'s movement, and closing balance for every account, grouped by category.') }}</p>
     </div>
     <div class="flex items-center gap-2">
-        <a href="{{ route('app.reports.trial-balance-detailed', request()->query()) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('View detailed') }}</a>
         <a href="{{ route('app.reports.trial-balance', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
         <a href="{{ route('app.reports.trial-balance', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
     </div>
 </div>
 
 @include('user.reports.partials.period-selector')
+
+<form method="GET" class="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex flex-wrap items-end gap-3">
+    <input type="hidden" name="period" value="{{ $period['preset'] }}">
+    @if ($period['preset'] === 'custom')
+        <input type="hidden" name="from" value="{{ $period['from']->toDateString() }}">
+        <input type="hidden" name="to" value="{{ $period['to']->toDateString() }}">
+    @elseif ($period['preset'] === 'quarter')
+        <input type="hidden" name="quarter" value="{{ $period['quarter'] ?? now()->quarter }}">
+        <input type="hidden" name="year" value="{{ $period['year'] ?? now()->year }}">
+    @endif
+    <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">{{ __('Cost centre') }}</label>
+        <select name="cost_center_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[12rem]">
+            <option value="">{{ __('All cost centres') }}</option>
+            @foreach ($costCenters as $cc)
+                <option value="{{ $cc->id }}" @selected($costCenterId === $cc->id)>{{ $cc->label() ?? $cc->name }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">{{ __('Location') }}</label>
+        <select name="location_id" class="rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[12rem]">
+            <option value="">{{ __('All locations') }}</option>
+            @foreach ($branches as $branch)
+                <option value="{{ $branch->id }}" @selected($locationId === $branch->id)>{{ $branch->name }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">{{ __('View') }}</label>
+        <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
+            <a href="{{ route('app.reports.trial-balance', request()->query()) }}" class="px-3 py-2 font-semibold {{ ! $detailed ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50' }}">{{ __('Summary') }}</a>
+            <a href="{{ route('app.reports.trial-balance-detailed', request()->query()) }}" class="px-3 py-2 font-semibold border-l border-slate-200 {{ $detailed ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50' }}">{{ __('Detailed') }}</a>
+        </div>
+    </div>
+    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Apply') }}</button>
+    @if ($locationId)
+        <p class="w-full text-xs text-amber-600">{{ __('A location filter is active: only entries sourced from an invoice or bill at that location are included — manual journal lines carry no location and are always excluded when this filter is on.') }}</p>
+    @endif
+</form>
 
 <div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
     <table class="w-full text-sm">

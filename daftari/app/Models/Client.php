@@ -33,7 +33,7 @@ class Client extends Model
         'postal_code', 'additional_number', 'short_address', 'notes',
         'lead_source', 'next_follow_up_date', 'last_contacted_at', 'pipeline_stage', 'lost_reason',
         'platform_billed_company_id',
-        'credit_hold', 'credit_hold_reason',
+        'credit_hold', 'credit_hold_reason', 'lock_date',
     ];
 
     protected function casts(): array
@@ -45,6 +45,7 @@ class Client extends Model
             'next_follow_up_date' => 'date',
             'last_contacted_at' => 'datetime',
             'credit_hold' => 'boolean',
+            'lock_date' => 'date',
         ];
     }
 

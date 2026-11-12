@@ -222,7 +222,9 @@ class ReportController extends Controller
     {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
-        $data = app(FinancialReportService::class)->trialBalanceGrouped($company, $period['from'], $period['to']);
+        $costCenterId = $request->filled('cost_center_id') ? (int) $request->query('cost_center_id') : null;
+        $locationId = $request->filled('location_id') ? (int) $request->query('location_id') : null;
+        $data = app(FinancialReportService::class)->trialBalanceGrouped($company, $period['from'], $period['to'], $costCenterId, $locationId);
 
         $view = $detailed ? 'trial-balance-detailed' : 'trial-balance';
         $routeName = $detailed ? 'app.reports.trial-balance-detailed' : 'app.reports.trial-balance';
@@ -260,7 +262,14 @@ class ReportController extends Controller
             return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.($detailed ? 'trial-balance-detailed' : 'trial-balance').'.pdf"']);
         }
 
-        return view('user.reports.'.$view, ['company' => $company, 'period' => $period, 'routeName' => $routeName] + $data);
+        return view('user.reports.'.$view, [
+            'company' => $company, 'period' => $period, 'routeName' => $routeName,
+            'costCenters' => CostCenter::where('is_active', true)->orderBy('name')->get(),
+            'costCenterId' => $costCenterId,
+            'branches' => Branch::orderBy('name')->get(),
+            'locationId' => $locationId,
+            'detailed' => $detailed,
+        ] + $data);
     }
 
     /**

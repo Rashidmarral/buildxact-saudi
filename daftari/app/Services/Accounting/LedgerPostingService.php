@@ -64,6 +64,8 @@ class LedgerPostingService
             throw new PeriodLockedException(__('The books are locked through :date — this transaction falls inside a closed period and cannot be posted. Move the lock date forward in Settings to reopen it.', ['date' => $company->accounting_lock_date->format('Y-m-d')]));
         }
 
+        $this->guardAgainstPartyLock($sourceType, $sourceId, $date);
+
         $totalDebit = round(array_sum(array_map(fn ($l) => (float) ($l['debit'] ?? 0), $lines)), 2);
         $totalCredit = round(array_sum(array_map(fn ($l) => (float) ($l['credit'] ?? 0), $lines)), 2);
 
@@ -268,6 +270,53 @@ class LedgerPostingService
     private function account(Company $company, string $key, ?int $branchId = null): ?Account
     {
         return AccountMapping::resolve($company->id, $key, $branchId);
+    }
+
+    /**
+     * "app have an ability to close records of supplier and client on
+     * monthly/quarterly basis" (task #158) — a per-party mirror of the
+     * company-wide accounting_lock_date check above: resolves the
+     * client/supplier a given source document belongs to (stripping any
+     * '_reversal' suffix first, so a reversal is governed by the same
+     * party lock as the original posting) and blocks it if that party's
+     * own lock_date covers the entry's date. Source types with no
+     * client/supplier concept (manual, payroll, pos settlement, bank
+     * transfer, etc.) simply resolve to no party and are never blocked
+     * here.
+     */
+    private function guardAgainstPartyLock(string $sourceType, int $sourceId, \DateTimeInterface $date): void
+    {
+        $party = $this->resolveLockableParty($sourceType, $sourceId);
+
+        if (! $party || ! $party->lock_date || Carbon::parse($date)->startOfDay()->gt($party->lock_date)) {
+            return;
+        }
+
+        $label = $party instanceof \App\Models\Supplier ? __('supplier') : __('client');
+
+        throw new PeriodLockedException(__("This :partyType's records are locked through :date — this transaction falls inside their closed period and cannot be posted. Reopen their period first.", [
+            'partyType' => $label,
+            'date' => $party->lock_date->format('Y-m-d'),
+        ]));
+    }
+
+    private function resolveLockableParty(string $sourceType, int $sourceId): \App\Models\Client|\App\Models\Supplier|null
+    {
+        $baseType = str_ends_with($sourceType, '_reversal') ? substr($sourceType, 0, -9) : $sourceType;
+
+        return match ($baseType) {
+            'invoice' => Invoice::find($sourceId)?->client,
+            'credit_note' => CreditNote::find($sourceId)?->client,
+            'debit_note' => DebitNote::find($sourceId)?->client,
+            'invoice_payment' => InvoicePayment::find($sourceId)?->invoice?->client,
+            'pos_sale' => PosSale::find($sourceId)?->client,
+            'bill' => Bill::find($sourceId)?->supplier,
+            'bill_payment' => BillPayment::find($sourceId)?->bill?->supplier,
+            'purchase_return' => PurchaseReturn::find($sourceId)?->supplier,
+            'receipt_voucher' => ($voucher = ReceiptVoucher::find($sourceId)) ? ($voucher->client ?? $voucher->supplier) : null,
+            'payment_voucher' => ($voucher = PaymentVoucher::find($sourceId)) ? ($voucher->client ?? $voucher->supplier) : null,
+            default => null,
+        };
     }
 
     /**

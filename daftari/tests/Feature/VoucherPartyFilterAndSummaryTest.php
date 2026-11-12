@@ -78,11 +78,18 @@ class VoucherPartyFilterAndSummaryTest extends TestCase
         $this->assertStringStartsWith('application/pdf', $response->headers->get('Content-Type'));
     }
 
-    public function test_the_combined_pdf_requires_a_party_filter(): void
+    /**
+     * Superseded by task #156 ("there is no option to download the
+     * report on receipt voucher and payment vouchers to download all
+     * the records") — the combined PDF used to 404 without a party
+     * filter; it now exports whatever the current filters (including
+     * none) resolve to, matching the index page's own CSV export.
+     */
+    public function test_the_combined_pdf_works_without_a_party_filter(): void
     {
         $owner = $this->makeOwner();
 
-        $this->actingAs($owner)->get(route('app.payment-vouchers.summary-pdf'))->assertNotFound();
+        $this->actingAs($owner)->get(route('app.payment-vouchers.summary-pdf'))->assertOk();
     }
 
     public function test_filtering_receipt_vouchers_by_client_shows_only_their_vouchers_and_the_right_total(): void

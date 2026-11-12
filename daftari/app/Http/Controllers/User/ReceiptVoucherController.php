@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesApprovalSeparation;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
@@ -26,7 +27,7 @@ use Illuminate\Validation\Rule;
 
 class ReceiptVoucherController extends Controller
 {
-    use EnforcesApprovalSeparation, EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
+    use EnforcesApprovalSeparation, EnforcesStorageQuota, ExportsCsv, GroupsVouchersByPayee, ResolvesPerPage;
 
     public function downloadPdf(ReceiptVoucher $receiptVoucher, MpdfRenderer $renderer)
     {
@@ -63,6 +64,15 @@ class ReceiptVoucherController extends Controller
 
         $total = (clone $query)->where('status', 'issued')->sum('amount');
 
+        // "download the report on receipt voucher ... to download all
+        // the records on show page" — exports every row the current
+        // filters match, not just checked rows, independent of pagination.
+        if ($request->query('export') === 'csv') {
+            $vouchers = (clone $query)->latest('date')->latest('id')->get();
+
+            return $this->csvResponse('receipt-vouchers.csv', $this->csvHeader(), $vouchers->map(fn ($v) => $this->csvRow($v)));
+        }
+
         $vouchers = $query->latest('date')->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.receipt-vouchers.index', [
@@ -74,6 +84,24 @@ class ReceiptVoucherController extends Controller
         ]);
     }
 
+    private function csvHeader(): array
+    {
+        return [__('Voucher'), __('Date'), __('Received from'), __('Bank/Cash account'), __('Amount'), __('Method'), __('Status')];
+    }
+
+    private function csvRow(ReceiptVoucher $voucher): array
+    {
+        return [
+            $voucher->voucher_number,
+            $voucher->date->format('Y-m-d'),
+            $voucher->payer_name,
+            $voucher->bankAccount?->name,
+            number_format((float) $voucher->amount, 2, '.', ''),
+            $voucher->method,
+            $voucher->status,
+        ];
+    }
+
     /**
      * See PaymentVoucherController::summaryPdf()'s docblock — the
      * money-in equivalent (e.g. every deposit a client has made across
@@ -81,8 +109,6 @@ class ReceiptVoucherController extends Controller
      */
     public function summaryPdf(Request $request, MpdfRenderer $renderer)
     {
-        abort_unless($request->filled('client_id') || $request->filled('supplier_id'), 404);
-
         $company = Auth::user()->company;
         $search = trim((string) $request->query('q'));
         $searchLabel = trim((string) $request->query('label')) ?: $search;

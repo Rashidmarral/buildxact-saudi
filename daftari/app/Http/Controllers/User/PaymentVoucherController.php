@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesApprovalSeparation;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
+use App\Http\Controllers\User\Concerns\ExportsCsv;
 use App\Http\Controllers\User\Concerns\GroupsVouchersByPayee;
 use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Models\Attachment;
@@ -28,7 +29,7 @@ use Illuminate\Validation\Rule;
 
 class PaymentVoucherController extends Controller
 {
-    use EnforcesApprovalSeparation, EnforcesStorageQuota, GroupsVouchersByPayee, ResolvesPerPage;
+    use EnforcesApprovalSeparation, EnforcesStorageQuota, ExportsCsv, GroupsVouchersByPayee, ResolvesPerPage;
 
     /**
      * "there is no option to get total amount paid" for a supplier across
@@ -50,6 +51,15 @@ class PaymentVoucherController extends Controller
 
         $total = (clone $query)->where('status', 'issued')->sum('amount');
 
+        // "download the report on ... payment vouchers to download all
+        // the records on show page" — exports every row the current
+        // filters match, not just checked rows, independent of pagination.
+        if ($request->query('export') === 'csv') {
+            $vouchers = (clone $query)->latest('date')->latest('id')->get();
+
+            return $this->csvResponse('payment-vouchers.csv', $this->csvHeader(), $vouchers->map(fn ($v) => $this->csvRow($v)));
+        }
+
         $vouchers = $query->latest('date')->latest('id')->paginate($this->resolvePerPage($request))->withQueryString();
 
         return view('user.payment-vouchers.index', [
@@ -61,6 +71,24 @@ class PaymentVoucherController extends Controller
         ]);
     }
 
+    private function csvHeader(): array
+    {
+        return [__('Voucher'), __('Date'), __('Paid to'), __('Bank/Cash account'), __('Amount'), __('Method'), __('Status')];
+    }
+
+    private function csvRow(PaymentVoucher $voucher): array
+    {
+        return [
+            $voucher->voucher_number,
+            $voucher->date->format('Y-m-d'),
+            $voucher->payee_name,
+            $voucher->bankAccount?->name,
+            number_format((float) $voucher->totalAmount(), 2, '.', ''),
+            $voucher->method,
+            $voucher->status,
+        ];
+    }
+
     /**
      * "there is option to get 1 single payment voucher for whole amount"
      * — a company that paid a supplier across several separate vouchers
@@ -68,12 +96,12 @@ class PaymentVoucherController extends Controller
      * filtered set into one branded PDF: every voucher listed with its
      * own date/reference/amount, plus a grand total — the document to
      * hand the supplier as a consolidated payment summary, without
-     * re-entering anything.
+     * re-entering anything. No longer requires a supplier/client filter —
+     * "download all the records" with no party picked bundles the whole
+     * (possibly company-wide) filtered list the same way.
      */
     public function summaryPdf(Request $request, MpdfRenderer $renderer)
     {
-        abort_unless($request->filled('supplier_id') || $request->filled('client_id'), 404);
-
         $company = Auth::user()->company;
         $search = trim((string) $request->query('q'));
         $searchLabel = trim((string) $request->query('label')) ?: $search;

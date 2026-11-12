@@ -42,9 +42,10 @@
         <input type="text" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('e.g. a name mentioned in the reference') }}" class="mt-1 rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 min-w-[14rem]">
     </div>
     <button type="submit" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Apply') }}</button>
-    @if (($filters['supplier_id'] ?? null) || ($filters['client_id'] ?? null))
-        <a href="{{ route('app.payment-vouchers.summary-pdf', $filters) }}" class="ms-auto rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download combined PDF') }}</a>
-    @endif
+    <div class="ms-auto flex items-center gap-2">
+        <a href="{{ route('app.payment-vouchers.index', $filters + ['export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+        <a href="{{ route('app.payment-vouchers.summary-pdf', $filters) }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download combined PDF') }}</a>
+    </div>
 </form>
 
 @if (($filters['supplier_id'] ?? null) || ($filters['client_id'] ?? null))
