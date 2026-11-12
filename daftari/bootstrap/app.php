@@ -148,6 +148,30 @@ return Application::configure(basePath: dirname(__DIR__))
             return back()->withInput()->withErrors(['form' => $message]);
         });
 
+        // "sometime took too much time on load and in end shows error
+        // laravel error execution time exceed" — a PHP execution-timeout
+        // fatal is converted by Laravel's shutdown handler into a
+        // Symfony FatalError and would otherwise fall through to the
+        // generic 500 page (or, worse, a raw debug trace if APP_DEBUG is
+        // left on) with no indication of what actually happened. Caught
+        // here by message rather than a dedicated exception class, since
+        // PHP itself never throws a typed "timeout" exception for this —
+        // it's always this same generic fatal-error text.
+        $exceptions->render(function (\Throwable $e, $request) {
+            if (! str_contains($e->getMessage(), 'Maximum execution time')) {
+                return null;
+            }
+
+            report($e);
+            $message = __('This took longer than expected to complete. Try narrowing your date range or filters and try again — if it keeps happening, let us know.');
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 504);
+            }
+
+            return response()->view('errors.500', ['message' => $message], 504);
+        });
+
         $exceptions->render(function (ThrottleRequestsException $e, $request) {
             if ($request->expectsJson()) {
                 return null;
