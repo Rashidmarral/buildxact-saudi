@@ -14,10 +14,10 @@
 
 @include('user.reports.partials.period-selector')
 
-<div class="bg-white rounded-xl border border-slate-100">
+<div class="bg-white rounded-xl border border-slate-100 border-s-4 border-violet-600 overflow-hidden">
     <table class="w-full text-sm">
         <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-100">
+            <tr class="text-left text-violet-800 bg-violet-50/60 border-b border-violet-100">
                 <th class="px-5 py-3 font-medium">{{ __('Account') }}</th>
                 <th class="px-5 py-3 font-medium text-end">{{ __('Opening balance') }}</th>
                 <th class="px-5 py-3 font-medium text-end">{{ __('Movement') }}</th>
@@ -44,7 +44,7 @@
             </tr>
         </tbody>
         <tfoot>
-            <tr class="border-t border-slate-200 font-semibold text-slate-900">
+            <tr class="border-t border-violet-200 font-bold text-violet-700 bg-violet-50/60">
                 <td class="px-5 py-3">{{ __('Total equity') }}</td>
                 <td class="px-5 py-3 text-end">{{ number_format($totalOpening, 2) }}</td>
                 <td class="px-5 py-3 text-end">{{ number_format($totalMovement, 2) }}</td>

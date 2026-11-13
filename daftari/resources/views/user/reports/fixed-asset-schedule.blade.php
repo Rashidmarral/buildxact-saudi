@@ -14,10 +14,10 @@
 
 @include('user.reports.partials.period-selector')
 
-<div class="bg-white rounded-xl border border-slate-100">
+<div class="bg-white rounded-xl border border-slate-100 border-s-4 border-blue-600 overflow-hidden">
     <table class="w-full text-sm">
         <thead>
-            <tr class="text-left text-slate-500 border-b border-slate-100">
+            <tr class="text-left text-blue-800 bg-blue-50/60 border-b border-blue-100">
                 <th class="px-5 py-3 font-medium">{{ __('Asset') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('Category') }}</th>
                 <th class="px-5 py-3 font-medium text-end">{{ __('Opening NBV') }}</th>
@@ -47,7 +47,7 @@
         </tbody>
         @if ($rows->isNotEmpty())
             <tfoot>
-                <tr class="border-t border-slate-200 font-semibold text-slate-900">
+                <tr class="border-t border-blue-200 font-bold text-blue-700 bg-blue-50/60">
                     <td class="px-5 py-3" colspan="2">{{ __('Total') }}</td>
                     <td class="px-5 py-3 text-end">{{ number_format($totals['openingNbv'], 2) }}</td>
                     <td class="px-5 py-3 text-end">{{ number_format($totals['additions'], 2) }}</td>

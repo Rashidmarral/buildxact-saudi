@@ -46,14 +46,28 @@
     @endif
 </form>
 
+@php
+    // Same type-color system Trial Balance established: each account's
+    // card is accented by that account's own type, so Assets / Liabilities
+    // / Equity / Income / Expenses stay visually distinct here too.
+    $typeStyles = [
+        'asset' => ['accent' => 'border-blue-600', 'text' => 'text-blue-700'],
+        'liability' => ['accent' => 'border-amber-500', 'text' => 'text-amber-700'],
+        'equity' => ['accent' => 'border-violet-600', 'text' => 'text-violet-700'],
+        'revenue' => ['accent' => 'border-emerald-600', 'text' => 'text-emerald-700'],
+        'expense' => ['accent' => 'border-rose-600', 'text' => 'text-rose-700'],
+    ];
+    $fallbackStyle = ['accent' => 'border-slate-400', 'text' => 'text-slate-900'];
+@endphp
 @if ($accounts->isEmpty())
     <div class="bg-white rounded-xl border border-slate-100 px-6 py-16 text-center text-sm text-slate-400">{{ __('No account has an opening balance or activity in this period.') }}</div>
 @else
     <div class="space-y-6">
         @foreach ($accounts as $row)
-            <div class="bg-white rounded-xl border border-slate-100">
+            @php $style = $typeStyles[$row['account']->type] ?? $fallbackStyle; @endphp
+            <div class="bg-white rounded-xl border border-slate-100 border-s-4 {{ $style['accent'] }}">
                 <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-                    <p class="font-semibold text-slate-900">{{ $row['account']->label() }}</p>
+                    <p class="font-semibold {{ $style['text'] }}">{{ $row['account']->label() }}</p>
                     <p class="text-xs text-slate-400">{{ __('Opening') }} {{ number_format($row['openingBalance'], 2) }} &rarr; {{ __('Closing') }} <span class="font-semibold text-slate-700">{{ number_format($row['closingBalance'], 2) }}</span></p>
                 </div>
                 <table class="w-full text-sm">
