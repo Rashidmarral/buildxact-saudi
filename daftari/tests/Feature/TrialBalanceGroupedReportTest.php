@@ -131,4 +131,32 @@ class TrialBalanceGroupedReportTest extends TestCase
         $this->assertArrayHasKey('Other assets', $data['types']['asset']['categories']->toArray());
         $this->assertSame(300.0, $data['types']['asset']['categories']['Other assets']['periodDebit']);
     }
+
+    /**
+     * "add missing like equity, income, expense as categories" — a
+     * company whose Equity/Income/Expense accounts have had no activity
+     * at all in the selected period used to have those entire type
+     * sections silently disappear from the report (every account in
+     * them had zero opening/period/closing, and the old code filtered
+     * those rows out before grouping) — reading as if the categories
+     * themselves were missing, rather than "nothing posted here yet." A
+     * trial balance is a complete list of the chart of accounts; every
+     * active account, zero-balance or not, is now included.
+     */
+    public function test_every_account_type_still_appears_even_with_zero_activity_in_the_period(): void
+    {
+        [$company, $owner] = $this->makeCompanyAndOwner();
+        // Deliberately posts nothing — seedSystemAccounts() alone already
+        // creates equity/revenue/expense accounts for a fresh company.
+
+        $data = app(\App\Services\Reports\FinancialReportService::class)->trialBalanceGrouped($company, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertArrayHasKey('equity', $data['types']->toArray());
+        $this->assertArrayHasKey('revenue', $data['types']->toArray());
+        $this->assertArrayHasKey('expense', $data['types']->toArray());
+        $this->assertSame(__('Income'), $data['types']['revenue']['label']);
+
+        $page = $this->actingAs($owner)->get(route('app.reports.trial-balance'));
+        $page->assertOk()->assertSee('Equity')->assertSee('Income')->assertSee('Expenses')->assertDontSee('Revenue');
+    }
 }

@@ -80,7 +80,13 @@ class FinancialReportService
             'asset' => __('Assets'),
             'liability' => __('Liabilities'),
             'equity' => __('Equity'),
-            'revenue' => __('Revenue'),
+            // Hamly-parity: this type's own column/code is still 'revenue'
+            // everywhere else in the app (unchanged, to avoid touching a
+            // column value every other report already depends on) — only
+            // the Trial Balance's own displayed label changes to "Income",
+            // matching the term a user comparing against Hamly's own
+            // Trial Balance expects to see.
+            'revenue' => __('Income'),
             'expense' => __('Expenses'),
             default => $type,
         };
@@ -103,6 +109,15 @@ class FinancialReportService
      * subtotals anyway) — the view decides whether to print them
      * (trial-balance-detailed) or only the category subtotal line
      * (plain trial-balance).
+     *
+     * Every active account is listed, including one with zero opening,
+     * period, and closing activity — a real trial balance is a complete
+     * list of the chart of accounts, not just the subset that happened
+     * to move this period. This used to filter those out, which could
+     * make an entire type section (most often Equity/Income/Expenses on
+     * a company with no activity yet in the selected range) disappear
+     * from the report entirely, reading as a missing category rather
+     * than "nothing posted here this period."
      *
      * $costCenterId/$locationId mirror the same optional dimension
      * filters generalLedger() already established — left null (the
@@ -159,13 +174,19 @@ class FinancialReportService
 
                 return [
                     'account' => $account,
-                    'category' => $account->category ?? __('Other :type', ['type' => strtolower($this->accountTypeLabel($account->type))]),
+                    // Display-only relabel, scoped to this report: the
+                    // stored category value (also read by the Balance
+                    // Sheet, General Ledger, etc.) stays "Revenue" — only
+                    // the Trial Balance's own grouping, which just
+                    // renamed the type header itself to "Income" above,
+                    // shows the matching category name instead of the
+                    // now-inconsistent "Revenue".
+                    'category' => ($account->category === 'Revenue' ? __('Income') : $account->category) ?? __('Other :type', ['type' => strtolower($this->accountTypeLabel($account->type))]),
                     'openingDebit' => $opening['debit'], 'openingCredit' => $opening['credit'],
                     'periodDebit' => $periodDebit, 'periodCredit' => $periodCredit,
                     'closingDebit' => $closing['debit'], 'closingCredit' => $closing['credit'],
                 ];
-            })
-            ->filter(fn ($r) => $r['openingDebit'] || $r['openingCredit'] || $r['periodDebit'] || $r['periodCredit'] || $r['closingDebit'] || $r['closingCredit']);
+            });
 
         $sumPairs = fn (Collection $rows) => [
             'openingDebit' => $rows->sum('openingDebit'), 'openingCredit' => $rows->sum('openingCredit'),
