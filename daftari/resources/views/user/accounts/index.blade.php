@@ -18,7 +18,7 @@
         if (! $account->is_active) echo ' <span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-500">'.e(__('Inactive')).'</span>';
         echo '</div>';
         echo '<div class="flex items-center gap-3 text-xs">';
-        echo '<button type="button" onclick="openEditAccount('.$account->id.', \''.e(addslashes($account->code)).'\', \''.e(addslashes($account->name)).'\', \''.e(addslashes($account->name_ar)).'\', \''.$account->type.'\', \''.$account->normal_balance.'\', '.($account->is_system ? 'true' : 'false').', '.($account->parent_account_id ?? 'null').')" class="text-brand-700 hover:underline">'.e(__('Edit')).'</button>';
+        echo '<button type="button" onclick="openEditAccount('.$account->id.', \''.e(addslashes($account->code)).'\', \''.e(addslashes($account->name)).'\', \''.e(addslashes($account->name_ar)).'\', \''.$account->type.'\', \''.$account->normal_balance.'\', '.($account->is_system ? 'true' : 'false').', '.($account->parent_account_id ?? 'null').', \''.e(addslashes($account->category ?? '')).'\')" class="text-brand-700 hover:underline">'.e(__('Edit')).'</button>';
         echo '</div></div>';
     };
     $renderAccountTree = function ($nodes, $all, $depth = 0) use (&$renderAccountTree, $renderAccountRow) {
@@ -81,11 +81,11 @@
                         @if ($account->is_system)<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{{ __('System Account') }}</span>@endif
                         @unless ($account->is_active)<span class="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-500">{{ __('Inactive') }}</span>@endunless
                     </div>
-                    <p class="text-xs text-slate-400 mt-0.5">{{ $typeLabels[$account->type] }} — {{ $account->normal_balance === 'debit' ? __('Debit') : __('Credit') }}</p>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ $typeLabels[$account->type] }} — {{ $account->normal_balance === 'debit' ? __('Debit') : __('Credit') }}@if ($account->category) — {{ $account->category }}@endif</p>
                 </div>
                 <div class="flex items-center gap-3 text-xs">
                     <button type="button"
-                        onclick="openEditAccount({{ $account->id }}, '{{ addslashes($account->code) }}', '{{ addslashes($account->name) }}', '{{ addslashes($account->name_ar) }}', '{{ $account->type }}', '{{ $account->normal_balance }}', {{ $account->is_system ? 'true' : 'false' }}, {{ $account->parent_account_id ?? 'null' }})"
+                        onclick="openEditAccount({{ $account->id }}, '{{ addslashes($account->code) }}', '{{ addslashes($account->name) }}', '{{ addslashes($account->name_ar) }}', '{{ $account->type }}', '{{ $account->normal_balance }}', {{ $account->is_system ? 'true' : 'false' }}, {{ $account->parent_account_id ?? 'null' }}, '{{ addslashes($account->category ?? '') }}')"
                         class="text-brand-700 hover:underline">{{ __('Edit') }}</button>
                     @if ($account->is_active)
                         <form method="POST" action="{{ route('app.accounts.deactivate', $account) }}">
@@ -191,6 +191,11 @@
             <input type="text" name="name_ar" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Category (optional)') }}</label>
+            <input type="text" name="category" list="account-category-options" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
+            <p class="mt-1 text-xs text-slate-400">{{ __('Groups this account on Trial Balance and Balance Sheet — e.g. "Cash and cash equivalents". Left blank, it falls under a generic "Other" group for its type.') }}</p>
+        </div>
+        <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Normal balance') }}</label>
             <select name="normal_balance" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
                 <option value="debit">{{ __('Debit') }}</option>
@@ -208,6 +213,10 @@
         <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Add Account') }}</button>
     </form>
 </dialog>
+
+<datalist id="account-category-options">
+    @foreach ($existingCategories as $cat)<option value="{{ $cat }}"></option>@endforeach
+</datalist>
 
 <dialog id="edit-account-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-md backdrop:bg-slate-900/40">
     <form method="POST" id="edit-account-form" class="p-6 space-y-4">
@@ -239,6 +248,11 @@
             <input type="text" name="name_ar" id="edit-account-name-ar" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">
         </div>
         <div>
+            <label class="block text-xs font-medium text-slate-500">{{ __('Category (optional)') }}</label>
+            <input type="text" name="category" id="edit-account-category" list="account-category-options" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500 read-only:bg-slate-50 read-only:text-slate-400">
+            <p id="edit-account-category-system-note" class="mt-1 text-xs text-slate-400 hidden">{{ __('System accounts keep their category fixed.') }}</p>
+        </div>
+        <div>
             <label class="block text-xs font-medium text-slate-500">{{ __('Normal balance') }}</label>
             <select id="edit-account-balance" class="mt-1 w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500" onchange="document.getElementById('edit-account-balance-hidden').value = this.value">
                 <option value="debit">{{ __('Debit') }}</option>
@@ -258,7 +272,7 @@
 </dialog>
 
 <script>
-function openEditAccount(id, code, name, nameAr, type, balance, isSystem, parentId) {
+function openEditAccount(id, code, name, nameAr, type, balance, isSystem, parentId, category) {
     const form = document.getElementById('edit-account-form');
     form.action = '{{ url('app/accounting/accounts') }}/' + id;
     document.getElementById('edit-account-code').value = code;
@@ -271,6 +285,9 @@ function openEditAccount(id, code, name, nameAr, type, balance, isSystem, parent
     document.getElementById('edit-account-balance').disabled = isSystem;
     document.getElementById('edit-account-balance-hidden').value = balance;
     document.getElementById('edit-account-system-note').classList.toggle('hidden', !isSystem);
+    document.getElementById('edit-account-category').value = category ?? '';
+    document.getElementById('edit-account-category').readOnly = isSystem;
+    document.getElementById('edit-account-category-system-note').classList.toggle('hidden', !isSystem);
     const parentSelect = document.getElementById('edit-account-parent');
     parentSelect.value = parentId ?? '';
     Array.from(parentSelect.options).forEach((opt) => { opt.disabled = Number(opt.value) === Number(id); });

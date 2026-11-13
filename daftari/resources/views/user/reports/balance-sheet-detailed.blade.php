@@ -30,20 +30,29 @@
     <button type="submit" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('Apply') }}</button>
 </form>
 
+@php
+    // Same type-color system Trial Balance established, adapted to this
+    // page's two-sided card layout instead of a type-grouped table.
+    $typeStyles = [
+        'asset' => ['accent' => 'border-blue-600', 'text' => 'text-blue-700', 'soft' => 'bg-blue-50/60', 'badge' => 'bg-blue-50 text-blue-700'],
+        'liability' => ['accent' => 'border-amber-500', 'text' => 'text-amber-700', 'soft' => 'bg-amber-50/60', 'badge' => 'bg-amber-50 text-amber-700'],
+        'equity' => ['accent' => 'border-violet-600', 'text' => 'text-violet-700', 'soft' => 'bg-violet-50/60', 'badge' => 'bg-violet-50 text-violet-700'],
+    ];
+@endphp
 <div class="grid md:grid-cols-2 gap-6">
-    <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <h3 class="font-semibold text-slate-900 mb-4">{{ __('Assets') }}</h3>
+    <div class="bg-white rounded-xl border border-slate-100 border-s-4 {{ $typeStyles['asset']['accent'] }} p-6">
+        <h3 class="font-semibold {{ $typeStyles['asset']['text'] }} mb-4">{{ __('Assets') }}</h3>
         <div class="space-y-3 text-sm">
             @forelse ($assetCategories as $catLabel => $category)
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{{ $catLabel }}</p>
+                    <span class="inline-flex rounded-full {{ $typeStyles['asset']['badge'] }} px-2 py-0.5 text-[11px] font-semibold mb-1">{{ $catLabel }}</span>
                     @foreach ($category['rows'] as $row)
                         <div class="flex justify-between text-slate-600">
                             <span>{{ $row['account']?->label() ?? $row['label'] }}</span>
                             <span>{{ number_format(abs($row['balance']), 2) }} {{ $row['account']?->drCrSuffix($row['balance']) ?? ($row['balance'] >= 0 ? __('Cr') : __('Dr')) }}</span>
                         </div>
                     @endforeach
-                    <div class="flex justify-between text-slate-500 font-medium border-t border-slate-50 pt-1 mt-1">
+                    <div class="flex justify-between {{ $typeStyles['asset']['text'] }} font-medium border-t border-slate-50 pt-1 mt-1">
                         <span>{{ __('Subtotal') }}</span>
                         <span>{{ number_format(abs($category['total']), 2) }}</span>
                     </div>
@@ -52,7 +61,7 @@
                 <p class="text-slate-400">{{ __('No activity yet.') }}</p>
             @endforelse
         </div>
-        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200">
+        <div class="flex justify-between font-bold {{ $typeStyles['asset']['text'] }} {{ $typeStyles['asset']['soft'] }} rounded-lg px-3 py-2.5 mt-3">
             <span>{{ __('Total assets') }}</span>
             <span>{{ \App\Support\Money::format($totalAssets) }}</span>
         </div>
@@ -62,15 +71,15 @@
         <h3 class="font-semibold text-slate-900 mb-4">{{ __('Liabilities + Equity') }}</h3>
         <div class="space-y-3 text-sm">
             @forelse ($liabilityCategories as $catLabel => $category)
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{{ $catLabel }}</p>
+                <div class="border-s-4 {{ $typeStyles['liability']['accent'] }} ps-3">
+                    <span class="inline-flex rounded-full {{ $typeStyles['liability']['badge'] }} px-2 py-0.5 text-[11px] font-semibold mb-1">{{ $catLabel }}</span>
                     @foreach ($category['rows'] as $row)
                         <div class="flex justify-between text-slate-600">
                             <span>{{ $row['account']?->label() ?? $row['label'] }}</span>
                             <span>{{ number_format(abs($row['balance']), 2) }} {{ $row['account']?->drCrSuffix($row['balance']) ?? ($row['balance'] >= 0 ? __('Cr') : __('Dr')) }}</span>
                         </div>
                     @endforeach
-                    <div class="flex justify-between text-slate-500 font-medium border-t border-slate-50 pt-1 mt-1">
+                    <div class="flex justify-between {{ $typeStyles['liability']['text'] }} font-medium border-t border-slate-50 pt-1 mt-1">
                         <span>{{ __('Subtotal') }}</span>
                         <span>{{ number_format(abs($category['total']), 2) }}</span>
                     </div>
@@ -79,22 +88,22 @@
                 <p class="text-slate-400">{{ __('No liabilities.') }}</p>
             @endforelse
             @foreach ($equityCategories as $catLabel => $category)
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{{ $catLabel }}</p>
+                <div class="border-s-4 {{ $typeStyles['equity']['accent'] }} ps-3">
+                    <span class="inline-flex rounded-full {{ $typeStyles['equity']['badge'] }} px-2 py-0.5 text-[11px] font-semibold mb-1">{{ $catLabel }}</span>
                     @foreach ($category['rows'] as $row)
                         <div class="flex justify-between text-slate-600">
                             <span>{{ $row['account']?->label() ?? $row['label'] }}</span>
                             <span>{{ number_format(abs($row['balance']), 2) }} {{ $row['account']?->drCrSuffix($row['balance']) ?? ($row['balance'] >= 0 ? __('Cr') : __('Dr')) }}</span>
                         </div>
                     @endforeach
-                    <div class="flex justify-between text-slate-500 font-medium border-t border-slate-50 pt-1 mt-1">
+                    <div class="flex justify-between {{ $typeStyles['equity']['text'] }} font-medium border-t border-slate-50 pt-1 mt-1">
                         <span>{{ __('Subtotal') }}</span>
                         <span>{{ number_format(abs($category['total']), 2) }}</span>
                     </div>
                 </div>
             @endforeach
         </div>
-        <div class="flex justify-between font-bold text-slate-900 pt-3 mt-3 border-t border-slate-200">
+        <div class="flex justify-between font-bold text-slate-900 bg-slate-50 rounded-lg px-3 py-2.5 mt-3">
             <span>{{ __('Total liabilities + equity') }}</span>
             <span>{{ \App\Support\Money::format($totalLiabilities + $totalEquity) }}</span>
         </div>

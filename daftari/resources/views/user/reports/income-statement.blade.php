@@ -49,26 +49,38 @@
         </div>
     @else
         <div class="grid md:grid-cols-2 gap-6">
-            <div>
-                <p class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Revenue') }}</p>
+            <div class="border-s-4 border-emerald-600 ps-4">
+                <p class="text-xs font-semibold uppercase text-emerald-700 mb-2">{{ __('Revenue') }}</p>
                 <div class="space-y-2 text-sm">
-                    @foreach ($revenueLines as $row)
+                    @forelse ($revenueLines as $row)
                         <div class="flex justify-between text-slate-600">
                             <span>{{ $row['account']->label() }}</span>
                             <span>{{ number_format($row['amount'], 2) }}@if ($priorStatement) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="text-slate-400">{{ __('No revenue posted this period.') }}</p>
+                    @endforelse
+                </div>
+                <div class="flex justify-between font-semibold text-emerald-700 bg-emerald-50/60 rounded-lg px-3 py-2 mt-3">
+                    <span>{{ __('Total revenue') }}</span>
+                    <span>{{ number_format($revenueLines->sum('amount'), 2) }}</span>
                 </div>
             </div>
-            <div>
-                <p class="text-xs font-semibold uppercase text-slate-400 mb-2">{{ __('Expenses') }}</p>
+            <div class="border-s-4 border-rose-600 ps-4">
+                <p class="text-xs font-semibold uppercase text-rose-700 mb-2">{{ __('Expenses') }}</p>
                 <div class="space-y-2 text-sm">
-                    @foreach ($expenseLines as $row)
+                    @forelse ($expenseLines as $row)
                         <div class="flex justify-between text-slate-600">
                             <span>{{ $row['account']->label() }}</span>
                             <span>{{ number_format($row['amount'], 2) }}@if ($priorStatement) <span class="text-slate-400">({{ number_format($row['priorAmount'], 2) }})</span>@endif</span>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="text-slate-400">{{ __('No expenses posted this period.') }}</p>
+                    @endforelse
+                </div>
+                <div class="flex justify-between font-semibold text-rose-700 bg-rose-50/60 rounded-lg px-3 py-2 mt-3">
+                    <span>{{ __('Total expenses') }}</span>
+                    <span>{{ number_format($expenseLines->sum('amount'), 2) }}</span>
                 </div>
             </div>
         </div>

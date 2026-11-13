@@ -43,6 +43,13 @@ class AccountController extends Controller
             'branches' => $company->branches()->orderBy('name')->get(),
             'view' => $view,
             'allAccounts' => $company->accounts()->orderBy('code')->get(),
+            // Lets a custom account be filed under an existing category
+            // (so it shows up correctly on Trial Balance/Balance Sheet
+            // instead of always landing in the generic "Other :type"
+            // catch-all) without forcing a fixed, closed list — a
+            // company's own chart can need a category Daftari never
+            // seeded.
+            'existingCategories' => $company->accounts()->whereNotNull('category')->distinct()->orderBy('category')->pluck('category'),
         ]);
     }
 
@@ -113,6 +120,7 @@ class AccountController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in(self::TYPES)],
+            'category' => ['nullable', 'string', 'max:255'],
             'parent_account_id' => ['nullable', Rule::exists('accounts', 'id')->where('company_id', $companyId)],
             'normal_balance' => ['required', 'in:debit,credit'],
         ]);
@@ -131,6 +139,7 @@ class AccountController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'name_ar' => ['nullable', 'string', 'max:255'],
             'type' => ['required', Rule::in(self::TYPES)],
+            'category' => ['nullable', 'string', 'max:255'],
             'parent_account_id' => [
                 'nullable',
                 Rule::exists('accounts', 'id')->where('company_id', $companyId),
