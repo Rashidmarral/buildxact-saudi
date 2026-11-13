@@ -5,6 +5,7 @@
 <meta charset="utf-8">
 <style>
 @include('documents.print.partials.report.styles')
+@include('documents.print.partials.report.type-colors')
 </style>
 </head>
 <body>
@@ -32,12 +33,13 @@
         </tr>
     </thead>
     <tbody>
-        @foreach ($types as $type)
-            <tr class="total-row">
-                <td colspan="7">{{ $type['label'] }}</td>
+        @foreach ($types as $typeKey => $type)
+            @php($typeClass = in_array($typeKey, ['asset', 'liability', 'equity', 'revenue', 'expense'], true) ? $typeKey : 'fallback')
+            <tr class="total-row type-{{ $typeClass }}">
+                <td colspan="7" class="type-{{ $typeClass }}-text">{{ $type['label'] }}</td>
             </tr>
             @foreach ($type['categories'] as $categoryLabel => $category)
-                <tr>
+                <tr class="type-{{ $typeClass }}-soft">
                     <td>{{ $categoryLabel }} ({{ $category['rows']->count() }})</td>
                     <td class="num">{{ $category['openingDebit'] > 0 ? number_format($category['openingDebit'], 2) : '' }}</td>
                     <td class="num">{{ $category['openingCredit'] > 0 ? number_format($category['openingCredit'], 2) : '' }}</td>
@@ -47,8 +49,8 @@
                     <td class="num">{{ $category['closingCredit'] > 0 ? number_format($category['closingCredit'], 2) : '' }}</td>
                 </tr>
             @endforeach
-            <tr class="total-row">
-                <td>{{ __('Total of :type', ['type' => $type['label']]) }}</td>
+            <tr class="total-row type-{{ $typeClass }}">
+                <td class="type-{{ $typeClass }}-text">{{ __('Total of :type', ['type' => $type['label']]) }}</td>
                 <td class="num">{{ number_format($type['openingDebit'], 2) }}</td>
                 <td class="num">{{ number_format($type['openingCredit'], 2) }}</td>
                 <td class="num">{{ number_format($type['periodDebit'], 2) }}</td>
