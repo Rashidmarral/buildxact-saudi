@@ -86,7 +86,7 @@
         </thead>
         <tbody>
             @forelse ($types as $typeKey => $type)
-                @php($style = $typeStyles[$typeKey] ?? $fallbackStyle)
+                @php $style = $typeStyles[$typeKey] ?? $fallbackStyle; @endphp
                 <tr class="{{ $style['head'] }}">
                     <td colspan="7" class="px-5 py-2.5 border-s-4 {{ $style['accent'] }} font-bold tracking-wide">
                         <span class="inline-flex h-2 w-2 rounded-full {{ $style['dot'] }} me-2 align-middle"></span>{{ $type['label'] }}
@@ -138,6 +138,58 @@
                 <td class="px-5 py-3.5 text-end border-l border-white/10 tabular-nums">{{ number_format($grand['periodDebit'], 2) }}</td>
                 <td class="px-5 py-3.5 text-end tabular-nums">{{ number_format($grand['periodCredit'], 2) }}</td>
                 <td class="px-5 py-3.5 text-end border-l border-white/10 tabular-nums">{{ number_format($grand['closingDebit'], 2) }}</td>
+                <td class="px-5 py-3.5 text-end tabular-nums">{{ number_format($grand['closingCredit'], 2) }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+@php
+    // Hamly-parity: the detailed export ends with a condensed Debit/
+    // Credit-only recap of every category's closing balance — handy for
+    // a quick scan or a final sign-off page, without re-reading the full
+    // Opening/Transactions/Closing matrix above.
+@endphp
+<div class="mt-6 bg-white rounded-xl border border-slate-100 overflow-x-auto shadow-sm">
+    <div class="px-5 py-3 border-b border-slate-100">
+        <h3 class="text-sm font-semibold text-slate-900">{{ __('Closing Balance Summary') }}</h3>
+    </div>
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-left text-slate-500 bg-slate-50/80 border-b-2 border-slate-200">
+                <th class="px-5 py-3 font-semibold">{{ __('Heads of Account') }}</th>
+                <th class="px-5 py-3 font-semibold text-end">{{ __('Debit :currency', ['currency' => $company->currency]) }}</th>
+                <th class="px-5 py-3 font-semibold text-end">{{ __('Credit :currency', ['currency' => $company->currency]) }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($types as $typeKey => $type)
+                @php $style = $typeStyles[$typeKey] ?? $fallbackStyle; @endphp
+                <tr class="{{ $style['head'] }}">
+                    <td colspan="3" class="px-5 py-2 border-s-4 {{ $style['accent'] }} font-bold tracking-wide">
+                        <span class="inline-flex h-2 w-2 rounded-full {{ $style['dot'] }} me-2 align-middle"></span>{{ $type['label'] }}
+                    </td>
+                </tr>
+                @foreach ($type['categories'] as $categoryLabel => $category)
+                    <tr class="border-b border-slate-50 {{ $style['soft'] }}">
+                        <td class="px-5 py-2 text-slate-700 ps-8">{{ $categoryLabel }}</td>
+                        <td class="px-5 py-2 text-end tabular-nums">{{ $category['closingDebit'] > 0 ? number_format($category['closingDebit'], 2) : '—' }}</td>
+                        <td class="px-5 py-2 text-end tabular-nums">{{ $category['closingCredit'] > 0 ? number_format($category['closingCredit'], 2) : '—' }}</td>
+                    </tr>
+                @endforeach
+                <tr class="border-b-2 {{ $style['ring'] }} font-bold {{ $style['text'] }} {{ $style['soft'] }}">
+                    <td class="px-5 py-2">{{ __('Total of :type', ['type' => $type['label']]) }}</td>
+                    <td class="px-5 py-2 text-end tabular-nums">{{ number_format($type['closingDebit'], 2) }}</td>
+                    <td class="px-5 py-2 text-end tabular-nums">{{ number_format($type['closingCredit'], 2) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="3" class="px-5 py-10 text-center text-slate-400">{{ __('This company has no accounts yet.') }}</td></tr>
+            @endforelse
+        </tbody>
+        <tfoot>
+            <tr class="bg-slate-900 font-bold text-white">
+                <td class="px-5 py-3.5 tracking-wide">{{ __('Grand Total') }}</td>
+                <td class="px-5 py-3.5 text-end tabular-nums">{{ number_format($grand['closingDebit'], 2) }}</td>
                 <td class="px-5 py-3.5 text-end tabular-nums">{{ number_format($grand['closingCredit'], 2) }}</td>
             </tr>
         </tfoot>

@@ -159,4 +159,46 @@ class TrialBalanceGroupedReportTest extends TestCase
         $page = $this->actingAs($owner)->get(route('app.reports.trial-balance'));
         $page->assertOk()->assertSee('Equity')->assertSee('Income')->assertSee('Expenses')->assertDontSee('Revenue');
     }
+
+    /**
+     * "in income other income will not come? and in liabilities accounts
+     * payable will not come" — Accounts Payable (code 2000) used to be
+     * folded into the "Current Liabilities" category, and Other
+     * Income/FX Gain (4200, 9100) into the main "Revenue" category —
+     * both read as missing when compared against a report that lists
+     * them as their own line.
+     */
+    public function test_accounts_payable_and_other_income_each_get_their_own_category(): void
+    {
+        [$company, $owner] = $this->makeCompanyAndOwner();
+
+        $data = app(\App\Services\Reports\FinancialReportService::class)->trialBalanceGrouped($company, now()->startOfMonth(), now()->endOfMonth());
+
+        $this->assertArrayHasKey('Accounts Payable', $data['types']['liability']['categories']->toArray());
+        $this->assertArrayHasKey('Other Income', $data['types']['revenue']['categories']->toArray());
+
+        $page = $this->actingAs($owner)->get(route('app.reports.trial-balance-detailed'));
+        $page->assertOk()->assertSee('Accounts Payable')->assertSee('Other Income');
+    }
+
+    /**
+     * The detailed view's closing-balance recap table at the bottom
+     * (Hamly-parity) reads from the exact same $types/$grand arrays the
+     * main matrix above it does, so there's no second computation that
+     * could drift — just confirms the section actually renders with the
+     * expected grand-total figure.
+     */
+    public function test_the_closing_balance_recap_table_renders_with_the_grand_total(): void
+    {
+        [$company, $owner] = $this->makeCompanyAndOwner();
+        $bank = Account::where('company_id', $company->id)->where('code', '1100')->first();
+        $capital = Account::where('company_id', $company->id)->where('code', '3000')->first();
+        app(LedgerPostingService::class)->post($company, 'manual', 6, 'Contribution', now(), [
+            ['account_id' => $bank->id, 'debit' => 7777],
+            ['account_id' => $capital->id, 'credit' => 7777],
+        ]);
+
+        $page = $this->actingAs($owner)->get(route('app.reports.trial-balance-detailed'));
+        $page->assertOk()->assertSee('Closing Balance Summary')->assertSee('7,777.00');
+    }
 }

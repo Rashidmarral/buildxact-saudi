@@ -89,7 +89,7 @@
         </thead>
         <tbody>
             @forelse ($types as $typeKey => $type)
-                @php($style = $typeStyles[$typeKey] ?? $fallbackStyle)
+                @php $style = $typeStyles[$typeKey] ?? $fallbackStyle; @endphp
                 <tr class="{{ $style['head'] }}">
                     <td colspan="7" class="px-5 py-2.5 border-s-4 {{ $style['accent'] }} font-bold tracking-wide">
                         <span class="inline-flex h-2 w-2 rounded-full {{ $style['dot'] }} me-2 align-middle"></span>{{ $type['label'] }}

@@ -29,10 +29,20 @@ class Account extends Model
             in_array($code, ['1150', '1200', '1250'], true) => 'Accounts Receivable',
             in_array($code, ['1260', '1270', '1300', '1310', '1400'], true) => 'Current Assets',
             in_array($code, ['1500', '1550'], true) => 'Fixed Assets',
+            // Hamly-parity: Accounts Payable gets its own category, same
+            // as Accounts Receivable already does on the asset side —
+            // it used to be folded into Current Liabilities, which read
+            // as a missing category to anyone comparing against a
+            // report that lists it separately.
+            in_array($code, ['2000'], true) => 'Accounts Payable',
             in_array($code, ['2280'], true) => 'Non-current Liabilities',
-            in_array($code, ['2000', '2100', '2110', '2150', '2200', '2240', '2250', '2260', '2270', '2290'], true) => 'Current Liabilities',
+            in_array($code, ['2100', '2110', '2150', '2200', '2240', '2250', '2260', '2270', '2290'], true) => 'Current Liabilities',
             in_array($code, ['3000', '3100'], true) => "Owner's Equity",
-            in_array($code, ['4000', '4100', '4150', '4200', '9100'], true) => 'Revenue',
+            in_array($code, ['4000', '4100', '4150'], true) => 'Revenue',
+            // Same reasoning as Accounts Payable above: non-sales income
+            // (a catch-all credit, and realized FX gains) is its own
+            // category, separate from core sales revenue.
+            in_array($code, ['4200', '9100'], true) => 'Other Income',
             in_array($code, ['5000'], true) => 'Cost of Goods Sold',
             in_array($code, ['5100', '5150', '5180', '5200', '5300', '5350', '5360', '5370', '5900', '5950', '9000', '9200', '9300'], true) => 'Operating Expenses',
             default => null,
