@@ -229,4 +229,14 @@ class BankAndPaymentExcelExportTest extends TestCase
         $balances = $this->actingAs($owner)->get(route('app.reports.payment-mode-balances', ['export' => 'excel']));
         $balances->assertOk()->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
+
+    public function test_uncleared_bank_items_excel_export_falls_back_to_view_with_zero_bank_accounts(): void
+    {
+        $company = Company::create(['name' => 'No Bank Co.', 'slug' => 'no-bank-'.uniqid()]);
+        $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
+
+        $response = $this->actingAs($owner)->get(route('app.reports.uncleared-bank-items', ['export' => 'excel']));
+
+        $response->assertOk()->assertHeader('Content-Type', 'text/html; charset=UTF-8');
+    }
 }
