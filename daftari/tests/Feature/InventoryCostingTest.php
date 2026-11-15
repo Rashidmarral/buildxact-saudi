@@ -192,6 +192,6 @@ class InventoryCostingTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('grossProfit', 600.0);
-        $response->assertViewHas('netSales', 1000.0);
+        $response->assertViewHas('totalDirectIncome', 1000.0);
     }
 }

@@ -13,17 +13,17 @@ use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Branch;
 use App\Models\Client;
+use App\Models\Company;
 use App\Models\CostCenter;
 use App\Models\CreditNote;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
-use App\Models\Company;
-use App\Models\Employee;
 use App\Models\Invoice;
-use App\Models\PaymentMode;
-use App\Models\PaymentVoucher;
 use App\Models\InvoicePayment;
 use App\Models\Item;
+use App\Models\PaymentMode;
+use App\Models\PaymentVoucher;
 use App\Models\PrepaymentInvoice;
 use App\Models\PrepaymentInvoiceApplication;
 use App\Models\Project;
@@ -34,11 +34,11 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\Accounting\VatApportionmentService;
 use App\Services\MpdfRenderer;
-use App\Services\Reports\FinancialReportService;
 use App\Services\Reports\AccountStatementExcelExporter;
 use App\Services\Reports\AgingExcelExporter;
 use App\Services\Reports\BalanceSheetExcelExporter;
 use App\Services\Reports\CashFlowExcelExporter;
+use App\Services\Reports\FinancialReportService;
 use App\Services\Reports\FixedAssetScheduleExcelExporter;
 use App\Services\Reports\GeneralLedgerExcelExporter;
 use App\Services\Reports\IncomeStatementByMonthExcelExporter;
@@ -53,6 +53,8 @@ use App\Services\Reports\VatExcelExporter;
 use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -224,7 +226,7 @@ class ReportController extends Controller
         return $amountPaid > 0 ? __('Partial') : __('Unpaid');
     }
 
-    private function xlsxResponse(string $bytes, string $filename): \Illuminate\Http\Response
+    private function xlsxResponse(string $bytes, string $filename): Response
     {
         return response($bytes, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -475,8 +477,8 @@ class ReportController extends Controller
 
         if ($request->query('export') === 'csv') {
             $rowFor = fn ($r) => $priorData
-                ? [$r['account']->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', ''), number_format($r['priorAmount'], 2, '.', '')]
-                : [$r['account']->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', '')];
+                ? [$r['account']->code ?? ($r['key'] ?? ''), $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', ''), number_format($r['priorAmount'], 2, '.', '')]
+                : [$r['account']->code ?? ($r['key'] ?? ''), $r['account']?->name ?? $r['label'], number_format($r['balance'], 2, '.', '')];
 
             $rows = collect()
                 ->concat($data['assets']->map(fn ($r) => [__('Assets'), ...$rowFor($r)]))
@@ -512,12 +514,12 @@ class ReportController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<string, array{rows: \Illuminate\Support\Collection, total: float}>
+     * @return Collection<string, array{rows: Collection, total: float}>
      */
-    private function groupBalanceSheetRowsByCategory(\Illuminate\Support\Collection $rows): \Illuminate\Support\Collection
+    private function groupBalanceSheetRowsByCategory(Collection $rows): Collection
     {
         return $rows
-            ->groupBy(fn ($r) => $r['account']?->category ?? ($r['label'] ?? __('Other')))
+            ->groupBy(fn ($r) => $r['category'] ?? $r['account']?->category ?? ($r['label'] ?? __('Other')))
             ->map(fn ($categoryRows) => ['rows' => $categoryRows->values(), 'total' => (float) $categoryRows->sum('balance')]);
     }
 
@@ -565,19 +567,19 @@ class ReportController extends Controller
         if ($request->query('export') === 'csv') {
             $header = [__('Side'), __('Category'), __('Code'), __('Account'), __('Amount')];
             $rows = collect();
-            $append = function (string $side, \Illuminate\Support\Collection $categories) use (&$rows, $view) {
+            $append = function (string $side, Collection $categories) use (&$rows, $view) {
                 foreach ($categories as $categoryLabel => $category) {
                     if ($view === 'balance-sheet-detailed') {
                         foreach ($category['rows'] as $r) {
-                            $rows->push([$side, $categoryLabel, $r['account']?->code ?? 'CURRENT_EARNINGS', $r['account']?->name ?? $r['label'], number_format(abs($r['balance']), 2, '.', '').' '.($r['account']?->drCrSuffix($r['balance']) ?? '')]);
+                            $rows->push([$side, $categoryLabel, $r['account']?->code ?? ($r['key'] ?? ''), $r['account']?->name ?? $r['label'], number_format(abs($r['balance']), 2, '.', '').' '.($r['account']?->drCrSuffix($r['balance']) ?? '')]);
                         }
                     }
                     $rows->push([$side, $categoryLabel, '', __('Subtotal'), number_format(abs($category['total']), 2, '.', '')]);
                 }
             };
             $append(__('Assets'), $assetCategories);
+            $append(__('Capital'), $equityCategories);
             $append(__('Liabilities'), $liabilityCategories);
-            $append(__('Equity'), $equityCategories);
 
             return $this->csvResponse($view.'.csv', $header, $rows);
         }
@@ -602,91 +604,84 @@ class ReportController extends Controller
     }
 
     /**
-     * "add more detailed reports... compare" — an optional `compare`
-     * query param (prior_period / prior_year) puts last period's or
-     * last year's figures next to the current ones on every line, the
-     * same "Compare with" every competitor's P&L offers. Kept entirely
-     * separate from priorPeriodAdjustments (a different, pre-existing
-     * concept: a reversal landing in this period whose own original
-     * entry was dated in an earlier one) — this is a side-by-side
-     * comparison of two whole periods, not a same-period breakdown.
+     * Hamly-parity: the classic two-sided Trading and Profit & Loss
+     * Account — Direct Income against Direct Expenses gives Gross
+     * profit; Other Income and Indirect Expenses then give Net profit —
+     * group totals only, no individual ledger lines (that's
+     * incomeStatementDetailed()'s job). Replaces the former single-
+     * column KPI-card Income Statement (Gross/Operating/Net profit
+     * cascade with a `compare` prior-period option); that comparison
+     * feature has no natural place in this ledger-style layout and is
+     * dropped here, same as balanceSheetDetailed()/-Summary() already
+     * deliberately omit it to match Hamly's own -detailed/-summary
+     * pages.
      */
     public function incomeStatement(Request $request)
     {
+        return $this->renderIncomeStatementGrouped($request, 'income-statement');
+    }
+
+    /**
+     * Same grouped Trading/P&L figures as incomeStatement(), but every
+     * individual ledger line under each category — Hamly's own
+     * -detailed route for this statement, same relationship
+     * balanceSheetDetailed() has to balanceSheetSummary().
+     */
+    public function incomeStatementDetailed(Request $request)
+    {
+        return $this->renderIncomeStatementGrouped($request, 'income-statement-detailed');
+    }
+
+    private function renderIncomeStatementGrouped(Request $request, string $view)
+    {
         $company = Auth::user()->company;
         $period = $this->resolvePeriod($request);
-        $compare = $request->query('compare', 'none');
+        $detailed = $view === 'income-statement-detailed';
 
-        $reportService = app(FinancialReportService::class);
-        $statement = $reportService->incomeStatement($company, $period['from'], $period['to']);
-        $revenueLines = $statement['revenueLines'];
-        $expenseLines = $statement['expenseLines'];
-        $netSales = $statement['netSales'];
-        $grossProfit = $statement['grossProfit'];
-        $operatingProfit = $statement['operatingProfit'];
-        $netProfit = $statement['netProfit'];
-        $priorPeriodAdjustments = $statement['priorPeriodAdjustments'];
+        $data = app(FinancialReportService::class)->incomeStatementGrouped($company, $period['from'], $period['to']);
 
-        $comparisonPeriod = $this->comparisonPeriod($period, $compare);
-        $priorStatement = $comparisonPeriod ? $reportService->incomeStatement($company, $comparisonPeriod['from'], $comparisonPeriod['to']) : null;
-
-        if ($priorStatement) {
-            $revenueLines = $reportService->mergeComparison($revenueLines, $priorStatement['revenueLines'], 'amount');
-            $expenseLines = $reportService->mergeComparison($expenseLines, $priorStatement['expenseLines'], 'amount');
-        }
+        $viewData = ['company' => $company, 'period' => $period] + $data;
 
         if ($request->query('export') === 'csv') {
-            $rowFor = fn ($r) => $priorStatement
-                ? [$r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', ''), number_format($r['priorAmount'], 2, '.', '')]
-                : [$r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')];
+            $header = [__('Section'), __('Category'), __('Code'), __('Account'), __('Amount')];
+            $rows = collect();
+            $append = function (string $section, Collection $categories) use (&$rows, $detailed) {
+                foreach ($categories as $categoryLabel => $category) {
+                    if ($detailed) {
+                        foreach ($category['rows'] as $r) {
+                            $rows->push([$section, $categoryLabel, $r['account']->code, $r['account']->name, number_format($r['amount'], 2, '.', '')]);
+                        }
+                    }
+                    $rows->push([$section, $categoryLabel, '', __('Subtotal'), number_format($category['total'], 2, '.', '')]);
+                }
+            };
+            $append(__('Direct income'), $data['directIncome']);
+            $append(__('Direct expenses'), $data['directExpenses']);
+            $rows->push([__('Direct expenses'), '', '', __('Gross profit'), number_format($data['grossProfit'], 2, '.', '')]);
+            $append(__('Other income'), $data['otherIncome']);
+            $append(__('Indirect expenses'), $data['indirectExpenses']);
+            $rows->push([__('Indirect expenses'), '', '', __('Net profit'), number_format($data['netProfit'], 2, '.', '')]);
 
-            $rows = collect()
-                ->concat($revenueLines->map(fn ($r) => [__('Revenue'), ...$rowFor($r)]))
-                ->concat($expenseLines->map(fn ($r) => [__('Expenses'), ...$rowFor($r)]))
-                ->concat($priorPeriodAdjustments->map(fn ($r) => [__('Prior-period adjustment'), $r['entry']->entry_number, $r['label'], number_format($r['amount'], 2, '.', '')]));
-
-            $header = $priorStatement
-                ? [__('Section'), __('Code'), __('Account'), __('Amount'), __('Prior')]
-                : [__('Section'), __('Code'), __('Account'), __('Amount')];
-
-            return $this->csvResponse('income-statement.csv', $header, $rows);
+            return $this->csvResponse($view.'.csv', $header, $rows);
         }
 
         if ($request->query('export') === 'excel') {
-            $bytes = app(IncomeStatementExcelExporter::class)->export($company, $period, $revenueLines, $expenseLines, (bool) $priorStatement);
+            $bytes = $detailed
+                ? app(IncomeStatementExcelExporter::class)->detailed($company, $period, $data)
+                : app(IncomeStatementExcelExporter::class)->twoSided($company, $period, $data);
 
-            return response($bytes, 200, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="income-statement.xlsx"',
-            ]);
+            return $this->xlsxResponse($bytes, $view.'.xlsx');
         }
 
         if ($request->query('export') === 'pdf') {
-            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.income-statement', [
-                'company' => $company, 'period' => $period, 'revenueLines' => $revenueLines, 'expenseLines' => $expenseLines,
-                'netSales' => $netSales, 'grossProfit' => $grossProfit, 'operatingProfit' => $operatingProfit, 'netProfit' => $netProfit,
-                'priorPeriodAdjustments' => $priorPeriodAdjustments,
-                'compare' => $compare, 'comparisonPeriod' => $comparisonPeriod, 'priorStatement' => $priorStatement,
-                'template' => $company->defaultTemplateFor('income_statement'),
+            $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.'.$view, $viewData + [
+                'template' => $company->defaultTemplateFor($detailed ? 'income_statement_detailed' : 'income_statement'),
             ]);
 
-            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="income-statement.pdf"']);
+            return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$view.'.pdf"']);
         }
 
-        return view('user.reports.income-statement', [
-            'company' => $company,
-            'period' => $period,
-            'revenueLines' => $revenueLines,
-            'expenseLines' => $expenseLines,
-            'netSales' => $netSales,
-            'grossProfit' => $grossProfit,
-            'operatingProfit' => $operatingProfit,
-            'netProfit' => $netProfit,
-            'compare' => $compare,
-            'comparisonPeriod' => $comparisonPeriod,
-            'priorStatement' => $priorStatement,
-            'priorPeriodAdjustments' => $priorPeriodAdjustments,
-        ]);
+        return view('user.reports.'.$view, $viewData);
     }
 
     /**
@@ -918,7 +913,7 @@ class ReportController extends Controller
         $company = Auth::user()->company;
         $accounts = BankAccount::where('company_id', $company->id)->orderBy('name')->get();
         $bankAccount = $accounts->firstWhere('id', (int) $request->query('bank_account_id')) ?? $accounts->first();
-        $asOf = $request->filled('as_at') ? \Carbon\Carbon::parse($request->query('as_at')) : now();
+        $asOf = $request->filled('as_at') ? Carbon::parse($request->query('as_at')) : now();
 
         $rows = $bankAccount ? app(FinancialReportService::class)->unclearedBankItems($bankAccount, $asOf) : collect();
         $total = (float) $rows->sum('amount');
@@ -1541,7 +1536,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @param array{0: \Illuminate\Support\Collection, 1: float} $statement
+     * @param  array{0: Collection, 1: float}  $statement
      * @return array{party: Client|Supplier, opening: float, debit: float, credit: float, closing: float}
      */
     private function contactBalanceRow(Client|Supplier $party, array $statement): array
@@ -1945,7 +1940,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Collection, 1: array<string, float>}
+     * @return array{0: Collection, 1: array<string, float>}
      */
     private function partyOutstandingSummary(Client|Supplier|null $party, string $type): array
     {
@@ -2364,7 +2359,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array{party: Client, buckets: array<string, float>, total: float}>
+     * @return Collection<int, array{party: Client, buckets: array<string, float>, total: float}>
      */
     private function agedReceivablesRows()
     {
@@ -2384,7 +2379,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array{party: Supplier, buckets: array<string, float>, total: float}>
+     * @return Collection<int, array{party: Supplier, buckets: array<string, float>, total: float}>
      */
     private function agedPayablesRows()
     {
@@ -2404,7 +2399,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array{date: \Carbon\Carbon, transactionType: string, reference: string, party: string, dueDate: \Carbon\Carbon, due: float}>
+     * @return Collection<int, array{date: Carbon, transactionType: string, reference: string, party: string, dueDate: Carbon, due: float}>
      */
     private function agedReceivablesDetailRows()
     {
@@ -2426,7 +2421,7 @@ class ReportController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array{date: \Carbon\Carbon, transactionType: string, reference: string, party: string, dueDate: \Carbon\Carbon, due: float}>
+     * @return Collection<int, array{date: Carbon, transactionType: string, reference: string, party: string, dueDate: Carbon, due: float}>
      */
     private function agedPayablesDetailRows()
     {

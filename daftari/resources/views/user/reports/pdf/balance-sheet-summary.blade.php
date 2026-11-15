@@ -33,16 +33,22 @@
     </tbody>
 </table>
 
-@include('documents.print.partials.report.section-title', ['en' => __('LIABILITIES + EQUITY'), 'ar' => 'الخصوم وحقوق الملكية'])
+@include('documents.print.partials.report.section-title', ['en' => __('CAPITAL'), 'ar' => 'رأس المال'])
 <table class="data-table">
     <tbody>
-        @foreach ($liabilityCategories as $catLabel => $category)
+        @foreach ($equityCategories as $catLabel => $category)
             <tr>
                 <td>{{ $catLabel }}</td>
                 <td class="num">{{ number_format(abs($category['total']), 2) }}</td>
             </tr>
         @endforeach
-        @foreach ($equityCategories as $catLabel => $category)
+    </tbody>
+</table>
+
+@include('documents.print.partials.report.section-title', ['en' => __('LIABILITIES'), 'ar' => 'الخصوم'])
+<table class="data-table">
+    <tbody>
+        @foreach ($liabilityCategories as $catLabel => $category)
             <tr>
                 <td>{{ $catLabel }}</td>
                 <td class="num">{{ number_format(abs($category['total']), 2) }}</td>

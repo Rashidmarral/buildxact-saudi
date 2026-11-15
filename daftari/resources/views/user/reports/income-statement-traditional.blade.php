@@ -10,7 +10,7 @@
     </div>
     <div class="flex items-center gap-2 shrink-0">
         <a href="{{ route('app.reports.income-statement-traditional', array_merge(request()->query(), ['export' => 'excel'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download Excel') }}</a>
-        <a href="{{ route('app.reports.income-statement', request()->query()) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Formal (single-column) view') }}</a>
+        <a href="{{ route('app.reports.income-statement-detailed', request()->query()) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Formal (single-column) view') }}</a>
     </div>
 </div>
 

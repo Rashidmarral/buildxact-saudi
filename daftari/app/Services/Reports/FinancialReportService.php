@@ -445,7 +445,8 @@ class FinancialReportService
      * Xero show both side by side rather than making you run the report
      * twice. Keys on the account id where there is one, or on the
      * pseudo-row's own 'key'/'label' (balanceSheet()'s synthesized
-     * "Current period earnings" row has no account). An account that
+     * "Retained earnings"/"Current year earnings" rows have no account).
+     * An account that
      * only has activity in one of the two periods still gets a row,
      * with the other side at 0 — never silently dropped.
      *
@@ -540,7 +541,20 @@ class FinancialReportService
 
         $equity = $balances->get('equity', collect());
         if (abs($netIncomeToDate) > 0.005) {
-            $equity = $equity->push(['account' => null, 'key' => 'CURRENT_EARNINGS', 'label' => __('Current period earnings'), 'balance' => $netIncomeToDate]);
+            // Hamly-parity: the Balance Sheet's "Profit & loss account"
+            // group splits cumulative net income into what was earned
+            // before the fiscal year now in progress (Retained earnings)
+            // and what this fiscal year has earned so far (Current year
+            // earnings) — same fiscal_year_start boundary
+            // previewClosePeriod() already uses for its own year-close
+            // preview, just read here instead of committed.
+            $fiscalYearStart = $company->fiscalYearStartFor($asOf);
+            $priorYearsEarnings = $this->netIncomeToDate($company, $fiscalYearStart->copy()->subDay());
+            $currentYearEarnings = $netIncomeToDate - $priorYearsEarnings;
+
+            $equity = $equity
+                ->push(['account' => null, 'key' => 'RETAINED_EARNINGS', 'category' => __('Profit & loss account'), 'label' => __('Retained earnings (prior years)'), 'balance' => $priorYearsEarnings])
+                ->push(['account' => null, 'key' => 'CURRENT_YEAR_EARNINGS', 'category' => __('Profit & loss account'), 'label' => __('Current year earnings'), 'balance' => $currentYearEarnings]);
         }
 
         $assets = $balances->get('asset', collect());
@@ -613,17 +627,33 @@ class FinancialReportService
     public function incomeStatement(Company $company, Carbon $from, Carbon $to): array
     {
         $lines = function (string $type) use ($company, $from, $to) {
+            // Revenue's and expense's own natural convention — credit-
+            // positive for revenue, debit-positive for expense. A contra
+            // account (Sales Discounts/Returns: type=revenue but
+            // normal_balance=debit; Internal Cost Recovery: type=expense
+            // but normal_balance=credit) has a normal_balance that
+            // disagrees with this, and must SUBTRACT from the type's
+            // total rather than add to it for netSales/totalExpenses to
+            // actually net correctly — 'typeSigned' is that figure.
+            // 'amount' stays signed relative to each account's OWN
+            // normal_balance (positive = normal side) exactly as
+            // accountBalanceAsOf() signs a balance sheet row, so
+            // Account::drCrSuffix() and a plain abs()+suffix display
+            // still read correctly even for a contra account.
+            $typeIsCredit = $type === 'revenue';
+
             return Account::where('company_id', $company->id)
                 ->where('is_active', true)
                 ->where('type', $type)
                 ->orderBy('code')
                 ->get()
-                ->map(function (Account $account) use ($from, $to) {
+                ->map(function (Account $account) use ($from, $to, $typeIsCredit) {
                     $debit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))->sum('debit');
                     $credit = (float) $account->journalEntryLines()->whereHas('journalEntry', fn ($q) => $q->whereBetween('entry_date', [$from, $to]))->sum('credit');
                     $amount = $account->normal_balance === 'credit' ? $credit - $debit : $debit - $credit;
+                    $typeSigned = $typeIsCredit ? $credit - $debit : $debit - $credit;
 
-                    return ['account' => $account, 'amount' => $amount];
+                    return ['account' => $account, 'amount' => $amount, 'typeSigned' => $typeSigned];
                 })
                 ->filter(fn ($row) => abs($row['amount']) > 0.005);
         };
@@ -631,10 +661,10 @@ class FinancialReportService
         $revenueLines = $lines('revenue');
         $expenseLines = $lines('expense');
 
-        $netSales = (float) $revenueLines->sum('amount');
+        $netSales = (float) $revenueLines->sum('typeSigned');
         $cogsRow = $expenseLines->first(fn ($r) => $r['account']->code === '5000');
-        $cogs = (float) ($cogsRow['amount'] ?? 0);
-        $operatingExpenses = (float) $expenseLines->reject(fn ($r) => $r['account']->code === '5000')->sum('amount');
+        $cogs = (float) ($cogsRow['typeSigned'] ?? 0);
+        $operatingExpenses = (float) $expenseLines->reject(fn ($r) => $r['account']->code === '5000')->sum('typeSigned');
         $grossProfit = $netSales - $cogs;
         $operatingProfit = $grossProfit - $operatingExpenses;
 
@@ -646,6 +676,91 @@ class FinancialReportService
             'operatingProfit' => $operatingProfit,
             'netProfit' => $operatingProfit,
             'priorPeriodAdjustments' => $this->priorPeriodAdjustments($company, $from, $to),
+        ];
+    }
+
+    /**
+     * Hamly-parity: the classic Trading and Profit & Loss Account
+     * staging — Direct Income (core sales, the "Revenue" category)
+     * against Direct Expenses (Cost of Goods Sold) gives Gross profit;
+     * Other Income is then added and Indirect Expenses (Operating
+     * Expenses, and anything else expense-typed) subtracted to give Net
+     * profit. This is a genuine change from incomeStatement()'s own
+     * grossProfit/operatingProfit, which lump Other Income into net
+     * sales — here it's deliberately held out and only added back in at
+     * the net-profit stage, matching the reference ledger-style report
+     * exactly. Reuses incomeStatement()'s own revenue/expense lines so
+     * the two never drift apart; just re-buckets them by each account's
+     * own `category` (seeded by Account::categoryForCode()) instead of
+     * a flat revenue/expense split.
+     *
+     * Both the "detailed" (full ledger line) and "two-sided" (group
+     * totals only) presentations of the Income Statement are built from
+     * this one grouped shape.
+     *
+     * @return array{directIncome: Collection, otherIncome: Collection, directExpenses: Collection, indirectExpenses: Collection, totalDirectIncome: float, totalOtherIncome: float, totalDirectExpenses: float, totalIndirectExpenses: float, grossProfit: float, grossTotal: float, netProfit: float, netTotal: float, priorPeriodAdjustments: Collection}
+     */
+    public function incomeStatementGrouped(Company $company, Carbon $from, Carbon $to): array
+    {
+        $statement = $this->incomeStatement($company, $from, $to);
+        $revenueLines = $statement['revenueLines'];
+        $expenseLines = $statement['expenseLines'];
+
+        $isOtherIncome = fn ($r) => $r['account']->category === 'Other Income';
+        $isDirectExpense = fn ($r) => $r['account']->category === 'Cost of Goods Sold';
+
+        $directIncomeLines = $revenueLines->reject($isOtherIncome)->values();
+        $otherIncomeLines = $revenueLines->filter($isOtherIncome)->values();
+        $directExpenseLines = $expenseLines->filter($isDirectExpense)->values();
+        $indirectExpenseLines = $expenseLines->reject($isDirectExpense)->values();
+
+        $groupByCategory = fn (Collection $rows, string $relabel) => $rows
+            ->groupBy(fn ($r) => match ($r['account']->category) {
+                'Revenue' => __('Income'),
+                'Cost of Goods Sold' => __('Cost of sales'),
+                'Operating Expenses' => __('Expenses'),
+                default => $r['account']->category ?? $relabel,
+            })
+            ->map(fn (Collection $categoryRows) => ['rows' => $categoryRows->values(), 'total' => (float) $categoryRows->sum('typeSigned')]);
+
+        $totalDirectIncome = (float) $directIncomeLines->sum('typeSigned');
+        $totalOtherIncome = (float) $otherIncomeLines->sum('typeSigned');
+        $totalDirectExpenses = (float) $directExpenseLines->sum('typeSigned');
+        $totalIndirectExpenses = (float) $indirectExpenseLines->sum('typeSigned');
+
+        $grossProfit = $totalDirectIncome - $totalDirectExpenses;
+        // The Trading Account's balancing total: whichever side is
+        // larger before the Gross profit/loss balancing line is added —
+        // the other side then reaches the same figure once its own
+        // Gross profit/loss line is added in.
+        $grossTotal = max($totalDirectIncome, $totalDirectExpenses);
+
+        // The P&L Account carries Gross profit forward onto the credit
+        // (income) side, alongside Other Income — unless the Trading
+        // Account actually made a loss, in which case that Gross loss is
+        // itself a cost, carried onto the debit (expense) side instead,
+        // alongside Indirect Expenses. Net profit/loss then balances
+        // whichever two sides that produces, same shape as Gross
+        // profit/loss above.
+        $creditSideTotal = $totalOtherIncome + max($grossProfit, 0.0);
+        $debitSideTotal = $totalIndirectExpenses + max(-$grossProfit, 0.0);
+        $netProfit = $grossProfit + $totalOtherIncome - $totalIndirectExpenses;
+        $netTotal = max($creditSideTotal, $debitSideTotal);
+
+        return [
+            'directIncome' => $groupByCategory($directIncomeLines, __('Income')),
+            'otherIncome' => $groupByCategory($otherIncomeLines, __('Other income')),
+            'directExpenses' => $groupByCategory($directExpenseLines, __('Cost of sales')),
+            'indirectExpenses' => $groupByCategory($indirectExpenseLines, __('Expenses')),
+            'totalDirectIncome' => $totalDirectIncome,
+            'totalOtherIncome' => $totalOtherIncome,
+            'totalDirectExpenses' => $totalDirectExpenses,
+            'totalIndirectExpenses' => $totalIndirectExpenses,
+            'grossProfit' => $grossProfit,
+            'grossTotal' => $grossTotal,
+            'netProfit' => $netProfit,
+            'netTotal' => $netTotal,
+            'priorPeriodAdjustments' => $statement['priorPeriodAdjustments'],
         ];
     }
 
@@ -899,7 +1014,7 @@ class FinancialReportService
      * what the bank said) without opening each account's reconciliation
      * workflow one at a time.
      *
-     * @return Collection<int, array{reconciliation: BankReconciliation, bankAccount: \App\Models\BankAccount, statementBalance: float, bookBalance: float, difference: float, outstandingCount: int}>
+     * @return Collection<int, array{reconciliation: BankReconciliation, bankAccount: BankAccount, statementBalance: float, bookBalance: float, difference: float, outstandingCount: int}>
      */
     public function bankReconciliationSummary(Company $company, Carbon $from, Carbon $to): Collection
     {

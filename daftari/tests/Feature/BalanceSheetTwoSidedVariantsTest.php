@@ -58,7 +58,8 @@ class BalanceSheetTwoSidedVariantsTest extends TestCase
         $page = $this->actingAs($owner)->get(route('app.reports.balance-sheet-detailed'));
         $page->assertOk()
             ->assertSee('Cash and cash equivalents')
-            ->assertSee($bank->label())
+            ->assertSee($bank->code)
+            ->assertSee($bank->name)
             ->assertSee('7,000.00 Dr')
             ->assertSee('Assets equal liabilities plus equity');
     }
@@ -89,5 +90,36 @@ class BalanceSheetTwoSidedVariantsTest extends TestCase
 
         $summaryPdf = $this->actingAs($owner)->get(route('app.reports.balance-sheet-summary', ['export' => 'pdf']));
         $summaryPdf->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_the_profit_and_loss_account_splits_retained_earnings_from_current_year_earnings(): void
+    {
+        [$company, $owner] = $this->makeCompanyAndOwner();
+        $this->postContribution($company, 50000);
+
+        $bank = Account::where('company_id', $company->id)->where('code', '1100')->first();
+        $sales = Account::where('company_id', $company->id)->where('code', '4000')->first();
+        app(LedgerPostingService::class)->post($company, 'manual', 2, 'Sale', now(), [
+            ['account_id' => $bank->id, 'debit' => 1000],
+            ['account_id' => $sales->id, 'credit' => 1000],
+        ]);
+
+        $data = app(\App\Services\Reports\FinancialReportService::class)->balanceSheet($company, now());
+        $retained = $data['equity']->firstWhere('key', 'RETAINED_EARNINGS');
+        $currentYear = $data['equity']->firstWhere('key', 'CURRENT_YEAR_EARNINGS');
+
+        $this->assertNotNull($retained);
+        $this->assertNotNull($currentYear);
+        $this->assertEqualsWithDelta(0.0, $retained['balance'], 0.01, 'No prior fiscal year has elapsed yet, so retained earnings should be zero.');
+        $this->assertEqualsWithDelta(1000.0, $currentYear['balance'], 0.01);
+        $this->assertSame(__('Profit & loss account'), $retained['category']);
+        $this->assertSame(__('Profit & loss account'), $currentYear['category']);
+
+        $page = $this->actingAs($owner)->get(route('app.reports.balance-sheet-detailed'));
+        $page->assertOk()
+            ->assertSee(__('Capital'))
+            ->assertSee(__('Profit & loss account'))
+            ->assertSee(__('Retained earnings (prior years)'))
+            ->assertSee(__('Current year earnings'));
     }
 }

@@ -7,6 +7,7 @@ use App\Services\Reports\Excel\Concerns\BuildsAccountingWorkbook;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Balance Sheet → real .xlsx with functional formulas, same treatment
@@ -25,7 +26,7 @@ class BalanceSheetExcelExporter
      */
     public function plain(Company $company, Carbon $asOf, ?Carbon $priorAsOf, array $data): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(__('Balance Sheet'));
 
@@ -106,7 +107,7 @@ class BalanceSheetExcelExporter
 
     public function twoSided(Company $company, Carbon $asOf, Collection $assetCategories, Collection $liabilityCategories, Collection $equityCategories, bool $detailed): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $title = $detailed ? __('Balance Sheet (Detailed)') : __('Balance Sheet (Summary)');
         $sheet->setTitle($title);
@@ -123,10 +124,14 @@ class BalanceSheetExcelExporter
 
         $amountColumn = end($columns);
 
+        // Hamly-parity: Capital (equity) is listed before Liabilities,
+        // matching the reference report's right-hand column order —
+        // Owner's Equity and the Profit & loss account breakdown read
+        // before Accounts Payable and the other true liabilities.
         $sections = [
             'asset' => ['label' => __('Assets'), 'categories' => $assetCategories],
+            'equity' => ['label' => __('Capital'), 'categories' => $equityCategories],
             'liability' => ['label' => __('Liabilities'), 'categories' => $liabilityCategories],
-            'equity' => ['label' => __('Equity'), 'categories' => $equityCategories],
         ];
 
         $typeTotalRows = [];
@@ -197,7 +202,7 @@ class BalanceSheetExcelExporter
      */
     private function groupByCategory(Collection $rows): Collection
     {
-        return $rows->groupBy(fn ($r) => $r['account']?->category ?? ($r['label'] ?? __('Other')));
+        return $rows->groupBy(fn ($r) => $r['category'] ?? $r['account']?->category ?? ($r['label'] ?? __('Other')));
     }
 
     /**
@@ -208,7 +213,7 @@ class BalanceSheetExcelExporter
      *
      * @return array{0: int} the next free row after what this wrote
      */
-    private function writeBalanceCheck(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $row, array $columns, int $assetTotalRow, int $liabilityTotalRow, int $equityTotalRow, bool $mergeLabel = false): array
+    private function writeBalanceCheck(Worksheet $sheet, int $row, array $columns, int $assetTotalRow, int $liabilityTotalRow, int $equityTotalRow, bool $mergeLabel = false): array
     {
         $amountColumn = end($columns);
         $labelEndColumn = $mergeLabel ? chr(ord($amountColumn) - 1) : 'A';
@@ -237,7 +242,7 @@ class BalanceSheetExcelExporter
         if ($mergeLabel) {
             $sheet->mergeCells('A'.$row.':'.$labelEndColumn.$row);
         }
-        $sheet->setCellValue($amountColumn.$row, "=IF(ROUND({$amountColumn}{$assetsRow}-{$amountColumn}{$liabEquityRow},2)=0,\"".__('Balanced')."\",\"".__('NOT BALANCED')."\")");
+        $sheet->setCellValue($amountColumn.$row, "=IF(ROUND({$amountColumn}{$assetsRow}-{$amountColumn}{$liabEquityRow},2)=0,\"".__('Balanced').'","'.__('NOT BALANCED').'")');
         $sheet->getStyle('A'.$row.':'.$amountColumn.$row)->getFont()->setBold(true)->setItalic(true)->setSize(9.5);
         $row++;
 

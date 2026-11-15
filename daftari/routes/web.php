@@ -457,6 +457,7 @@ Route::prefix('app')->name('app.')->middleware(['auth', 'company.member', 'compa
         Route::get('sales', [ReportController::class, 'sales'])->name('sales');
         Route::get('purchase-sale-summary', [ReportController::class, 'purchaseSaleSummary'])->name('purchase-sale-summary');
         Route::get('income-statement', [ReportController::class, 'incomeStatement'])->name('income-statement')->middleware('feature:financial_statements');
+        Route::get('income-statement-detailed', [ReportController::class, 'incomeStatementDetailed'])->name('income-statement-detailed')->middleware('feature:financial_statements');
         Route::get('profit-loss', [ReportController::class, 'profitLoss'])->name('profit-loss')->middleware('feature:financial_statements');
         Route::get('income-statement-traditional', [ReportController::class, 'incomeStatementTraditional'])->name('income-statement-traditional')->middleware('feature:financial_statements');
         Route::get('income-statement-by-month', [ReportController::class, 'incomeStatementByMonth'])->name('income-statement-by-month')->middleware('feature:financial_statements');

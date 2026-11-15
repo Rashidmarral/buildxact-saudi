@@ -42,6 +42,30 @@
     </tbody>
 </table>
 
+@include('documents.print.partials.report.section-title', ['en' => __('CAPITAL'), 'ar' => 'رأس المال'])
+<table class="data-table">
+    <tbody>
+        @foreach ($equityCategories as $catLabel => $category)
+            <tr class="total-row"><td colspan="3">{{ $catLabel }}</td></tr>
+            @foreach ($category['rows'] as $row)
+                <tr>
+                    <td>{{ $row['account']?->code }}</td>
+                    <td>{{ $row['account']?->name ?? $row['label'] }}</td>
+                    <td class="num">{{ number_format(abs($row['balance']), 2) }} {{ $row['account']?->drCrSuffix($row['balance']) ?? ($row['balance'] >= 0 ? __('Cr') : __('Dr')) }}</td>
+                </tr>
+            @endforeach
+            <tr class="total-row">
+                <td colspan="2">{{ __('Subtotal') }}</td>
+                <td class="num">{{ number_format(abs($category['total']), 2) }}</td>
+            </tr>
+        @endforeach
+        <tr class="total-row">
+            <td colspan="2">{{ __('TOTAL CAPITAL') }}</td>
+            <td class="num">{{ number_format($totalEquity, 2) }}</td>
+        </tr>
+    </tbody>
+</table>
+
 @include('documents.print.partials.report.section-title', ['en' => __('LIABILITIES'), 'ar' => 'الخصوم'])
 <table class="data-table">
     <tbody>
@@ -62,30 +86,6 @@
         <tr class="total-row">
             <td colspan="2">{{ __('TOTAL LIABILITIES') }}</td>
             <td class="num">{{ number_format($totalLiabilities, 2) }}</td>
-        </tr>
-    </tbody>
-</table>
-
-@include('documents.print.partials.report.section-title', ['en' => __('EQUITY'), 'ar' => 'حقوق الملكية'])
-<table class="data-table">
-    <tbody>
-        @foreach ($equityCategories as $catLabel => $category)
-            <tr class="total-row"><td colspan="3">{{ $catLabel }}</td></tr>
-            @foreach ($category['rows'] as $row)
-                <tr>
-                    <td>{{ $row['account']?->code }}</td>
-                    <td>{{ $row['account']?->name ?? $row['label'] }}</td>
-                    <td class="num">{{ number_format(abs($row['balance']), 2) }} {{ $row['account']?->drCrSuffix($row['balance']) ?? ($row['balance'] >= 0 ? __('Cr') : __('Dr')) }}</td>
-                </tr>
-            @endforeach
-            <tr class="total-row">
-                <td colspan="2">{{ __('Subtotal') }}</td>
-                <td class="num">{{ number_format(abs($category['total']), 2) }}</td>
-            </tr>
-        @endforeach
-        <tr class="total-row">
-            <td colspan="2">{{ __('TOTAL EQUITY') }}</td>
-            <td class="num">{{ number_format($totalEquity, 2) }}</td>
         </tr>
     </tbody>
 </table>

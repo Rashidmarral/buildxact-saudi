@@ -77,16 +77,11 @@ class SendMonthlyFinancialStatements extends Command
             'template' => $company->defaultTemplateFor('balance_sheet'),
         ] + $balanceSheetData);
 
-        $incomeStatement = $reportService->incomeStatement($company, $periodStart, $periodEnd);
+        $incomeStatement = $reportService->incomeStatementGrouped($company, $periodStart, $periodEnd);
         $incomeStatementPdf = $renderer->render('user.reports.pdf.income-statement', [
             'company' => $company, 'period' => ['from' => $periodStart, 'to' => $periodEnd],
-            'revenueLines' => $incomeStatement['revenueLines'], 'expenseLines' => $incomeStatement['expenseLines'],
-            'netSales' => $incomeStatement['netSales'], 'grossProfit' => $incomeStatement['grossProfit'],
-            'operatingProfit' => $incomeStatement['operatingProfit'], 'netProfit' => $incomeStatement['netProfit'],
-            'priorPeriodAdjustments' => $incomeStatement['priorPeriodAdjustments'],
-            'compare' => 'none', 'comparisonPeriod' => null, 'priorStatement' => null,
             'template' => $company->defaultTemplateFor('income_statement'),
-        ]);
+        ] + $incomeStatement);
 
         Mail::to($recipients->all())->send(new MonthlyFinancialStatementsMail($company, $periodStart, $periodEnd, $balanceSheetPdf, $incomeStatementPdf));
 
