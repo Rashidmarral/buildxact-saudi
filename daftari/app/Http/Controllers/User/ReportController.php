@@ -41,8 +41,12 @@ use App\Services\Reports\BalanceSheetExcelExporter;
 use App\Services\Reports\CashFlowExcelExporter;
 use App\Services\Reports\FixedAssetScheduleExcelExporter;
 use App\Services\Reports\GeneralLedgerExcelExporter;
+use App\Services\Reports\IncomeStatementByMonthExcelExporter;
 use App\Services\Reports\IncomeStatementExcelExporter;
+use App\Services\Reports\IncomeStatementTraditionalExcelExporter;
 use App\Services\Reports\JournalExportExcelExporter;
+use App\Services\Reports\ProfitLossExcelExporter;
+use App\Services\Reports\SimpleTableExcelExporter;
 use App\Services\Reports\StatementOfChangesInEquityExcelExporter;
 use App\Services\Reports\TrialBalanceExcelExporter;
 use App\Services\Reports\VatExcelExporter;
@@ -218,6 +222,14 @@ class ReportController extends Controller
         }
 
         return $amountPaid > 0 ? __('Partial') : __('Unpaid');
+    }
+
+    private function xlsxResponse(string $bytes, string $filename): \Illuminate\Http\Response
+    {
+        return response($bytes, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 
     /**
@@ -703,6 +715,12 @@ class ReportController extends Controller
             return $this->csvResponse('profit-and-loss.csv', [__('Section'), __('Code'), __('Account'), __('Amount')], $rows);
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(ProfitLossExcelExporter::class)->export($company, $period, $statement['revenueLines'], $statement['expenseLines']);
+
+            return $this->xlsxResponse($bytes, 'profit-and-loss.xlsx');
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.profit-loss', [
                 'company' => $company, 'period' => $period,
@@ -743,6 +761,12 @@ class ReportController extends Controller
         $debitTotal = $netProfit >= 0 ? $totalExpenses + $netProfit : $totalExpenses;
         $creditTotal = $netProfit >= 0 ? $statement['netSales'] : $statement['netSales'] + abs($netProfit);
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(IncomeStatementTraditionalExcelExporter::class)->export($company, $period, $statement['revenueLines'], $statement['expenseLines'], $netProfit);
+
+            return $this->xlsxResponse($bytes, 'income-statement-traditional.xlsx');
+        }
+
         return view('user.reports.income-statement-traditional', [
             'company' => $company, 'period' => $period,
             'revenueLines' => $statement['revenueLines'], 'expenseLines' => $statement['expenseLines'],
@@ -775,6 +799,12 @@ class ReportController extends Controller
                 ->concat([array_merge([__('NET PROFIT')], $monthKeys->map(fn ($k) => number_format($data['monthlyNetProfit'][$k], 2, '.', ''))->all(), [number_format($data['netProfit'], 2, '.', '')])]);
 
             return $this->csvResponse('profit-and-loss-by-month.csv', $header, $rows);
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(IncomeStatementByMonthExcelExporter::class)->export($company, $period, $data);
+
+            return $this->xlsxResponse($bytes, 'profit-and-loss-by-month.xlsx');
         }
 
         if ($request->query('export') === 'pdf') {
@@ -851,6 +881,21 @@ class ReportController extends Controller
                 ]));
         }
 
+        if ($request->query('export') === 'excel') {
+            $excelRows = $rows->map(fn (array $r) => [
+                $r['bankAccount']?->name ?? '—', $r['reconciliation']->statement_date->format('Y-m-d'),
+                (float) $r['statementBalance'], (float) $r['bookBalance'],
+                fn (int $row) => "=C{$row}-D{$row}",
+                (float) $r['outstandingCount'], $r['reconciliation']->status,
+            ])->all();
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Bank Reconciliation Summary'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Bank account'), __('Statement date'), __('Statement balance'), __('Book balance'), __('Difference'), __('Outstanding items'), __('Status')],
+                $excelRows, [2, 3, 4, 5], 'asset', totalColumns: [2, 3]);
+
+            return $this->xlsxResponse($bytes, 'bank-reconciliation-summary.xlsx');
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.bank-reconciliation-summary', [
                 'company' => $company, 'period' => $period, 'rows' => $rows,
@@ -882,6 +927,16 @@ class ReportController extends Controller
             return $this->csvResponse('uncleared-bank-items.csv',
                 [__('Date'), __('Description'), __('Amount')],
                 $rows->map(fn (array $r) => [$r['date']->format('Y-m-d'), $r['label'], number_format($r['amount'], 2, '.', '')]));
+        }
+
+        if ($request->query('export') === 'excel' && $bankAccount) {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Uncleared Bank Items'),
+                $bankAccount->name.' — '.__('As of :date', ['date' => $asOf->format('d M Y')]),
+                [__('Date'), __('Description'), __('Amount')],
+                $rows->map(fn (array $r) => [$r['date']->format('Y-m-d'), $r['label'], (float) $r['amount']])->all(),
+                [2], 'asset');
+
+            return $this->xlsxResponse($bytes, 'uncleared-bank-items.xlsx');
         }
 
         if ($request->query('export') === 'pdf' && $bankAccount) {
@@ -1012,6 +1067,16 @@ class ReportController extends Controller
                 $items->map(fn ($r) => [$r->invoice->issue_date->format('Y-m-d'), $r->invoice->invoice_number, $r->invoice->displayClientName(), $r->line->description, number_format($r->line->line_total, 2, '.', '')]));
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Sales Report'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Date'), __('Invoice'), __('Customer'), __('Description'), __('Total')],
+                $items->map(fn ($r) => [$r->invoice->issue_date->format('Y-m-d'), $r->invoice->invoice_number, $r->invoice->displayClientName(), $r->line->description, (float) $r->line->line_total])->all(),
+                [4], 'revenue');
+
+            return $this->xlsxResponse($bytes, 'sales-report.xlsx');
+        }
+
         $salesSummary = [
             'invoiceCount' => $items->pluck('invoice.id')->unique()->count(),
             'lineCount' => $items->count(),
@@ -1092,6 +1157,18 @@ class ReportController extends Controller
                 $rows->map(fn ($r) => [$r['month']->format('Y-m'), number_format($r['sales'], 2, '.', ''), number_format($r['purchases'], 2, '.', ''), number_format($r['net'], 2, '.', '')]));
         }
 
+        if ($request->query('export') === 'excel') {
+            $excelRows = $rows->map(fn ($r) => [
+                $r['month']->format('Y-m'), (float) $r['sales'], (float) $r['purchases'],
+                fn (int $row) => "=B{$row}-C{$row}",
+            ])->all();
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Purchase & Sale Summary'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Month'), __('Sales'), __('Purchases'), __('Net')], $excelRows, [1, 2, 3]);
+
+            return $this->xlsxResponse($bytes, 'purchase-sale-summary.xlsx');
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.purchase-sale-summary', [
                 'company' => $company, 'period' => $period, 'rows' => $rows,
@@ -1142,6 +1219,19 @@ class ReportController extends Controller
                     $e->project?->name ?? '',
                     number_format($e->amount, 2, '.', ''), number_format($e->vat_amount, 2, '.', ''),
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Expense Report'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Date'), __('Vendor'), __('Category'), __('Description'), __('Account'), __('Project'), __('Amount'), __('VAT')],
+                $expenses->map(fn ($e) => [
+                    $e->expense_date->format('Y-m-d'), $e->vendor_name, $e->category->name ?? '', $e->description,
+                    $this->expenseAccountLabel($e), $e->project?->name ?? '', (float) $e->amount, (float) $e->vat_amount,
+                ])->all(),
+                [6, 7], 'expense');
+
+            return $this->xlsxResponse($bytes, 'expense-report.xlsx');
         }
 
         $total = $expenses->sum('amount');
@@ -1228,6 +1318,20 @@ class ReportController extends Controller
                     number_format((float) ($v->bill?->subtotal ?? 0) - (float) ($v->bill?->discount_total ?? 0), 2, '.', ''),
                     number_format((float) $v->wht_amount, 2, '.', ''),
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Withholding Tax'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Date'), __('Supplier'), __('Bill'), __('Category'), __('Rate'), __('Taxable base'), __('WHT amount')],
+                $vouchers->map(fn ($v) => [
+                    $v->date->format('Y-m-d'), $v->bill?->supplier?->name, $v->bill?->bill_number, $v->bill?->whtRate?->name,
+                    (float) ($v->bill?->whtRate?->rate ?? 0), (float) ($v->bill?->subtotal ?? 0) - (float) ($v->bill?->discount_total ?? 0),
+                    (float) $v->wht_amount,
+                ])->all(),
+                [4, 5, 6], 'liability', totalColumns: [5, 6]);
+
+            return $this->xlsxResponse($bytes, 'withholding-tax-report.xlsx');
         }
 
         $whtTotal = $vouchers->sum('wht_amount');
@@ -1321,7 +1425,7 @@ class ReportController extends Controller
         }
 
         if ($request->query('export') === 'excel' && $party) {
-            $bytes = app(AccountStatementExcelExporter::class)->export($company, $period, $type, $party, $lines, $openingBalance);
+            $bytes = app(AccountStatementExcelExporter::class)->export($company, $period, $type, $party->name, $lines, $openingBalance);
 
             return response($bytes, 200, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1409,6 +1513,19 @@ class ReportController extends Controller
                 ]));
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, $type === 'receivables' ? __('Receivables by Contact') : __('Payables by Contact'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Contact'), __('Opening balance'), __('Debit'), __('Credit'), __('Closing balance')],
+                $rows->map(fn (array $r) => [
+                    $r['party']->name, (float) $r['opening'], (float) $r['debit'], (float) $r['credit'],
+                    fn (int $row) => "=B{$row}+C{$row}-D{$row}",
+                ])->all(),
+                [1, 2, 3, 4], $type === 'receivables' ? 'asset' : 'liability');
+
+            return $this->xlsxResponse($bytes, 'receivables-payables-by-contact-'.$type.'.xlsx');
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.receivables-payables-by-contact', [
                 'company' => $company, 'period' => $period, 'type' => $type, 'rows' => $rows, 'totals' => $totals,
@@ -1484,6 +1601,16 @@ class ReportController extends Controller
                 ]));
 
             return $this->csvResponse('bank-account-statement-'.Str::slug($bankAccount->name).'.csv', [__('Date'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
+        }
+
+        if ($request->query('export') === 'excel' && $bankAccount) {
+            $exportLines = $lines->map(fn ($l) => (object) [
+                'date' => $l->journalEntry->entry_date, 'description' => $l->journalEntry->description,
+                'debit' => (float) $l->debit, 'credit' => (float) $l->credit,
+            ]);
+            $bytes = app(AccountStatementExcelExporter::class)->export($company, $period, 'bank', $bankAccount->name, $exportLines, $openingBalance);
+
+            return $this->xlsxResponse($bytes, 'bank-account-statement-'.Str::slug($bankAccount->name).'.xlsx');
         }
 
         if ($request->query('export') === 'pdf' && $bankAccount) {
@@ -1597,6 +1724,15 @@ class ReportController extends Controller
             return $this->csvResponse('ledger-account-statement.csv', [__('Code'), __('Account'), __('Date'), __('Debit'), __('Credit'), __('Balance')], $rowsCsv);
         }
 
+        if ($request->query('export') === 'excel' && $rows->isNotEmpty()) {
+            // Same {account, openingBalance, lines, closingBalance,
+            // periodDebit, periodCredit} shape generalLedger() returns —
+            // the same exporter serves both reports.
+            $bytes = app(GeneralLedgerExcelExporter::class)->export($company, $period, $rows);
+
+            return $this->xlsxResponse($bytes, 'ledger-account-statement.xlsx');
+        }
+
         if ($request->query('export') === 'pdf' && $rows->isNotEmpty()) {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.ledger-account-statement', [
                 'company' => $company, 'period' => $period, 'rows' => $rows,
@@ -1634,6 +1770,19 @@ class ReportController extends Controller
                 ]));
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Profit & Loss by Cost Centre'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Cost centre'), __('Income'), __('Expenses'), __('Net')],
+                $data['rows']->map(fn (array $r) => [
+                    $r['costCentre']?->label() ?? __('Unassigned'), (float) $r['income'], (float) $r['expenses'],
+                    fn (int $row) => "=B{$row}-C{$row}",
+                ])->all(),
+                [1, 2, 3]);
+
+            return $this->xlsxResponse($bytes, 'profit-and-loss-by-cost-centre.xlsx');
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.profit-loss-by-cost-centre', [
                 'company' => $company, 'period' => $period,
@@ -1665,6 +1814,19 @@ class ReportController extends Controller
                     $r['branch']?->name ?? __('Unassigned'),
                     number_format($r['income'], 2, '.', ''), number_format($r['expenses'], 2, '.', ''), number_format($r['net'], 2, '.', ''),
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Profit & Loss by Location'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Location'), __('Income'), __('Expenses'), __('Net')],
+                $data['rows']->map(fn (array $r) => [
+                    $r['branch']?->name ?? __('Unassigned'), (float) $r['income'], (float) $r['expenses'],
+                    fn (int $row) => "=B{$row}-C{$row}",
+                ])->all(),
+                [1, 2, 3]);
+
+            return $this->xlsxResponse($bytes, 'profit-and-loss-by-location.xlsx');
         }
 
         if ($request->query('export') === 'pdf') {
@@ -1703,6 +1865,31 @@ class ReportController extends Controller
                 ]));
         }
 
+        if ($request->query('export') === 'excel') {
+            // Running total as a genuine formula chain — each row adds
+            // its own Amount (column D) to the previous row's Running
+            // total cell (column F), rather than copying in the value
+            // the service already walked the rows to compute.
+            $previousRunningTotalRow = null;
+            $excelRows = $rows->map(function (array $r) use (&$previousRunningTotalRow) {
+                $runningTotalCell = function (int $row) use (&$previousRunningTotalRow) {
+                    $formula = $previousRunningTotalRow === null ? "=D{$row}" : "=F{$previousRunningTotalRow}+D{$row}";
+                    $previousRunningTotalRow = $row;
+
+                    return $formula;
+                };
+
+                return [$r['date']->format('Y-m-d'), $r['saleNumber'], $r['mode'], (float) $r['amount'], $r['reference'], $runningTotalCell];
+            })->all();
+
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Payment Mode Statement'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Date'), __('Sale'), __('Mode'), __('Amount'), __('Reference'), __('Running total')],
+                $excelRows, [3, 5], 'asset', totalColumns: [3]);
+
+            return $this->xlsxResponse($bytes, 'payment-mode-statement.xlsx');
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.payment-mode-statement', [
                 'company' => $company, 'period' => $period, 'rows' => $rows,
@@ -1733,6 +1920,16 @@ class ReportController extends Controller
                     $r['mode']->name, number_format($r['periodTotal'], 2, '.', ''),
                     $r['accountBalance'] === null ? '' : number_format($r['accountBalance'], 2, '.', ''),
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Payment Mode Balances'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Payment mode'), __('Collected this period'), __('Account balance')],
+                $rows->map(fn (array $r) => [$r['mode']->name, (float) $r['periodTotal'], $r['accountBalance'] === null ? '—' : (float) $r['accountBalance']])->all(),
+                [1, 2], 'asset', totalColumns: [1]);
+
+            return $this->xlsxResponse($bytes, 'payment-mode-balances.xlsx');
         }
 
         if ($request->query('export') === 'pdf') {
@@ -1812,6 +2009,20 @@ class ReportController extends Controller
                 ]));
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Customer Report'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Customer'), __('VAT No.'), __('Invoices this period'), __('Invoiced'), __('VAT collected'), __('Received'), __('Outstanding'), __('Last invoice')],
+                $rows->map(fn ($r) => [
+                    $r['party']->display_name ?? $r['party']->name, $r['party']->vat_number ?? '',
+                    (float) $r['count'], (float) $r['invoiced'], (float) $r['vat'], (float) $r['received'], (float) $r['outstanding'],
+                    $r['lastDate']?->format('Y-m-d') ?? '',
+                ])->all(),
+                [2, 3, 4, 5, 6], 'asset', totalColumns: [3, 4, 5, 6]);
+
+            return $this->xlsxResponse($bytes, 'customer-report.xlsx');
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.party-report', [
                 'company' => $company, 'period' => $period, 'rows' => $rows, 'summary' => $summary,
@@ -1861,6 +2072,20 @@ class ReportController extends Controller
                     number_format($r['received'], 2, '.', ''), number_format($r['outstanding'], 2, '.', ''),
                     $r['lastDate']?->format('Y-m-d') ?? '',
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Supplier Report'),
+                __('Period: :from to :to', ['from' => $period['from']->format('d M Y'), 'to' => $period['to']->format('d M Y')]),
+                [__('Supplier'), __('VAT No.'), __('Bills this period'), __('Billed'), __('VAT paid'), __('Paid'), __('Outstanding'), __('Last bill')],
+                $rows->map(fn ($r) => [
+                    $r['party']->display_name ?? $r['party']->name, $r['party']->vat_number ?? '',
+                    (float) $r['count'], (float) $r['invoiced'], (float) $r['vat'], (float) $r['received'], (float) $r['outstanding'],
+                    $r['lastDate']?->format('Y-m-d') ?? '',
+                ])->all(),
+                [2, 3, 4, 5, 6], 'liability', totalColumns: [3, 4, 5, 6]);
+
+            return $this->xlsxResponse($bytes, 'supplier-report.xlsx');
         }
 
         if ($request->query('export') === 'pdf') {
@@ -2111,6 +2336,19 @@ class ReportController extends Controller
                     number_format($r['advanced'], 2, '.', ''), number_format($r['settled'], 2, '.', ''),
                     number_format($r['spent'], 2, '.', ''), number_format($r['outstanding'], 2, '.', ''),
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(SimpleTableExcelExporter::class)->export($company, __('Employee Advances'), '',
+                [__('Employee'), __('Employee No.'), __('Advanced'), __('Settled'), __('Spent'), __('Outstanding')],
+                $rows->map(fn (array $r) => [
+                    $r['employee']->full_name, $r['employee']->employee_number,
+                    (float) $r['advanced'], (float) $r['settled'], (float) $r['spent'],
+                    fn (int $row) => "=C{$row}-D{$row}-E{$row}",
+                ])->all(),
+                [2, 3, 4, 5], 'liability');
+
+            return $this->xlsxResponse($bytes, 'employee-advances.xlsx');
         }
 
         if ($request->query('export') === 'pdf') {
