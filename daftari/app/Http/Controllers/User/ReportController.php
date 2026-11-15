@@ -35,6 +35,7 @@ use App\Models\Warehouse;
 use App\Services\Accounting\VatApportionmentService;
 use App\Services\MpdfRenderer;
 use App\Services\Reports\FinancialReportService;
+use App\Services\Reports\TrialBalanceExcelExporter;
 use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -251,6 +252,18 @@ class ReportController extends Controller
             }
 
             return $this->csvResponse(($detailed ? 'trial-balance-detailed' : 'trial-balance').'.csv', $header, $rows);
+        }
+
+        if ($request->query('export') === 'excel') {
+            $exporter = app(TrialBalanceExcelExporter::class);
+            $bytes = $detailed
+                ? $exporter->detailed($company, $period, $data['types'])
+                : $exporter->summary($company, $period, $data['types']);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="'.($detailed ? 'trial-balance-detailed' : 'trial-balance').'.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {
