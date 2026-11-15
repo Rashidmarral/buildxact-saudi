@@ -35,7 +35,17 @@ use App\Models\Warehouse;
 use App\Services\Accounting\VatApportionmentService;
 use App\Services\MpdfRenderer;
 use App\Services\Reports\FinancialReportService;
+use App\Services\Reports\AccountStatementExcelExporter;
+use App\Services\Reports\AgingExcelExporter;
+use App\Services\Reports\BalanceSheetExcelExporter;
+use App\Services\Reports\CashFlowExcelExporter;
+use App\Services\Reports\FixedAssetScheduleExcelExporter;
+use App\Services\Reports\GeneralLedgerExcelExporter;
+use App\Services\Reports\IncomeStatementExcelExporter;
+use App\Services\Reports\JournalExportExcelExporter;
+use App\Services\Reports\StatementOfChangesInEquityExcelExporter;
 use App\Services\Reports\TrialBalanceExcelExporter;
+use App\Services\Reports\VatExcelExporter;
 use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -128,6 +138,15 @@ class ReportController extends Controller
 
         if ($request->query('export') === 'csv') {
             return $this->vatCsvExport($tab, $salesRows, $purchaseRows, $expenseRows);
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(VatExcelExporter::class)->export($company, $period, $salesRows, $purchaseRows, $expenseRows, $summary);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="tax-report.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {
@@ -327,6 +346,15 @@ class ReportController extends Controller
             return $this->csvResponse('general-ledger.csv', [__('Code'), __('Account'), __('Date'), __('Entry'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(GeneralLedgerExcelExporter::class)->export($company, $period, $accounts);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="general-ledger.xlsx"',
+            ]);
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.general-ledger', [
                 'company' => $company, 'period' => $period, 'accounts' => $accounts,
@@ -377,6 +405,15 @@ class ReportController extends Controller
                     number_format($r['openingNbv'], 2, '.', ''), number_format($r['additions'], 2, '.', ''),
                     number_format($r['depreciation'], 2, '.', ''), number_format($r['disposals'], 2, '.', ''), number_format($r['closingNbv'], 2, '.', ''),
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(FixedAssetScheduleExcelExporter::class)->export($company, $period, $rows);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="fixed-asset-schedule.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {
@@ -439,6 +476,15 @@ class ReportController extends Controller
                 : [__('Section'), __('Code'), __('Account'), __('Balance')];
 
             return $this->csvResponse('balance-sheet.csv', $header, $rows);
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(BalanceSheetExcelExporter::class)->plain($company, $asOf, $priorAsOf, $data);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="balance-sheet.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {
@@ -524,6 +570,16 @@ class ReportController extends Controller
             return $this->csvResponse($view.'.csv', $header, $rows);
         }
 
+        if ($request->query('export') === 'excel') {
+            $detailed = $view === 'balance-sheet-detailed';
+            $bytes = app(BalanceSheetExcelExporter::class)->twoSided($company, $asOf, $assetCategories, $liabilityCategories, $equityCategories, $detailed);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="'.$view.'.xlsx"',
+            ]);
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.'.$view, $viewData + ['template' => $company->defaultTemplateFor($view === 'balance-sheet-detailed' ? 'balance_sheet_detailed' : 'balance_sheet_summary')]);
 
@@ -582,6 +638,15 @@ class ReportController extends Controller
                 : [__('Section'), __('Code'), __('Account'), __('Amount')];
 
             return $this->csvResponse('income-statement.csv', $header, $rows);
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(IncomeStatementExcelExporter::class)->export($company, $period, $revenueLines, $expenseLines, (bool) $priorStatement);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="income-statement.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {
@@ -740,6 +805,15 @@ class ReportController extends Controller
             $rows->push([__('Retained earnings'), '', number_format($data['openingRetainedEarnings'], 2, '.', ''), '', number_format($data['netIncomeForPeriod'], 2, '.', ''), number_format($data['openingRetainedEarnings'] + $data['netIncomeForPeriod'], 2, '.', '')]);
 
             return $this->csvResponse('statement-of-changes-in-equity.csv', [__('Code'), __('Account'), __('Opening'), __('Movement'), __('Net income'), __('Closing')], $rows);
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(StatementOfChangesInEquityExcelExporter::class)->export($company, $period, $data);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="statement-of-changes-in-equity.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {
@@ -1203,6 +1277,15 @@ class ReportController extends Controller
             return $this->csvResponse('cash-flow.csv', [__('Section'), __('Line'), __('Amount')], $rows);
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(CashFlowExcelExporter::class)->export($company, $period, $data);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="cash-flow.xlsx"',
+            ]);
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.cash-flow', ['company' => $company, 'period' => $period, 'template' => $company->defaultTemplateFor('cash_flow_statement')] + $data);
 
@@ -1235,6 +1318,15 @@ class ReportController extends Controller
                 ->concat($lines->map(fn ($l) => [$l->date->format('Y-m-d'), $l->description, $l->debit > 0 ? number_format($l->debit, 2, '.', '') : '', $l->credit > 0 ? number_format($l->credit, 2, '.', '') : '', number_format($l->balance, 2, '.', '')]));
 
             return $this->csvResponse('account-statement.csv', [__('Date'), __('Description'), __('Debit'), __('Credit'), __('Balance')], $rows);
+        }
+
+        if ($request->query('export') === 'excel' && $party) {
+            $bytes = app(AccountStatementExcelExporter::class)->export($company, $period, $type, $party, $lines, $openingBalance);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="account-statement.xlsx"',
+            ]);
         }
 
         // "add if we are missing anything" — what every client statement
@@ -1434,6 +1526,15 @@ class ReportController extends Controller
                     $r['debit'] > 0 ? number_format($r['debit'], 2, '.', '') : '', $r['credit'] > 0 ? number_format($r['credit'], 2, '.', '') : '',
                     $r['costCentre'], $r['contact'], $r['location'], $r['user'],
                 ]));
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(JournalExportExcelExporter::class)->export($company, $period, $rows);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="journal-export.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {
@@ -1884,6 +1985,15 @@ class ReportController extends Controller
             return $this->csvResponse('aged-'.$type.'.csv', $header, $csvRows);
         }
 
+        if ($request->query('export') === 'excel') {
+            $bytes = app(AgingExcelExporter::class)->summary($company, $type, $rows);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="aged-'.$type.'.xlsx"',
+            ]);
+        }
+
         if ($request->query('export') === 'pdf') {
             $pdf = app(MpdfRenderer::class)->render('user.reports.pdf.aging', [
                 'company' => $company, 'type' => $type, 'rows' => $rows, 'totals' => $totals,
@@ -1925,6 +2035,15 @@ class ReportController extends Controller
             ]);
 
             return $this->csvResponse('aged-'.$type.'-details.csv', $header, $csvRows);
+        }
+
+        if ($request->query('export') === 'excel') {
+            $bytes = app(AgingExcelExporter::class)->details($company, $type, $rows);
+
+            return response($bytes, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="aged-'.$type.'-details.xlsx"',
+            ]);
         }
 
         if ($request->query('export') === 'pdf') {

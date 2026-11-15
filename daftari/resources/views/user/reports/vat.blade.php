@@ -18,6 +18,7 @@
             ]) }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('Record VAT payment') }}</a>
         @endif
         <a href="{{ route('app.reports.vat', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('CSV') }}</a>
+        <a href="{{ route('app.reports.vat', array_merge(request()->query(), ['export' => 'excel'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Excel') }}</a>
         <a href="{{ route('app.reports.vat', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('PDF') }}</a>
         <button type="button" onclick="window.print()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 print:hidden">{{ __('Print') }}</button>
     </div>

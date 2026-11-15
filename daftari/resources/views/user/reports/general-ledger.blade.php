@@ -9,6 +9,7 @@
         <p class="text-sm text-slate-500 mt-1">{{ __('Every account, its opening balance, every line posted in the period, and its closing balance — the standard audit document.') }}</p>
     </div>
     <a href="{{ route('app.reports.general-ledger', array_merge(request()->query(), ['export' => 'csv'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download CSV') }}</a>
+    <a href="{{ route('app.reports.general-ledger', array_merge(request()->query(), ['export' => 'excel'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download Excel') }}</a>
     <a href="{{ route('app.reports.general-ledger', array_merge(request()->query(), ['export' => 'pdf'])) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Download PDF') }}</a>
 </div>
 
