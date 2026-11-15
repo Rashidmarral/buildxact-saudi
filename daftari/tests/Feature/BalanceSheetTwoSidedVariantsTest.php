@@ -49,6 +49,31 @@ class BalanceSheetTwoSidedVariantsTest extends TestCase
         $page->assertOk()->assertSee('Cash and cash equivalents')->assertSee("Owner's Equity");
     }
 
+    public function test_the_plain_view_is_a_ledger_table_with_capital_before_liabilities(): void
+    {
+        [$company, $owner] = $this->makeCompanyAndOwner();
+        $this->postContribution($company, 7000);
+        $bank = Account::where('company_id', $company->id)->where('code', '1100')->first();
+
+        $page = $this->actingAs($owner)->get(route('app.reports.balance-sheet'));
+        $page->assertOk()
+            ->assertSee(__('Ledger no.'))
+            ->assertSee($bank->code)
+            ->assertSee($bank->name)
+            ->assertSee('7,000.00 Dr')
+            ->assertSeeInOrder([mb_strtoupper(__('Assets')), mb_strtoupper(__('Capital')), mb_strtoupper(__('Liabilities'))])
+            ->assertSee('Assets equal liabilities plus equity');
+    }
+
+    public function test_the_plain_view_shows_a_prior_column_when_comparing(): void
+    {
+        [$company, $owner] = $this->makeCompanyAndOwner();
+        $this->postContribution($company, 4000);
+
+        $page = $this->actingAs($owner)->get(route('app.reports.balance-sheet', ['compare' => 'prior_period']));
+        $page->assertOk()->assertSee(__('Prior'));
+    }
+
     public function test_detailed_view_shows_individual_accounts_with_a_dr_cr_suffix_and_balances(): void
     {
         [$company, $owner] = $this->makeCompanyAndOwner();

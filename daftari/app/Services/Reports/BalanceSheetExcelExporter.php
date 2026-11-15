@@ -43,8 +43,8 @@ class BalanceSheetExcelExporter
 
         $sections = [
             'asset' => ['label' => __('Assets'), 'rows' => $data['assets']],
+            'equity' => ['label' => __('Capital'), 'rows' => $data['equity']],
             'liability' => ['label' => __('Liabilities'), 'rows' => $data['liabilities']],
-            'equity' => ['label' => __('Equity'), 'rows' => $data['equity']],
         ];
 
         $typeTotalRows = [];

@@ -23,63 +23,66 @@
 
 @include('documents.print.partials.report.summary-cards', ['cards' => [
     ['label_en' => __('Total assets'), 'label_ar' => 'إجمالي الأصول', 'value' => \App\Support\Money::format($totalAssets), 'variant' => 'neutral'],
+    ['label_en' => __('Total capital'), 'label_ar' => 'إجمالي رأس المال', 'value' => \App\Support\Money::format($totalEquity), 'variant' => 'good'],
     ['label_en' => __('Total liabilities'), 'label_ar' => 'إجمالي الخصوم', 'value' => \App\Support\Money::format($totalLiabilities), 'variant' => 'warn'],
-    ['label_en' => __('Total equity'), 'label_ar' => 'إجمالي حقوق الملكية', 'value' => \App\Support\Money::format($totalEquity), 'variant' => 'good'],
 ]])
 
 @include('documents.print.partials.report.section-title', ['en' => __('ASSETS'), 'ar' => 'الأصول'])
 <table class="data-table">
-    @if ($priorAsOf)
-        <thead><tr><th></th><th class="num">{{ __('Amount') }}</th><th class="num">{{ __('Prior') }}</th></tr></thead>
-    @endif
+    <thead><tr><th>{{ __('Code') }}</th><th>{{ __('Account') }}</th><th class="num">{{ __('Amount') }}</th>@if ($priorAsOf)<th class="num">{{ __('Prior') }}</th>@endif</tr></thead>
     <tbody>
         @foreach ($assets as $row)
             <tr>
-                <td>{{ $row['account']->label() }}</td>
+                <td>{{ $row['account']->code }}</td>
+                <td>{{ $row['account']->name }}</td>
                 <td class="num">{{ number_format($row['balance'], 2) }}</td>
                 @if ($priorAsOf)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
             </tr>
         @endforeach
         <tr class="total-row">
-            <td>{{ __('TOTAL ASSETS') }}</td>
+            <td colspan="2">{{ __('TOTAL ASSETS') }}</td>
             <td class="num">{{ number_format($totalAssets, 2) }}</td>
             @if ($priorAsOf)<td class="num">{{ number_format($priorTotalAssets, 2) }}</td>@endif
         </tr>
     </tbody>
 </table>
 
-@include('documents.print.partials.report.section-title', ['en' => __('LIABILITIES'), 'ar' => 'الخصوم'])
+@include('documents.print.partials.report.section-title', ['en' => __('CAPITAL'), 'ar' => 'رأس المال'])
 <table class="data-table">
+    <thead><tr><th>{{ __('Code') }}</th><th>{{ __('Account') }}</th><th class="num">{{ __('Amount') }}</th>@if ($priorAsOf)<th class="num">{{ __('Prior') }}</th>@endif</tr></thead>
     <tbody>
-        @foreach ($liabilities as $row)
+        @foreach ($equity as $row)
             <tr>
-                <td>{{ $row['account']->label() }}</td>
+                <td>{{ $row['account']?->code }}</td>
+                <td>{{ $row['account']?->name ?? $row['label'] }}</td>
                 <td class="num">{{ number_format($row['balance'], 2) }}</td>
                 @if ($priorAsOf)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
             </tr>
         @endforeach
         <tr class="total-row">
-            <td>{{ __('TOTAL LIABILITIES') }}</td>
-            <td class="num">{{ number_format($totalLiabilities, 2) }}</td>
-            @if ($priorAsOf)<td class="num">{{ number_format($priorTotalLiabilities, 2) }}</td>@endif
+            <td colspan="2">{{ __('TOTAL CAPITAL') }}</td>
+            <td class="num">{{ number_format($totalEquity, 2) }}</td>
+            @if ($priorAsOf)<td class="num">{{ number_format($priorTotalEquity, 2) }}</td>@endif
         </tr>
     </tbody>
 </table>
 
-@include('documents.print.partials.report.section-title', ['en' => __('EQUITY'), 'ar' => 'حقوق الملكية'])
+@include('documents.print.partials.report.section-title', ['en' => __('LIABILITIES'), 'ar' => 'الخصوم'])
 <table class="data-table">
+    <thead><tr><th>{{ __('Code') }}</th><th>{{ __('Account') }}</th><th class="num">{{ __('Amount') }}</th>@if ($priorAsOf)<th class="num">{{ __('Prior') }}</th>@endif</tr></thead>
     <tbody>
-        @foreach ($equity as $row)
+        @foreach ($liabilities as $row)
             <tr>
-                <td>{{ $row['account']?->label() ?? $row['label'] }}</td>
+                <td>{{ $row['account']->code }}</td>
+                <td>{{ $row['account']->name }}</td>
                 <td class="num">{{ number_format($row['balance'], 2) }}</td>
                 @if ($priorAsOf)<td class="num">{{ number_format($row['priorAmount'], 2) }}</td>@endif
             </tr>
         @endforeach
         <tr class="total-row">
-            <td>{{ __('TOTAL EQUITY') }}</td>
-            <td class="num">{{ number_format($totalEquity, 2) }}</td>
-            @if ($priorAsOf)<td class="num">{{ number_format($priorTotalEquity, 2) }}</td>@endif
+            <td colspan="2">{{ __('TOTAL LIABILITIES') }}</td>
+            <td class="num">{{ number_format($totalLiabilities, 2) }}</td>
+            @if ($priorAsOf)<td class="num">{{ number_format($priorTotalLiabilities, 2) }}</td>@endif
         </tr>
     </tbody>
 </table>
