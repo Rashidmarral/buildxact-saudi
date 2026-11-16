@@ -99,6 +99,24 @@ class LedgerIntegrityService
     ];
 
     /**
+     * A handful of SOURCE_MODELS entries are line items scoped only
+     * through a parent document — invoice_payments/bill_payments/
+     * project_material_issues/project_costs all have no company_id
+     * column of their own. The company check below must traverse this
+     * relation (already defined on the model itself) and test the
+     * parent's company_id instead of querying a column that doesn't
+     * exist. Any SOURCE_MODELS entry not listed here is assumed to carry
+     * its own company_id, which a quick Schema::hasColumn() check can
+     * confirm if a new one is ever added there.
+     */
+    private const COMPANY_SCOPE_VIA = [
+        InvoicePayment::class => 'invoice',
+        BillPayment::class => 'bill',
+        ProjectMaterialIssue::class => 'project',
+        ProjectCost::class => 'project',
+    ];
+
+    /**
      * Every journal entry (original or reversal) whose source document no
      * longer exists, grouped so a reversal and its original are reported
      * together even though they're separate JournalEntry rows. Read-only —
@@ -152,7 +170,15 @@ class LedgerIntegrityService
             // admin_staff, for whom BelongsToCompany's tenant scope is a
             // deliberate no-op (see that trait) — so nothing here may rely
             // on the query being scoped for us.
-            if ($query->where('id', $group['source_id'])->where('company_id', $company->id)->exists()) {
+            $query->where('id', $group['source_id']);
+
+            if ($relation = self::COMPANY_SCOPE_VIA[$modelClass] ?? null) {
+                $query->whereHas($relation, fn ($q) => $q->where('company_id', $company->id));
+            } else {
+                $query->where('company_id', $company->id);
+            }
+
+            if ($query->exists()) {
                 continue;
             }
 

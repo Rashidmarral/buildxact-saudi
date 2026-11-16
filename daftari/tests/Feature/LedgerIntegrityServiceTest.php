@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\CreditNote;
 use App\Models\Invoice;
+use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Accounting\LedgerIntegrityService;
@@ -184,6 +185,39 @@ class LedgerIntegrityServiceTest extends TestCase
         $result = app(LedgerIntegrityService::class)->scanOrphans($company);
 
         $this->assertCount(0, $result);
+    }
+
+    /**
+     * Regression test for a bug reported against the live admin "Company"
+     * page: invoice_payments (and bill_payments, project_material_issues,
+     * project_costs) have no company_id column of their own — they're
+     * scoped only through their parent document (invoice_id -> invoices.
+     * company_id). The blanket ->where('company_id', ...) scanOrphans()
+     * used to run against every SOURCE_MODELS table crashed with
+     * "Unknown column 'company_id'" the moment a company had any
+     * invoice_payment-sourced journal entry at all, existing or not.
+     */
+    public function test_scan_handles_a_model_with_no_company_id_column_of_its_own(): void
+    {
+        $company = $this->makeCompany();
+        $account = $this->makeAccount($company);
+        $invoice = $this->makeInvoice($company);
+        $payment = InvoicePayment::create([
+            'invoice_id' => $invoice->id, 'amount' => 100, 'paid_at' => now()->toDateString(),
+        ]);
+
+        $this->makeEntry($company, $account, 'invoice_payment', $payment->id, 100);
+
+        $result = app(LedgerIntegrityService::class)->scanOrphans($company);
+        $this->assertCount(0, $result, 'A live invoice_payment must not crash or be flagged as an orphan.');
+
+        $paymentId = $payment->id;
+        $payment->delete(); // InvoicePayment has no SoftDeletes — a hard delete.
+
+        $result = app(LedgerIntegrityService::class)->scanOrphans($company);
+        $this->assertCount(1, $result);
+        $this->assertSame($paymentId, $result->first()['source_id']);
+        $this->assertSame(InvoicePayment::class, $result->first()['model']);
     }
 
     public function test_scan_is_scoped_to_the_given_company(): void
