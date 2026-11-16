@@ -90,6 +90,30 @@ use RuntimeException;
 class CompanyDataResetService
 {
     /**
+     * A handful of models referenced in the registry below are line
+     * items scoped only through a parent document — they have no
+     * company_id column of their own (invoice_payments/
+     * invoice_installments via their invoice; project_costs/
+     * project_material_issues/project_change_orders/
+     * project_site_diary_entries/project_timesheets via their project).
+     * scopedQuery() must traverse this relation (already defined on the
+     * model itself) and test the parent's company_id instead of
+     * querying a column that doesn't exist — same fix as
+     * LedgerIntegrityService::COMPANY_SCOPE_VIA, which hit the same bug
+     * for invoice_payments/bill_payments/project_costs/
+     * project_material_issues via a different admin page.
+     */
+    private const COMPANY_SCOPE_VIA = [
+        InvoicePayment::class => 'invoice',
+        InvoiceInstallment::class => 'invoice',
+        ProjectCost::class => 'project',
+        ProjectMaterialIssue::class => 'project',
+        ProjectChangeOrder::class => 'project',
+        ProjectSiteDiaryEntry::class => 'project',
+        ProjectTimesheet::class => 'project',
+    ];
+
+    /**
      * One entry per wipeable category. 'models' lists every top-level
      * Eloquent model whose rows get force-deleted for this category —
      * every child row (line items, allocations, lines) is left to the
@@ -431,7 +455,12 @@ class CompanyDataResetService
     {
         $usesSoftDeletes = in_array(SoftDeletes::class, class_uses_recursive($modelClass), true);
         $query = $usesSoftDeletes ? $modelClass::withTrashed() : $modelClass::query();
-        $query->where('company_id', $company->id);
+
+        if ($relation = self::COMPANY_SCOPE_VIA[$modelClass] ?? null) {
+            $query->whereHas($relation, fn ($q) => $q->where('company_id', $company->id));
+        } else {
+            $query->where('company_id', $company->id);
+        }
 
         if ($extraWhere !== null) {
             $extraWhere($query);

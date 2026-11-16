@@ -4,13 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Account;
 use App\Models\Attachment;
-use App\Models\AuditLog;
 use App\Models\Bill;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\CreditNote;
+use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoicePayment;
 use App\Models\JournalEntry;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
@@ -131,6 +132,40 @@ class CompanyDataResetTest extends TestCase
 
         $this->assertSame(2, $counts['bills']);
         $this->assertSame(0, $counts['purchase_orders']);
+    }
+
+    /**
+     * Regression test for a bug reported against the live admin "Data
+     * reset" page: invoice_payments has no company_id column of its own
+     * (it's scoped only through its invoice), so the registry's blanket
+     * ->where('company_id', ...) scan crashed with "Unknown column
+     * 'company_id'" the moment a company had any invoice payment at all
+     * — the same class of bug LedgerIntegrityService::scanOrphans() had.
+     */
+    public function test_preview_and_execute_handle_a_category_with_no_company_id_column_of_its_own(): void
+    {
+        $admin = $this->makeAdmin();
+        $companyA = $this->makeCompany();
+        $companyB = $this->makeCompany();
+        $invoiceA = $this->makeInvoice($companyA);
+        $invoiceB = $this->makeInvoice($companyB);
+
+        InvoicePayment::create(['invoice_id' => $invoiceA->id, 'amount' => 100, 'paid_at' => now()->toDateString()]);
+        InvoicePayment::create(['invoice_id' => $invoiceA->id, 'amount' => 50, 'paid_at' => now()->toDateString()]);
+        $paymentB = InvoicePayment::create(['invoice_id' => $invoiceB->id, 'amount' => 75, 'paid_at' => now()->toDateString()]);
+
+        $counts = app(CompanyDataResetService::class)->preview($companyA);
+        $this->assertSame(2, $counts['invoice_payments']);
+
+        $this->actingAs($admin)
+            ->withSession(['auth.password_confirmed_at' => now()->timestamp])
+            ->post(route('admin.companies.data-reset.execute', $companyA), [
+                'categories' => ['invoice_payments'], 'confirm_name' => $companyA->name,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseCount('invoice_payments', 1);
+        $this->assertDatabaseHas('invoice_payments', ['id' => $paymentB->id]);
     }
 
     // ---------------------------------------------------------------
@@ -355,7 +390,7 @@ class CompanyDataResetTest extends TestCase
         $owner = User::factory()->create(['role' => 'owner', 'company_id' => $company->id, 'status' => 'active']);
         $staff = User::factory()->create(['role' => 'staff', 'company_id' => $company->id, 'status' => 'active']);
         $supplier = Supplier::create(['company_id' => $company->id, 'type' => 'company', 'name' => 'Old Supplier']);
-        $employee = \App\Models\Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-001', 'full_name' => 'Old Employee', 'hire_date' => now()->toDateString(), 'status' => 'active']);
+        $employee = Employee::create(['company_id' => $company->id, 'employee_number' => 'EMP-001', 'full_name' => 'Old Employee', 'hire_date' => now()->toDateString(), 'status' => 'active']);
 
         $this->actingAs($admin)
             ->withSession(['auth.password_confirmed_at' => now()->timestamp])
