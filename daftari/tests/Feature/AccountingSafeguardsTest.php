@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\AccountMapping;
 use App\Models\Company;
 use App\Models\User;
+use App\Services\Accounting\LedgerPostingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -124,5 +125,84 @@ class AccountingSafeguardsTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('account_id');
+    }
+
+    /**
+     * Commercial audit finding A5: Account::update() let type and
+     * normal_balance change freely even once the account had real
+     * journal postings — both drive the sign and financial-statement
+     * section every report (Trial Balance, General Ledger, Balance
+     * Sheet, Income Statement) computes for that account's history, so
+     * changing either after the fact silently rewrote how already-real
+     * transactions present without a single journal entry changing.
+     */
+    public function test_type_and_normal_balance_cannot_change_once_the_account_has_journal_entries(): void
+    {
+        $owner = $this->makeOwner();
+        $custom = Account::create([
+            'company_id' => $owner->company_id, 'code' => '5999', 'name' => 'Custom Expense',
+            'type' => 'expense', 'normal_balance' => 'debit', 'is_active' => true,
+        ]);
+        $cash = Account::where('company_id', $owner->company_id)->where('code', '1000')->first();
+        app(LedgerPostingService::class)->post(
+            $owner->company, 'manual', 1, 'test posting', now(),
+            [['account_id' => $custom->id, 'debit' => 100], ['account_id' => $cash->id, 'credit' => 100]]
+        );
+
+        $response = $this->actingAs($owner)->put(route('app.accounts.update', $custom), [
+            'code' => $custom->code, 'name' => 'Renamed', 'name_ar' => null,
+            'type' => 'revenue', 'normal_balance' => 'credit', 'category' => null, 'parent_account_id' => null,
+        ]);
+
+        $response->assertSessionHasErrors('account');
+        $fresh = $custom->fresh();
+        $this->assertSame('expense', $fresh->type);
+        $this->assertSame('debit', $fresh->normal_balance);
+        // The whole request is refused together, same as
+        // deactivate()/destroy() above — the name change never applied
+        // either, rather than silently half-applying the request.
+        $this->assertSame('Custom Expense', $fresh->name);
+    }
+
+    public function test_other_fields_still_update_once_the_account_has_journal_entries_as_long_as_classification_is_unchanged(): void
+    {
+        $owner = $this->makeOwner();
+        $custom = Account::create([
+            'company_id' => $owner->company_id, 'code' => '5998', 'name' => 'Custom Expense',
+            'type' => 'expense', 'normal_balance' => 'debit', 'is_active' => true,
+        ]);
+        $cash = Account::where('company_id', $owner->company_id)->where('code', '1000')->first();
+        app(LedgerPostingService::class)->post(
+            $owner->company, 'manual', 2, 'test posting', now(),
+            [['account_id' => $custom->id, 'debit' => 50], ['account_id' => $cash->id, 'credit' => 50]]
+        );
+
+        $response = $this->actingAs($owner)->put(route('app.accounts.update', $custom), [
+            'code' => $custom->code, 'name' => 'Renamed Expense', 'name_ar' => null,
+            'type' => 'expense', 'normal_balance' => 'debit', 'category' => 'Operating Expenses', 'parent_account_id' => null,
+        ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertSame('Renamed Expense', $custom->fresh()->name);
+        $this->assertSame('Operating Expenses', $custom->fresh()->category);
+    }
+
+    public function test_type_and_normal_balance_can_still_change_freely_before_any_journal_entry_exists(): void
+    {
+        $owner = $this->makeOwner();
+        $custom = Account::create([
+            'company_id' => $owner->company_id, 'code' => '5997', 'name' => 'Unused Custom',
+            'type' => 'expense', 'normal_balance' => 'debit', 'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($owner)->put(route('app.accounts.update', $custom), [
+            'code' => $custom->code, 'name' => $custom->name, 'name_ar' => null,
+            'type' => 'revenue', 'normal_balance' => 'credit', 'category' => null, 'parent_account_id' => null,
+        ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $fresh = $custom->fresh();
+        $this->assertSame('revenue', $fresh->type);
+        $this->assertSame('credit', $fresh->normal_balance);
     }
 }

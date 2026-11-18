@@ -158,6 +158,24 @@ class AccountController extends Controller
             return back()->with('status', __('Account updated.'));
         }
 
+        // Commercial audit finding A5: type and normal_balance drive the
+        // sign and financial-statement section of every balance computed
+        // from this account's journal entries (FinancialReportService —
+        // Trial Balance, General Ledger, Balance Sheet, Income
+        // Statement). Letting either change after real postings exist
+        // silently rewrites how those historical transactions present
+        // without touching a single journal entry — the same
+        // "mirrors destroy()'s existing guards" reasoning deactivate()
+        // and destroy() above already apply, extended to cover editing.
+        // Only actually blocked if the admin tried to change one of
+        // them — renaming, recategorizing, or reparenting an account
+        // with real history stays unaffected.
+        $changingClassification = $data['type'] !== $account->type || $data['normal_balance'] !== $account->normal_balance;
+
+        if ($changingClassification && $account->journalEntryLines()->exists()) {
+            return back()->withErrors(['account' => __('This account has journal entries posted to it — its type and normal balance cannot be changed. Other fields can still be edited.')])->withInput();
+        }
+
         $account->update($data);
 
         return back()->with('status', __('Account updated.'));
