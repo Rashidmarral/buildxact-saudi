@@ -7,6 +7,13 @@
     @csrf
     @if ($setupPackage->exists) @method('PUT') @endif
 
+    <h2 class="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+        <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5"><path d="M4 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4Zm3 2a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H7Zm0 4a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H7Zm0 4a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H7Z"/></svg>
+        </span>
+        {{ __('Setup package details') }}
+    </h2>
+
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Name (English)') }}</label>
