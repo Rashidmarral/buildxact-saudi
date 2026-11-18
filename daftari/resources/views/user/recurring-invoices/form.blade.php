@@ -22,7 +22,14 @@ $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy
     @csrf
     @if ($recurringInvoice->exists) @method('PUT') @endif
 
-    <div class="bg-white rounded-xl border border-slate-100 p-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <h2 class="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5"><path d="M4 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4Zm3 2a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H7Zm0 4a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H7Zm0 4a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H7Z"/></svg>
+            </span>
+            {{ __('Schedule details') }}
+        </h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <div class="lg:col-span-3">
             <label class="block text-sm font-medium text-slate-700">{{ __('Title') }}</label>
             <input type="text" name="title" required value="{{ old('title', $recurringInvoice->title) }}" placeholder="{{ __('e.g. Monthly retainer — Acme Co') }}" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -98,11 +105,17 @@ $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy
                 @endforeach
             </select>
         </div>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
+            <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5"><path fill-rule="evenodd" d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm0 5A.75.75 0 0 1 2.75 9h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 9.75Zm0 5a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd"/></svg>
+                </span>
+                {{ __('Line items') }}
+            </h2>
             <button type="button" id="add-row" class="text-sm font-semibold text-brand-700 hover:underline">{{ __('+ Add line') }}</button>
         </div>
 
@@ -125,23 +138,23 @@ $existingItems = $recurringInvoice->exists ? $recurringInvoice->items()->orderBy
         </div>
 
         <div class="mt-6 flex justify-end">
-            <div class="w-full max-w-xs space-y-2 text-sm">
-                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">{{ \App\Support\Money::format(0) }}</span></div>
+            <div class="w-full max-w-xs space-y-2 text-sm bg-slate-50 rounded-xl border border-slate-100 p-4">
+                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal" class="font-medium text-slate-700">{{ \App\Support\Money::format(0) }}</span></div>
                 <div class="flex justify-between items-center text-slate-500">
                     <span>{{ __('Discount') }}</span>
                     <div class="flex items-center gap-1">
-                        <input type="number" step="0.01" min="0" name="discount_value" id="discount_value" value="{{ old('discount_value', $recurringInvoice->discount_value ?? 0) }}" class="w-20 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
-                        <select name="discount_type" id="discount_type" class="rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
+                        <input type="number" step="0.01" min="0" name="discount_value" id="discount_value" value="{{ old('discount_value', $recurringInvoice->discount_value ?? 0) }}" class="w-20 rounded-lg border border-slate-200 bg-white text-end focus:border-brand-500 focus:ring-brand-500">
+                        <select name="discount_type" id="discount_type" class="rounded-lg border border-slate-200 bg-white text-xs focus:border-brand-500 focus:ring-brand-500">
                             <option value="fixed" @selected(old('discount_type', $recurringInvoice->discount_type ?? 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
                             <option value="percentage" @selected(old('discount_type', $recurringInvoice->discount_type ?? 'fixed') === 'percentage')>%</option>
                         </select>
                     </div>
                 </div>
-                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">{{ \App\Support\Money::format(0) }}</span></div>
-                <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-100"><span>{{ __('Total') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
+                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat" class="font-medium text-slate-700">{{ \App\Support\Money::format(0) }}</span></div>
+                <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-200"><span>{{ __('Total') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
                 <div class="flex justify-between items-center text-slate-500">
                     <span>{{ __('Retention %') }}</span>
-                    <input type="number" step="0.01" min="0" max="100" name="retention_rate" id="retention_rate" value="{{ old('retention_rate', $recurringInvoice->retention_rate ?? 0) }}" class="w-28 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" step="0.01" min="0" max="100" name="retention_rate" id="retention_rate" value="{{ old('retention_rate', $recurringInvoice->retention_rate ?? 0) }}" class="w-28 rounded-lg border border-slate-200 bg-white text-end focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
         </div>
@@ -193,7 +206,7 @@ function addRow(data) {
     data = data || { item_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: {{ \App\Models\TaxRate::defaultRate(auth()->user()->company_id) }} };
     const i = rowIndex++;
     const tr = document.createElement('tr');
-    tr.className = 'border-b border-slate-50';
+    tr.className = 'border-b border-slate-50 hover:bg-slate-50/70';
     tr.innerHTML = `
         <td class="py-2 pe-3">${itemCellHtml(i, data)}</td>
         <td class="py-2 pe-3"><input type="text" name="items[${i}][description]" data-role="description" value="${escapeHtml(data.description || '')}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
