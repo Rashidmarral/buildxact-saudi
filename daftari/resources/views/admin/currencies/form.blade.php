@@ -7,6 +7,13 @@
     @csrf
     @if ($currency->exists) @method('PUT') @endif
 
+    <h2 class="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+        <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM10.75 7.5a.75.75 0 0 0-1.5 0v.006c-.323.04-.631.114-.909.242-.556.256-1.091.767-1.091 1.591 0 .822.535 1.252 1.057 1.49.272.125.588.21.943.282v2.153c-.288-.082-.516-.209-.672-.339a.75.75 0 1 0-.96 1.153c.453.377 1.04.622 1.632.733v.006a.75.75 0 0 0 1.5 0v-.006c.323-.04.631-.114.909-.242.556-.256 1.091-.767 1.091-1.591 0-.822-.535-1.252-1.057-1.49a4.39 4.39 0 0 0-.943-.282V8.593c.288.082.516.209.672.339a.75.75 0 1 0 .96-1.153 2.98 2.98 0 0 0-1.632-.733V7.5Z" clip-rule="evenodd"/></svg>
+        </span>
+        {{ __('Currency details') }}
+    </h2>
+
     <div class="grid sm:grid-cols-2 gap-4">
         <div>
             <label class="block text-xs font-semibold uppercase text-slate-500">{{ __('Currency code') }}</label>
