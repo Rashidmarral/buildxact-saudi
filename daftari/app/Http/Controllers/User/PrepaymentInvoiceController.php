@@ -13,6 +13,7 @@ use App\Models\PrepaymentInvoiceApplication;
 use App\Models\Project;
 use App\Models\TaxRate;
 use App\Services\MpdfRenderer;
+use App\Support\RecordRetentionPolicy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,7 +66,9 @@ class PrepaymentInvoiceController extends Controller
             'issue_date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'notes' => ['nullable', 'string'],
+            // Capped to match every other document type's notes field
+            // (Invoice, Quotation, Bill) — this one was left unbounded.
+            'notes' => ['nullable', 'string', 'max:2000'],
         ]);
     }
 
@@ -131,8 +134,8 @@ class PrepaymentInvoiceController extends Controller
         // issued (the only status store() ever creates today — a VAT-
         // relevant advance was received the moment this exists), it's a
         // real financial record regardless of ZATCA sync status.
-        if ($prepaymentInvoice->status !== 'draft' && \App\Support\RecordRetentionPolicy::isWithinRetentionWindow($prepaymentInvoice->issue_date)) {
-            return back()->withErrors(['prepayment' => __('This prepayment invoice is within the :years-year record retention period required by Saudi VAT law and cannot be deleted.', ['years' => \App\Support\RecordRetentionPolicy::RETENTION_YEARS])]);
+        if ($prepaymentInvoice->status !== 'draft' && RecordRetentionPolicy::isWithinRetentionWindow($prepaymentInvoice->issue_date)) {
+            return back()->withErrors(['prepayment' => __('This prepayment invoice is within the :years-year record retention period required by Saudi VAT law and cannot be deleted.', ['years' => RecordRetentionPolicy::RETENTION_YEARS])]);
         }
 
         AuditLog::record('prepayment_invoice.delete', $prepaymentInvoice, __('Deleted prepayment invoice :number', ['number' => $prepaymentInvoice->prepayment_number]));

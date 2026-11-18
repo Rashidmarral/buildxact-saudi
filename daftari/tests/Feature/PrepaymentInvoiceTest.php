@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\TaxRate;
 use App\Models\User;
 use App\Models\ZatcaInvoiceLog;
+use App\Services\Zatca\ZatcaSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -93,6 +94,25 @@ class PrepaymentInvoiceTest extends TestCase
         $this->assertSame(1500.0, (float) $prepayment->vat_amount);
         $this->assertSame(11500.0, (float) $prepayment->total);
         $this->assertStringStartsWith($company->refresh()->prepayment_prefix.'-', $prepayment->prepayment_number);
+    }
+
+    public function test_notes_over_2000_characters_are_rejected_matching_every_other_document_type(): void
+    {
+        [$company, $owner] = $this->makeOwner();
+        $client = Client::create(['company_id' => $company->id, 'name' => 'Advance Client']);
+        $rate = $this->standardRate($company);
+
+        $response = $this->actingAs($owner)->post(route('app.prepayment-invoices.store'), [
+            'client_id' => $client->id,
+            'tax_rate_id' => $rate->id,
+            'type' => 'standard',
+            'issue_date' => now()->toDateString(),
+            'amount' => 10000,
+            'notes' => str_repeat('x', 2001),
+        ]);
+
+        $response->assertSessionHasErrors('notes');
+        $this->assertNull(PrepaymentInvoice::first());
     }
 
     public function test_a_prepayment_invoice_cannot_be_created_for_another_companys_client(): void
@@ -181,7 +201,7 @@ class PrepaymentInvoiceTest extends TestCase
             'issue_date' => now()->toDateString(), 'amount' => 10000, 'vat_rate' => 15, 'vat_amount' => 1500, 'total' => 11500,
         ]);
 
-        $log = app(\App\Services\Zatca\ZatcaSyncService::class)->submitPrepaymentInvoice($prepayment);
+        $log = app(ZatcaSyncService::class)->submitPrepaymentInvoice($prepayment);
 
         Http::assertNothingSent();
         $this->assertSame('failed', $log->status);
