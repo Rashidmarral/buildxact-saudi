@@ -262,15 +262,28 @@ function populateUnitOptions(tr, itemId, selectedUnitId) {
     const catalogItem = CATALOG.find(c => String(c.id) === String(itemId));
 
     if (catalogItem) {
-        if (! catalogItem.units.length) {
+        // A previously-saved line can reference a unit that isn't (or
+        // is no longer) one of this item's own configured units — e.g.
+        // a freeform line saved in a unit before it had a catalog item
+        // of its own, or the item's units were edited after this
+        // document was saved. Keep that unit selectable instead of
+        // silently falling back to whichever unit happens to be first
+        // in the list, with no way to pick it back on edit.
+        let options = catalogItem.units;
+        if (selectedUnitId && ! options.some(u => String(u.id) === String(selectedUnitId))) {
+            const extra = ALL_UNITS.find(u => String(u.id) === String(selectedUnitId));
+            if (extra) options = options.concat([{ id: extra.id, label: extra.label }]);
+        }
+
+        if (! options.length) {
             unitSelect.innerHTML = '';
             unitSelect.disabled = true;
             return;
         }
 
         unitSelect.disabled = false;
-        unitSelect.innerHTML = catalogItem.units.map(u => `<option value="${u.id}" data-price="${u.price}">${u.label}</option>`).join('');
-        unitSelect.value = selectedUnitId || catalogItem.units[0].id;
+        unitSelect.innerHTML = options.map(u => `<option value="${u.id}"${u.price !== undefined ? ` data-price="${u.price}"` : ''}>${u.label}</option>`).join('');
+        unitSelect.value = selectedUnitId || options[0].id;
         return;
     }
 

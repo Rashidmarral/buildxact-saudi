@@ -135,6 +135,66 @@ class QuotationLineItemsSavedToCatalogTest extends TestCase
         $editPage->assertOk()->assertSee($box->label(), false);
     }
 
+    /**
+     * Regression test for the follow-up report: "what happened to
+     * already created quoted because still unit is not coming allow
+     * option to select unit again as well on edit". Fixing
+     * findOrCreateCatalogItem() only protects *new* freeform lines going
+     * forward — a quotation saved before that fix (or, more generally,
+     * any item whose own configured units were later edited to no
+     * longer include a unit some existing document line still uses)
+     * would stay permanently stuck: the edit page's unit picker only
+     * ever offers an item's own units, so a saved unit_id missing from
+     * that list had nowhere to be reselected from. Fixed at the view
+     * layer in populateUnitOptions() (every line-item form) instead, so
+     * already-affected documents recover without a data migration: the
+     * saved unit is looked up in the company's full unit list and
+     * folded into the dropdown whenever it isn't already one of the
+     * item's own. This test simulates exactly that stuck state directly
+     * (an item whose only unit is Pcs, a line that still points at Box)
+     * and confirms the edit page gives the JS everything it needs to
+     * recover — the saved unit_id and the full company unit list
+     * (including Box's label) both still render.
+     */
+    public function test_edit_page_still_exposes_a_lines_saved_unit_even_when_its_items_own_units_no_longer_include_it(): void
+    {
+        [$company, $owner, $client] = $this->makeCompanyWithClient();
+        $pcs = Unit::create(['company_id' => $company->id, 'name' => 'Pcs', 'symbol' => 'pcs']);
+        $box = Unit::create(['company_id' => $company->id, 'name' => 'Box', 'symbol' => 'box']);
+        $item = Item::create([
+            'company_id' => $company->id, 'name' => 'Stuck Item', 'item_type' => 'service',
+            'unit_price' => 50, 'vat_rate' => 15, 'is_active' => true, 'base_unit_id' => $pcs->id,
+        ]);
+
+        $quotation = Quotation::create([
+            'company_id' => $company->id, 'client_id' => $client->id, 'type' => 'quotation',
+            'quotation_number' => 'QTN-STUCK', 'status' => 'draft',
+            'issue_date' => now()->toDateString(), 'expiry_date' => now()->addDays(30)->toDateString(),
+        ]);
+        $quotation->items()->create([
+            'item_id' => $item->id, 'unit_id' => $box->id, 'description' => 'Stuck Item',
+            'quantity' => 1, 'unit_price' => 50, 'vat_rate' => 15,
+        ]);
+
+        $editPage = $this->actingAs($owner)->get(route('app.quotations.edit', $quotation));
+        $editPage->assertOk()->assertSee('const ALL_UNITS', false);
+
+        // Js::from() renders EXISTING as JSON.parse('<json with "
+        // in place of every literal ">'), not a plain JS object literal —
+        // unescape that back into real JSON before decoding it, to
+        // confirm the line's own saved unit_id is still exactly what the
+        // fixed populateUnitOptions() needs to try to select.
+        $content = $editPage->getContent();
+        preg_match("/const EXISTING = JSON\.parse\('(.*?)'\);/", $content, $existingMatch);
+        $this->assertNotEmpty($existingMatch, 'could not find the EXISTING data array on the edit page');
+        $existing = json_decode(str_replace('\\u0022', '"', $existingMatch[1]), true);
+        $this->assertSame($box->id, $existing[0]['unit_id']);
+
+        // Box's label must still be present in ALL_UNITS too, so there's
+        // something for populateUnitOptions() to fall back to.
+        $editPage->assertSee($box->label(), false);
+    }
+
     public function test_a_line_picked_from_the_catalog_does_not_create_another_item(): void
     {
         [$company, $owner, $client] = $this->makeCompanyWithClient();
