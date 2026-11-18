@@ -353,9 +353,9 @@
             </td>
             <td style="width: 45%; vertical-align: top;">
                 <table>
-                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td></tr>
-                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ $lbl('Total Tax') }}</td><td class="text-end" style="padding: 2px 0;">{{ number_format($doc['vat_total'], 2) }}</td></tr>
-                    <tr><td style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ $lbl('Grand Total') }}</td><td class="text-end" style="padding: 4px 0; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ number_format($doc['total'], 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 2px 0; font-weight: bold;">{{ number_format($doc['subtotal'] - ($doc['discount_total'] ?? 0), 2) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold;">{{ $lbl('Total Tax') }}</td><td class="text-end" style="padding: 2px 0; font-weight: bold;">{{ number_format($doc['vat_total'], 2) }}</td></tr>
+                    <tr><td style="padding: 6px 0 4px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ $lbl('Grand Total') }}</td><td class="text-end" style="padding: 6px 0 4px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #0f172a;">{{ number_format($doc['total'], 2) }}</td></tr>
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         @php
                             $rowColor = match ($row['variant'] ?? null) { 'red' => '#dc2626', 'green' => '#059669', default => '#334155' };
@@ -542,12 +542,12 @@
                 </tr>
             @endif
             <tr>
-                <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoRight }};">{{ $lbl('VAT') }}</td>
-                <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['vat_total']) }}</td>
+                <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; text-align: {{ $qoRight }};">{{ $lbl('VAT') }}</td>
+                <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['vat_total']) }}</td>
             </tr>
             <tr style="background-color: #f1f5f9;">
-                <td colspan="4" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoRight }};">{{ $lbl('Total including VAT') }}</td>
-                <td colspan="2" style="border: 0.5pt solid #cbd5e1; padding: 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['total']) }}</td>
+                <td colspan="4" style="border: 0.5pt solid #cbd5e1; border-top: 1.5pt solid #0f172a; padding: 7px 5px 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoRight }};">{{ $lbl('Total including VAT') }}</td>
+                <td colspan="2" style="border: 0.5pt solid #cbd5e1; border-top: 1.5pt solid #0f172a; padding: 7px 5px 5px; font-weight: bold; font-size: 10pt; text-align: {{ $qoLeft }};">{{ \App\Support\Money::format($doc['total']) }}</td>
             </tr>
             @foreach ($doc['extra_rows'] ?? [] as $row)
                 @php
@@ -722,9 +722,9 @@
                     @if (($doc['discount_total'] ?? 0) > 0)
                         <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Discount') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
                     @endif
-                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total Taxable Amount (Excluding VAT)') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td></tr>
-                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total VAT 15%') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
-                    <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Due') }}</td><td class="text-end" style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold; color: #334155;">{{ $lbl('Total Taxable Amount (Excluding VAT)') }}</td><td class="text-end" style="padding: 2px 0; font-weight: bold; color: #334155;">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold; color: #334155;">{{ $lbl('Total VAT 15%') }}</td><td class="text-end" style="padding: 2px 0; font-weight: bold; color: #334155;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                    <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 5px 0 3px; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Due') }}</td><td class="text-end" style="padding: 5px 0 3px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         @php
                             $rowStyle = match ($row['variant'] ?? null) {
@@ -913,8 +913,8 @@
                     <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Discount') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['discount_total'] ?? 0) }}</td></tr>
                     <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Other Charges') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format(0) }}</td></tr>
                     <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total Taxable Amount') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['subtotal'] - ($doc['discount_total'] ?? 0)) }}</td></tr>
-                    <tr><td style="padding: 2px 0; color: #64748b;">{{ $lbl('Total VAT') }}</td><td class="text-end" style="padding: 2px 0;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
-                    <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Including VAT') }}</td><td class="text-end" style="padding: 3px 0; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                    <tr><td style="padding: 2px 0; color: #334155;">{{ $lbl('Total VAT') }}</td><td class="text-end" style="padding: 2px 0; color: #334155;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                    <tr style="border-top: 1.5pt solid #1e293b;"><td style="padding: 4px 0 3px; font-weight: bold; color: #0f172a;">{{ $lbl('Total Amount Including VAT') }}</td><td class="text-end" style="padding: 4px 0 3px; font-weight: bold; color: #0f172a;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         @php
                             $rowStyle = match ($row['variant'] ?? null) {
@@ -1242,15 +1242,15 @@
             <td style="width: 55%;"></td>
             <td style="width: 45%; border: 0.5pt solid #e2e8f0; border-radius: 14px; @if ($boxed) background-color: {{ $totalsColor }}; border-color: {{ $totalsColor }}; @endif padding: 8px 10px;">
                 <table>
-                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold; @if ($boxed) color: #ffffff; @else color: #334155; @endif">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 2px 0; font-weight: bold; @if ($boxed) color: #ffffff; @else color: #334155; @endif">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                     @if (($doc['discount_total'] ?? 0) > 0)
                         <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('Discount') }}@if (! empty($doc['discount_percent'])) ({{ rtrim(rtrim(number_format($doc['discount_percent'], 2), '0'), '.') }}%)@endif</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">-{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
                     @endif
-                    <tr><td style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ $lbl('VAT') }}</td><td class="text-end" style="padding: 2px 0; @if ($boxed) color: #ffffff; @else color: #64748b; @endif">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
+                    <tr><td style="padding: 2px 0; font-weight: bold; @if ($boxed) color: #ffffff; @else color: #334155; @endif">{{ $lbl('VAT') }}</td><td class="text-end" style="padding: 2px 0; font-weight: bold; @if ($boxed) color: #ffffff; @else color: #334155; @endif">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
                     @if ($boxed)
-                        <tr><td style="padding: 4px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 4px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                        <tr><td style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 0 2px; font-weight: bold; font-size: 11pt; border-top: 1pt solid #ffffff; color: #ffffff;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                     @else
-                        <tr><td colspan="2" style="padding: 4px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 2px 6px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 2px 6px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
+                        <tr><td colspan="2" style="padding: 6px 0 0;"><table style="background-color: {{ $totalsColor }};"><tr><td style="padding: 2px 6px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 2px 6px; font-weight: bold; font-size: 11pt; color: #ffffff; border-radius: 10px;">{{ \App\Support\Money::format($doc['total']) }}</td></tr></table></td></tr>
                     @endif
                     @foreach ($doc['extra_rows'] ?? [] as $row)
                         @php

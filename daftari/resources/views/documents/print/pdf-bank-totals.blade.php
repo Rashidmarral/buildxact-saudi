@@ -12,12 +12,12 @@
         </td>
         <td style="width: 45%; vertical-align: top; font-size: 8.5pt;">
             <table>
-                <tr><td style="padding: 1px 0; color: #64748b;">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 1px 0; color: #64748b;">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
+                <tr><td style="padding: 1px 0; font-weight: bold; color: #334155;">{{ $lbl('Subtotal') }}</td><td class="text-end" style="padding: 1px 0; font-weight: bold; color: #334155;">{{ \App\Support\Money::format($doc['subtotal']) }}</td></tr>
                 @if (($doc['discount_total'] ?? 0) > 0)
                     <tr><td style="padding: 1px 0; color: #64748b;">{{ $lbl('Discount') }}</td><td class="text-end" style="padding: 1px 0; color: #64748b;">-{{ \App\Support\Money::format($doc['discount_total']) }}</td></tr>
                 @endif
                 <tr><td style="padding: 1px 0; color: #64748b;">{{ $lbl('Total VAT') }}</td><td class="text-end" style="padding: 1px 0; color: #64748b;">{{ \App\Support\Money::format($doc['vat_total']) }}</td></tr>
-                <tr><td style="padding: 3px 0 1px; font-weight: bold; font-size: 10.5pt; border-top: 1.5pt solid #1e293b;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 3px 0 1px; font-weight: bold; font-size: 10.5pt; border-top: 1.5pt solid #1e293b;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
+                <tr><td style="padding: 6px 0 1px; font-weight: bold; font-size: 10.5pt; border-top: 1.5pt solid #1e293b;">{{ $lbl('Total') }}</td><td class="text-end" style="padding: 6px 0 1px; font-weight: bold; font-size: 10.5pt; border-top: 1.5pt solid #1e293b;">{{ \App\Support\Money::format($doc['total']) }}</td></tr>
                 @foreach ($doc['extra_rows'] ?? [] as $row)
                     @php
                         $rowColor = match ($row['variant'] ?? null) { 'red' => '#dc2626', 'green' => '#059669', default => '#64748b' };
