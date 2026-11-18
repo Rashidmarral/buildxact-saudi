@@ -1125,6 +1125,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:super_admin,ad
         Route::post('companies/{company}/resume-subscription', [CompanyController::class, 'resumeSubscription'])->name('companies.resume-subscription');
         Route::post('companies/{company}/reset-settings', [CompanyController::class, 'resetSettings'])->name('companies.reset-settings');
         Route::post('companies/{company}/purge-ledger-orphans', [CompanyController::class, 'purgeLedgerOrphans'])->name('companies.purge-ledger-orphans');
+        Route::post('companies/{company}/deactivate-orphaned-bank-accounts', [CompanyController::class, 'deactivateOrphanedBankAccounts'])->name('companies.deactivate-orphaned-bank-accounts');
         Route::post('companies/{company}/data-reset', [CompanyDataResetController::class, 'execute'])->name('companies.data-reset.execute');
         Route::post('companies/{company}/upgrade-plan', [CompanyController::class, 'upgradePlan'])->name('companies.upgrade-plan');
         Route::post('companies/{company}/downgrade-plan', [CompanyController::class, 'downgradePlan'])->name('companies.downgrade-plan');

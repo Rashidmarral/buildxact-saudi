@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Models\ZatcaCreditNoteLog;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Accounting\LedgerIntegrityService;
+use App\Services\Admin\OrphanedBankLedgerAccountService;
 use App\Services\Features\FeatureAccessService;
 use App\Services\Limits\UsageLimitService;
 use App\Services\Subscriptions\SubscriptionLifecycleService;
@@ -217,6 +218,7 @@ class CompanyController extends Controller
 
         $hasZatcaActivity = $company->hasAnyZatcaActivity();
         $orphanedLedgerEntries = app(LedgerIntegrityService::class)->scanOrphans($company);
+        $orphanedBankAccounts = app(OrphanedBankLedgerAccountService::class)->preview($company);
 
         $featureAccess = app(FeatureAccessService::class);
         $featureCatalog = collect(FeatureRegistry::catalog())->map(fn ($entry, $key) => [
@@ -241,7 +243,7 @@ class CompanyController extends Controller
             'company', 'plans', 'subscription', 'usage', 'zatca', 'failedZatcaSubmissions',
             'branches', 'roles', 'activeUsersCount', 'inactiveUsersCount', 'failedPayments',
             'storageUsedBytes', 'auditLogs', 'featureCatalog', 'limitCatalog',
-            'hasZatcaActivity', 'orphanedLedgerEntries'
+            'hasZatcaActivity', 'orphanedLedgerEntries', 'orphanedBankAccounts'
         ));
     }
 
@@ -694,6 +696,36 @@ class CompanyController extends Controller
         );
 
         return back()->with('status', __(':count orphaned ledger entries removed.', ['count' => $result['entries_removed']]));
+    }
+
+    /**
+     * Super-admin "Orphaned bank ledger lines": deactivates a
+     * chart-of-accounts line a now-deleted bank account left behind (see
+     * OrphanedBankLedgerAccountService's own docblock). Unlike "Ledger
+     * cleanup" above, this never deletes anything and never touches a
+     * journal entry — it only flips Account::is_active off, so it needs
+     * no ZATCA gate: there is no historical figure here to disturb, just
+     * a leftover account that can no longer be posted to anyway (its
+     * bank account is already gone) left wrongly selectable in every
+     * report's account filter.
+     */
+    public function deactivateOrphanedBankAccounts(Company $company, OrphanedBankLedgerAccountService $service)
+    {
+        $deactivated = $service->execute($company);
+
+        if ($deactivated === 0) {
+            return back()->with('status', __('No orphaned bank ledger lines were found for :name.', ['name' => $company->name]));
+        }
+
+        AuditLog::record(
+            'company.deactivate_orphaned_bank_accounts',
+            $company,
+            __('Deactivated :count orphaned bank ledger line(s) for :name', ['count' => $deactivated, 'name' => $company->name]),
+            old: null,
+            new: ['deactivated' => $deactivated]
+        );
+
+        return back()->with('status', __(':count orphaned bank ledger line(s) deactivated.', ['count' => $deactivated]));
     }
 
     /**

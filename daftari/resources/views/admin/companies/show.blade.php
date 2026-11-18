@@ -180,6 +180,42 @@
         </div>
 
         <div class="bg-white rounded-xl border border-red-100 p-6">
+            <h3 class="font-semibold text-red-700 mb-1">{{ __('Orphaned bank ledger lines') }}</h3>
+            <p class="text-sm text-slate-500 mb-4">
+                {{ __('Finds a chart-of-accounts line left behind by a bank account that was deleted before it could no longer be selected — it keeps showing up as a live account in Trial Balance, General Ledger and every report filter forever. Deactivates the account only; never deletes it or any journal entry, so nothing here is destructive or irreversible.') }}
+            </p>
+
+            @if ($orphanedBankAccounts->isEmpty())
+                <p class="text-sm text-slate-400">{{ __('No orphaned bank ledger lines found.') }}</p>
+            @else
+                <div class="overflow-x-auto mb-4">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 border-b border-slate-100">
+                                <th class="py-2 pr-4 font-medium">{{ __('Code') }}</th>
+                                <th class="py-2 font-medium">{{ __('Account') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($orphanedBankAccounts as $account)
+                                <tr class="border-b border-slate-50 last:border-0">
+                                    <td class="py-2 pr-4 font-mono text-xs text-slate-500">{{ $account->code }}</td>
+                                    <td class="py-2 font-medium text-slate-800">{{ $account->name }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <form method="POST" action="{{ route('admin.companies.deactivate-orphaned-bank-accounts', $company) }}" onsubmit="return confirm('{{ __('Deactivate these orphaned bank ledger lines? They will stop appearing in reports, but nothing is deleted.') }}')">
+                    @csrf
+                    <button type="submit" class="rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">
+                        {{ __('Deactivate :count orphaned account(s)', ['count' => $orphanedBankAccounts->count()]) }}
+                    </button>
+                </form>
+            @endif
+        </div>
+
+        <div class="bg-white rounded-xl border border-red-100 p-6">
             <h3 class="font-semibold text-red-700 mb-1">{{ __('Company data reset') }}</h3>
             <p class="text-sm text-slate-500 mb-4">{{ __('Permanently deletes every selected category of transaction record (bills, vouchers, expenses, bank activity, payroll, subcontracts, and more) for this company and restarts that category\'s document numbering at 1 — for when old, pre-Daftari history needs to be re-entered under a clean sequence. Invoices are never touched.') }}</p>
             <a href="{{ route('admin.companies.data-reset.show', $company) }}" class="inline-flex rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50">{{ __('Open data reset') }}</a>
