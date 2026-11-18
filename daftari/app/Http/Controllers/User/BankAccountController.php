@@ -11,6 +11,7 @@ use App\Models\JournalEntry;
 use App\Models\PaymentVoucher;
 use App\Models\ReceiptVoucher;
 use App\Services\Accounting\LedgerPostingService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -118,7 +119,7 @@ class BankAccountController extends Controller
                     ['account_id' => $dedicated->id, 'credit' => abs($amount)],
                 ];
 
-            $ledger->post($company, $sourceType, $bankAccount->id, __('GL opening balance transfer for :name', ['name' => $bankAccount->name]), \Carbon\Carbon::parse($data['date']), $lines);
+            $ledger->post($company, $sourceType, $bankAccount->id, __('GL opening balance transfer for :name', ['name' => $bankAccount->name]), Carbon::parse($data['date']), $lines);
         });
 
         return back()->with('status', __('GL opening balance transferred to this account\'s own ledger line.'));
@@ -185,7 +186,21 @@ class BankAccountController extends Controller
             return back()->withErrors(['bank_account' => __('This account has vouchers recorded against it and cannot be deleted.')]);
         }
 
+        // Deleting the bank account itself must never delete its ledger
+        // line (the chart-of-accounts Account row glAccount() created
+        // for it) — any journal entries already posted against it (bank
+        // transfers, manual entries, an opening balance) would be left
+        // pointing at a destroyed account, corrupting the ledger. But
+        // with the bank account gone, it can never be posted to again
+        // either, so there's no reason for it to keep showing up as a
+        // selectable account in Trial Balance/General Ledger/report
+        // filters — all of which already gate on Account::is_active —
+        // so it's deactivated instead of left dangling active forever.
+        $account = $bankAccount->account_id ? $bankAccount->account : null;
+
         $bankAccount->delete();
+
+        $account?->update(['is_active' => false]);
 
         return redirect()->route('app.bank-accounts.index')->with('status', __('Bank account deleted.'));
     }
