@@ -244,7 +244,7 @@ function addRow(data) {
     tr.className = 'border-b border-slate-50';
     tr.innerHTML = `
         <td class="py-2 pe-3">${itemCellHtml(i, data)}</td>
-        <td class="py-2 pe-3"><input type="text" name="items[${i}][description]" data-role="description" value="${data.description}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+        <td class="py-2 pe-3"><input type="text" name="items[${i}][description]" data-role="description" value="${escapeHtml(data.description)}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0.01" name="items[${i}][quantity]" data-role="quantity" value="${data.quantity}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><select name="items[${i}][unit_id]" data-role="unit" disabled class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></select></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="items[${i}][unit_price]" data-role="unit_price" value="${data.unit_price}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>

@@ -73,8 +73,16 @@ const accounts = @json($accounts->map(fn ($a) => ['id' => $a->id, 'label' => $a-
 const tbody = document.getElementById('lines-body');
 let rowIndex = 0;
 
+// Security audit (forms pass): a custom chart-of-accounts Account's
+// name is free text the company itself chose — a name containing
+// `</select>` would close the select early and let the rest render as
+// real HTML in the surrounding page.
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function accountOptions() {
-    return accounts.map(a => `<option value="${a.id}">${a.label}</option>`).join('');
+    return accounts.map(a => `<option value="${a.id}">${escapeHtml(a.label)}</option>`).join('');
 }
 
 function addRow() {

@@ -75,6 +75,15 @@ const EXISTING = {!! $existingJson !!};
 const tbody = document.getElementById('items-body');
 let rowIndex = 0;
 
+// Security audit (forms pass): a catalog item's name is free text
+// (ItemController::validated(): 'name' => 'string','max:255', no HTML
+// stripping) interpolated below into <option> TEXT CONTENT, not an
+// attribute — a name containing `</select>` would close the select
+// early and let the rest render as real HTML in the surrounding page.
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function addRow(data) {
     data = data || { item_id: '', description: '', quantity: 1, unit_id: '' };
     const i = rowIndex++;
@@ -84,7 +93,7 @@ function addRow(data) {
         <td class="py-2 pe-2">
             <select name="items[${i}][item_id]" class="w-full rounded-lg border border-slate-200 text-sm">
                 <option value="">${@json(__('Free text'))}</option>
-                ${ITEM_CATALOG.map(it => `<option value="${it.id}" ${String(it.id) === String(data.item_id) ? 'selected' : ''}>${it.name}</option>`).join('')}
+                ${ITEM_CATALOG.map(it => `<option value="${it.id}" ${String(it.id) === String(data.item_id) ? 'selected' : ''}>${escapeHtml(it.name)}</option>`).join('')}
             </select>
         </td>
         <td class="py-2 pe-2"><input type="text" name="items[${i}][description]" value="${(data.description || '').replace(/"/g, '&quot;')}" required class="w-full rounded-lg border border-slate-200 text-sm"></td>

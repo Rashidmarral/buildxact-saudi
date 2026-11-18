@@ -98,8 +98,20 @@ const existingLines = @json($existingLinesForJs);
 const tbody = document.getElementById('lines-body');
 let rowIndex = 0;
 
+// Security audit (forms pass): a custom chart-of-accounts Account's
+// name is free text a company itself chose (Account::label() = code +
+// name), and a recurring journal entry's own memo is free text too
+// (nullable|string|max:255, no HTML stripping) — both used to be
+// interpolated unescaped, the account label into <option> text content
+// (a `</select>` in the name would close the select and let the rest
+// render as real, attacker-controlled HTML) and the memo into an input
+// value attribute.
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function accountOptions(selectedId) {
-    return accounts.map(a => `<option value="${a.id}" ${String(a.id) === String(selectedId) ? 'selected' : ''}>${a.label}</option>`).join('');
+    return accounts.map(a => `<option value="${a.id}" ${String(a.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(a.label)}</option>`).join('');
 }
 
 function addRow(line = {}) {
@@ -115,7 +127,7 @@ function addRow(line = {}) {
         </td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="lines[${idx}][debit]" data-role="debit" value="${line.debit || ''}" class="w-full rounded-lg border border-slate-200 text-end text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="lines[${idx}][credit]" data-role="credit" value="${line.credit || ''}" class="w-full rounded-lg border border-slate-200 text-end text-sm focus:border-brand-500 focus:ring-brand-500"></td>
-        <td class="py-2 pe-3"><input type="text" name="lines[${idx}][memo]" value="${line.memo || ''}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+        <td class="py-2 pe-3"><input type="text" name="lines[${idx}][memo]" value="${escapeHtml(line.memo || '')}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 text-end"><button type="button" class="remove-row text-slate-400 hover:text-red-600">✕</button></td>
     `;
     tbody.appendChild(tr);

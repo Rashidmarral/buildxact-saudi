@@ -404,7 +404,7 @@ function addRow(data) {
             <span draggable="true" data-role="drag-handle" class="inline-block cursor-grab select-none text-slate-300 hover:text-slate-500 active:cursor-grabbing" title="${@json(__('Drag to reorder'))}">⠿</span>
         </td>
         <td class="py-2 pe-3">${itemCellHtml(i, data)}</td>
-        <td class="py-2 pe-3"><input type="text" name="items[${i}][description]" data-role="description" value="${data.description || ''}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+        <td class="py-2 pe-3"><input type="text" name="items[${i}][description]" data-role="description" value="${escapeHtml(data.description || '')}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0.01" name="items[${i}][quantity]" data-role="quantity" value="${data.quantity}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
         <td class="py-2 pe-3"><select name="items[${i}][unit_id]" data-role="unit" disabled class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></select></td>
         <td class="py-2 pe-3"><input type="number" step="0.01" min="0" name="items[${i}][unit_price]" data-role="unit_price" value="${data.unit_price}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>

@@ -21,6 +21,19 @@ let itemResultsMatches = [];
 let itemResultsActiveIndex = -1;
 let itemResultsContext = null;
 
+// Security audit (forms pass): CATALOG['s name/sku come straight from
+// Item::validated() ('name' => 'string','max:255', no HTML stripping —
+// app/Http/Controllers/User/ItemController.php), and renderItemResults()
+// below used to interpolate them into innerHTML unescaped. Any catalog
+// item named e.g. `"><img src=x onerror=...>` would run as soon as
+// ANY staff member opened the item picker on an invoice, quotation,
+// bill, purchase order or recurring invoice form (this partial is
+// shared by all five) and it rendered the dropdown — not even
+// selecting the item was required.
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function ensureItemResultsPanel() {
     if (itemResultsPanel) return itemResultsPanel;
     itemResultsPanel = document.createElement('div');
@@ -66,8 +79,8 @@ function renderItemResults(input, query, onSelect) {
     panel.innerHTML = itemResultsMatches.length
         ? itemResultsMatches.map((c, idx) => `
             <button type="button" data-idx="${idx}" class="item-result-option flex w-full items-center justify-between gap-3 px-4 py-2.5 text-start hover:bg-slate-50">
-                <span class="truncate text-sm font-medium text-slate-800">${c.name}</span>
-                <span class="shrink-0 text-xs text-slate-400">${c.sku ? c.sku + ' &middot; ' : ''}${fmt(c.unit_price)}</span>
+                <span class="truncate text-sm font-medium text-slate-800">${escapeHtml(c.name)}</span>
+                <span class="shrink-0 text-xs text-slate-400">${c.sku ? escapeHtml(c.sku) + ' &middot; ' : ''}${fmt(c.unit_price)}</span>
             </button>
         `).join('')
         : `<div class="px-4 py-2.5 text-sm text-slate-400">${@json(__('No items found'))}</div>`;

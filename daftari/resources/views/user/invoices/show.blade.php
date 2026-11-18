@@ -518,15 +518,26 @@
 
         const CURRENCY_SYMBOL = '{{ \App\Support\Money::symbol() }}';
         const INVOICE_TOTAL = {{ (float) $invoice->total }};
-        const EXISTING = {!! $invoice->installments->map(fn ($i) => ['description' => $i->description, 'due_date' => $i->due_date->format('Y-m-d'), 'amount' => (float) $i->amount])->values()->toJson() !!};
+        const EXISTING = {!! \Illuminate\Support\Js::from($invoice->installments->map(fn ($i) => ['description' => $i->description, 'due_date' => $i->due_date->format('Y-m-d'), 'amount' => (float) $i->amount])->values()) !!};
         let rowIndex = 0;
+
+        // Security audit (forms pass): an installment's description is
+        // free-text a user chose (InvoiceController::validated() only
+        // caps it at 255 chars, no HTML stripping) — interpolating it
+        // unescaped into innerHTML let a saved description like
+        // `"><img src=x onerror=...>` execute as soon as any user with
+        // access to this invoice opened the page, since EXISTING.forEach
+        // (addRow) below runs unconditionally on load.
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
 
         function addRow(data) {
             data = data || { description: '', due_date: '', amount: '' };
             const i = rowIndex++;
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="py-2 pe-3"><input type="text" name="installments[${i}][description]" value="${data.description || ''}" placeholder="{{ __('e.g. Deposit') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
+                <td class="py-2 pe-3"><input type="text" name="installments[${i}][description]" value="${escapeHtml(data.description || '')}" placeholder="{{ __('e.g. Deposit') }}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
                 <td class="py-2 pe-3"><input type="date" name="installments[${i}][due_date]" value="${data.due_date}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
                 <td class="py-2 pe-3"><input type="number" step="0.01" min="0.01" name="installments[${i}][amount]" data-role="amount" value="${data.amount}" required class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"></td>
                 <td class="py-2"><button type="button" data-role="remove" class="text-slate-400 hover:text-red-600">&times;</button></td>
