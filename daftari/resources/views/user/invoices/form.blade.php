@@ -56,7 +56,14 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
         </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-slate-100 p-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <h2 class="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5"><path d="M4 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4Zm3 2a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H7Zm0 4a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H7Zm0 4a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H7Z"/></svg>
+            </span>
+            {{ __('Invoice details') }}
+        </h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div>
             <label class="block text-sm font-medium text-slate-700">{{ __('Client') }}</label>
             <select name="client_id" id="pv-client" required class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">
@@ -128,11 +135,17 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
                 </select>
             </div>
         @endif
+        </div>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <h2 class="font-semibold text-slate-900">{{ __('Line items') }}</h2>
+            <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5"><path fill-rule="evenodd" d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm0 5A.75.75 0 0 1 2.75 9h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 9.75Zm0 5a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd"/></svg>
+                </span>
+                {{ __('Line items') }}
+            </h2>
             <div class="flex items-center flex-wrap gap-3">
                 @if ($warehouses->isNotEmpty())
                     {{--
@@ -253,25 +266,25 @@ $initialTermsPreset = in_array($initialTermsDays, $presetTermsDays, true) ? (str
                     <a href="{{ route('app.settings.index') }}" class="inline-flex h-16 w-16 rounded-lg border border-dashed border-slate-200 items-center justify-center text-slate-300 text-xs text-center hover:border-brand-300">{{ __('+ Stamp') }}</a>
                 @endif
             </div>
-            <div class="w-full max-w-xs space-y-2 text-sm">
-                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal">{{ \App\Support\Money::format(0) }}</span></div>
+            <div class="w-full max-w-xs space-y-2 text-sm bg-slate-50 rounded-xl border border-slate-100 p-4">
+                <div class="flex justify-between text-slate-500"><span>{{ __('Subtotal') }}</span><span id="summary-subtotal" class="font-medium text-slate-700">{{ \App\Support\Money::format(0) }}</span></div>
                 <div class="flex justify-between items-center text-slate-500">
                     <span>{{ __('Discount') }}</span>
                     <div class="flex items-center gap-1">
-                        <input type="number" step="0.01" min="0" name="discount_value" id="discount_value" value="{{ old('discount_value', $invoice->discount_value ?? 0) }}" class="w-20 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
-                        <select name="discount_type" id="discount_type" class="rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
+                        <input type="number" step="0.01" min="0" name="discount_value" id="discount_value" value="{{ old('discount_value', $invoice->discount_value ?? 0) }}" class="w-20 rounded-lg border border-slate-200 bg-white text-end focus:border-brand-500 focus:ring-brand-500">
+                        <select name="discount_type" id="discount_type" class="rounded-lg border border-slate-200 bg-white text-xs focus:border-brand-500 focus:ring-brand-500">
                             <option value="fixed" @selected(old('discount_type', $invoice->discount_type ?? 'fixed') === 'fixed')>{{ __('Fixed') }}</option>
                             <option value="percentage" @selected(old('discount_type', $invoice->discount_type ?? 'fixed') === 'percentage')>%</option>
                         </select>
                     </div>
                 </div>
-                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat">{{ \App\Support\Money::format(0) }}</span></div>
-                <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-100"><span>{{ __('Total') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
+                <div class="flex justify-between text-slate-500"><span>{{ __('VAT') }}</span><span id="summary-vat" class="font-medium text-slate-700">{{ \App\Support\Money::format(0) }}</span></div>
+                <div class="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-200"><span>{{ __('Total') }}</span><span id="summary-total">{{ \App\Support\Money::format(0) }}</span></div>
                 <div id="retention-row" class="hidden flex justify-between text-slate-500"><span>{{ __('Retention held') }}</span><span id="summary-retention">{{ \App\Support\Money::format(0) }}</span></div>
                 <button type="button" id="add-retention-btn" class="text-xs font-semibold text-brand-700 hover:underline">{{ __('+ Add retention') }}</button>
                 <div id="retention-input-wrap" class="hidden flex items-center justify-between text-slate-500">
                     <span>{{ __('Retention %') }}</span>
-                    <input type="number" step="0.01" min="0" max="100" name="retention_rate" id="retention_rate" value="{{ old('retention_rate', $invoice->retention_rate ?? 0) }}" class="w-28 rounded-lg border border-slate-200 text-end focus:border-brand-500 focus:ring-brand-500">
+                    <input type="number" step="0.01" min="0" max="100" name="retention_rate" id="retention_rate" value="{{ old('retention_rate', $invoice->retention_rate ?? 0) }}" class="w-28 rounded-lg border border-slate-200 bg-white text-end focus:border-brand-500 focus:ring-brand-500">
                 </div>
             </div>
         </div>
@@ -398,7 +411,7 @@ function addRow(data) {
     data = data || { item_id: '', description: '', quantity: 1, unit_price: 0, vat_rate: {{ \App\Models\TaxRate::defaultRate(auth()->user()->company_id) }} };
     const i = rowIndex++;
     const tr = document.createElement('tr');
-    tr.className = 'border-b border-slate-50';
+    tr.className = 'border-b border-slate-50 hover:bg-slate-50/70';
     tr.innerHTML = `
         <td class="py-2 pe-2 text-center align-middle">
             <span draggable="true" data-role="drag-handle" class="inline-block cursor-grab select-none text-slate-300 hover:text-slate-500 active:cursor-grabbing" title="${@json(__('Drag to reorder'))}">⠿</span>
