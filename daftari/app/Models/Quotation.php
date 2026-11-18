@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\ComputesDiscount;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,7 +19,7 @@ class Quotation extends Model
     protected $fillable = [
         'company_id', 'client_id', 'project_id', 'branch_id', 'salesperson_id', 'created_by', 'converted_invoice_id',
         'quotation_number', 'type', 'status', 'is_staged', 'issue_date', 'expiry_date', 'subtotal', 'discount_total', 'discount_type', 'discount_value',
-        'vat_total', 'total', 'advance_received', 'currency', 'notes', 'bank_account_id',
+        'vat_total', 'total', 'advance_received', 'currency', 'notes', 'terms_sections', 'bank_account_id',
         'approved_by', 'approved_at', 'approval_rejection_reason',
         'accepted_at', 'accepted_by_name', 'accepted_signature', 'accepted_ip',
     ];
@@ -31,6 +32,7 @@ class Quotation extends Model
             'approved_at' => 'datetime',
             'accepted_at' => 'datetime',
             'is_staged' => 'boolean',
+            'terms_sections' => 'array',
         ];
     }
 
@@ -204,7 +206,7 @@ class Quotation extends Model
 
         return array_values(array_filter([
             ['label' => __('Paid'), 'label_ar' => 'المدفوع', 'value' => $this->advance_received, 'emphasis' => true, 'variant' => 'green'],
-            \App\Support\Money::balanceRow($this->balanceDue()),
+            Money::balanceRow($this->balanceDue()),
         ]));
     }
 
@@ -244,6 +246,12 @@ class Quotation extends Model
             'bank_account' => $bankAccount,
             'salesperson' => $this->salesperson,
             'notes' => $this->notes,
+            // Only non-empty sections/paragraphs ever reach here —
+            // syncItems()'s sibling, normalizeTermsSections() (see
+            // QuotationController), already strips anything blank before
+            // save, so the PDF template can treat a non-empty array as
+            // "there's real content to show" without re-checking itself.
+            'terms_sections' => $this->terms_sections ?: [],
         ];
 
         return [

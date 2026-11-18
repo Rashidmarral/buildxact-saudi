@@ -84,29 +84,10 @@
 @endif
 
 @php
-    $doc = [
-        'type_label' => $quotation->type === 'proforma' ? __('Proforma Invoice') : __('Quotation'),
-        'type_label_ar' => $quotation->type === 'proforma' ? 'فاتورة أولية' : 'عرض سعر',
-        'number' => $quotation->quotation_number,
-        'date_label' => __('Issued'),
-        'date' => $quotation->issue_date,
-        'date2_label' => __('Valid until'),
-        'date2_label_ar' => 'صالح حتى',
-        'date2' => $quotation->expiry_date,
-        'party_label' => __('To'),
-        'party_label_ar' => 'العميل',
-        'party' => $quotation->client,
-        'lines' => $quotation->items,
-        'subtotal' => $quotation->subtotal,
-        'discount_total' => $quotation->discount_total,
-        'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
-        'vat_total' => $quotation->vat_total,
-        'total' => $quotation->total,
-        'extra_rows' => $quotation->paymentExtraRows(),
-        'bank_account' => $quotation->bankAccount ?? $quotation->company->defaultBankAccount(),
-        'salesperson' => $quotation->salesperson,
-        'notes' => $quotation->notes,
-    ];
+    // Reuses Quotation::pdfData()'s own $doc shape — was a hand-kept
+    // duplicate of it here, which meant a field added to one (like
+    // terms_sections) silently never reached the other.
+    $doc = $quotation->pdfData()['doc'];
 @endphp
 <div class="bg-white rounded-xl border border-slate-100 p-8 print:border-0 print:shadow-none">
     @include('documents.print.body', ['doc' => $doc, 'company' => $quotation->company, 'template' => $template])

@@ -120,6 +120,7 @@ class QuotationController extends Controller
                 'advance_received' => $data['type'] === 'proforma' ? ($data['advance_received'] ?? null) : null,
                 'currency' => $company->currency,
                 'notes' => $data['notes'] ?? null,
+                'terms_sections' => $this->normalizeTermsSections($data['terms_sections'] ?? null),
             ]);
 
             $this->syncItems($quotation, $data['items']);
@@ -225,6 +226,7 @@ class QuotationController extends Controller
                 'discount_value' => $data['discount_value'] ?? 0,
                 'advance_received' => $quotation->type === 'proforma' ? ($data['advance_received'] ?? null) : null,
                 'notes' => $data['notes'] ?? null,
+                'terms_sections' => $this->normalizeTermsSections($data['terms_sections'] ?? null),
             ]);
 
             $quotation->items()->delete();
@@ -831,6 +833,64 @@ class QuotationController extends Controller
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
             'items.*.cost_price' => ['nullable', 'numeric', 'min:0'],
             'items.*.vat_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            // A dedicated bilingual Terms & Conditions page, separate
+            // from the plain `notes` field above — "my terms have more
+            // data" than notes' 2000-char cap, and have no language
+            // split there at all. Each paragraph gets its own generous
+            // but bounded cap (not unlimited) purely as an abuse guard;
+            // terms_sections is a JSON column with no real storage
+            // limit otherwise.
+            'terms_sections' => ['nullable', 'array'],
+            'terms_sections.*.title_en' => ['nullable', 'string', 'max:255'],
+            'terms_sections.*.title_ar' => ['nullable', 'string', 'max:255'],
+            'terms_sections.*.paragraphs' => ['nullable', 'array'],
+            'terms_sections.*.paragraphs.*.heading_en' => ['nullable', 'string', 'max:255'],
+            'terms_sections.*.paragraphs.*.heading_ar' => ['nullable', 'string', 'max:255'],
+            'terms_sections.*.paragraphs.*.body_en' => ['nullable', 'string', 'max:10000'],
+            'terms_sections.*.paragraphs.*.body_ar' => ['nullable', 'string', 'max:10000'],
         ]);
+    }
+
+    /**
+     * Strips any section with no title and no real paragraph content
+     * (and any paragraph with no heading and no body within a kept
+     * section) — the form's own "Add section"/"Add paragraph" buttons
+     * can leave empty rows behind if the user removes text they typed,
+     * and pdfData()/the browser preview both treat "there's at least
+     * one section" as "show the Terms and Conditions page", so a fully
+     * blank section left in would render an empty numbered heading
+     * with nothing under it.
+     */
+    private function normalizeTermsSections(?array $sections): array
+    {
+        if (! $sections) {
+            return [];
+        }
+
+        return collect($sections)
+            ->map(function (array $section) {
+                $paragraphs = collect($section['paragraphs'] ?? [])
+                    ->filter(fn ($p) => trim((string) ($p['heading_en'] ?? '')) !== ''
+                        || trim((string) ($p['heading_ar'] ?? '')) !== ''
+                        || trim((string) ($p['body_en'] ?? '')) !== ''
+                        || trim((string) ($p['body_ar'] ?? '')) !== '')
+                    ->map(fn ($p) => [
+                        'heading_en' => trim((string) ($p['heading_en'] ?? '')) ?: null,
+                        'heading_ar' => trim((string) ($p['heading_ar'] ?? '')) ?: null,
+                        'body_en' => trim((string) ($p['body_en'] ?? '')),
+                        'body_ar' => trim((string) ($p['body_ar'] ?? '')),
+                    ])
+                    ->values()
+                    ->all();
+
+                return [
+                    'title_en' => trim((string) ($section['title_en'] ?? '')),
+                    'title_ar' => trim((string) ($section['title_ar'] ?? '')),
+                    'paragraphs' => $paragraphs,
+                ];
+            })
+            ->filter(fn ($section) => $section['title_en'] !== '' || $section['title_ar'] !== '' || $section['paragraphs'] !== [])
+            ->values()
+            ->all();
     }
 }

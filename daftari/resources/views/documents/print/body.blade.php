@@ -1300,6 +1300,8 @@
     <img src="{{ Storage::url($template->footer_path) }}" alt="" class="w-full object-contain mt-8">
 @endif
 
+@include('documents.print.terms-and-conditions', ['doc' => $doc])
+
 </div>
 
 </div>

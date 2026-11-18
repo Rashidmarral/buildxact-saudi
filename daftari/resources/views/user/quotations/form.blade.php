@@ -175,6 +175,17 @@ $company = auth()->user()->company;
         <textarea name="notes" id="pv-notes" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-brand-500">{{ old('notes', $quotation->notes) }}</textarea>
     </div>
 
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <div class="flex items-start justify-between gap-4 mb-1">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">{{ __('Terms & Conditions') }}</label>
+                <p class="text-xs text-slate-400 mt-0.5">{{ __('Optional. Shown as its own bilingual page at the end of the PDF — numbered sections, English and Arabic side by side. No length limit, unlike Notes above.') }}</p>
+            </div>
+            <button type="button" id="add-terms-section" class="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300">{{ __('+ Add section') }}</button>
+        </div>
+        <div id="terms-sections-body" class="space-y-4 mt-3"></div>
+    </div>
+
     @if ($quotation->exists)
         <p class="text-xs text-slate-400">{{ __('Manage attachments from the quotation page after saving.') }}</p>
     @else
@@ -201,6 +212,7 @@ $company = auth()->user()->company;
         return ['item_id' => $i->item_id, 'unit_id' => $i->unit_id, 'description' => $i->description, 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'cost_price' => $i->cost_price !== null ? (float) $i->cost_price : null, 'vat_rate' => (float) $i->vat_rate];
     })->values());
     $unitsJson = \Illuminate\Support\Js::from($units->map(fn ($u) => ['id' => $u->id, 'label' => $u->label()])->values());
+    $termsSectionsJson = \Illuminate\Support\Js::from($quotation->terms_sections ?? []);
 @endphp
 
 <dialog id="preview-modal" class="rounded-2xl border border-slate-100 p-0 w-full max-w-2xl backdrop:bg-slate-900/40">
@@ -245,6 +257,7 @@ $company = auth()->user()->company;
 const CATALOG = {!! $catalogJson !!};
 const EXISTING = {!! $existingJson !!};
 const ALL_UNITS = {!! $unitsJson !!};
+const EXISTING_TERMS = {!! $termsSectionsJson !!};
 
 const tbody = document.getElementById('items-body');
 let rowIndex = 0;
@@ -425,6 +438,77 @@ if (EXISTING.length) {
 } else {
     addRow();
 }
+
+// Terms & Conditions: a repeatable list of numbered sections, each with
+// a bilingual title and zero or more bilingual paragraphs (an optional
+// small sub-heading + the paragraph text itself, English and Arabic
+// side by side) — see documents.print.pdf-terms-and-conditions for how
+// this renders. Kept deliberately simpler than the line-items table
+// above (no drag reorder, no live totals) since order rarely matters
+// for a terms page and the content itself is the point, not a grid.
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+const termsBody = document.getElementById('terms-sections-body');
+let termsSectionIndex = 0;
+
+function addTermsSection(section) {
+    section = section || { title_en: '', title_ar: '', paragraphs: [] };
+    const si = termsSectionIndex++;
+    const div = document.createElement('div');
+    div.className = 'rounded-xl border border-slate-200 p-4';
+    div.innerHTML = `
+        <div class="flex items-start gap-3">
+            <div class="flex-1 grid sm:grid-cols-2 gap-3">
+                <input type="text" name="terms_sections[${si}][title_en]" placeholder="${escapeHtml(@json(__('Section title (English)')))}" value="${escapeHtml(section.title_en)}" class="w-full rounded-lg border border-slate-200 text-sm font-medium focus:border-brand-500 focus:ring-brand-500">
+                <input type="text" dir="rtl" name="terms_sections[${si}][title_ar]" placeholder="${escapeHtml(@json(__('Section title (Arabic)')))}" value="${escapeHtml(section.title_ar)}" class="w-full rounded-lg border border-slate-200 text-sm font-medium focus:border-brand-500 focus:ring-brand-500">
+            </div>
+            <button type="button" data-role="remove-section" title="${escapeHtml(@json(__('Remove section')))}" class="shrink-0 text-slate-400 hover:text-red-600">&times;</button>
+        </div>
+        <div data-role="paragraphs" class="space-y-3 mt-3"></div>
+        <button type="button" data-role="add-paragraph" class="mt-2 text-xs font-semibold text-brand-600 hover:underline">${escapeHtml(@json(__('+ Add paragraph')))}</button>
+    `;
+    termsBody.appendChild(div);
+
+    const paragraphsBody = div.querySelector('[data-role="paragraphs"]');
+    let paragraphIndex = 0;
+
+    function addParagraph(p) {
+        p = p || { heading_en: '', heading_ar: '', body_en: '', body_ar: '' };
+        const pi = paragraphIndex++;
+        const pdiv = document.createElement('div');
+        pdiv.className = 'rounded-lg bg-slate-50 p-3';
+        pdiv.innerHTML = `
+            <div class="flex items-start gap-2">
+                <div class="flex-1 space-y-2">
+                    <div class="grid sm:grid-cols-2 gap-2">
+                        <input type="text" name="terms_sections[${si}][paragraphs][${pi}][heading_en]" placeholder="${escapeHtml(@json(__('Sub-heading (English, optional)')))}" value="${escapeHtml(p.heading_en)}" class="w-full rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
+                        <input type="text" dir="rtl" name="terms_sections[${si}][paragraphs][${pi}][heading_ar]" placeholder="${escapeHtml(@json(__('Sub-heading (Arabic, optional)')))}" value="${escapeHtml(p.heading_ar)}" class="w-full rounded-lg border border-slate-200 text-xs focus:border-brand-500 focus:ring-brand-500">
+                    </div>
+                    <div class="grid sm:grid-cols-2 gap-2">
+                        <textarea name="terms_sections[${si}][paragraphs][${pi}][body_en]" rows="3" placeholder="${escapeHtml(@json(__('English text')))}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">${escapeHtml(p.body_en)}</textarea>
+                        <textarea dir="rtl" name="terms_sections[${si}][paragraphs][${pi}][body_ar]" rows="3" placeholder="${escapeHtml(@json(__('Arabic text')))}" class="w-full rounded-lg border border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500">${escapeHtml(p.body_ar)}</textarea>
+                    </div>
+                </div>
+                <button type="button" data-role="remove-paragraph" title="${escapeHtml(@json(__('Remove paragraph')))}" class="shrink-0 text-slate-400 hover:text-red-600">&times;</button>
+            </div>
+        `;
+        paragraphsBody.appendChild(pdiv);
+        pdiv.querySelector('[data-role="remove-paragraph"]').addEventListener('click', () => pdiv.remove());
+    }
+
+    // A brand-new section (nothing loaded into it yet) starts with one
+    // blank paragraph ready to type into, instead of making every
+    // section need an extra click before it can hold any text.
+    (section.paragraphs && section.paragraphs.length ? section.paragraphs : [null]).forEach(addParagraph);
+
+    div.querySelector('[data-role="remove-section"]').addEventListener('click', () => div.remove());
+    div.querySelector('[data-role="add-paragraph"]').addEventListener('click', () => addParagraph());
+}
+
+document.getElementById('add-terms-section').addEventListener('click', () => addTermsSection());
+EXISTING_TERMS.forEach(addTermsSection);
 
 document.getElementById('quotation-form').addEventListener('submit', (e) => {
     if (!tbody.querySelector('tr')) {

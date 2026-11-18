@@ -12,6 +12,7 @@ use App\Models\JournalEntry;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Accounting\LedgerIntegrityService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -288,7 +289,7 @@ class LedgerIntegrityServiceTest extends TestCase
         ZatcaInvoiceLog::create([
             'company_id' => $company->id, 'invoice_id' => $zatcaInvoice->id, 'environment' => 'simulation',
             'invoice_type' => 'b2b', 'direction' => 'clearance', 'status' => 'cleared',
-            'request_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'request_uuid' => (string) Str::uuid(),
         ]);
 
         $this->expectException(RuntimeException::class);

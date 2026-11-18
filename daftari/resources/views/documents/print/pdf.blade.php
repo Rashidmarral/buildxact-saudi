@@ -1291,6 +1291,8 @@
     </td></tr></table>
 @endif
 
+@include('documents.print.pdf-terms-and-conditions', ['doc' => $doc])
+
 @if ($tplBorder)
 </div>
 @endif
