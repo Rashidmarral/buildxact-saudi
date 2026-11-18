@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\Item;
 use App\Models\Quotation;
+use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -95,6 +96,43 @@ class QuotationLineItemsSavedToCatalogTest extends TestCase
 
         $this->assertSame(2, Quotation::where('company_id', $company->id)->count());
         $this->assertSame(1, Item::where('company_id', $company->id)->count(), 'quoting the same product twice must reuse the catalog item, not duplicate it');
+    }
+
+    /**
+     * Regression test: "i have save quotation as draft status but when i
+     * back to edit it change the unit and just allow me to select only
+     * pcs unit". A freeform line quoted in a non-default unit (here
+     * "Box") auto-created its catalog item with no base_unit_id of its
+     * own, so Item::booted()'s creating hook silently defaulted it to
+     * the company's Piece unit — the edit form's unit picker only ever
+     * offers a selected item's own configured units, so the line was
+     * stuck showing Pcs with Box nowhere to be found, even though the
+     * quotation itself still had unit_id pointing at Box.
+     */
+    public function test_a_freeform_lines_chosen_unit_is_preserved_on_its_auto_created_catalog_item(): void
+    {
+        [$company, $owner, $client] = $this->makeCompanyWithClient();
+        $box = Unit::create(['company_id' => $company->id, 'name' => 'Box', 'symbol' => 'box']);
+
+        $this->actingAs($owner)->post(route('app.quotations.store'), [
+            'client_id' => $client->id,
+            'type' => 'quotation',
+            'issue_date' => now()->toDateString(),
+            'expiry_date' => now()->addDays(30)->toDateString(),
+            'items' => [['description' => 'Gasket Set, Full Box', 'quantity' => 2, 'unit_id' => $box->id, 'unit_price' => 75, 'vat_rate' => 15]],
+        ])->assertSessionDoesntHaveErrors();
+
+        $item = Item::where('company_id', $company->id)->where('name', 'Gasket Set, Full Box')->first();
+        $this->assertNotNull($item);
+        $this->assertSame($box->id, $item->base_unit_id, 'the auto-created catalog item must keep the unit the freeform line was actually quoted in');
+
+        $quotation = Quotation::latest('id')->first();
+        $this->assertSame($box->id, $quotation->items->first()->unit_id);
+
+        // The edit form's unit picker only offers a selected item's own
+        // units — confirm Box (not just Pcs) is actually among them.
+        $editPage = $this->actingAs($owner)->get(route('app.quotations.edit', $quotation));
+        $editPage->assertOk()->assertSee($box->label(), false);
     }
 
     public function test_a_line_picked_from_the_catalog_does_not_create_another_item(): void

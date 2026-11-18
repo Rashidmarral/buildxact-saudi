@@ -4,8 +4,8 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\User\Concerns\EnforcesStorageQuota;
-use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Http\Controllers\User\Concerns\ExportsCsv;
+use App\Http\Controllers\User\Concerns\ResolvesPerPage;
 use App\Jobs\SyncCreditNoteToZatca;
 use App\Mail\QuotationMail;
 use App\Models\Attachment;
@@ -26,6 +26,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Notifications\GenericNotification;
 use App\Services\Accounting\LedgerPostingService;
+use App\Services\CompanyMailService;
 use App\Services\MpdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -157,7 +158,7 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function emailQuotation(Quotation $quotation, MpdfRenderer $renderer, \App\Services\CompanyMailService $mailService)
+    public function emailQuotation(Quotation $quotation, MpdfRenderer $renderer, CompanyMailService $mailService)
     {
         if (! $quotation->client) {
             return back()->withErrors(['quotation' => __('This client record no longer exists.')]);
@@ -430,7 +431,7 @@ class QuotationController extends Controller
                 'issue_date' => now()->toDateString(),
                 'due_date' => now()->addDays(30)->toDateString(),
                 'discount_total' => $quotation->discount_total,
-            'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
+                'discount_percent' => $quotation->discount_type === 'percentage' ? $quotation->discount_value : null,
                 'currency' => $quotation->currency,
                 'notes' => $quotation->notes,
             ]);
@@ -769,6 +770,18 @@ class QuotationController extends Controller
      * never going to carry stock-tracking details like a reorder point,
      * and the operator can convert it to a tracked physical item in
      * Settings afterward if that's what they actually want.
+     *
+     * base_unit_id is seeded from the row's own unit_id (already
+     * validated as belonging to this company — see validated() below)
+     * when the freeform line had one chosen. Leaving this out let
+     * Item::booted()'s creating hook silently fall back to the
+     * company's default Piece unit instead — so a freeform line typed
+     * and quoted in, say, "Box" would auto-create an item whose only
+     * configured unit is Pcs, and reopening the draft to edit it then
+     * showed the line locked to Pcs with no way to pick Box back: the
+     * unit the quotation itself still stores was simply absent from the
+     * newly-created item's own unit list, which is all the edit form's
+     * picker offers once a line has a catalog item_id.
      */
     private function findOrCreateCatalogItem(int $companyId, array $row): Item
     {
@@ -790,6 +803,7 @@ class QuotationController extends Controller
             'vat_rate' => $row['vat_rate'] ?? TaxRate::defaultRate($companyId),
             'is_active' => true,
             'track_inventory' => false,
+            'base_unit_id' => $row['unit_id'] ?? null,
         ]);
     }
 
