@@ -14,7 +14,7 @@
         'credit_note' => __('Credit note'),
         'debit_note' => __('Debit note'),
     };
-    $statusClasses = ['cleared' => 'bg-emerald-50 text-emerald-700', 'reported' => 'bg-emerald-50 text-emerald-700', 'failed' => 'bg-red-50 text-red-700', 'queued' => 'bg-amber-50 text-amber-700'];
+    $statusClasses = ['cleared' => 'bg-emerald-50 text-emerald-700 border border-emerald-200', 'reported' => 'bg-emerald-50 text-emerald-700 border border-emerald-200', 'failed' => 'bg-red-50 text-red-700 border border-red-200', 'queued' => 'bg-amber-50 text-amber-700 border border-amber-200'];
 @endphp
 
 <div class="mb-4">
