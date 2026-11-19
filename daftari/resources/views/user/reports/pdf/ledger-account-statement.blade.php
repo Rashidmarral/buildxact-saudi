@@ -1,0 +1,56 @@
+@php($logoData = $embed($company->logo_path ?? null))
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@include('documents.print.partials.report.styles')
+</style>
+</head>
+<body>
+
+@include('documents.print.partials.report.header', ['titleEn' => __('LEDGER ACCOUNT STATEMENT'), 'titleAr' => 'كشف حساب دفتر الأستاذ', 'template' => $template ?? null])
+@include('documents.print.partials.report.footer-banner', ['template' => $template ?? null])
+
+@include('documents.print.partials.report.period-banner', ['period' => $period])
+
+@foreach ($rows as $row)
+    @include('documents.print.partials.report.section-title', ['en' => $row['account']->code.' — '.$row['account']->name, 'ar' => $row['account']->name_ar ?? ''])
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>{{ __('Date') }}</th>
+                <th>{{ __('Entry') }}</th>
+                <th>{{ __('Description') }}</th>
+                <th class="num">{{ __('Debit') }}</th>
+                <th class="num">{{ __('Credit') }}</th>
+                <th class="num">{{ __('Balance') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="5"><em>{{ __('Opening balance') }}</em></td>
+                <td class="num">{{ number_format($row['openingBalance'], 2) }}</td>
+            </tr>
+            @foreach ($row['lines'] as $line)
+                <tr>
+                    <td>{{ $line->journalEntry->entry_date->format('Y-m-d') }}</td>
+                    <td>{{ $line->journalEntry->entry_number }}</td>
+                    <td>{{ $line->journalEntry->description }}</td>
+                    <td class="num">{{ $line->debit > 0 ? number_format($line->debit, 2) : '' }}</td>
+                    <td class="num">{{ $line->credit > 0 ? number_format($line->credit, 2) : '' }}</td>
+                    <td class="num">{{ number_format($line->running_balance, 2) }}</td>
+                </tr>
+            @endforeach
+            <tr class="total-row">
+                <td colspan="5">{{ __('CLOSING BALANCE') }}</td>
+                <td class="num">{{ number_format($row['closingBalance'], 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+@endforeach
+
+@include('documents.print.partials.report.footer', ['company' => $company])
+
+</body>
+</html>

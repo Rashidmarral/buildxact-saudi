@@ -1,0 +1,93 @@
+@extends('layouts.app')
+
+@section('title', __('Purchase orders'))
+
+@section('content')
+<div class="flex flex-wrap items-center gap-2 mb-6 text-sm">
+    <a href="{{ route('app.bills.index') }}" class="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Bills') }}</a>
+    <a href="{{ route('app.purchase-orders.index') }}" class="rounded-lg px-3 py-1.5 bg-slate-900 text-white">{{ __('Purchase orders') }}</a>
+    <a href="{{ route('app.suppliers.index') }}" class="rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100">{{ __('Suppliers') }}</a>
+</div>
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <p class="text-sm text-slate-500">{{ __('Approve and track orders before they become bills.') }}</p>
+    <div class="flex items-center gap-2">
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300">{{ __('Export CSV') }}</a>
+        <a href="{{ route('app.purchase-orders.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('+ New purchase order') }}</a>
+    </div>
+</div>
+
+<div class="flex flex-wrap items-center gap-2 mb-6 text-sm">
+    @foreach ([
+        '' => __('All') . " ({$counts['all']})",
+        'draft' => __('Draft') . " ({$counts['draft']})",
+        'pending_approval' => __('Pending approval') . " ({$counts['pending_approval']})",
+        'approved' => __('Approved') . " ({$counts['approved']})",
+        'partially_billed' => __('Partially billed') . " ({$counts['partially_billed']})",
+        'converted' => __('Fully billed') . " ({$counts['converted']})",
+        'void' => __('Void') . " ({$counts['void']})",
+    ] as $value => $label)
+        <a href="{{ route('app.purchase-orders.index', array_filter(['status' => $value ?: null])) }}"
+           class="rounded-full border px-3 py-1 {{ request('status', '') === $value ? 'border-brand-500 text-brand-700 bg-brand-50' : 'border-slate-200 text-slate-500 hover:border-slate-300' }}">
+            {{ $label }}
+        </a>
+    @endforeach
+</div>
+
+<x-list-toolbar>
+<div class="bg-white rounded-xl border border-slate-100">
+    @if ($orders->isEmpty())
+        <p class="px-6 py-8 text-sm text-slate-500">{{ __('No purchase orders yet.') }}</p>
+    @else
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="px-6 py-3 font-medium">{{ __('Number') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Supplier') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Order date') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Total') }}</th>
+                    <th class="px-6 py-3 font-medium">{{ __('Status') }}</th>
+                    <th class="px-6 py-3"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($orders as $order)
+                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer" onclick="window.location='{{ route('app.purchase-orders.show', $order) }}'">
+                        <td class="px-6 py-3 font-medium text-brand-700">{{ $order->po_number }}</td>
+                        <td class="px-6 py-3">{{ $order->supplier->display_name }}</td>
+                        <td class="px-6 py-3">{{ $order->order_date->format('Y-m-d') }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Money::format($order->total) }}</td>
+                        <td class="px-6 py-3">@include('user.purchase-orders.partials.status-badge', ['status' => $order->status])</td>
+                        <td class="px-6 py-3" onclick="event.stopPropagation()">
+                            <x-row-actions>
+                                <x-icon-button menu href="{{ route('app.purchase-orders.show', $order) }}" icon="eye" title="{{ __('View') }}" />
+                                @if ($order->status === 'draft')
+                                    <x-icon-button menu href="{{ route('app.purchase-orders.edit', $order) }}" icon="pencil" title="{{ __('Edit') }}" />
+                                @endif
+                                @if (in_array($order->status, ['draft', 'pending_approval']) && auth()->user()->hasPermission('approvals'))
+                                    <form method="POST" action="{{ route('app.purchase-orders.approve', $order) }}">
+                                        @csrf
+                                        <x-icon-button menu type="submit" icon="check-circle" color="emerald" title="{{ __('Approve') }}" />
+                                    </form>
+                                @endif
+                                @if (in_array($order->status, ['approved', 'partially_billed']))
+                                    <x-icon-button menu href="{{ route('app.purchase-orders.bill-form', $order) }}" icon="document" color="brand" title="{{ __('Bill this order') }}" />
+                                @endif
+                                <x-icon-button menu href="{{ route('app.purchase-orders.pdf', $order) }}" icon="printer" title="{{ __('Download PDF') }}" />
+                                @if (! in_array($order->status, ['converted', 'partially_billed', 'void']))
+                                    <form method="POST" action="{{ route('app.purchase-orders.void', $order) }}" onsubmit="return confirm('{{ __('Void this purchase order?') }}')">
+                                        @csrf
+                                        <x-icon-button menu type="submit" icon="trash" color="red" title="{{ __('Void') }}" />
+                                    </form>
+                                @endif
+                            </x-row-actions>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+</div>
+</x-list-toolbar>
+<div class="mt-4">@include('partials.pagination', ['paginator' => $orders])</div>
+@endsection

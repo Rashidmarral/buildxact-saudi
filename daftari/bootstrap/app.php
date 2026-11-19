@@ -1,0 +1,191 @@
+<?php
+
+use App\Exceptions\PdfRenderingException;
+use App\Exceptions\PeriodLockedException;
+use App\Support\FriendlyDatabaseError;
+use App\Http\Middleware\CheckMaintenanceMode;
+use App\Http\Middleware\EnsureAdminPermission;
+use App\Http\Middleware\EnsureAdminTwoFactorEnabled;
+use App\Http\Middleware\EnsureApiCompanyActive;
+use App\Http\Middleware\EnsureApiFeatureEnabled;
+use App\Http\Middleware\EnsureCompanyActive;
+use App\Http\Middleware\EnsureImpersonationNotExpired;
+use App\Http\Middleware\EnsureModuleEnabled;
+use App\Http\Middleware\EnsurePasswordConfirmed;
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsurePhoneVerified;
+use App\Http\Middleware\EnsurePlanFeature;
+use App\Http\Middleware\EnsureRegistrationOpen;
+use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\EnsureUserBelongsToCompany;
+use App\Http\Middleware\EnsureWithinApiLimit;
+use App\Http\Middleware\PrepareInstallerEnvironment;
+use App\Http\Middleware\PreventDemoDestruction;
+use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetSecurityHeaders;
+use App\Http\Middleware\SetTimezone;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Request;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Sentry\Laravel\Integration;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        // Deployed behind a reverse proxy or load balancer (the common
+        // topology on every cloud host this ships to), the *proxy*
+        // terminates TLS and forwards plain http internally — without
+        // trusting its X-Forwarded-Proto header, Laravel would see every
+        // request as insecure, breaking the forced-https URL generation
+        // and secure-cookie detection below. A packaged product with no
+        // fixed deployment topology can't hardcode a specific proxy IP,
+        // so trust them all; buyers on a known, fixed infra can narrow
+        // this to their load balancer's address if they want to.
+        //
+        // Audit finding SEC-08: trusting '*' for every X-Forwarded-*
+        // header by default — Laravel's own default set when none is
+        // given — included X-Forwarded-For, which nothing here actually
+        // needs (only Proto/Host/Port, for scheme/URL generation). That
+        // let ANY client spoof its own reported IP (request()->ip(),
+        // used by audit logging and anything IP-based) just by setting
+        // that header on a direct request — trusting '*' for the proxy's
+        // address but still trusting whatever client IP it hands us is
+        // the part that was never actually required. Explicitly leaving
+        // X-Forwarded-For out of the trusted set closes that while
+        // keeping the documented HTTPS-detection need intact.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+        );
+
+        $middleware->web(prepend: [
+            PrepareInstallerEnvironment::class,
+        ]);
+
+        $middleware->web(append: [
+            SetTimezone::class,
+            SetLocale::class,
+            CheckMaintenanceMode::class,
+            SetSecurityHeaders::class,
+        ]);
+
+        // Payment providers POST here with no Laravel session/CSRF token
+        // of their own — authenticity is verified inside the controller
+        // via each gateway's own signature scheme instead (see
+        // PaymentGatewayDriver::verifyWebhook).
+        $middleware->validateCsrfTokens(except: [
+            'payments/webhook/*',
+        ]);
+
+        $middleware->alias([
+            'role' => EnsureRole::class,
+            'company.active' => EnsureCompanyActive::class,
+            'api.company.active' => EnsureApiCompanyActive::class,
+            'api.feature' => EnsureApiFeatureEnabled::class,
+            'company.member' => EnsureUserBelongsToCompany::class,
+            'permission' => EnsurePermission::class,
+            'admin.permission' => EnsureAdminPermission::class,
+            'require.admin.2fa' => EnsureAdminTwoFactorEnabled::class,
+            'feature' => EnsurePlanFeature::class,
+            'module' => EnsureModuleEnabled::class,
+            'registration.open' => EnsureRegistrationOpen::class,
+            'phone.verified' => EnsurePhoneVerified::class,
+            'abilities' => CheckAbilities::class,
+            'client.portal' => \App\Http\Middleware\EnsureClientPortalSession::class,
+            'password.confirm.admin' => EnsurePasswordConfirmed::class,
+            'api.limit' => EnsureWithinApiLimit::class,
+            'demo.guard' => PreventDemoDestruction::class,
+            'impersonation.timeout' => EnsureImpersonationNotExpired::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->render(function (PdfRenderingException $e, $request) {
+            report($e);
+
+            return back()->withErrors(['pdf' => $e->getMessage()]);
+        });
+
+        $exceptions->render(function (PeriodLockedException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return back()->withErrors(['period' => $e->getMessage()]);
+        });
+
+        // "please fix this if something required that missing please
+        // handle it with more professional show error that's required
+        // or something not for this for the whole app" — a raw NOT
+        // NULL/unique/foreign-key violation that reaches the database
+        // is always a gap in some form's validation; this is the
+        // app-wide safety net for whichever one turns up next (see
+        // FriendlyDatabaseError's own docblock). JSON/API requests get
+        // the usual structured error instead of a redirect; anything
+        // this doesn't recognize (a real bug, not a user mistake) falls
+        // through to Laravel's own default handling untouched.
+        $exceptions->render(function (QueryException $e, $request) {
+            $message = FriendlyDatabaseError::describe($e);
+
+            if ($message === null) {
+                return null;
+            }
+
+            report($e);
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->withInput()->withErrors(['form' => $message]);
+        });
+
+        // "sometime took too much time on load and in end shows error
+        // laravel error execution time exceed" — a PHP execution-timeout
+        // fatal is converted by Laravel's shutdown handler into a
+        // Symfony FatalError and would otherwise fall through to the
+        // generic 500 page (or, worse, a raw debug trace if APP_DEBUG is
+        // left on) with no indication of what actually happened. Caught
+        // here by message rather than a dedicated exception class, since
+        // PHP itself never throws a typed "timeout" exception for this —
+        // it's always this same generic fatal-error text.
+        $exceptions->render(function (\Throwable $e, $request) {
+            if (! str_contains($e->getMessage(), 'Maximum execution time')) {
+                return null;
+            }
+
+            report($e);
+            $message = __('This took longer than expected to complete. Try narrowing your date range or filters and try again — if it keeps happening, let us know.');
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 504);
+            }
+
+            return response()->view('errors.500', ['message' => $message], 504);
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $e, $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            $seconds = $e->getHeaders()['Retry-After'] ?? 60;
+
+            return back()->withErrors([
+                'email' => __('Too many attempts. Please wait :seconds seconds and try again.', ['seconds' => $seconds]),
+            ])->onlyInput('email');
+        });
+
+        // Only registers reporting to Sentry when SENTRY_LARAVEL_DSN is set
+        // (see config/sentry.php) — a no-op locally/in any environment that
+        // hasn't been given a real DSN.
+        Integration::handles($exceptions);
+    })->create();

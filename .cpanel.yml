@@ -1,0 +1,13 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/to5rss3ix1qn/public_html/invoices.dynamic.com.sa/
+    - /usr/bin/rsync -a --exclude='.env' --exclude='storage' --exclude='.git' --exclude='.cpanel.yml' --exclude='node_modules' ./daftari/ $DEPLOYPATH
+    - /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction --working-dir=$DEPLOYPATH
+    - /usr/local/bin/php $DEPLOYPATH/artisan migrate --force
+    - /usr/local/bin/php $DEPLOYPATH/artisan db:seed --class=PlanSeeder --force
+    - /usr/local/bin/php $DEPLOYPATH/artisan route:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan config:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan view:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan cache:clear
+    - rm -rf $DEPLOYPATH/storage/app/mpdf-tmp
