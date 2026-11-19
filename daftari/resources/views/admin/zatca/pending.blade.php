@@ -47,7 +47,7 @@
                     </thead>
                     <tbody>
                         @foreach ($pendingInvoices as $doc)
-                            <tr class="border-b border-slate-50 last:border-0">
+                            <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50/70">
                                 <td class="py-2 font-medium text-slate-800">{{ $doc->invoice_number }}</td>
                                 <td class="py-2 text-slate-500">{{ __('Invoice') }}</td>
                                 <td class="py-2 text-slate-500">{{ $doc->type === 'standard' ? __('B2B') : __('B2C') }}</td>
@@ -62,7 +62,7 @@
                             </tr>
                         @endforeach
                         @foreach ($pendingCreditNotes as $doc)
-                            <tr class="border-b border-slate-50 last:border-0">
+                            <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50/70">
                                 <td class="py-2 font-medium text-slate-800">{{ $doc->credit_note_number }}</td>
                                 <td class="py-2 text-slate-500">{{ __('Credit note') }}</td>
                                 <td class="py-2 text-slate-500">{{ $doc->invoice->type === 'standard' ? __('B2B') : __('B2C') }}</td>
@@ -77,7 +77,7 @@
                             </tr>
                         @endforeach
                         @foreach ($pendingDebitNotes as $doc)
-                            <tr class="border-b border-slate-50 last:border-0">
+                            <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50/70">
                                 <td class="py-2 font-medium text-slate-800">{{ $doc->debit_note_number }}</td>
                                 <td class="py-2 text-slate-500">{{ __('Debit note') }}</td>
                                 <td class="py-2 text-slate-500">{{ $doc->invoice->type === 'standard' ? __('B2B') : __('B2C') }}</td>

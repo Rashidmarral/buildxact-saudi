@@ -9,7 +9,7 @@
         'credit_note' => $document->credit_note_number ?? '#'.$log->credit_note_id,
         'debit_note' => $document->debit_note_number ?? '#'.$log->debit_note_id,
     };
-    $statusClasses = ['cleared' => 'bg-emerald-50 text-emerald-700', 'reported' => 'bg-emerald-50 text-emerald-700', 'failed' => 'bg-red-50 text-red-700', 'queued' => 'bg-amber-50 text-amber-700'];
+    $statusClasses = ['cleared' => 'bg-emerald-50 text-emerald-700 border border-emerald-200', 'reported' => 'bg-emerald-50 text-emerald-700 border border-emerald-200', 'failed' => 'bg-red-50 text-red-700 border border-red-200', 'queued' => 'bg-amber-50 text-amber-700 border border-amber-200'];
     $alreadyAccepted = $type === 'invoice' ? ($document?->isZatcaLocked() ?? false) : ($document?->isZatcaSynced() ?? false);
     $typeLabel = match ($type) {
         'invoice' => __('Invoice'),

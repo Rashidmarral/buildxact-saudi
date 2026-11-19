@@ -8,6 +8,12 @@
 </div>
 
 <form method="GET" class="mb-6 bg-white rounded-xl border border-slate-100 p-4 space-y-3">
+    <h3 class="font-semibold text-slate-900 flex items-center gap-2">
+        <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM1 9a8 8 0 1 1 14.32 4.906l2.387 2.387a1 1 0 0 1-1.414 1.414l-2.387-2.387A8 8 0 0 1 1 9Z" clip-rule="evenodd"/></svg>
+        </span>
+        {{ __('Filter logs') }}
+    </h3>
     <div class="flex flex-wrap items-end gap-3">
         <div>
             <label class="block text-xs font-medium text-slate-500 mb-1">{{ __('Company') }}</label>
@@ -52,7 +58,7 @@
 </form>
 
 @php
-    $statusClasses = ['cleared' => 'bg-emerald-50 text-emerald-700', 'reported' => 'bg-emerald-50 text-emerald-700', 'failed' => 'bg-red-50 text-red-700', 'queued' => 'bg-amber-50 text-amber-700'];
+    $statusClasses = ['cleared' => 'bg-emerald-50 text-emerald-700 border border-emerald-200', 'reported' => 'bg-emerald-50 text-emerald-700 border border-emerald-200', 'failed' => 'bg-red-50 text-red-700 border border-red-200', 'queued' => 'bg-amber-50 text-amber-700 border border-amber-200'];
 @endphp
 
 <h2 class="text-base font-semibold text-slate-900 mb-3">{{ __('Invoices') }}</h2>
