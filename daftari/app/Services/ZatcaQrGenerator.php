@@ -51,10 +51,33 @@ class ZatcaQrGenerator
 
         $binary = '';
         foreach ($tags as $tag => $value) {
+            // chr() silently wraps modulo 256 for an out-of-range value
+            // (chr(256) === chr(0), a null byte) rather than erroring —
+            // a seller name over 255 *bytes* (companies.name is
+            // varchar(255) **characters**; Arabic/UTF-8 multi-byte text
+            // easily exceeds 255 bytes well under 255 characters) would
+            // silently write a wrong, wrapped-around length byte,
+            // corrupting this tag and every tag after it for any TLV
+            // parser reading the stream sequentially. generatePhase2()
+            // below already guards the same risk for its own (always
+            // short, fixed-format) tags; this is the one tag here whose
+            // real-world length actually varies enough to hit it.
+            $value = self::truncateToTlvByteLimit($value);
             $binary .= chr($tag).chr(strlen($value)).$value;
         }
 
         return base64_encode($binary);
+    }
+
+    /**
+     * Cuts $value down to at most 255 bytes — the largest a single TLV
+     * length byte can represent — without splitting a multi-byte UTF-8
+     * character in half, which would otherwise corrupt the byte
+     * immediately after the cut into an invalid encoding.
+     */
+    private static function truncateToTlvByteLimit(string $value): string
+    {
+        return strlen($value) > 255 ? mb_strcut($value, 0, 255, 'UTF-8') : $value;
     }
 
     /**
