@@ -144,7 +144,6 @@ CNF;
         return $path;
     }
 
-
     /**
      * Signs the invoice hash with the company's own EC private key (the
      * same key used for its ZATCA CSID/CSR) — tag 7 of the Phase 2 QR,
@@ -187,11 +186,21 @@ CNF;
     }
 
     /**
-     * The very first invoice in a company's chain hashes an empty string
-     * per ZATCA's documented base-case, exactly like a genesis block.
+     * The very first invoice in a company's chain has no real predecessor
+     * to hash, so ZATCA defines a fixed base-case value instead: the
+     * Base64 encoding of the lowercase-hex SHA-256 digest of the single
+     * character "0" (not an empty string, and not the raw 32-byte
+     * digest — ZATCA's own SDK samples base64-encode the 64-character
+     * hex string, giving the well-known 88-character constant below).
+     * Getting either of those wrong — hashing "" instead of "0", or
+     * base64-encoding the raw digest instead of its hex form — silently
+     * produces a different, ZATCA-incorrect value with no local
+     * validation to catch it; this only resurfaces at ZATCA's end, as a
+     * rejected first-ever invoice submission for an otherwise correctly
+     * configured company.
      */
     public function genesisHash(): string
     {
-        return base64_encode(hash('sha256', '', true));
+        return base64_encode(hash('sha256', '0', false));
     }
 }

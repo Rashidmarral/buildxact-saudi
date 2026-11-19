@@ -44,4 +44,25 @@ class ZatcaCryptoServiceTest extends TestCase
         $publicKeyPem = openssl_pkey_get_details($key)['key'];
         $this->assertSame(1, openssl_verify($hashBase64, $der, $publicKeyPem, OPENSSL_ALGO_SHA256), 'The signature does not verify against the signing key for the given message.');
     }
+
+    /**
+     * genesisHash() used to hash an empty string and base64-encode the
+     * raw 32-byte digest (base64_encode(hash('sha256', '', true))) —
+     * ZATCA's own documented base-case instead hashes the single
+     * character "0" and base64-encodes the 64-character *hex* digest,
+     * not the raw bytes. Nothing locally validates a company's chosen
+     * genesis value against ZATCA's own, so the old, wrong value would
+     * have passed every local check and only ever surfaced as a
+     * rejected first-ever invoice submission at ZATCA's end. Pins the
+     * exact well-known constant so a regression back to either mistake
+     * fails immediately, locally, instead of silently in production.
+     */
+    public function test_genesis_hash_matches_zatcas_documented_base_case_not_an_empty_string_hash(): void
+    {
+        $genesisHash = app(ZatcaCryptoService::class)->genesisHash();
+
+        $this->assertSame('NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI0NjcyOWQ3M2EyN2ZiNTdlOQ==', $genesisHash);
+        $this->assertSame('5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9', base64_decode($genesisHash), 'must be the base64 of the hex digest string, not the raw binary digest');
+        $this->assertNotSame(base64_encode(hash('sha256', '', true)), $genesisHash, 'must hash "0", not an empty string');
+    }
 }
