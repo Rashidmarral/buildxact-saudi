@@ -32,14 +32,39 @@ class ZatcaCertificateServiceTest extends TestCase
         $cert = openssl_csr_sign($csr, null, $key, 365, ['digest_alg' => 'sha256']);
         openssl_x509_export($cert, $certPem);
 
-        $certBase64 = base64_encode(str_replace(["-----BEGIN CERTIFICATE-----", "-----END CERTIFICATE-----", "\r", "\n"], '', $certPem));
+        $certBase64 = base64_encode(str_replace(['-----BEGIN CERTIFICATE-----', '-----END CERTIFICATE-----', "\r", "\n"], '', $certPem));
 
         $publicKeyPem = openssl_pkey_get_details($key)['key'];
-        $expectedDer = base64_decode(str_replace(["-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----", "\r", "\n"], '', $publicKeyPem));
+        $expectedDer = base64_decode(str_replace(['-----BEGIN PUBLIC KEY-----', '-----END PUBLIC KEY-----', "\r", "\n"], '', $publicKeyPem));
 
         $result = app(ZatcaCertificateService::class)->publicKeyBytes($certBase64);
 
         $this->assertSame($expectedDer, $result, "publicKeyBytes() must return the certificate's full SubjectPublicKeyInfo DER, matching its PEM-decoded public key exactly.");
         $this->assertGreaterThan(65, strlen($result), 'The full DER SubjectPublicKeyInfo is longer than the bare 65-byte point — the algorithm identifier must still be present.');
+    }
+
+    /**
+     * Backs the ZATCA dashboard's certificate-expiry warning banner — a
+     * company's production/compliance CSID has a real ZATCA-set validity
+     * window, and nothing previously surfaced it anywhere in the app.
+     */
+    public function test_valid_to_returns_the_certificates_real_expiry_date(): void
+    {
+        $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'secp256k1']);
+        $this->assertNotFalse($key);
+
+        $csr = openssl_csr_new(['commonName' => 'Test EGS', 'organizationName' => 'Test Co', 'countryName' => 'SA'], $key, ['digest_alg' => 'sha256']);
+        $cert = openssl_csr_sign($csr, null, $key, 90, ['digest_alg' => 'sha256']);
+        openssl_x509_export($cert, $certPem);
+        $certBase64 = base64_encode(str_replace(['-----BEGIN CERTIFICATE-----', '-----END CERTIFICATE-----', "\r", "\n"], '', $certPem));
+
+        $validTo = app(ZatcaCertificateService::class)->validTo($certBase64);
+
+        $this->assertInstanceOf(\DateTimeImmutable::class, $validTo);
+        // A 90-day cert signed "now" expires ~90 days out — a few
+        // minutes' slack either side for however long the test itself
+        // takes to run, never the days-wide drift a wrong ASN.1 field
+        // (e.g. notBefore instead of notAfter) would produce.
+        $this->assertEqualsWithDelta(now()->addDays(90)->timestamp, $validTo->getTimestamp(), 300);
     }
 }

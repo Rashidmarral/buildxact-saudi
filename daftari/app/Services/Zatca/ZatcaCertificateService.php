@@ -137,6 +137,24 @@ class ZatcaCertificateService
     }
 
     /**
+     * The certificate's expiry date — a company's production (or, before
+     * that's issued, compliance) CSID certificate has a real ZATCA-set
+     * validity window, and nothing elsewhere in this module previously
+     * surfaced it: a company could silently start having every
+     * submission rejected the day it lapses, with only a generic ZATCA
+     * error to go on and no earlier warning anywhere in the app.
+     */
+    public function validTo(string $certificateBase64): \DateTimeImmutable
+    {
+        [, $parsed] = $this->load($certificateBase64);
+
+        $notAfter = $parsed['tbsCertificate']['validity']['notAfter'];
+        $notAfter = $notAfter['generalTime'] ?? $notAfter['utcTime'];
+
+        return new \DateTimeImmutable($notAfter);
+    }
+
+    /**
      * The certificate's public key — QR tag 8 — as the full DER-encoded
      * SubjectPublicKeyInfo structure (algorithm identifier + the 0x04||X||Y
      * point), not just the bare 65-byte point. Confirmed against a
@@ -155,7 +173,7 @@ class ZatcaCertificateService
         [$x509] = $this->load($certificateBase64);
 
         $publicKeyPem = (string) $x509->getPublicKey();
-        $body = str_replace(["-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----", "\r", "\n"], '', $publicKeyPem);
+        $body = str_replace(['-----BEGIN PUBLIC KEY-----', '-----END PUBLIC KEY-----', "\r", "\n"], '', $publicKeyPem);
         $der = base64_decode($body, true);
 
         if ($der === false || $der === '') {

@@ -15,6 +15,7 @@ use App\Models\ZatcaDebitNoteLog;
 use App\Models\ZatcaEnvironmentCredential;
 use App\Models\ZatcaInvoiceLog;
 use App\Services\Zatca\ZatcaApiClient;
+use App\Services\Zatca\ZatcaCertificateService;
 use App\Services\Zatca\ZatcaCryptoService;
 use App\Services\Zatca\ZatcaSyncService;
 use App\Services\Zatca\ZatcaXadesSigner;
@@ -112,7 +113,38 @@ class ZatcaController extends Controller
             'pendingDebitNoteCount' => $pendingDebitNotesList->count(),
             'environments' => ZatcaApiClient::BASE_URLS,
             'readiness' => $company->zatcaReadinessChecklist(),
+            'certificateExpiry' => $this->certificateExpiry($company),
         ]);
+    }
+
+    /**
+     * The production certificate (once issued) is the one actually
+     * signing real submissions; the compliance certificate is the only
+     * one that exists before that, so it's the relevant one to warn
+     * about during onboarding/compliance-check. Returns null rather than
+     * throwing if the stored CSID can't be parsed (a legacy or malformed
+     * value) — an expiry warning is a nice-to-have, not something that
+     * should ever break the dashboard from loading.
+     */
+    private function certificateExpiry(Company $company): ?array
+    {
+        $certificateBase64 = $company->zatca_production_csid ?: $company->zatca_compliance_csid;
+
+        if (! $certificateBase64) {
+            return null;
+        }
+
+        try {
+            $validTo = app(ZatcaCertificateService::class)->validTo($certificateBase64);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return [
+            'expires_at' => $validTo,
+            'source' => $company->zatca_production_csid ? 'production' : 'compliance',
+            'days_remaining' => (int) now()->diffInDays($validTo, false),
+        ];
     }
 
     /**

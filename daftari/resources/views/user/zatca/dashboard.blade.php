@@ -99,6 +99,34 @@
     </div>
 @else
 
+@if ($certificateExpiry)
+    @php
+        $daysLeft = $certificateExpiry['days_remaining'];
+        $certLabel = $certificateExpiry['source'] === 'production' ? __('production') : __('compliance');
+    @endphp
+    @if ($daysLeft < 0)
+        <div class="rounded-xl border border-red-200 bg-red-50 p-4 mb-6 flex items-start gap-3">
+            <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/></svg>
+            </span>
+            <div>
+                <p class="font-semibold text-red-800">{{ __('Your :cert ZATCA certificate has expired', ['cert' => $certLabel]) }}</p>
+                <p class="text-sm text-red-700 mt-0.5">{{ __('It expired on :date. Every submission will be rejected by ZATCA until this is renewed — contact support to reissue it.', ['date' => $certificateExpiry['expires_at']->format('Y-m-d')]) }}</p>
+            </div>
+        </div>
+    @elseif ($daysLeft <= 30)
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-6 flex items-start gap-3">
+            <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/></svg>
+            </span>
+            <div>
+                <p class="font-semibold text-amber-800">{{ __('Your :cert ZATCA certificate expires in :days day(s)', ['cert' => $certLabel, 'days' => $daysLeft]) }}</p>
+                <p class="text-sm text-amber-700 mt-0.5">{{ __('Expires on :date. Renew it before then to avoid every submission being rejected by ZATCA.', ['date' => $certificateExpiry['expires_at']->format('Y-m-d')]) }}</p>
+            </div>
+        </div>
+    @endif
+@endif
+
 <div class="grid sm:grid-cols-4 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-slate-100 p-5">
         <p class="text-xs text-slate-400">{{ __('Cleared (B2B)') }}</p>
